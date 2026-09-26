@@ -135,6 +135,47 @@
   },
   "archetypes": [
     {
+      "id": "rookie",
+      "valueBand": [
+        2520,
+        3696
+      ],
+      "buildCost": 3360,
+      "factions": [
+        "arenatraveller"
+      ],
+      "design": {
+        "bodyId": "compact",
+        "chassisId": "standard",
+        "suspensionId": "light",
+        "plantId": "medium",
+        "tireId": "standard",
+        "armor": {
+          "FRONT": 6,
+          "REAR": 4,
+          "LEFT": 4,
+          "RIGHT": 4,
+          "UNDERBODY": 2
+        },
+        "weapons": [
+          {
+            "weaponId": "machinegun",
+            "facing": "FRONT",
+            "ammo": 20
+          }
+        ]
+      },
+      "skill": {
+        "driving": 15,
+        "marksmanship": 12
+      },
+      "personality": {
+        "aggression": 0.45,
+        "caution": 0.55,
+        "playerThreatBias": 0.4
+      }
+    },
+    {
       "id": "beater",
       "valueBand": [
         870,

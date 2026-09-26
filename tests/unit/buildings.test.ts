@@ -783,6 +783,27 @@ describe('courierguild', () => {
     expect(latePay).toBeLessThan(onTimePay);
   });
 
+  it('delivering twice is impossible: the row is gone after the first activation, and replaying its id is a no-op, not a second payday', () => {
+    const ctx = deliverableCtx();
+    const state = createCourierGuildState(ctx);
+    const row = courierGuildActions(state).find((a) => a.id.startsWith('deliver-'));
+    expect(row).toBeDefined();
+    const deliverId = row!.id;
+
+    const first = courierGuildEngine.activate(state, deliverId);
+    const cashAfterFirst = first.state.context.driver.cash;
+
+    // The row that made this delivery possible must not still be offered -
+    // reactivating the same actionId on the post-delivery state must find
+    // no matching job (deliverableJobsFor no longer lists it) and change
+    // nothing, rather than paying out a second time from stale cargo/job
+    // state a careless implementation forgot to clear.
+    expect(courierGuildActions(first.state).some((a) => a.id === deliverId)).toBe(false);
+
+    const second = courierGuildEngine.activate(first.state, deliverId);
+    expect(second.state.context.driver.cash).toBe(cashAfterFirst);
+    expect(second.state.context.activeCourierJobs).toEqual(first.state.context.activeCourierJobs);
+  });
 
   it('generates EXACTLY the ruleset\'s offersPerVisit offers, matching @/sim/courier\'s own generateOffers bit-for-bit (delegation, not a reimplementation)', () => {
     const ctx = makeContext({ rng: createRng('courier-seed-1') });

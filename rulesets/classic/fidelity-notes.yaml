@@ -5494,3 +5494,82 @@ entries:
     source: "driving.json - authored for this recreation"
     confidence: 0.3
     note: "Minimum gap between two spawned opponents: driving.arena.minSpawnSeparationM"
+
+  - id: "encounters.archetypes.rookie.valueBand"
+    value: [2520, 3696]
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.valueBand"
+  - id: "encounters.archetypes.rookie.buildCost"
+    value: 3360
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.buildCost"
+  - id: "encounters.archetypes.rookie.design.armor.FRONT"
+    value: 6
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.design.armor.FRONT"
+  - id: "encounters.archetypes.rookie.design.armor.REAR"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.design.armor.REAR"
+  - id: "encounters.archetypes.rookie.design.armor.LEFT"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.design.armor.LEFT"
+  - id: "encounters.archetypes.rookie.design.armor.RIGHT"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.design.armor.RIGHT"
+  - id: "encounters.archetypes.rookie.design.armor.UNDERBODY"
+    value: 2
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.design.armor.UNDERBODY"
+  - id: "encounters.archetypes.rookie.design.weapons.0.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.design.weapons.0.ammo"
+  - id: "encounters.archetypes.rookie.skill.driving"
+    value: 15
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.skill.driving"
+  - id: "encounters.archetypes.rookie.skill.marksmanship"
+    value: 12
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.skill.marksmanship"
+  - id: "encounters.archetypes.rookie.personality.aggression"
+    value: 0.45
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.personality.aggression"
+  - id: "encounters.archetypes.rookie.personality.caution"
+    value: 0.55
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.personality.caution"
+  - id: "encounters.archetypes.rookie.personality.playerThreatBias"
+    value: 0.4
+    status: Reconstruction
+    source: "encounters.json - the entry-level arena fighter, authored for this recreation; the road archetypes had no rung below skill 35"
+    confidence: 0.3
+    note: "Entry-level arena opponent so the beginner event is not a 5-on-1 against strictly better drivers: encounters.archetypes.rookie.personality.playerThreatBias"

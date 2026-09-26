@@ -20,20 +20,35 @@ import { citiesConfig, drivingConfig, getPlant, getTire, getWeapon, skillsConfig
 import { validateRulesets } from '@/data/schema';
 import {
   beginArenaMatch,
+  circleIntersectsOrientedRect,
+  computeArenaSpawnPositions,
+  findBearingTarget,
   getArenaEvent,
+  opponentDefeatedByReport,
+  orientedRectsOverlap,
+  recordOpponentDefeated,
   resolveArenaExit,
+  rosterFor,
+  selectArchetypeForEvent,
+  vehicleOrientedRect,
+  type ArenaEventDef,
   type ArenaExitMode,
   type ArenaMatchState,
+  type ArenaOpponentArchetype,
   type ArenaResolution,
+  type ArenaRoster,
 } from '@/sim/arena';
+import { decideAI, type AIContext, type AIPersonality, type ArenaBounds } from '@/sim/ai';
 import { advanceDays, initialClock, type Clock } from '@/sim/calendar';
 import {
   advanceProjectile,
+  applyResolvedShot,
   fire,
   facingWorldDirection,
   projectileExpired,
   tickCooldowns,
   type FireCommand,
+  type ProjectileState,
 } from '@/sim/combat';
 import { computeBuild } from '@/sim/construct';
 import {
@@ -47,11 +62,13 @@ import {
   type CityTrigger,
 } from '@/sim/city';
 import type { AcceptedJob } from '@/sim/courier';
+import { subtractVec, vecLength } from '@/sim/damage';
 import { createDriver, getSkill } from '@/sim/driver';
-import { stepDriving, isRadarDisabled, type DriveInput } from '@/sim/driving';
+import { applyCollision, stepDriving, stopAtObstacle, isRadarDisabled, type DriveInput } from '@/sim/driving';
 import {
   createGameLoop,
   createSystemsRegistry,
+  defaultInputFrame,
   dtSecondsFromTickRate,
   type InputFrame,
   type SystemFn,
@@ -64,7 +81,7 @@ import {
   type ResolvedRoute,
   type RoadTripState,
 } from '@/sim/road';
-import type { DriverState, RouteDef, SkillName, VehicleState } from '@/sim/types';
+import type { DriverState, RouteDef, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
 import { createWorld, type World } from '@/sim/world';
 import { createRng, type Rng } from '@/util/rng';
 import { hashState } from '@/util/hash';
@@ -129,6 +146,9 @@ const VEHICLE_SPRITE_SIZE_M = { x: 3.2, y: 5.2 };
 const FLOOR_TILE_SIZE_M = 10;
 const FLOOR_TILES_PER_SIDE = 9;
 const PIXELS_PER_METER_CSS = 14;
+/** Half the floor's real-world footprint — the arena's playable bounds (AI hazard-avoidance reads this), derived from the same two render constants the floor tiles themselves are built from, never a second literal. */
+const ARENA_HALF_SIZE_M = (FLOOR_TILES_PER_SIDE * FLOOR_TILE_SIZE_M) / 2;
+const OPPONENT_ID_PREFIX = 'opp-';
 
 function degToRad(deg: number): number {
   return (deg * Math.PI) / 180;
@@ -428,17 +448,29 @@ function showConstructor(
 // Vehicle construction: BuilderConfirmedBuild -> a real runtime VehicleState
 // ---------------------------------------------------------------------------
 
-export function vehicleStateFromConfirmedBuild(confirmed: BuilderConfirmedBuild, ownerId: string): VehicleState {
-  const design = confirmed.design;
+/**
+ * Builds a fresh runtime `VehicleState` from a `VehicleDesign` alone — the
+ * shared core `vehicleStateFromConfirmedBuild` (the player's own build) and
+ * `spawnArenaOpponents` (real opponents, positioned on the spawn ring) both
+ * go through, so "how a design becomes a runtime vehicle" is one function,
+ * not two independently-typed copies that could drift.
+ */
+export function vehicleStateFromDesign(
+  design: VehicleDesign,
+  id: string,
+  ownerId: string,
+  position: Vec2 = { x: 0, y: 0 },
+  headingRad = 0,
+): VehicleState {
   const tire = getTire(design.tireId);
   const plant = getPlant(design.plantId);
 
   return {
-    id: `veh-${ownerId}`,
+    id,
     ownerId,
     design,
-    position: { x: 0, y: 0 },
-    headingRad: 0,
+    position,
+    headingRad,
     speedMps: 0,
     battery: drivingConfig().battery.full,
     odometerMiles: 0,
@@ -463,6 +495,10 @@ export function vehicleStateFromConfirmedBuild(confirmed: BuilderConfirmedBuild,
     statusEffects: [],
     destroyed: false,
   };
+}
+
+export function vehicleStateFromConfirmedBuild(confirmed: BuilderConfirmedBuild, ownerId: string): VehicleState {
+  return vehicleStateFromDesign(confirmed.design, `veh-${ownerId}`, ownerId);
 }
 
 export function replaceVehicle(world: World, vehicle: VehicleState): void {
@@ -569,6 +605,363 @@ export const cleanupSystem: SystemFn = (world) => {
 };
 
 // ---------------------------------------------------------------------------
+// Arena-event opponents: real spawn, real `decideAI`, real fire pipeline.
+//
+// `makeDrivingSystem`/`makeWeaponsSystem` above only ever drive the ONE
+// player-controlled vehicle (a single buffered `InputFrame` per tick,
+// straight off `driverRef`) — `showArena`'s zero-opponent practice loop
+// never needed more than that, and `tests/integration/boot.test.ts` already
+// calls both by that exact signature, so they stay exactly as they are.
+// `showArenaEvent` (real opponents) needs a DIFFERENT InputFrame per
+// vehicle every tick — the player's from the DOM/test, every opponent's
+// from its own `decideAI` decision — so these are separate, dedicated
+// systems, not a signature change to the ones above.
+// ---------------------------------------------------------------------------
+
+/** An opponent's combat-relevant state that isn't itself part of `World` — mirrors `driverRef` for the player, one entry per spawned opponent vehicle id. */
+export interface ArenaOpponentState {
+  /**
+   * Which encounters.json archetype this opponent's skill/personality came
+   * from. Recorded so a test can assert the pair MATCHES that archetype — the
+   * previous test only checked `>= 0`, and a verifier proved that hard-coding
+   * every opponent to skill 0 (the exact "nerf the AI so the player wins"
+   * failure) passed the whole suite.
+   */
+  readonly archetypeId: string;
+  readonly personality: AIPersonality;
+  readonly driver: DriverState;
+  /** This opponent's own fixed `decideAI` seed — drawn once at spawn from the match's own seeded RNG, never `Math.random`/`Date.now`. */
+  readonly seed: number;
+}
+
+export function arenaBounds(): ArenaBounds {
+  return { minX: -ARENA_HALF_SIZE_M, maxX: ARENA_HALF_SIZE_M, minY: -ARENA_HALF_SIZE_M, maxY: ARENA_HALF_SIZE_M };
+}
+
+/**
+ * A `DriverState` stand-in for an AI opponent — `applyPenetratingDamage`
+ * (via `applyResolvedShot`) needs one to track armor-then-health on a hit
+ * the same way it does for the player, and `stepDriving`/`fire` need a
+ * `driving`/`marksmanship` skill number. Built straight from the chosen
+ * archetype's own `skill` block (never a TS literal) plus
+ * `skillsConfig().driver`'s own starting health/armor — the same fields
+ * `createDriver` seeds a real player with — rather than `createDriver`
+ * itself, whose "skills must sum to exactly startingSkillPool" gate exists
+ * for the player-creation UI, not for an archetype's own independently-tuned
+ * driving/marksmanship pair.
+ */
+export function opponentDriverState(skill: { readonly driving: number; readonly marksmanship: number }): DriverState {
+  const cfg = skillsConfig();
+  return {
+    name: 'Opponent',
+    skills: { driving: skill.driving, marksmanship: skill.marksmanship, mechanic: 0 },
+    naturalHealth: cfg.driver.naturalHealthDP,
+    bodyArmor: 0,
+    prestige: 0,
+    cash: 0,
+    cityId: cfg.startingLocation,
+    cloneCityId: null,
+    cloneSkills: null,
+  };
+}
+
+function requireOpponent(opponents: ReadonlyMap<string, ArenaOpponentState>, vehicleId: string): ArenaOpponentState {
+  const found = opponents.get(vehicleId);
+  if (found === undefined) throw new RangeError(`arena: no tracked opponent state for vehicle "${vehicleId}"`);
+  return found;
+}
+
+/**
+ * Spawns `event`'s real opponent roster into `world` and returns their
+ * combat state, keyed by vehicle id — the ONE place opponent vehicles come
+ * from (`showArenaEvent`'s match start and `tests/integration/arena-victory
+ * .test.ts` both call this exact function, not a parallel reimplementation).
+ * Positions come from `computeArenaSpawnPositions` (the spawn ring), rotated
+ * by one draw from the match's own seeded `world.rngState` so the
+ * arrangement is deterministic per session without ever being the same
+ * every match. Design/skill/personality come from `rosterFor` (house vs. own
+ * vehicleSource) and `selectArchetypeForEvent` — see `@/sim/arena` for both.
+ */
+export function spawnArenaOpponents(world: World, event: ArenaEventDef): Map<string, ArenaOpponentState> {
+  const roster: ArenaRoster = rosterFor(event.id);
+  const archetype: ArenaOpponentArchetype = selectArchetypeForEvent(event);
+  const drivingCfg = drivingConfig();
+
+  const rotationOffsetRad = withWorldRng(world, (rng) => rng.nextFloat() * 2 * Math.PI);
+  const positions = computeArenaSpawnPositions(
+    roster.opponentCount,
+    drivingCfg.arena.spawnRingRadiusM,
+    rotationOffsetRad,
+    drivingCfg.arena.minSpawnSeparationM,
+  );
+
+  let design: VehicleDesign;
+  if (roster.vehicleSource === 'house') {
+    if (roster.houseOpponentDesign === null) {
+      throw new RangeError(`arena: event "${event.id}" is house-sourced but has no house design`);
+    }
+    design = roster.houseOpponentDesign;
+  } else {
+    design = archetype.design;
+  }
+
+  const opponents = new Map<string, ArenaOpponentState>();
+  positions.forEach((position, i) => {
+    const id = `${OPPONENT_ID_PREFIX}${i}`;
+    // Spawns facing outward, away from the ring's center (not already aimed
+    // at the player) — nothing hands an AI a free instant-lock; it steers to
+    // bring a weapon to bear starting from a cold heading exactly like the
+    // player does, the same as materializing at the gate and turning to
+    // face the fight.
+    const headingRad = Math.atan2(position.y, position.x);
+    const vehicle = vehicleStateFromDesign(design, id, id, position, headingRad);
+    world.entities.vehicles.push(vehicle);
+    const seed = withWorldRng(world, (rng) => rng.nextU32());
+    opponents.set(id, {
+      archetypeId: archetype.id,
+      personality: archetype.personality,
+      driver: opponentDriverState(archetype.skill),
+      seed,
+    });
+  });
+  return opponents;
+}
+
+/**
+ * Vehicle-vs-vehicle contact: any two non-destroyed vehicles whose
+ * oriented-rectangle colliders (bodies.json's colliderLengthM/colliderWidthM
+ * via `vehicleOrientedRect`) overlap take `applyCollision`'s real armor
+ * check (`driving.json`'s `collision.armorLossSpeedMph`/`armorLossPoints`),
+ * are stopped (`stopAtObstacle`), and are nudged apart along their center
+ * line by `collision.vehicleSeparationM` so an overlap clears in one tick
+ * instead of wedging two cars together forever.
+ */
+function resolveVehicleCollisions(vehicles: readonly VehicleState[]): VehicleState[] {
+  const drivingCfg = drivingConfig();
+  const mphPerMps = 3600 / drivingCfg.metersPerMile;
+  const out = vehicles.map((v) => v);
+  for (let i = 0; i < out.length; i++) {
+    const a = out[i];
+    if (a === undefined || a.destroyed) continue;
+    for (let j = i + 1; j < out.length; j++) {
+      const b = out[j];
+      if (b === undefined || b.destroyed) continue;
+      if (!orientedRectsOverlap(vehicleOrientedRect(a), vehicleOrientedRect(b))) continue;
+
+      const impactSpeedMph = Math.max(a.speedMps, b.speedMps) * mphPerMps;
+      const distanceM = vecLength(subtractVec(b.position, a.position));
+      const awayFromA = distanceM > 0 ? { x: (b.position.x - a.position.x) / distanceM, y: (b.position.y - a.position.y) / distanceM } : { x: 1, y: 0 };
+      const nudgeM = drivingCfg.collision.vehicleSeparationM / 2;
+
+      const collidedA = stopAtObstacle(applyCollision(a, impactSpeedMph));
+      const collidedB = stopAtObstacle(applyCollision(b, impactSpeedMph));
+      out[i] = { ...collidedA, position: { x: a.position.x - awayFromA.x * nudgeM, y: a.position.y - awayFromA.y * nudgeM } };
+      out[j] = { ...collidedB, position: { x: b.position.x + awayFromA.x * nudgeM, y: b.position.y + awayFromA.y * nudgeM } };
+    }
+  }
+  return out;
+}
+
+/**
+ * Every non-player, non-destroyed vehicle's REAL `decideAI` decision for
+ * this tick, stored for `makeArenaDrivingSystem`/`makeArenaWeaponsSystem` to
+ * read starting NEXT tick — matching `@/sim/loop`'s fixed system order
+ * (`driving -> weapons -> projectiles -> deployables -> damage -> ai ->
+ * cleanup`: `ai` runs after this tick's movement/fire/damage have already
+ * resolved, deciding what each opponent does starting the FOLLOWING tick,
+ * exactly like a human reacting to what it just saw). `decideAI` reads
+ * `ctx.self`/`ctx.world` and returns nothing but an `InputFrame` — it never
+ * touches `world.entities.vehicles` directly, so an opponent's movement and
+ * fire still go through the exact same `stepDriving`/`fire` pipeline the
+ * player's own input does.
+ */
+export function makeArenaAISystem(playerVehicleId: string, opponents: ReadonlyMap<string, ArenaOpponentState>, aiInputs: Map<string, InputFrame>): SystemFn {
+  return (world) => {
+    const bounds = arenaBounds();
+    for (const vehicle of world.entities.vehicles) {
+      if (vehicle.id === playerVehicleId || vehicle.destroyed) continue;
+      const opponent = opponents.get(vehicle.id);
+      if (opponent === undefined) continue;
+      const ctx: AIContext = {
+        self: vehicle,
+        world: { tick: world.tick, bounds, vehicles: world.entities.vehicles, hazards: [], playerVehicleId },
+        personality: opponent.personality,
+        seed: opponent.seed,
+      };
+      aiInputs.set(vehicle.id, decideAI(ctx).input);
+    }
+  };
+}
+
+export function makeArenaDrivingSystem(
+  driverRef: { current: DriverState },
+  playerVehicleId: string,
+  opponents: ReadonlyMap<string, ArenaOpponentState>,
+  aiInputs: ReadonlyMap<string, InputFrame>,
+): SystemFn {
+  return (world, input, dtSeconds) => {
+    const driven = world.entities.vehicles.map((vehicle) => {
+      if (vehicle.destroyed) return vehicle;
+      const isPlayer = vehicle.id === playerVehicleId;
+      const vehicleInput = isPlayer ? input : (aiInputs.get(vehicle.id) ?? defaultInputFrame());
+      const drivingSkill = isPlayer
+        ? getSkill(driverRef.current, 'driving')
+        : getSkill(requireOpponent(opponents, vehicle.id).driver, 'driving');
+      const driveInput: DriveInput = { stick: { x: vehicleInput.moveX, y: vehicleInput.moveY } };
+      return withWorldRng(world, (rng) =>
+        stepDriving({
+          vehicle,
+          input: driveInput,
+          dtSeconds,
+          rng: { next: () => rng.nextFloat() },
+          drivingSkill,
+          surface: 'normal',
+        }),
+      ).vehicle;
+    });
+    world.entities.vehicles = resolveVehicleCollisions(driven);
+  };
+}
+
+export function makeArenaWeaponsSystem(
+  driverRef: { current: DriverState },
+  playerVehicleId: string,
+  opponents: ReadonlyMap<string, ArenaOpponentState>,
+  aiInputs: ReadonlyMap<string, InputFrame>,
+  projectileTargets: Map<string, string>,
+  spawnCounter: { current: number },
+  log: (kind: HudMessageKind, text: string) => void,
+): SystemFn {
+  return (world, input) => {
+    world.entities.vehicles.forEach((vehicle, index) => {
+      if (vehicle.destroyed) return;
+      const isPlayer = vehicle.id === playerVehicleId;
+
+      const cooled = tickCooldowns(vehicle, 1);
+      world.entities.vehicles[index] = cooled;
+
+      const vehicleInput = isPlayer ? input : (aiInputs.get(cooled.id) ?? defaultInputFrame());
+      if (!vehicleInput.fire) return;
+
+      const weapon = cooled.weapons[vehicleInput.weaponSlot];
+      if (weapon === undefined || weapon.facing === 'UNDERBODY') return;
+      const weaponDef = getWeapon(weapon.weaponId);
+
+      const bearingTarget = findBearingTarget(cooled, weapon.facing, world.entities.vehicles, weaponDef.rangeM, weaponDef.minRangeM);
+      const direction = facingWorldDirection(cooled.headingRad, weapon.facing);
+      const targetPosition = bearingTarget?.position ?? {
+        x: cooled.position.x + direction.x * weaponDef.rangeM,
+        y: cooled.position.y + direction.y * weaponDef.rangeM,
+      };
+      const targetHeadingRad = bearingTarget?.headingRad ?? cooled.headingRad;
+
+      const marksmanshipSkill = isPlayer
+        ? getSkill(driverRef.current, 'marksmanship')
+        : getSkill(requireOpponent(opponents, cooled.id).driver, 'marksmanship');
+      const spawnedEntityId = `proj-${world.tick}-${spawnCounter.current}`;
+      spawnCounter.current += 1;
+
+      const result = withWorldRng(world, (rng) => {
+        const command: FireCommand = {
+          vehicle: cooled,
+          weaponSlotIndex: vehicleInput.weaponSlot,
+          target: { position: targetPosition, headingRad: targetHeadingRad },
+          ctx: {
+            rng,
+            marksmanshipSkill,
+            rangePenaltyPercent: 0,
+            relativeMotionPenaltyPercent: 0,
+            smokePenaltyPercent: 0,
+            paintPenaltyPercent: 0,
+          },
+          tick: world.tick,
+          spawnedEntityId,
+          deployDropOffsetM: 2,
+        };
+        return fire(command);
+      });
+      world.entities.vehicles[index] = result.vehicle;
+      if (!result.ok) {
+        if (isPlayer && result.reason === 'NO_AMMO') log('info', t('ui.weapon.outOfAmmo', { weapon: weaponDef.name }));
+        return;
+      }
+      if (result.spawn?.kind === 'PROJECTILE') {
+        world.entities.projectiles.push(result.spawn.projectile);
+        if (bearingTarget !== null) projectileTargets.set(spawnedEntityId, bearingTarget.id);
+        if (isPlayer) log('hit', t('ui.weapon.fired', { weapon: weaponDef.name }));
+      }
+    });
+  };
+}
+
+/**
+ * Releases every projectile's pre-rolled outcome (see `@/sim/combat`'s file
+ * header) onto the REAL target it was fired at, the moment it reaches that
+ * target's oriented-rectangle collider or expires — whichever comes first —
+ * via the real `applyResolvedShot` penetration chain. An opponent whose hit
+ * report comes back `opponentDefeatedByReport` is marked `destroyed` and its
+ * defeat is recorded through the real `recordOpponentDefeated` (never a
+ * direct `matchState.opponentsDefeated` write). The player's own hits update
+ * `driverRef` the same way, and a defeated PLAYER is marked `destroyed` too
+ * (the exit handler below reads that to force an ON_FOOT exit).
+ */
+export function makeArenaDamageSystem(
+  playerVehicleId: string,
+  driverRef: { current: DriverState },
+  opponents: Map<string, ArenaOpponentState>,
+  projectileTargets: Map<string, string>,
+  matchStateRef: { current: ArenaMatchState },
+  log: (kind: HudMessageKind, text: string) => void,
+): SystemFn {
+  return (world) => {
+    const collisionCfg = drivingConfig().collision;
+    const remaining: ProjectileState[] = [];
+
+    for (const projectile of world.entities.projectiles) {
+      const targetId = projectileTargets.get(projectile.id);
+      const targetIndex = targetId === undefined ? -1 : world.entities.vehicles.findIndex((v) => v.id === targetId);
+      const target = targetIndex >= 0 ? world.entities.vehicles[targetIndex] : undefined;
+
+      const reached =
+        target !== undefined && circleIntersectsOrientedRect(projectile.position, collisionCfg.projectileRadiusM, vehicleOrientedRect(target));
+      const expired = projectileExpired(projectile);
+
+      if (!reached && !expired) {
+        remaining.push(projectile);
+        continue;
+      }
+      projectileTargets.delete(projectile.id);
+
+      const { hit, damage, facing } = projectile.outcome;
+      if (target === undefined || target.destroyed || !hit || facing === null) continue;
+
+      const isTargetPlayer = target.id === playerVehicleId;
+      const targetDriver = isTargetPlayer ? driverRef.current : requireOpponent(opponents, target.id).driver;
+      const resolved = withWorldRng(world, (rng) =>
+        applyResolvedShot({ vehicle: target, driver: targetDriver }, facing, damage, rng),
+      );
+
+      const defeated = opponentDefeatedByReport(resolved.report);
+      const nextVehicle = defeated ? { ...resolved.target.vehicle, destroyed: true } : resolved.target.vehicle;
+      world.entities.vehicles[targetIndex] = nextVehicle;
+
+      if (isTargetPlayer) {
+        driverRef.current = resolved.target.driver;
+      } else {
+        const entry = requireOpponent(opponents, target.id);
+        opponents.set(target.id, { ...entry, driver: resolved.target.driver });
+        if (defeated) {
+          matchStateRef.current = recordOpponentDefeated(matchStateRef.current);
+          const remainingCount = matchStateRef.current.opponentsTotal - matchStateRef.current.opponentsDefeated;
+          log('info', t('ui.arena.opponentDefeated', { remaining: String(remainingCount) }));
+        }
+      }
+    }
+    world.entities.projectiles = remaining;
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
 
@@ -634,7 +1027,7 @@ async function buildRenderResources(
 function buildFloorInstances(atlasIndex: AtlasIndex): SpriteInstanceInput[] {
   const frame: FrameInfo = atlasIndex.frame('tile-concrete-arena');
   const uv = frame.uv;
-  const half = (FLOOR_TILES_PER_SIDE * FLOOR_TILE_SIZE_M) / 2;
+  const half = ARENA_HALF_SIZE_M;
   const instances: SpriteInstanceInput[] = [];
   for (let row = 0; row < FLOOR_TILES_PER_SIDE; row++) {
     for (let col = 0; col < FLOOR_TILES_PER_SIDE; col++) {
@@ -1096,19 +1489,15 @@ function applyBuildingContext(state: CityRunState, ctx: BuildingContext): CityRu
 // this screen ever mounts, so eligibility and the entry fee are exactly as
 // real as the boot-time path.
 //
-// SCOPE LIMIT (documented, not silently papered over): opponent vehicles
-// are not yet spawned or AI-driven in this integration pass - wiring
-// `@/sim/ai`'s real `decideAI` against real opponent `VehicleState`s needs a
-// projectile/vehicle collision radius that no ruleset file defines yet (a
-// new tunable this pass has no authority to invent - see the file header's
-// "no gameplay constant literal" hard rule), so it is left for a follow-up
-// that adds that field to a ruleset table first. Every event is still
-// enterable and fairly charges/resolves through the real
-// `beginArenaMatch`/`resolveArenaExit` pipeline: an event with real
-// opponents can currently only be exited as an ESCAPE (prestige penalty,
-// car kept, matching `resolveArenaExit`'s own honest behavior when
-// `opponentsDefeated` never reaches `opponentsTotal`), while `practice`
-// (0 opponents) still resolves a real VICTORY exactly as it always has.
+// Real opponents: `spawnArenaOpponents` deals event's roster onto the spawn
+// ring at match start, `makeArenaAISystem` drives every one of them with the
+// real `@/sim/ai` `decideAI`, and `makeArenaWeaponsSystem`/
+// `makeArenaDamageSystem` run the exact same `fire()`/`applyResolvedShot()`
+// pipeline the player's own shots go through — an opponent whose plant is
+// destroyed or driver defeated is marked `destroyed` and recorded through
+// the real `recordOpponentDefeated`, so `resolveArenaExit` can genuinely
+// resolve VICTORY once the whole roster is down and the player drives out
+// under their own power, not just ESCAPE.
 function showArenaEvent(
   root: HTMLElement,
   chargedDriver: DriverState,
@@ -1142,9 +1531,14 @@ function showArenaEvent(
 
   const world = createArenaWorld(cityState.sessionSeed, playerVehicle);
   world.clock = clock;
+  const playerVehicleId = playerVehicle.id;
+  const opponents = spawnArenaOpponents(world, event);
 
   const driverRef = { current: chargedDriver };
+  const matchStateRef = { current: matchState };
   const spawnCounter = { current: 0 };
+  const aiInputs = new Map<string, InputFrame>();
+  const projectileTargets = new Map<string, string>();
   const messages: HudMessage[] = [];
   let messageCounter = 0;
   function logMessage(kind: HudMessageKind, text: string): void {
@@ -1155,9 +1549,11 @@ function showArenaEvent(
   logMessage('info', t('ui.arena.eventEntered', { event: event.name, count: matchState.opponentsTotal }));
 
   const systems = createSystemsRegistry();
-  systems.register('driving', makeDrivingSystem(driverRef));
-  systems.register('weapons', makeWeaponsSystem(driverRef, spawnCounter, logMessage));
+  systems.register('driving', makeArenaDrivingSystem(driverRef, playerVehicleId, opponents, aiInputs));
+  systems.register('weapons', makeArenaWeaponsSystem(driverRef, playerVehicleId, opponents, aiInputs, projectileTargets, spawnCounter, logMessage));
   systems.register('projectiles', projectilesSystem);
+  systems.register('damage', makeArenaDamageSystem(playerVehicleId, driverRef, opponents, projectileTargets, matchStateRef, logMessage));
+  systems.register('ai', makeArenaAISystem(playerVehicleId, opponents, aiInputs));
   systems.register('cleanup', cleanupSystem);
 
   const heldKeys = new Set<string>();
@@ -1288,7 +1684,11 @@ function showArenaEvent(
     camera.setCenter(player.position);
     writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
 
-    const spriteInstances = [vehicleSpriteInstance(player, atlasIndex)];
+    const atlas = atlasIndex;
+    const opponentInstances = world.entities.vehicles
+      .filter((vehicle) => vehicle.id !== player.id && !vehicle.destroyed)
+      .map((vehicle) => vehicleSpriteInstance(vehicle, atlas));
+    const spriteInstances = [vehicleSpriteInstance(player, atlas), ...opponentInstances];
     writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(floorInstances));
     writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
 
@@ -1338,7 +1738,7 @@ function showArenaEvent(
     stop();
     const player = findPlayer(world);
     const exitMode: ArenaExitMode = player?.destroyed === true ? 'ON_FOOT' : 'UNDER_POWER';
-    const resolution: ArenaResolution = resolveArenaExit(matchState, driverRef.current, exitMode);
+    const resolution: ArenaResolution = resolveArenaExit(matchStateRef.current, driverRef.current, exitMode);
     const nextClock = advanceDays(world.clock, resolution.daysConsumed);
     const nextVehicle = player ?? playerVehicle;
     onComplete({ ...cityState, driver: resolution.driver, vehicle: nextVehicle, clock: nextClock });

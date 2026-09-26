@@ -64,6 +64,7 @@
     "ui.arena.practiceEntered": "Practice arena entered — free run, no opponents. Seed {seed}.",
     "ui.arena.eventEntered": "{event}: {count} opponent(s) — drive out the gate to exit.",
     "ui.arena.eventHint": "{event} — WASD/arrows drive, Space/J fire, Q/E cycle weapon.",
+    "ui.arena.opponentDefeated": "Opponent destroyed — {remaining} left.",
 
     "ui.city.status": "{city} — Day {day} {phase} — ${cash}\nWASD/arrows walk · G enter/exit car · walk into a building or the gate",
     "ui.city.routeOption": "{city} — {miles}mi, danger {danger}",
