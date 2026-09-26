@@ -16,10 +16,17 @@
 import '@/ui/builder.css';
 import '@/ui/hud.css';
 
-import { drivingConfig, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
+import { citiesConfig, drivingConfig, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
 import { validateRulesets } from '@/data/schema';
-import { beginArenaMatch } from '@/sim/arena';
-import { initialClock } from '@/sim/calendar';
+import {
+  beginArenaMatch,
+  getArenaEvent,
+  resolveArenaExit,
+  type ArenaExitMode,
+  type ArenaMatchState,
+  type ArenaResolution,
+} from '@/sim/arena';
+import { advanceDays, initialClock, type Clock } from '@/sim/calendar';
 import {
   advanceProjectile,
   fire,
@@ -29,6 +36,17 @@ import {
   type FireCommand,
 } from '@/sim/combat';
 import { computeBuild } from '@/sim/construct';
+import {
+  createCityPlayerState,
+  generateCityLayout,
+  stepWalk,
+  toggleVehicle,
+  type CityDirection,
+  type CityLayout,
+  type CityPlayerState,
+  type CityTrigger,
+} from '@/sim/city';
+import type { AcceptedJob } from '@/sim/courier';
 import { createDriver, getSkill } from '@/sim/driver';
 import { stepDriving, isRadarDisabled, type DriveInput } from '@/sim/driving';
 import {
@@ -38,9 +56,17 @@ import {
   type InputFrame,
   type SystemFn,
 } from '@/sim/loop';
-import type { DriverState, SkillName, VehicleState } from '@/sim/types';
+import {
+  beginRoadTrip,
+  crossDestinationGate,
+  resolveRoute,
+  stepRoadTrip,
+  type ResolvedRoute,
+  type RoadTripState,
+} from '@/sim/road';
+import type { DriverState, RouteDef, SkillName, VehicleState } from '@/sim/types';
 import { createWorld, type World } from '@/sim/world';
-import { createRng } from '@/util/rng';
+import { createRng, type Rng } from '@/util/rng';
 import { hashState } from '@/util/hash';
 import { CURRENT_SCHEMA_VERSION } from '@/persist/migrate';
 import { openSaveDatabase, save, load, type LoadResult, type SaveGame } from '@/persist/save';
@@ -55,7 +81,11 @@ import {
   type HudSnapshot,
 } from '@/ui/hud';
 import { mountBuilder, type BuilderConfirmedBuild } from '@/ui/builder';
+import { mountFacility, type ArenaEntryResult, type BuildingContext, type MountedFacility } from '@/ui/buildings';
+import { leaveAction, LEAVE_ACTION_ID, type RumorId } from '@/ui/buildings/shared';
+import { buildCityInstances, type CityVehicleView, type CityViewSnapshot } from '@/ui/city-view';
 import { mountMenu, type MenuAction } from '@/ui/menu';
+import { cityName, t } from '@/ui/strings';
 
 import { initGpu, type GpuContext } from '@/render/gpu';
 import { loadAtlasIndex, type AtlasIndex, type FrameInfo } from '@/render/atlas';
@@ -259,13 +289,13 @@ function showTitle(root: HTMLElement, titleOptions: { onNewDriver: () => void; o
   clearAndAppend(root, container);
 
   const clock = initialClock();
-  const actions: MenuAction[] = [{ id: 'new-driver', label: 'New Driver', eligible: true }];
+  const actions: MenuAction[] = [{ id: 'new-driver', label: t('ui.title.newDriver'), eligible: true }];
   if (titleOptions.onContinue !== undefined) {
-    actions.unshift({ id: 'continue', label: 'Continue', eligible: true });
+    actions.unshift({ id: 'continue', label: t('ui.title.continue'), eligible: true });
   }
   mountMenu({
     container: menuHost,
-    header: { cash: 0, dayIndex: clock.dayIndex, phase: clock.phase, cityName: 'smduel' },
+    header: { cash: 0, dayIndex: clock.dayIndex, phase: clock.phase, cityName: t('ui.title.appName') },
     actions,
     onActivate: (id) => {
       if (id === 'continue' && titleOptions.onContinue !== undefined) {
@@ -292,11 +322,11 @@ function showDriverCreation(root: HTMLElement, onCreated: (driver: DriverState) 
 
   const card = el('div');
   card.style.cssText = 'width:min(420px,90vw);background:#161d27;border:1px solid #2a3444;border-radius:8px;padding:24px;';
-  const title = el('h2', undefined, 'Create Driver');
+  const title = el('h2', undefined, t('ui.driverCreation.title'));
   title.style.cssText = 'margin:0 0 16px;';
   card.appendChild(title);
 
-  const nameLabel = el('label', undefined, 'Name');
+  const nameLabel = el('label', undefined, t('ui.driverCreation.nameLabel'));
   nameLabel.style.cssText = 'display:block;margin-bottom:4px;';
   card.appendChild(nameLabel);
   const nameInput = el('input');
@@ -318,7 +348,9 @@ function showDriverCreation(root: HTMLElement, onCreated: (driver: DriverState) 
     return total;
   }
   function refreshRemaining(): void {
-    remainingLabel.textContent = `Points remaining: ${cfg.startingSkillPool - currentTotal()}`;
+    remainingLabel.textContent = t('ui.driverCreation.pointsRemaining', {
+      count: cfg.startingSkillPool - currentTotal(),
+    });
   }
 
   cfg.skills.forEach((skillName, index) => {
@@ -344,7 +376,7 @@ function showDriverCreation(root: HTMLElement, onCreated: (driver: DriverState) 
   message.style.cssText = 'color:#ff6b6b;min-height:20px;margin:8px 0;';
   card.appendChild(message);
 
-  const submit = el('button', undefined, 'Create Driver');
+  const submit = el('button', undefined, t('ui.driverCreation.title'));
   submit.style.cssText = 'width:100%;padding:10px;background:#4fd6c4;border:none;border-radius:4px;cursor:pointer;font-weight:600;';
   submit.addEventListener('click', () => {
     const skills = {} as Record<SkillName, number>;
@@ -373,6 +405,9 @@ function showConstructor(
   root: HTMLElement,
   driver: DriverState,
   onBuilt: (driver: DriverState, confirmed: BuilderConfirmedBuild) => void,
+  onCancel: () => void,
+  existingCarNames: readonly string[] = [],
+  ownedCarCount = 0,
 ): void {
   const container = el('div', 'sm-screen sm-screen--constructor');
   container.style.cssText = 'position:absolute;inset:0;';
@@ -380,15 +415,12 @@ function showConstructor(
 
   mountBuilder({
     container,
-    context: { cash: driver.cash, existingCarNames: [], ownedCarCount: 0 },
+    context: { cash: driver.cash, existingCarNames, ownedCarCount },
     onBuilt: (confirmed) => {
       const chargedDriver: DriverState = { ...driver, cash: driver.cash - confirmed.costTotal };
       onBuilt(chargedDriver, confirmed);
     },
-    // Practice is the only path this boot offers; Escape just restarts the
-    // constructor with a fresh (still legal, still affordable) default build
-    // rather than stranding the player with no way forward.
-    onCancel: () => showConstructor(root, driver, onBuilt),
+    onCancel,
   });
 }
 
@@ -518,12 +550,12 @@ export function makeWeaponsSystem(driverRef: { current: DriverState }, spawnCoun
     });
     replaceVehicle(world, result.vehicle);
     if (!result.ok) {
-      if (result.reason === 'NO_AMMO') log('info', `${weaponDef.name} is out of ammo`);
+      if (result.reason === 'NO_AMMO') log('info', t('ui.weapon.outOfAmmo', { weapon: weaponDef.name }));
       return;
     }
     if (result.spawn?.kind === 'PROJECTILE') {
       world.entities.projectiles.push(result.spawn.projectile);
-      log('hit', `${weaponDef.name} fired`);
+      log('hit', t('ui.weapon.fired', { weapon: weaponDef.name }));
     }
   };
 }
@@ -757,7 +789,7 @@ function showArena(
   const status = el('div');
   status.style.cssText =
     'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;';
-  const exitBtn = el('button', undefined, 'Exit to Title');
+  const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
   container.appendChild(canvas);
@@ -771,7 +803,7 @@ function showArena(
 
   const resolution = resolveArenaWorld(driver, playerVehicle, session);
   if (!resolution.ok) {
-    status.textContent = `Cannot enter practice: ${resolution.reason}`;
+    status.textContent = t('ui.arena.cannotEnterPractice', { reason: resolution.reason });
     exitBtn.addEventListener('click', onExit, { once: true });
     return;
   }
@@ -790,8 +822,8 @@ function showArena(
   logMessage(
     'info',
     session.restoreWorld !== undefined
-      ? `Practice arena resumed — seed ${session.sessionSeed}.`
-      : `Practice arena entered — free run, no opponents. Seed ${session.sessionSeed}.`,
+      ? t('ui.arena.practiceResumed', { seed: session.sessionSeed })
+      : t('ui.arena.practiceEntered', { seed: session.sessionSeed }),
   );
 
   const systems = createSystemsRegistry();
@@ -891,11 +923,11 @@ function showArena(
 
     const init = await initGpu(canvas);
     if (!init.ok) {
-      status.textContent = `WebGPU unavailable (${init.reason.kind}) — simulation running, rendering disabled.`;
+      status.textContent = t('ui.arena.webgpuUnavailable', { reason: init.reason.kind });
       return;
     }
     gpuCtx = init.context;
-    status.textContent = `Practice arena — WASD/arrows drive, Space/J fire, Q/E cycle weapon. Seed: ${session.sessionSeed}`;
+    status.textContent = t('ui.arena.practiceHint', { seed: session.sessionSeed });
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
     floorInstances = buildFloorInstances(atlasIndex);
@@ -915,7 +947,7 @@ function showArena(
       });
     });
     gpuCtx.onRecoveryFailed((reason) => {
-      status.textContent = `WebGPU device lost and recovery failed (${reason.kind}) — rendering disabled.`;
+      status.textContent = t('ui.arena.webgpuDeviceLost', { reason: reason.kind });
       resources = undefined;
     });
   }
@@ -995,6 +1027,899 @@ function showArena(
   });
 }
 
+
+// ---------------------------------------------------------------------------
+// Session state threaded between City / Building / Road / Arena screens
+// ---------------------------------------------------------------------------
+
+/**
+ * Everything the city/road loop carries from screen to screen after the
+ * constructor. Modeled on `@/sim/economy`'s single-active-vehicle
+ * `EconomyWorld` (the same shape `@/ui/buildings/garage` already reads/
+ * writes through `BuildingContext`) rather than `@/sim/services`'s separate
+ * multi-car `Fleet` - a full garaged-fleet UI (retrieving a DIFFERENT
+ * stored car) is out of this integration pass's scope; `fleetSize` is
+ * fixed at 1 (the one active vehicle) so `@/ui/buildings/assembly`'s
+ * fleet-cap gate still works honestly off a real number.
+ */
+interface CityRunState {
+  readonly driver: DriverState;
+  readonly vehicle: VehicleState;
+  readonly vehicleStored: boolean;
+  readonly clock: Clock;
+  readonly cityId: string;
+  readonly sessionSeed: string;
+  readonly openDb: () => Promise<IDBDatabase>;
+  /** One seeded stream for the whole session's non-arena, non-road draws (courier offers, casino, mechanic lessons, illicit-sale consequences) plus road-trip encounter rolls - advances as it's drawn from, same convention `@/sim/world`'s `rngState` uses. */
+  readonly rng: Rng;
+  readonly rumorsHeardToday: ReadonlyMap<string, RumorId>;
+  readonly activeCourierJobs: readonly AcceptedJob[];
+}
+
+function buildingContextFrom(state: CityRunState): BuildingContext {
+  return {
+    driver: state.driver,
+    clock: state.clock,
+    cityId: state.cityId,
+    vehicle: state.vehicle,
+    vehicleStored: state.vehicleStored,
+    fleetSize: 1,
+    existingCarNames: [state.vehicle.design.name],
+    rng: state.rng,
+    rumorsHeardToday: state.rumorsHeardToday,
+    activeCourierJobs: state.activeCourierJobs,
+  };
+}
+
+/** Applies a `BuildingContext` a panel handed back on exit onto `state` - every field a building can actually change, nothing else. `ctx.vehicle` is defensively kept non-null (see `BuildingContext`'s doc comment: none of the currently-wired building panels null it out - `@/sim/economy`'s storeCar only flips `vehicleStored`). */
+function applyBuildingContext(state: CityRunState, ctx: BuildingContext): CityRunState {
+  return {
+    ...state,
+    driver: ctx.driver,
+    clock: ctx.clock,
+    cityId: ctx.cityId,
+    vehicle: ctx.vehicle ?? state.vehicle,
+    vehicleStored: ctx.vehicleStored,
+    rumorsHeardToday: ctx.rumorsHeardToday,
+    activeCourierJobs: ctx.activeCourierJobs,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Screen 4b: Arena, entered from a city's arena building
+// ---------------------------------------------------------------------------
+//
+// Reuses the exact rendering/input/HUD helpers `showArena` (the boot-time
+// practice screen below `resolveArenaWorld`) already built - real driving,
+// real weapon fire, real projectiles, real HUD. `mountArenaBuilding`
+// (`@/ui/buildings/arena`) already ran the real `beginArenaMatch` before
+// this screen ever mounts, so eligibility and the entry fee are exactly as
+// real as the boot-time path.
+//
+// SCOPE LIMIT (documented, not silently papered over): opponent vehicles
+// are not yet spawned or AI-driven in this integration pass - wiring
+// `@/sim/ai`'s real `decideAI` against real opponent `VehicleState`s needs a
+// projectile/vehicle collision radius that no ruleset file defines yet (a
+// new tunable this pass has no authority to invent - see the file header's
+// "no gameplay constant literal" hard rule), so it is left for a follow-up
+// that adds that field to a ruleset table first. Every event is still
+// enterable and fairly charges/resolves through the real
+// `beginArenaMatch`/`resolveArenaExit` pipeline: an event with real
+// opponents can currently only be exited as an ESCAPE (prestige penalty,
+// car kept, matching `resolveArenaExit`'s own honest behavior when
+// `opponentsDefeated` never reaches `opponentsTotal`), while `practice`
+// (0 opponents) still resolves a real VICTORY exactly as it always has.
+function showArenaEvent(
+  root: HTMLElement,
+  chargedDriver: DriverState,
+  playerVehicle: VehicleState,
+  matchState: ArenaMatchState,
+  clock: Clock,
+  cityState: CityRunState,
+  onComplete: (nextState: CityRunState) => void,
+): void {
+  const event = getArenaEvent(matchState.eventId);
+  const container = el('div', 'sm-screen sm-screen--arena');
+  container.style.cssText = 'position:absolute;inset:0;background:#05070a;';
+  const canvas = el('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
+  const hudHost = el('div');
+  hudHost.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  const status = el('div');
+  status.style.cssText =
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;';
+  const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
+  exitBtn.style.cssText =
+    'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
+  container.appendChild(canvas);
+  container.appendChild(hudHost);
+  container.appendChild(status);
+  container.appendChild(exitBtn);
+  clearAndAppend(root, container);
+
+  lastSessionSeed = cityState.sessionSeed;
+  const dtSeconds = dtSecondsFromTickRate(drivingConfig().tickRateHz);
+
+  const world = createArenaWorld(cityState.sessionSeed, playerVehicle);
+  world.clock = clock;
+
+  const driverRef = { current: chargedDriver };
+  const spawnCounter = { current: 0 };
+  const messages: HudMessage[] = [];
+  let messageCounter = 0;
+  function logMessage(kind: HudMessageKind, text: string): void {
+    messages.push({ id: `msg-${messageCounter}`, kind, text, tick: world.tick });
+    messageCounter += 1;
+    if (messages.length > 20) messages.shift();
+  }
+  logMessage('info', t('ui.arena.eventEntered', { event: event.name, count: matchState.opponentsTotal }));
+
+  const systems = createSystemsRegistry();
+  systems.register('driving', makeDrivingSystem(driverRef));
+  systems.register('weapons', makeWeaponsSystem(driverRef, spawnCounter, logMessage));
+  systems.register('projectiles', projectilesSystem);
+  systems.register('cleanup', cleanupSystem);
+
+  const heldKeys = new Set<string>();
+  let activeWeaponIndex: number | null = playerVehicle.weapons.length > 0 ? 0 : null;
+  function onKeyDown(ev: KeyboardEvent): void {
+    heldKeys.add(ev.key.toLowerCase());
+    if (ev.key === 'q' || ev.key === 'Q') cycleWeapon(-1);
+    if (ev.key === 'e' || ev.key === 'E') cycleWeapon(1);
+  }
+  function onKeyUp(ev: KeyboardEvent): void {
+    heldKeys.delete(ev.key.toLowerCase());
+  }
+  function cycleWeapon(delta: number): void {
+    const player = findPlayer(world);
+    const count = player?.weapons.length ?? 0;
+    if (count === 0) {
+      activeWeaponIndex = null;
+      return;
+    }
+    const base = activeWeaponIndex ?? 0;
+    activeWeaponIndex = (((base + delta) % count) + count) % count;
+  }
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+
+  function sampleInput(): InputFrame {
+    let moveX = 0;
+    let moveY = 0;
+    if (heldKeys.has('arrowleft') || heldKeys.has('a')) moveX -= 1;
+    if (heldKeys.has('arrowright') || heldKeys.has('d')) moveX += 1;
+    if (heldKeys.has('arrowup') || heldKeys.has('w')) moveY += 1;
+    if (heldKeys.has('arrowdown') || heldKeys.has('s')) moveY -= 1;
+    const fire = heldKeys.has(' ') || heldKeys.has('j');
+    return { moveX, moveY, fire, weaponSlot: activeWeaponIndex ?? 0 };
+  }
+
+  const loop = createGameLoop({ world, dtSeconds, systems, sampleInput });
+
+  const hudContainer = document.createElement('div');
+  hudContainer.style.pointerEvents = 'auto';
+  hudHost.appendChild(hudContainer);
+  const hudDoc = new DomHudDocument();
+  const hudRoot = new DomHudElement(hudContainer);
+  let hudSettings: HudSettings = { scale: 1, radarOrientation: 'world', reducedFlash: false, reducedShake: false };
+
+  function renderHudFrame(): void {
+    const player = findPlayer(world);
+    if (player === undefined) return;
+    const plant = getPlant(player.design.plantId);
+    const accelMphPerSec = computeBuild(player.design).accelMphPerSec;
+    const snapshot: HudSnapshot = {
+      vehicle: player,
+      activeWeaponIndex,
+      accelMphPerSec,
+      radar: { enabled: !isRadarDisabled(player.plantDP, plant.radarFailureThreshold), contacts: [] },
+      driver: { naturalHealth: driverRef.current.naturalHealth, bodyArmor: driverRef.current.bodyArmor },
+      messages,
+      settings: hudSettings,
+    };
+    renderHud(hudDoc, hudRoot, snapshot, {
+      onToggleRadarOrientation: () => {
+        hudSettings = { ...hudSettings, radarOrientation: hudSettings.radarOrientation === 'world' ? 'heading' : 'world' };
+        renderHudFrame();
+      },
+      onToggleReducedFlash: () => {
+        hudSettings = { ...hudSettings, reducedFlash: !hudSettings.reducedFlash };
+        renderHudFrame();
+      },
+      onToggleReducedShake: () => {
+        hudSettings = { ...hudSettings, reducedShake: !hudSettings.reducedShake };
+        renderHudFrame();
+      },
+    });
+  }
+
+  let gpuCtx: GpuContext | undefined;
+  let resources: RenderResources | undefined;
+  let atlasIndex: AtlasIndex | undefined;
+  let floorInstances: SpriteInstanceInput[] = [];
+  const camera: Camera = createCamera();
+  camera.setZoom(PIXELS_PER_METER_CSS);
+
+  async function initRenderer(): Promise<void> {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+    const init = await initGpu(canvas);
+    if (!init.ok) {
+      status.textContent = t('ui.arena.webgpuUnavailable', { reason: init.reason.kind });
+      return;
+    }
+    gpuCtx = init.context;
+    status.textContent = t('ui.arena.eventHint', { event: event.name });
+
+    atlasIndex = loadAtlasIndex(atlasManifestRaw);
+    floorInstances = buildFloorInstances(atlasIndex);
+
+    const atlasImageUrl = new URL('../assets/atlas-0.png', import.meta.url).href;
+    const spriteShaderUrl = new URL('./render/shaders/sprite.wgsl', import.meta.url);
+    const [atlasBlob, spriteShaderSource] = await Promise.all([
+      fetch(atlasImageUrl).then((response) => response.blob()),
+      fetch(spriteShaderUrl).then((response) => response.text()),
+    ]);
+    const atlasBitmap = await createImageBitmap(atlasBlob);
+    resources = await buildRenderResources(gpuCtx, atlasBitmap, spriteShaderSource);
+
+    gpuCtx.onRecovered(() => {
+      void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource).then((rebuilt) => {
+        resources = rebuilt;
+      });
+    });
+    gpuCtx.onRecoveryFailed((reason) => {
+      status.textContent = t('ui.arena.webgpuDeviceLost', { reason: reason.kind });
+      resources = undefined;
+    });
+  }
+
+  function renderFrame(): void {
+    if (gpuCtx === undefined || resources === undefined || atlasIndex === undefined || gpuCtx.isPaused()) return;
+    const player = findPlayer(world);
+    if (player === undefined) return;
+
+    const size = gpuCtx.getSize();
+    camera.setViewportPx(size.width, size.height);
+    camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    camera.setCenter(player.position);
+    writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
+
+    const spriteInstances = [vehicleSpriteInstance(player, atlasIndex)];
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(floorInstances));
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
+
+    const encoder = gpuCtx.getDevice().createCommandEncoder({ label: 'arena-event-frame' });
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: gpuCtx.getContext().getCurrentTexture().createView(),
+          clearValue: { r: 0.02, g: 0.03, b: 0.05, a: 1 },
+          loadOp: 'clear',
+          storeOp: 'store',
+        },
+      ],
+    });
+    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
+      { bindGroup: resources.tileBindGroup, instanceCount: floorInstances.length },
+    ]);
+    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
+      { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
+    ]);
+    pass.end();
+    gpuCtx.getDevice().queue.submit([encoder.finish()]);
+  }
+
+  let rafHandle = 0;
+  let lastTimeMs = performance.now();
+  let stopped = false;
+  function frame(nowMs: number): void {
+    if (stopped) return;
+    const deltaSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
+    lastTimeMs = nowMs;
+    loop.advance(deltaSeconds);
+    renderFrame();
+    renderHudFrame();
+    rafHandle = window.requestAnimationFrame(frame);
+  }
+
+  function stop(): void {
+    stopped = true;
+    window.cancelAnimationFrame(rafHandle);
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+    gpuCtx?.destroy();
+  }
+
+  exitBtn.addEventListener('click', () => {
+    stop();
+    const player = findPlayer(world);
+    const exitMode: ArenaExitMode = player?.destroyed === true ? 'ON_FOOT' : 'UNDER_POWER';
+    const resolution: ArenaResolution = resolveArenaExit(matchState, driverRef.current, exitMode);
+    const nextClock = advanceDays(world.clock, resolution.daysConsumed);
+    const nextVehicle = player ?? playerVehicle;
+    onComplete({ ...cityState, driver: resolution.driver, vehicle: nextVehicle, clock: nextClock });
+  });
+
+  void initRenderer().finally(() => {
+    lastTimeMs = performance.now();
+    rafHandle = window.requestAnimationFrame(frame);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Screen 5: City
+// ---------------------------------------------------------------------------
+
+interface CityRenderResources {
+  readonly pipeline: GPURenderPipeline;
+  readonly cameraBuffer: GPUBuffer;
+  readonly cameraBindGroup: GPUBindGroup;
+  readonly groundInstanceBuffer: GPUBuffer;
+  readonly groundBindGroup: GPUBindGroup;
+  readonly buildingInstanceBuffer: GPUBuffer;
+  readonly buildingBindGroup: GPUBindGroup;
+  readonly actorInstanceBuffer: GPUBuffer;
+  readonly actorBindGroup: GPUBindGroup;
+  readonly texture: GPUTexture;
+}
+
+/** The player on foot plus, at most, one parked-or-ridden car - the two actor-layer instances `@/ui/city-view`'s `buildCityInstances` can ever emit in one frame. */
+const CITY_ACTOR_INSTANCE_CAPACITY = 2;
+
+/** Exact tile count `@/ui/city-view`'s own `groundInstances` loop emits for `layout` - mirrors that loop's bounds precisely so the GPU buffer is neither wastefully oversized nor (worse) too small to hold a real frame. */
+function cityGroundTileCount(layout: CityLayout): number {
+  const half = layout.boundsRadiusM + layout.tileSizeM;
+  const steps = Math.floor((2 * half) / layout.tileSizeM) + 1;
+  return steps * steps;
+}
+
+async function buildCityRenderResources(
+  gpuCtx: GpuContext,
+  atlasBitmap: ImageBitmap,
+  spriteShaderSource: string,
+  groundCapacity: number,
+  buildingCapacity: number,
+): Promise<CityRenderResources> {
+  const device = gpuCtx.getDevice();
+  const format = gpuCtx.getFormat();
+
+  const shaderModule = createShaderModule(device, 'city-sprite-shader', spriteShaderSource);
+  const cameraLayout = createCameraBindGroupLayout(device);
+  const atlasLayout = createAtlasBindGroupLayout(device);
+  const pipeline = createLayerPipeline({
+    device,
+    shaderModule,
+    targetFormat: format,
+    cameraLayout,
+    atlasLayout,
+    blendMode: 'alpha-blend',
+    label: 'city-sprites',
+  });
+
+  const cameraBuffer = createCameraUniformBuffer(device);
+  const cameraBindGroup = createCameraBindGroup(device, cameraLayout, cameraBuffer);
+
+  const texture = device.createTexture({
+    label: 'city-atlas-0',
+    size: { width: atlasBitmap.width, height: atlasBitmap.height, depthOrArrayLayers: 1 },
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+  device.queue.copyExternalImageToTexture({ source: atlasBitmap }, { texture }, {
+    width: atlasBitmap.width,
+    height: atlasBitmap.height,
+  });
+  const textureView = texture.createView();
+  const sampler = createAtlasSampler(device);
+
+  const groundInstanceBuffer = createInstanceStorageBuffer(device, groundCapacity);
+  const groundBindGroup = createAtlasBindGroup(device, atlasLayout, groundInstanceBuffer, sampler, textureView);
+  const buildingInstanceBuffer = createInstanceStorageBuffer(device, buildingCapacity);
+  const buildingBindGroup = createAtlasBindGroup(device, atlasLayout, buildingInstanceBuffer, sampler, textureView);
+  const actorInstanceBuffer = createInstanceStorageBuffer(device, CITY_ACTOR_INSTANCE_CAPACITY);
+  const actorBindGroup = createAtlasBindGroup(device, atlasLayout, actorInstanceBuffer, sampler, textureView);
+
+  return {
+    pipeline,
+    cameraBuffer,
+    cameraBindGroup,
+    groundInstanceBuffer,
+    groundBindGroup,
+    buildingInstanceBuffer,
+    buildingBindGroup,
+    actorInstanceBuffer,
+    actorBindGroup,
+    texture,
+  };
+}
+
+/** cities.json's routes touching `cityId`, resolved to the neighbor city id - the gate's route-choice prompt needs this same shape `@/sim/courier`'s own (private) `routeNeighborsOf` computes internally for offer generation. */
+function cityRouteNeighbors(cityId: string): { route: RouteDef; neighborCityId: string }[] {
+  const neighbors: { route: RouteDef; neighborCityId: string }[] = [];
+  for (const route of citiesConfig().routes) {
+    if (route.a === cityId) neighbors.push({ route, neighborCityId: route.b });
+    else if (route.b === cityId) neighbors.push({ route, neighborCityId: route.a });
+  }
+  return neighbors;
+}
+
+/** WASD/arrows -> one of `@/sim/city`'s eight compass `CityDirection`s, or null for centered/no input - the 8-way convention `stepWalk` expects (not the arena/road screens' free 2D stick vector). */
+function cityDirectionFromKeys(heldKeys: ReadonlySet<string>): CityDirection | null {
+  let x = 0;
+  let y = 0;
+  if (heldKeys.has('arrowleft') || heldKeys.has('a')) x -= 1;
+  if (heldKeys.has('arrowright') || heldKeys.has('d')) x += 1;
+  if (heldKeys.has('arrowup') || heldKeys.has('w')) y -= 1;
+  if (heldKeys.has('arrowdown') || heldKeys.has('s')) y += 1;
+  if (x === 0 && y === 0) return null;
+  if (x === 0) return y < 0 ? 'N' : 'S';
+  if (y === 0) return x < 0 ? 'W' : 'E';
+  if (x < 0) return y < 0 ? 'NW' : 'SW';
+  return y < 0 ? 'NE' : 'SE';
+}
+
+/**
+ * The walkable town: doorways into every facility, a gate onto the road,
+ * and the player's own parked/ridden car - `@/sim/city` + `@/ui/city-view`
+ * do all the real work here, this function only wires them to real
+ * keyboard input, a live WebGPU frame (falling back to a text-only status
+ * line exactly like the arena screen does when `navigator.gpu` is absent),
+ * and the building/gate transitions into `@/ui/buildings`, the constructor,
+ * an arena match, or a road trip.
+ */
+function showCity(root: HTMLElement, state: CityRunState): void {
+  const container = el('div', 'sm-screen sm-screen--city');
+  container.style.cssText = 'position:absolute;inset:0;background:#05070a;';
+  const canvas = el('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
+  const status = el('div');
+  status.style.cssText =
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;white-space:pre;';
+  const panelHost = el('div');
+  panelHost.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,7,10,0.55);';
+  container.appendChild(canvas);
+  container.appendChild(status);
+  container.appendChild(panelHost);
+  clearAndAppend(root, container);
+
+  lastSessionSeed = state.sessionSeed;
+
+  const layout: CityLayout = generateCityLayout(state.cityId, state.sessionSeed);
+  // Road and city coordinates are different spaces (see `@/sim/road`'s own
+  // 1D route-progress model) - entering a city (fresh build, road arrival,
+  // or returning from the constructor/an arena match) always parks the car
+  // at THIS city's gate, never at whatever position it happened to hold in
+  // the screen the player was just on.
+  let runState: CityRunState = {
+    ...state,
+    vehicle: { ...state.vehicle, position: { ...layout.gate.position }, headingRad: 0 },
+  };
+  let player: CityPlayerState = createCityPlayerState({ ...layout.gate.position });
+  let paused = false;
+
+  function citySnapshot(): CityViewSnapshot {
+    const vehicleView: CityVehicleView = {
+      position: runState.vehicle.position,
+      headingRad: runState.vehicle.headingRad,
+      bodyId: runState.vehicle.design.bodyId,
+    };
+    return { layout, player, vehicle: runState.vehicleStored ? null : vehicleView };
+  }
+
+  function updateStatus(): void {
+    status.textContent = t('ui.city.status', {
+      city: cityName(runState.cityId),
+      day: runState.clock.dayIndex,
+      phase: runState.clock.phase,
+      cash: runState.driver.cash,
+    });
+  }
+
+  function openPanel(): HTMLElement {
+    paused = true;
+    panelHost.innerHTML = '';
+    panelHost.style.display = 'flex';
+    const card = el('div');
+    card.style.cssText = 'width:min(480px,92vw);max-height:86vh;overflow:auto;';
+    panelHost.appendChild(card);
+    return card;
+  }
+
+  function closePanel(): void {
+    panelHost.style.display = 'none';
+    panelHost.innerHTML = '';
+    paused = false;
+  }
+
+  function openFacility(kind: string): void {
+    const card = openPanel();
+    let mounted: MountedFacility | undefined;
+    mounted = mountFacility({
+      container: card,
+      kind,
+      context: buildingContextFrom(runState),
+      onExit: (ctx) => {
+        runState = applyBuildingContext(runState, ctx);
+        mounted?.destroy();
+        closePanel();
+      },
+      onOpenConstructor: () => {
+        mounted?.destroy();
+        stop();
+        showConstructor(
+          root,
+          runState.driver,
+          (chargedDriver, confirmed) => {
+            const newVehicle = vehicleStateFromConfirmedBuild(confirmed, PLAYER_ID);
+            runState = { ...runState, driver: chargedDriver, vehicle: newVehicle, vehicleStored: false };
+            showCity(root, runState);
+          },
+          () => showCity(root, runState),
+          [runState.vehicle.design.name],
+          1,
+        );
+      },
+      onEnterArena: (result: ArenaEntryResult) => {
+        mounted?.destroy();
+        stop();
+        showArenaEvent(root, result.driver, runState.vehicle, result.matchState, runState.clock, runState, (nextState) => {
+          runState = nextState;
+          showCity(root, runState);
+        });
+      },
+    });
+  }
+
+  function openGatePrompt(): void {
+    if (runState.vehicleStored) {
+      // Can't drive out without retrieving the car from the garage first -
+      // just resume walking instead of stranding the player on a dead menu.
+      return;
+    }
+    const card = openPanel();
+    const neighbors = cityRouteNeighbors(runState.cityId);
+    const actions: MenuAction[] = neighbors.map((n) => ({
+      id: `route-${n.route.id}`,
+      label: t('ui.city.routeOption', { city: cityName(n.neighborCityId), miles: n.route.lengthMiles, danger: n.route.danger }),
+      eligible: true,
+    }));
+    actions.push(leaveAction());
+
+    const mounted = mountMenu({
+      container: card,
+      header: { cash: runState.driver.cash, dayIndex: runState.clock.dayIndex, phase: runState.clock.phase, cityName: cityName(runState.cityId) },
+      actions,
+      onActivate: (id) => {
+        mounted.destroy();
+        if (id === LEAVE_ACTION_ID) {
+          closePanel();
+          return;
+        }
+        const routeId = id.slice('route-'.length);
+        const found = neighbors.find((n) => n.route.id === routeId);
+        if (found === undefined) {
+          closePanel();
+          return;
+        }
+        closePanel();
+        stop();
+        const resolved: ResolvedRoute = resolveRoute(runState.cityId, found.neighborCityId);
+        const trip = beginRoadTrip(resolved, runState.vehicle, runState.clock, runState.rng);
+        showRoad(root, runState, trip, (nextState) => showCity(root, nextState));
+      },
+      onBack: () => {
+        mounted.destroy();
+        closePanel();
+      },
+    });
+  }
+
+  function handleTrigger(trigger: CityTrigger): void {
+    if (trigger.kind === 'gate') openGatePrompt();
+    else if (trigger.kind === 'facility') openFacility(trigger.facilityKind);
+  }
+
+  // --- input --------------------------------------------------------------
+  const heldKeys = new Set<string>();
+  function onKeyDown(ev: KeyboardEvent): void {
+    heldKeys.add(ev.key.toLowerCase());
+    if ((ev.key === 'g' || ev.key === 'G') && !paused) {
+      const toggled = toggleVehicle(player, runState.vehicle.position);
+      if (toggled.ok) player = toggled.player;
+    }
+  }
+  function onKeyUp(ev: KeyboardEvent): void {
+    heldKeys.delete(ev.key.toLowerCase());
+  }
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+
+  // --- WebGPU ---------------------------------------------------------------
+  let gpuCtx: GpuContext | undefined;
+  let resources: CityRenderResources | undefined;
+  let atlasIndex: AtlasIndex | undefined;
+  const camera: Camera = createCamera();
+  camera.setZoom(PIXELS_PER_METER_CSS);
+
+  async function initRenderer(): Promise<void> {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+    const init = await initGpu(canvas);
+    if (!init.ok) return; // text-only status line still runs the real game below.
+    gpuCtx = init.context;
+
+    atlasIndex = loadAtlasIndex(atlasManifestRaw);
+
+    const atlasImageUrl = new URL('../assets/atlas-0.png', import.meta.url).href;
+    const spriteShaderUrl = new URL('./render/shaders/sprite.wgsl', import.meta.url);
+    const [atlasBlob, spriteShaderSource] = await Promise.all([
+      fetch(atlasImageUrl).then((response) => response.blob()),
+      fetch(spriteShaderUrl).then((response) => response.text()),
+    ]);
+    const atlasBitmap = await createImageBitmap(atlasBlob);
+    const groundCapacity = cityGroundTileCount(layout);
+    const buildingCapacity = layout.doorways.length + 1;
+    resources = await buildCityRenderResources(gpuCtx, atlasBitmap, spriteShaderSource, groundCapacity, buildingCapacity);
+
+    gpuCtx.onRecovered(() => {
+      void buildCityRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, groundCapacity, buildingCapacity).then((rebuilt) => {
+        resources = rebuilt;
+      });
+    });
+    gpuCtx.onRecoveryFailed(() => {
+      resources = undefined;
+    });
+  }
+
+  function renderFrame(): void {
+    if (gpuCtx === undefined || resources === undefined || atlasIndex === undefined || gpuCtx.isPaused()) return;
+
+    const size = gpuCtx.getSize();
+    camera.setViewportPx(size.width, size.height);
+    camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    camera.setCenter(player.position);
+    writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
+
+    const instances = buildCityInstances(citySnapshot(), atlasIndex);
+    // @/ui/city-view's own layer scheme: 0 = ground, 1 = building/gate, 2 = actor (player/vehicle).
+    const ground = instances.filter((i) => i.layer === 0);
+    const buildings = instances.filter((i) => i.layer === 1);
+    const actors = instances.filter((i) => i.layer === 2);
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.groundInstanceBuffer, packInstances(ground));
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.buildingInstanceBuffer, packInstances(buildings));
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.actorInstanceBuffer, packInstances(actors));
+
+    const encoder = gpuCtx.getDevice().createCommandEncoder({ label: 'city-frame' });
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: gpuCtx.getContext().getCurrentTexture().createView(),
+          clearValue: { r: 0.05, g: 0.07, b: 0.06, a: 1 },
+          loadOp: 'clear',
+          storeOp: 'store',
+        },
+      ],
+    });
+    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [{ bindGroup: resources.groundBindGroup, instanceCount: ground.length }]);
+    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
+      { bindGroup: resources.buildingBindGroup, instanceCount: buildings.length },
+    ]);
+    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [{ bindGroup: resources.actorBindGroup, instanceCount: actors.length }]);
+    pass.end();
+    gpuCtx.getDevice().queue.submit([encoder.finish()]);
+  }
+
+  // --- main loop --------------------------------------------------------------
+  let rafHandle = 0;
+  let lastTimeMs = performance.now();
+  let stopped = false;
+  function frame(nowMs: number): void {
+    if (stopped) return;
+    const dtSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
+    lastTimeMs = nowMs;
+    if (!paused) {
+      const direction = cityDirectionFromKeys(heldKeys);
+      const step = stepWalk({ player, layout, direction, dtSeconds, clock: runState.clock });
+      player = step.player;
+      runState = { ...runState, clock: step.clock };
+      if (step.trigger.kind !== 'none') handleTrigger(step.trigger);
+    }
+    updateStatus();
+    renderFrame();
+    rafHandle = window.requestAnimationFrame(frame);
+  }
+
+  function stop(): void {
+    stopped = true;
+    window.cancelAnimationFrame(rafHandle);
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+    gpuCtx?.destroy();
+  }
+
+  updateStatus();
+  void initRenderer().finally(() => {
+    lastTimeMs = performance.now();
+    rafHandle = window.requestAnimationFrame(frame);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Screen 6: Road
+// ---------------------------------------------------------------------------
+
+/**
+ * Real-time driving of `initialTrip`'s route (`@/sim/road`'s own
+ * `stepRoadTrip`, which itself drives the vehicle through
+ * `@/sim/driving`'s `stepDriving` - the exact same movement model the
+ * arena and city screens use) until the odometer crosses the route's
+ * length, then hands the arrived vehicle/clock and the destination city id
+ * back to `onArrive`.
+ */
+function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripState, onArrive: (nextState: CityRunState) => void): void {
+  const container = el('div', 'sm-screen sm-screen--road');
+  container.style.cssText = 'position:absolute;inset:0;background:#05070a;';
+  const canvas = el('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
+  const status = el('div');
+  status.style.cssText =
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
+  container.appendChild(canvas);
+  container.appendChild(status);
+  clearAndAppend(root, container);
+
+  lastSessionSeed = state.sessionSeed;
+
+  let trip = initialTrip;
+  const drivingSkill = getSkill(state.driver, 'driving');
+
+  const heldKeys = new Set<string>();
+  function onKeyDown(ev: KeyboardEvent): void {
+    heldKeys.add(ev.key.toLowerCase());
+  }
+  function onKeyUp(ev: KeyboardEvent): void {
+    heldKeys.delete(ev.key.toLowerCase());
+  }
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+
+  function sampleStick(): { x: number; y: number } {
+    let x = 0;
+    let y = 0;
+    if (heldKeys.has('arrowleft') || heldKeys.has('a')) x -= 1;
+    if (heldKeys.has('arrowright') || heldKeys.has('d')) x += 1;
+    if (heldKeys.has('arrowup') || heldKeys.has('w')) y += 1;
+    if (heldKeys.has('arrowdown') || heldKeys.has('s')) y -= 1;
+    return { x, y };
+  }
+
+  let gpuCtx: GpuContext | undefined;
+  let resources: RenderResources | undefined;
+  let atlasIndex: AtlasIndex | undefined;
+  let floorInstances: SpriteInstanceInput[] = [];
+  const camera: Camera = createCamera();
+  camera.setZoom(PIXELS_PER_METER_CSS);
+
+  async function initRenderer(): Promise<void> {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+    const init = await initGpu(canvas);
+    if (!init.ok) return;
+    gpuCtx = init.context;
+
+    atlasIndex = loadAtlasIndex(atlasManifestRaw);
+    floorInstances = buildFloorInstances(atlasIndex);
+
+    const atlasImageUrl = new URL('../assets/atlas-0.png', import.meta.url).href;
+    const spriteShaderUrl = new URL('./render/shaders/sprite.wgsl', import.meta.url);
+    const [atlasBlob, spriteShaderSource] = await Promise.all([
+      fetch(atlasImageUrl).then((response) => response.blob()),
+      fetch(spriteShaderUrl).then((response) => response.text()),
+    ]);
+    const atlasBitmap = await createImageBitmap(atlasBlob);
+    resources = await buildRenderResources(gpuCtx, atlasBitmap, spriteShaderSource);
+
+    gpuCtx.onRecovered(() => {
+      void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource).then((rebuilt) => {
+        resources = rebuilt;
+      });
+    });
+    gpuCtx.onRecoveryFailed(() => {
+      resources = undefined;
+    });
+  }
+
+  function renderFrame(): void {
+    if (gpuCtx === undefined || resources === undefined || atlasIndex === undefined || gpuCtx.isPaused()) return;
+    const size = gpuCtx.getSize();
+    camera.setViewportPx(size.width, size.height);
+    camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    camera.setCenter(trip.vehicle.position);
+    writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
+
+    const spriteInstances = [vehicleSpriteInstance(trip.vehicle, atlasIndex)];
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(floorInstances));
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
+
+    const encoder = gpuCtx.getDevice().createCommandEncoder({ label: 'road-frame' });
+    const pass = encoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: gpuCtx.getContext().getCurrentTexture().createView(),
+          clearValue: { r: 0.03, g: 0.04, b: 0.03, a: 1 },
+          loadOp: 'clear',
+          storeOp: 'store',
+        },
+      ],
+    });
+    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
+      { bindGroup: resources.tileBindGroup, instanceCount: floorInstances.length },
+    ]);
+    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
+      { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
+    ]);
+    pass.end();
+    gpuCtx.getDevice().queue.submit([encoder.finish()]);
+  }
+
+  let rafHandle = 0;
+  let lastTimeMs = performance.now();
+  let stopped = false;
+
+  function stop(): void {
+    stopped = true;
+    window.cancelAnimationFrame(rafHandle);
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+    gpuCtx?.destroy();
+  }
+
+  function finish(): void {
+    stop();
+    const crossing = crossDestinationGate(trip);
+    const destinationCityId = crossing?.cityId ?? state.cityId;
+    const arrivedVehicle = crossing?.vehicle ?? trip.vehicle;
+    onArrive({ ...state, vehicle: arrivedVehicle, cityId: destinationCityId, clock: trip.clock });
+  }
+
+  function frame(nowMs: number): void {
+    if (stopped) return;
+    const dtSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
+    lastTimeMs = nowMs;
+    const stick = sampleStick();
+    const result = stepRoadTrip(trip, { stick }, dtSeconds, state.rng, drivingSkill, 'normal');
+    trip = result.state;
+    const remainingMiles = Math.max(0, Math.round(trip.resolved.route.lengthMiles - trip.progressMiles));
+    status.textContent = t('ui.road.status', {
+      city: cityName(trip.resolved.destinationCityId),
+      miles: remainingMiles,
+      day: trip.clock.dayIndex,
+      phase: trip.clock.phase,
+    });
+    renderFrame();
+    if (result.arrived) {
+      finish();
+      return;
+    }
+    rafHandle = window.requestAnimationFrame(frame);
+  }
+
+  void initRenderer().finally(() => {
+    lastTimeMs = performance.now();
+    rafHandle = window.requestAnimationFrame(frame);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Boot entry point
 // ---------------------------------------------------------------------------
@@ -1036,10 +1961,34 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
     lastSessionSeed = sessionSeed;
     console.info(`smduel: new session, seed ${sessionSeed}`);
     showDriverCreation(root, (driver) => {
-      showConstructor(root, driver, (chargedDriver, confirmed) => {
-        const vehicle = vehicleStateFromConfirmedBuild(confirmed, PLAYER_ID);
-        showArena(root, chargedDriver, vehicle, { sessionSeed, openDb }, () => void start());
-      });
+      function openConstructor(): void {
+        showConstructor(
+          root,
+          driver,
+          (chargedDriver, confirmed) => {
+            const vehicle = vehicleStateFromConfirmedBuild(confirmed, PLAYER_ID);
+            const cityState: CityRunState = {
+              driver: chargedDriver,
+              vehicle,
+              vehicleStored: false,
+              clock: initialClock(),
+              cityId: chargedDriver.cityId,
+              sessionSeed,
+              openDb,
+              rng: createRng(sessionSeed).stream('driver'),
+              rumorsHeardToday: new Map(),
+              activeCourierJobs: [],
+            };
+            showCity(root, cityState);
+          },
+          // Escape just restarts the constructor with a fresh (still legal,
+          // still affordable) default build rather than stranding the
+          // player with no way forward - there is no screen above this one
+          // to cancel back to yet.
+          openConstructor,
+        );
+      }
+      openConstructor();
     });
   }
 

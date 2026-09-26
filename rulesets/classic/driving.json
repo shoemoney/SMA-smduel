@@ -11,8 +11,30 @@
   "brakeRateMphPerSec": 32,
   "coastDragMphPerSec": 6,
   "reverseAccelMphPerSec": 8,
-  "battery": { "full": 99, "movementDrainPerMileBase": 0.9, "weightPowerRatioScale": 1.4, "speedFractionScale": 0.6 },
-  "collision": { "armorLossSpeedMph": 25, "armorLossFacing": "FRONT", "armorLossPoints": 1 },
-  "radar": { "rangeMiles": 3, "visualRangeM": 160 },
-  "pedestrian": { "speedMps": 2.2, "colliderRadiusM": 0.4, "interactionRadiusM": 3.0 }
+  "battery": {
+    "full": 99,
+    "movementDrainPerMileBase": 0.9,
+    "weightPowerRatioScale": 1.4,
+    "speedFractionScale": 0.6
+  },
+  "collision": {
+    "armorLossSpeedMph": 25,
+    "armorLossFacing": "FRONT",
+    "armorLossPoints": 1,
+    "projectileRadiusM": 0.25,
+    "vehicleSeparationM": 0.4
+  },
+  "radar": {
+    "rangeMiles": 3,
+    "visualRangeM": 160
+  },
+  "pedestrian": {
+    "speedMps": 2.2,
+    "colliderRadiusM": 0.4,
+    "interactionRadiusM": 3.0
+  },
+  "arena": {
+    "spawnRingRadiusM": 45,
+    "minSpawnSeparationM": 12
+  }
 }

@@ -68,6 +68,10 @@ export interface BodyDef {
   class: BodyClass;
   armorCostPerPoint: number;
   armorWeightPerPoint: number;
+  /** Oriented-rectangle collider length in metres (Reconstruction — see fidelity-notes.yaml). */
+  colliderLengthM: number;
+  /** Oriented-rectangle collider width in metres (Reconstruction). */
+  colliderWidthM: number;
 }
 
 /**
@@ -419,6 +423,16 @@ export interface CollisionConfig {
   armorLossSpeedMph: number;
   armorLossFacing: Facing;
   armorLossPoints: number;
+  /** Radius used when testing a projectile against a vehicle collider. */
+  projectileRadiusM: number;
+  /** Minimum gap kept between two vehicles resolving a collision. */
+  vehicleSeparationM: number;
+}
+
+/** Where arena opponents are placed at match start. */
+export interface ArenaSpawnConfig {
+  spawnRingRadiusM: number;
+  minSpawnSeparationM: number;
 }
 
 export interface RadarConfig {
@@ -447,6 +461,7 @@ export interface DrivingConfig {
   reverseAccelMphPerSec: number;
   battery: BatteryConfig;
   collision: CollisionConfig;
+  arena: ArenaSpawnConfig;
   radar: RadarConfig;
   pedestrian: PedestrianConfig;
 }

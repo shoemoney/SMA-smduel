@@ -10,6 +10,7 @@
  */
 import { formatDate } from '@/sim/calendar';
 import type { DayPhase } from '@/sim/types';
+import { t } from '@/ui/strings';
 
 // ---------------------------------------------------------------------------
 // State
@@ -66,7 +67,7 @@ function activate(state: MenuState, index: number): MenuKeyResult {
   const action = state.actions[index];
   if (action === undefined) return { state, outcome: { kind: 'NONE' } };
   if (!action.eligible) {
-    const reason = action.reason ?? `${action.label} is not available right now`;
+    const reason = action.reason ?? t('ui.menu.actionUnavailable', { label: action.label });
     return { state: { ...state, selectedIndex: index, message: reason }, outcome: { kind: 'NONE' } };
   }
   return { state: { ...state, selectedIndex: index, message: null }, outcome: { kind: 'ACTIVATE', id: action.id } };

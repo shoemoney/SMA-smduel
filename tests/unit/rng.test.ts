@@ -302,13 +302,30 @@ describe('rng.int', () => {
         [1_000_000, 1_000_000],
         [-5, -1],
       ];
+      // Compare in plain JS and assert ONCE per range. The previous version made
+      // 1.8M expect() calls (6 ranges x 100k draws x 3 assertions) and timed out at
+      // 20s under load — vitest's per-call overhead, not the RNG, which does 600k
+      // draws in milliseconds. Coverage is identical and the failure is now more
+      // useful: it names the offending draw instead of just the assertion.
       for (const [min, max] of ranges) {
+        let bad: { i: number; value: number } | null = null;
+        const seen = new Set<number>();
         for (let i = 0; i < 100_000; i++) {
           const value = rng.int(min, max);
-          expect(value).toBeGreaterThanOrEqual(min);
-          expect(value).toBeLessThanOrEqual(max);
-          expect(Number.isInteger(value)).toBe(true);
+          seen.add(value);
+          if (value < min || value > max || !Number.isInteger(value)) {
+            bad = { i, value };
+            break;
+          }
         }
+        expect({ range: [min, max], bad }).toEqual({ range: [min, max], bad: null });
+        // A generator that always returned the same number would pass the bounds
+        // check above, so pin that it actually explores the range. A single-value
+        // range ([5,5]) can only ever yield one distinct value; anything wider
+        // must yield more than one over 100k draws.
+        const span = max - min + 1;
+        if (span === 1) expect(seen.size).toBe(1);
+        else expect(seen.size).toBeGreaterThan(1);
       }
     },
     20_000,

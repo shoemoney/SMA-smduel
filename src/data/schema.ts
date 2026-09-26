@@ -80,6 +80,10 @@ export const bodiesSchema: SchemaObject = obj({
       class: enumOf(BODY_CLASSES),
       armorCostPerPoint: NON_NEG_INT,
       armorWeightPerPoint: NON_NEG_INT,
+      // Oriented-rectangle collider (docs/SPEC.md). Reconstruction — exists so
+      // arena opponents can spawn and collide without a literal in TS.
+      colliderLengthM: NON_NEG_NUM,
+      colliderWidthM: NON_NEG_NUM,
     }),
     { minItems: 1 },
   ),
@@ -481,7 +485,10 @@ export const drivingSchema: SchemaObject = obj(
       armorLossSpeedMph: NON_NEG_NUM,
       armorLossFacing: enumOf(FACINGS),
       armorLossPoints: NON_NEG_INT,
+      projectileRadiusM: NON_NEG_NUM,
+      vehicleSeparationM: NON_NEG_NUM,
     }),
+    arena: obj({ spawnRingRadiusM: NON_NEG_NUM, minSpawnSeparationM: NON_NEG_NUM }),
     radar: obj({ rangeMiles: NON_NEG_NUM, visualRangeM: NON_NEG_NUM }),
     pedestrian: obj({
       speedMps: NON_NEG_NUM,

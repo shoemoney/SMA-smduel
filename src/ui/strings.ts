@@ -1,14 +1,21 @@
 /**
  * The naming seam: the ONLY place UI code may get user-facing display text.
  *
- * `rulesets/classic/strings.json` holds every string a player sees, keyed by
- * a stable id. This module is a thin, typed reader over that table plus two
- * convenience wrappers (`facilityName`, `cityName`) that resolve through it
- * using the SAME ids `@/data/rulesets` already validates. Structural data
- * (which facilities a city has, which cities exist) stays in cities.json;
- * wording stays here. That split is what makes a future rename of the
- * game's identity a DATA SWAP in strings.json, not a source sweep across
- * every component that prints a name.
+ * `rulesets/classic/strings.json` holds every string a player sees that
+ * isn't already structural ruleset data, keyed by a stable id. This module
+ * is a thin, typed reader over that table plus `facilityName`, a wrapper
+ * that resolves through it using the SAME facility-kind ids `@/data/rulesets`
+ * already validates.
+ *
+ * `cityName`, by contrast, does NOT go through strings.json: a city's
+ * display name already lives in cities.json's own `name` field (see
+ * `CityDef`), so strings.json used to carry a second, hand-copied `city.*`
+ * table that duplicated it - two independently-editable copies of the same
+ * 16 strings with nothing checking they agreed (see git history on this
+ * file for the incident). `cityName` now reads `citiesConfig()` directly, so
+ * there is exactly one place a city's name lives; renaming a city is a data
+ * swap in cities.json, the same file that already owns everything else
+ * about that city, instead of a swap that has to touch two files in lockstep.
  *
  * `t()` throws on an unknown id instead of falling back to the raw id or an
  * empty string - a silent fallback is exactly how a missing string ships
@@ -17,6 +24,7 @@
  * display text outside this table in the first place).
  */
 import stringsFile from '@rulesets/classic/strings.json';
+import couriersFile from '@rulesets/classic/couriers.json';
 import { citiesConfig, hasFacilityKind, UnknownRulesetIdError } from '@/data/rulesets';
 
 const TABLE: Readonly<Record<string, string>> = stringsFile.strings;
@@ -69,13 +77,35 @@ export function facilityName(kind: string): string {
   return t(`facility.${kind}` as StringId);
 }
 
-const cityIds = new Set(citiesConfig().cities.map((city) => city.id));
+const cityNameById = new Map(citiesConfig().cities.map((city) => [city.id, city.name]));
 
-/** Display name for a city id (see cities.json), resolved through strings.json. */
+/** Display name for a city id - read from cities.json's own `name` field (see file header: NOT strings.json). */
 export function cityName(id: string): string {
-  if (!cityIds.has(id)) throw new UnknownRulesetIdError('city', id);
-  return t(`city.${id}` as StringId);
+  const name = cityNameById.get(id);
+  if (name === undefined) throw new UnknownRulesetIdError('city', id);
+  return name;
 }
+
+// ---------------------------------------------------------------------------
+// Refusal reasons (couriers.json) - read directly, the same way `@/sim/courier`
+// reads couriers.json, since couriers.json is not yet wired into the central
+// `@/data/rulesets` loader (see that module's own header comment).
+// ---------------------------------------------------------------------------
+
+interface CouriersRefusalSource {
+  readonly refusalReasons: readonly string[];
+}
+const couriers = couriersFile as CouriersRefusalSource;
+
+// ---------------------------------------------------------------------------
+// HUD message kinds (`@/ui/hud`'s `HudMessageKind`) - kept in sync with that
+// module's own literal union by `assertStringCoverage` below, the same
+// fail-fast pattern `@/sim/courier`'s `assertRefusalReasonsMatchRuleset` uses
+// for its own reasons list. Not sourced from a ruleset file: message kinds
+// are a fixed set of HUD categories, not tunable game data.
+// ---------------------------------------------------------------------------
+
+const HUD_MESSAGE_KINDS = ['hit', 'destroyed', 'controlLoss', 'salvage', 'deadline', 'victory', 'info'] as const;
 
 // ---------------------------------------------------------------------------
 // Coverage guard
@@ -86,24 +116,33 @@ export class MissingStringCoverageError extends Error {
   constructor(readonly missingIds: readonly string[]) {
     super(
       `strings.json is missing wording for: ${missingIds.join(', ')} - ` +
-        'every cities.json facilityKind and city id needs a matching "facility.<kind>" / "city.<id>" entry',
+        'every cities.json facilityKind, couriers.json refusalReasons entry, and ' +
+        '@/ui/hud HudMessageKind needs a matching "facility.<kind>" / "refusal.<REASON>" / "event.<kind>" entry',
     );
   }
 }
 
 /**
- * Fails fast (at import time, like `@/data/rulesets`'s own validation) if a
- * facility kind or city id was added to cities.json without matching wording
- * ever making it into strings.json - the seam is only real if it is
- * enforced, not just documented.
+ * Fails fast (at import time, like `@/data/rulesets`'s own validation) if:
+ *  - a facility kind was added to cities.json without matching wording ever
+ *    making it into strings.json;
+ *  - a refusal reason was added to couriers.json's `refusalReasons` without
+ *    matching wording;
+ *  - a HUD message kind (`@/ui/hud`'s `HudMessageKind`) has no wording.
+ * (City names need no such guard: `cityName` reads cities.json directly, so
+ * there is nothing in strings.json for a city id to drift out of sync with.)
+ * The seam is only real if it is enforced, not just documented.
  */
 export function assertStringCoverage(): void {
   const missing: string[] = [];
   for (const kind of citiesConfig().facilityKinds) {
     if (TABLE[`facility.${kind}`] === undefined) missing.push(`facility.${kind}`);
   }
-  for (const city of citiesConfig().cities) {
-    if (TABLE[`city.${city.id}`] === undefined) missing.push(`city.${city.id}`);
+  for (const reason of couriers.refusalReasons) {
+    if (TABLE[`refusal.${reason}`] === undefined) missing.push(`refusal.${reason}`);
+  }
+  for (const kind of HUD_MESSAGE_KINDS) {
+    if (TABLE[`event.${kind}`] === undefined) missing.push(`event.${kind}`);
   }
   if (missing.length > 0) throw new MissingStringCoverageError(missing);
 }

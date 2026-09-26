@@ -242,8 +242,18 @@ describe('golden 10 — a single tire id drives all four wheels by construction'
 });
 
 describe('golden — table-driven ruleset loader fidelity', () => {
+  // Compares only the DOCUMENTED (Exact) columns. bodies.json also carries
+  // colliderLengthM/colliderWidthM, which are Reconstruction — the source material
+  // published no vehicle dimensions — so asserting them here would state a fidelity
+  // claim the ledger explicitly does not make. Their own coverage lives in
+  // fidelity-notes.yaml and the collider tests.
   it('bodies: every row matches the documented values', () => {
-    expect(allBodies()).toEqual([
+    const documented = allBodies().map((b) => ({
+      id: b.id, name: b.name, price: b.price, weightLb: b.weightLb,
+      baseMaxLoadLb: b.baseMaxLoadLb, spaces: b.spaces, class: b.class,
+      armorCostPerPoint: b.armorCostPerPoint, armorWeightPerPoint: b.armorWeightPerPoint,
+    }));
+    expect(documented).toEqual([
       { id: 'subcompact', name: 'Subcompact', price: 300, weightLb: 1000, baseMaxLoadLb: 2300, spaces: 7, class: 'automobile', armorCostPerPoint: 11, armorWeightPerPoint: 5 },
       { id: 'compact', name: 'Compact', price: 400, weightLb: 1300, baseMaxLoadLb: 3700, spaces: 10, class: 'automobile', armorCostPerPoint: 13, armorWeightPerPoint: 6 },
       { id: 'midsized', name: 'Mid-sized', price: 600, weightLb: 1600, baseMaxLoadLb: 4800, spaces: 13, class: 'automobile', armorCostPerPoint: 16, armorWeightPerPoint: 8 },
@@ -252,6 +262,21 @@ describe('golden — table-driven ruleset loader fidelity', () => {
       { id: 'pickup', name: 'Pickup', price: 900, weightLb: 2100, baseMaxLoadLb: 6500, spaces: 24, class: 'cargo', armorCostPerPoint: 22, armorWeightPerPoint: 11 },
       { id: 'van', name: 'Van', price: 1000, weightLb: 2000, baseMaxLoadLb: 6000, spaces: 30, class: 'cargo', armorCostPerPoint: 30, armorWeightPerPoint: 14 },
     ]);
+  });
+
+  it('bodies: every row carries a collider whose length exceeds its width, ordered subcompact -> van', () => {
+    const rows = allBodies();
+    for (const b of rows) {
+      expect({ id: b.id, longer: b.colliderLengthM > b.colliderWidthM }).toEqual({ id: b.id, longer: true });
+      expect(b.colliderWidthM).toBeGreaterThan(0);
+    }
+    // a van must not be smaller than a subcompact — catches a copy-paste that
+    // gives every body the same box, which would make every collision identical
+    const sub = rows.find((b) => b.id === 'subcompact');
+    const van = rows.find((b) => b.id === 'van');
+    expect(van!.colliderLengthM).toBeGreaterThan(sub!.colliderLengthM);
+    expect(van!.colliderWidthM).toBeGreaterThan(sub!.colliderWidthM);
+    expect(new Set(rows.map((b) => b.colliderLengthM)).size).toBeGreaterThan(1);
   });
 
   it('chassis: every row matches the documented values', () => {

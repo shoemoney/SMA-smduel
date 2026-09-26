@@ -5385,3 +5385,112 @@ entries:
     source: "economy.json _reconstruction - integrity scale is this recreation's own; the source material published no cargo-damage model"
     confidence: 0.3
     note: "Integrity a freshly-recovered salvage item starts at, on the scale damage.ts uses: economy._reconstruction.cargoFullIntegrity"
+
+  - id: "bodies.bodies.subcompact.colliderLengthM"
+    value: 3.8
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.subcompact.colliderLengthM"
+  - id: "bodies.bodies.subcompact.colliderWidthM"
+    value: 1.6
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.subcompact.colliderWidthM"
+  - id: "bodies.bodies.compact.colliderLengthM"
+    value: 4.3
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.compact.colliderLengthM"
+  - id: "bodies.bodies.compact.colliderWidthM"
+    value: 1.7
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.compact.colliderWidthM"
+  - id: "bodies.bodies.midsized.colliderLengthM"
+    value: 4.8
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.midsized.colliderLengthM"
+  - id: "bodies.bodies.midsized.colliderWidthM"
+    value: 1.8
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.midsized.colliderWidthM"
+  - id: "bodies.bodies.luxury.colliderLengthM"
+    value: 5.3
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.luxury.colliderLengthM"
+  - id: "bodies.bodies.luxury.colliderWidthM"
+    value: 1.9
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.luxury.colliderWidthM"
+  - id: "bodies.bodies.stationwagon.colliderLengthM"
+    value: 5
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.stationwagon.colliderLengthM"
+  - id: "bodies.bodies.stationwagon.colliderWidthM"
+    value: 1.85
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.stationwagon.colliderWidthM"
+  - id: "bodies.bodies.pickup.colliderLengthM"
+    value: 5.5
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.pickup.colliderLengthM"
+  - id: "bodies.bodies.pickup.colliderWidthM"
+    value: 2
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.pickup.colliderWidthM"
+  - id: "bodies.bodies.van.colliderLengthM"
+    value: 5.4
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.van.colliderLengthM"
+  - id: "bodies.bodies.van.colliderWidthM"
+    value: 2
+    status: Reconstruction
+    source: "bodies.json - the source material published no vehicle dimensions; real-world sizes per body class"
+    confidence: 0.3
+    note: "Oriented-rectangle collider so arena opponents can spawn and collide without a TS literal: bodies.bodies.van.colliderWidthM"
+  - id: "driving.collision.projectileRadiusM"
+    value: 0.25
+    status: Reconstruction
+    source: "driving.json - authored for this recreation"
+    confidence: 0.3
+    note: "Projectile collision radius: driving.collision.projectileRadiusM"
+  - id: "driving.collision.vehicleSeparationM"
+    value: 0.4
+    status: Reconstruction
+    source: "driving.json - authored for this recreation"
+    confidence: 0.3
+    note: "Minimum separation kept between colliding vehicles: driving.collision.vehicleSeparationM"
+  - id: "driving.arena.spawnRingRadiusM"
+    value: 45
+    status: Reconstruction
+    source: "driving.json - authored for this recreation"
+    confidence: 0.3
+    note: "Radius of the ring opponents spawn on: driving.arena.spawnRingRadiusM"
+  - id: "driving.arena.minSpawnSeparationM"
+    value: 12
+    status: Reconstruction
+    source: "driving.json - authored for this recreation"
+    confidence: 0.3
+    note: "Minimum gap between two spawned opponents: driving.arena.minSpawnSeparationM"

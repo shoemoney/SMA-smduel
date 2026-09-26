@@ -18,6 +18,7 @@
  */
 import { accelerationTiers, allPlants, drivingConfig, getPlant, getTire, getWeapon, skillsConfig } from '@/data/rulesets';
 import type { Facing, VehicleState, WeaponState } from '@/sim/types';
+import { t } from '@/ui/strings';
 
 // ---------------------------------------------------------------------------
 // Minimal injectable DOM
@@ -258,7 +259,9 @@ function el(doc: HudDocument, tag: string, attrs?: Readonly<Record<string, strin
 function buildWeaponRow(doc: HudDocument, index: number, state: WeaponState, active: boolean): HudElement {
   const def = getWeapon(state.weaponId);
   const usesBattery = def.usesBattery === true;
-  const ammoText = usesBattery ? '⚡ battery' : `${state.ammo}/${def.ammoCapacity}`;
+  const ammoText = usesBattery
+    ? t('ui.hud.batteryPowered')
+    : t('ui.hud.ammoCount', { current: state.ammo, capacity: def.ammoCapacity });
   const cooldownMax = def.cooldownTicks;
   const cooldownFrac = cooldownMax > 0 ? state.cooldownRemaining / cooldownMax : 0;
   const cooldownPct = Math.round((1 - Math.min(1, Math.max(0, cooldownFrac))) * 100);
@@ -276,13 +279,18 @@ function buildWeaponRow(doc: HudDocument, index: number, state: WeaponState, act
     el(
       doc,
       'span',
-      { class: 'hud-weapon-facing', 'aria-label': `facing ${state.facing}` },
+      { class: 'hud-weapon-facing', 'aria-label': t('ui.hud.weaponFacing', { facing: state.facing }) },
       `${facingArrow(state.facing)} ${state.facing}`,
     ),
   );
   row.appendChild(el(doc, 'span', { class: 'hud-weapon-name' }, def.name));
   row.appendChild(
-    el(doc, 'span', { class: 'hud-weapon-ammo', 'aria-label': usesBattery ? 'uses battery' : 'ammunition' }, ammoText),
+    el(
+      doc,
+      'span',
+      { class: 'hud-weapon-ammo', 'aria-label': usesBattery ? t('ui.hud.usesBattery') : t('ui.hud.ammunition') },
+      ammoText,
+    ),
   );
   row.appendChild(
     el(
@@ -291,7 +299,7 @@ function buildWeaponRow(doc: HudDocument, index: number, state: WeaponState, act
       {
         class: `hud-weapon-cooldown${ready ? ' hud-weapon-cooldown--ready' : ''}`,
         'data-ready': String(ready),
-        'aria-label': ready ? 'ready to fire' : `cooling down, ${cooldownPct} percent charged`,
+        'aria-label': ready ? t('ui.hud.readyToFire') : t('ui.hud.coolingDown', { percent: cooldownPct }),
       },
       ready ? '● READY' : `◔ ${cooldownPct}%`,
     ),
@@ -301,7 +309,11 @@ function buildWeaponRow(doc: HudDocument, index: number, state: WeaponState, act
     el(
       doc,
       'span',
-      { class: 'hud-weapon-dp', 'data-state': dpState, 'aria-label': `component condition ${state.dp} of ${state.maxDP}` },
+      {
+        class: 'hud-weapon-dp',
+        'data-state': dpState,
+        'aria-label': t('ui.hud.componentCondition', { current: state.dp, max: state.maxDP }),
+      },
       damageLabel(state.dp, state.maxDP),
     ),
   );
@@ -309,8 +321,8 @@ function buildWeaponRow(doc: HudDocument, index: number, state: WeaponState, act
 }
 
 function buildWeaponList(doc: HudDocument, vehicle: VehicleState, activeIndex: number | null): HudElement {
-  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--weapons', 'aria-label': 'weapons' });
-  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, 'Weapons'));
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--weapons', 'aria-label': t('ui.hud.ariaWeaponsPanel') });
+  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, t('ui.panel.weapons')));
   const list = el(doc, 'ul', { class: 'hud-weapon-list' });
 
   let shown = 0;
@@ -326,14 +338,12 @@ function buildWeaponList(doc: HudDocument, vehicle: VehicleState, activeIndex: n
 }
 
 function buildRadar(doc: HudDocument, snapshot: HudSnapshot, handlers: HudHandlers): HudElement {
-  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--radar', 'aria-label': 'radar' });
-  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, 'Radar'));
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--radar', 'aria-label': t('ui.hud.ariaRadarPanel') });
+  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, t('ui.panel.radar')));
 
   if (!snapshot.radar.enabled) {
     panel.setAttribute('data-state', 'offline');
-    panel.appendChild(
-      el(doc, 'p', { class: 'hud-radar-offline', role: 'status' }, '✕ RADAR OFFLINE — plant damaged'),
-    );
+    panel.appendChild(el(doc, 'p', { class: 'hud-radar-offline', role: 'status' }, t('ui.radar.offline')));
     return panel;
   }
   panel.setAttribute('data-state', 'online');
@@ -402,7 +412,7 @@ function buildRadar(doc: HudDocument, snapshot: HudSnapshot, handlers: HudHandle
     doc,
     'button',
     { type: 'button', class: 'hud-radar-orientation-toggle', 'aria-pressed': String(orientation === 'heading') },
-    orientation === 'heading' ? 'Orientation: heading-up' : 'Orientation: north-up',
+    orientation === 'heading' ? t('ui.radar.orientationHeading') : t('ui.radar.orientationNorth'),
   );
   if (handlers.onToggleRadarOrientation) toggle.addEventListener('click', handlers.onToggleRadarOrientation);
   panel.appendChild(toggle);
@@ -416,12 +426,12 @@ function buildSpeedBlock(doc: HudDocument, snapshot: HudSnapshot): HudElement {
   const batteryPct = Math.round((vehicle.battery / batteryFull) * 100);
   const batteryEmpty = vehicle.battery <= 0;
 
-  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--speed', 'aria-label': 'speed and power' });
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--speed', 'aria-label': t('ui.hud.ariaSpeedPanel') });
 
   const dial = el(doc, 'div', {
     class: 'hud-speed-dial',
     role: 'img',
-    'aria-label': `speed ${mph.toFixed(0)} miles per hour`,
+    'aria-label': t('ui.hud.speedAriaLabel', { mph: mph.toFixed(0) }),
     style: `--hud-speed-frac:${Math.max(0, Math.min(1, mph / maxTopSpeedMph())).toFixed(3)}`,
   });
   panel.appendChild(dial);
@@ -438,7 +448,7 @@ function buildSpeedBlock(doc: HudDocument, snapshot: HudSnapshot): HudElement {
       {
         class: `hud-battery${batteryEmpty ? ' hud-battery--empty' : ''}`,
         'data-state': batteryEmpty ? 'empty' : batteryState,
-        'aria-label': batteryEmpty ? 'battery empty' : `battery ${batteryPct} percent`,
+        'aria-label': batteryEmpty ? t('ui.hud.batteryEmpty') : t('ui.hud.batteryPercent', { percent: batteryPct }),
       },
       batteryEmpty ? `${DAMAGE_GLYPH.destroyed} 0%` : `${DAMAGE_GLYPH[batteryState]} ${batteryPct}%`,
     ),
@@ -447,8 +457,8 @@ function buildSpeedBlock(doc: HudDocument, snapshot: HudSnapshot): HudElement {
 }
 
 function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: HudDriverVitals): HudElement {
-  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--damage', 'aria-label': 'vehicle condition' });
-  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, 'Condition'));
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--damage', 'aria-label': t('ui.hud.ariaConditionPanel') });
+  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, t('ui.panel.condition')));
 
   const armorList = el(doc, 'ul', { class: 'hud-armor-list' });
   FACING_ORDER.forEach((facing) => {
@@ -459,7 +469,7 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
       el(
         doc,
         'li',
-        { class: 'hud-armor-facing', 'data-state': state, 'aria-label': `${facing} armor ${current} of ${max}` },
+        { class: 'hud-armor-facing', 'data-state': state, 'aria-label': t('ui.hud.facingArmor', { facing, current, max }) },
         `${facing}: ${damageLabel(current, max)}`,
       ),
     );
@@ -469,10 +479,15 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
   const tireList = el(doc, 'ul', { class: 'hud-tire-list' });
   const tireMax = getTire(vehicle.design.tireId).maxDP;
   vehicle.tireDP.forEach((dp, i) => {
-    const label = TIRE_LABELS[i] ?? `T${i + 1}`;
+    const label = TIRE_LABELS[i] ?? t('ui.hud.tireFallbackLabel', { index: i + 1 });
     const state = damageState(dp, tireMax);
     tireList.appendChild(
-      el(doc, 'li', { class: 'hud-tire', 'data-state': state, 'aria-label': `${label} tire ${dp} of ${tireMax}` }, `${label}: ${damageLabel(dp, tireMax)}`),
+      el(
+        doc,
+        'li',
+        { class: 'hud-tire', 'data-state': state, 'aria-label': t('ui.hud.tireArmor', { label, current: dp, max: tireMax }) },
+        `${label}: ${damageLabel(dp, tireMax)}`,
+      ),
     );
   });
   panel.appendChild(tireList);
@@ -483,7 +498,11 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
     el(
       doc,
       'div',
-      { class: 'hud-plant', 'data-state': plantState, 'aria-label': `power plant ${vehicle.plantDP} of ${plantMax}` },
+      {
+        class: 'hud-plant',
+        'data-state': plantState,
+        'aria-label': t('ui.hud.plantCondition', { current: vehicle.plantDP, max: plantMax }),
+      },
       `Plant: ${damageLabel(vehicle.plantDP, plantMax)}`,
     ),
   );
@@ -494,7 +513,11 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
     el(
       doc,
       'div',
-      { class: 'hud-driver-health', 'data-state': healthState, 'aria-label': `driver health ${driver.naturalHealth} of ${cfg.naturalHealthDP}` },
+      {
+        class: 'hud-driver-health',
+        'data-state': healthState,
+        'aria-label': t('ui.hud.driverHealth', { current: driver.naturalHealth, max: cfg.naturalHealthDP }),
+      },
       `Driver: ${damageLabel(driver.naturalHealth, cfg.naturalHealthDP)}`,
     ),
   );
@@ -503,7 +526,11 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
     el(
       doc,
       'div',
-      { class: 'hud-driver-armor', 'data-state': armorState, 'aria-label': `body armor ${driver.bodyArmor} of ${cfg.bodyArmorDP}` },
+      {
+        class: 'hud-driver-armor',
+        'data-state': armorState,
+        'aria-label': t('ui.hud.bodyArmor', { current: driver.bodyArmor, max: cfg.bodyArmorDP }),
+      },
       `Body armor: ${damageLabel(driver.bodyArmor, cfg.bodyArmorDP)}`,
     ),
   );
@@ -523,7 +550,11 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
         el(
           doc,
           'li',
-          { class: 'hud-cargo', 'data-state': state, 'aria-label': `${cargo.kind} ${cargo.id} integrity ${shown}` },
+          {
+            class: 'hud-cargo',
+            'data-state': state,
+            'aria-label': t('ui.hud.cargoIntegrity', { kind: cargo.kind, id: cargo.id, value: shown }),
+          },
           `${cargo.kind}: ${DAMAGE_GLYPH[state]} ${shown}`,
         ),
       );
@@ -535,7 +566,7 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
 }
 
 function buildMessageFeed(doc: HudDocument, messages: readonly HudMessage[]): HudElement {
-  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--messages', 'aria-label': 'message feed' });
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--messages', 'aria-label': t('ui.hud.ariaMessageFeed') });
   const list = el(doc, 'ul', { class: 'hud-message-list', role: 'log', 'aria-live': 'polite', 'aria-atomic': 'false' });
 
   const recent = [...messages].sort((a, b) => a.tick - b.tick).slice(-MESSAGE_FEED_CAP);
@@ -548,13 +579,13 @@ function buildMessageFeed(doc: HudDocument, messages: readonly HudMessage[]): Hu
 }
 
 function buildAccessibilityControls(doc: HudDocument, settings: HudSettings, handlers: HudHandlers): HudElement {
-  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--a11y', 'aria-label': 'accessibility options' });
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--a11y', 'aria-label': t('ui.hud.ariaAccessibilityOptions') });
 
   const flashBtn = el(
     doc,
     'button',
     { type: 'button', class: 'hud-a11y-toggle', 'aria-pressed': String(settings.reducedFlash) },
-    settings.reducedFlash ? 'Reduced flash: on' : 'Reduced flash: off',
+    t('ui.a11y.reducedFlash', { state: settings.reducedFlash ? t('ui.a11y.on') : t('ui.a11y.off') }),
   );
   if (handlers.onToggleReducedFlash) flashBtn.addEventListener('click', handlers.onToggleReducedFlash);
   panel.appendChild(flashBtn);
@@ -563,7 +594,7 @@ function buildAccessibilityControls(doc: HudDocument, settings: HudSettings, han
     doc,
     'button',
     { type: 'button', class: 'hud-a11y-toggle', 'aria-pressed': String(settings.reducedShake) },
-    settings.reducedShake ? 'Reduced shake: on' : 'Reduced shake: off',
+    t('ui.a11y.reducedShake', { state: settings.reducedShake ? t('ui.a11y.on') : t('ui.a11y.off') }),
   );
   if (handlers.onToggleReducedShake) shakeBtn.addEventListener('click', handlers.onToggleReducedShake);
   panel.appendChild(shakeBtn);
