@@ -1,0 +1,11 @@
+{
+  "_comment": "Per-kind target pixel sizes for tools/pack-atlas.mjs (assets/ASSET-NOTES.md section 9). tile.quadrantPx is the pre-mirror quadrant (final tile = 2x this, per mirrorQuadrantToSeamlessTile). Every other kind's maxPx caps its longest edge post-crop, area/box-filter downscaled, never upscaled. ui.keepNative lists the only 'ui' frames exempt from ui.maxPx — full-screen art (hud frame, title art) that isn't a small HUD gauge.",
+  "tile": { "quadrantPx": 128 },
+  "car": { "maxPx": 128 },
+  "wreck": { "maxPx": 128 },
+  "cycle": { "maxPx": 128 },
+  "prop": { "maxPx": 128 },
+  "fx": { "maxPx": 128 },
+  "decal": { "maxPx": 128 },
+  "ui": { "maxPx": 128, "keepNative": ["ui-hud-frame", "ui-title-art"] }
+}

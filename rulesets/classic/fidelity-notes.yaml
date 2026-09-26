@@ -1,0 +1,4282 @@
+# rulesets/classic/fidelity-notes.yaml
+#
+# Provenance ledger for every gameplay constant across rulesets/classic/*.json.
+# One entry per constant (a number or boolean that feeds simulation math — not
+# an id/name/label/enum string, which carries no fidelity claim of its own).
+# Release gate: no Reconstruction constant may exist without an entry here.
+#
+# status:
+#   Exact         - stated by the original manual's tables (construction/price/
+#                   weight/space/DP/ammo/facing/service-price/time-cost numbers).
+#   Observed      - documented repeatedly through play, never published as a
+#                   formula (division rewards, prestige gates, championship dates).
+#   Reconstruction - this recreation's own tunable implementation, chosen to
+#                   reproduce documented behavior (weapon range/cooldown/accuracy/
+#                   damage/projectileSpeed, all driving coefficients, all economy
+#                   decay curves, and everything under a `_reconstruction` key).
+#
+# Generated programmatically from rulesets/classic/*.json by the integrator pass — 704 entries,
+# plus 6 entries added by audit (arenas.houseVehicle.totalCount/salvageable and the four
+# quests.quests.the-boss-tape.onAccept/onDeliver flags the integrator's pass missed) — 710 entries.
+
+entries:
+  - id: "arenas._reconstruction.escapePrestigePenalty"
+    value: 1
+    status: Reconstruction
+    source: "arenas.json _reconstruction block"
+    confidence: 0.5
+    note: "Arena outcome tuning (escape penalty / victory skill gain): arenas._reconstruction.escapePrestigePenalty"
+  - id: "arenas._reconstruction.victorySkillGain.driving"
+    value: 1
+    status: Reconstruction
+    source: "arenas.json _reconstruction block"
+    confidence: 0.5
+    note: "Arena outcome tuning (escape penalty / victory skill gain): arenas._reconstruction.victorySkillGain.driving"
+  - id: "arenas._reconstruction.victorySkillGain.marksmanship"
+    value: 1
+    status: Reconstruction
+    source: "arenas.json _reconstruction block"
+    confidence: 0.5
+    note: "Arena outcome tuning (escape penalty / victory skill gain): arenas._reconstruction.victorySkillGain.marksmanship"
+  - id: "arenas.events.amateur-night.cashReward"
+    value: 1500
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "cashReward for amateur-night"
+  - id: "arenas.events.amateur-night.eligibility.cashBelow"
+    value: 5000
+    status: Observed
+    source: "harness-specified: division caps documented through play"
+    confidence: 0.6
+    note: "Eligibility threshold for amateur-night"
+  - id: "arenas.events.amateur-night.eligibility.prestigeBelow"
+    value: 6
+    status: Observed
+    source: "harness-specified: division caps documented through play"
+    confidence: 0.6
+    note: "Eligibility threshold for amateur-night"
+  - id: "arenas.events.amateur-night.opponentCount"
+    value: 5
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "opponentCount for amateur-night"
+  - id: "arenas.events.amateur-night.prestigeReward"
+    value: 1
+    status: Reconstruction
+    source: "arenas.json event 'amateur-night'._reconstruction annotation"
+    confidence: 0.5
+    note: "prestigeReward for amateur-night, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.city-championship.cashReward"
+    value: 9500
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "cashReward for city-championship"
+  - id: "arenas.events.city-championship.opponentCount"
+    value: 8
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "opponentCount for city-championship"
+  - id: "arenas.events.city-championship.prestigeReward"
+    value: 3
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "prestigeReward for city-championship"
+  - id: "arenas.events.division-10.cashReward"
+    value: 3000
+    status: Reconstruction
+    source: "arenas.json event 'division-10'._reconstruction annotation"
+    confidence: 0.5
+    note: "cashReward for division-10, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.division-10.eligibility.maxValue"
+    value: 10000
+    status: Observed
+    source: "harness-specified: division caps documented through play"
+    confidence: 0.6
+    note: "Eligibility threshold for division-10"
+  - id: "arenas.events.division-10.opponentCount"
+    value: 4
+    status: Reconstruction
+    source: "arenas.json event 'division-10'._reconstruction annotation"
+    confidence: 0.5
+    note: "opponentCount for division-10, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.division-10.prestigeReward"
+    value: 1
+    status: Reconstruction
+    source: "arenas.json event 'division-10'._reconstruction annotation"
+    confidence: 0.5
+    note: "prestigeReward for division-10, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.division-15.cashReward"
+    value: 4500
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "cashReward for division-15"
+  - id: "arenas.events.division-15.eligibility.maxValue"
+    value: 15000
+    status: Observed
+    source: "harness-specified: division caps documented through play"
+    confidence: 0.6
+    note: "Eligibility threshold for division-15"
+  - id: "arenas.events.division-15.opponentCount"
+    value: 5
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "opponentCount for division-15"
+  - id: "arenas.events.division-15.prestigeReward"
+    value: 2
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "prestigeReward for division-15"
+  - id: "arenas.events.division-20.cashReward"
+    value: 6000
+    status: Reconstruction
+    source: "arenas.json event 'division-20'._reconstruction annotation"
+    confidence: 0.5
+    note: "cashReward for division-20, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.division-20.eligibility.maxValue"
+    value: 20000
+    status: Observed
+    source: "harness-specified: division caps documented through play"
+    confidence: 0.6
+    note: "Eligibility threshold for division-20"
+  - id: "arenas.events.division-20.opponentCount"
+    value: 6
+    status: Reconstruction
+    source: "arenas.json event 'division-20'._reconstruction annotation"
+    confidence: 0.5
+    note: "opponentCount for division-20, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.division-20.prestigeReward"
+    value: 2
+    status: Reconstruction
+    source: "arenas.json event 'division-20'._reconstruction annotation"
+    confidence: 0.5
+    note: "prestigeReward for division-20, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.division-5.cashReward"
+    value: 1500
+    status: Reconstruction
+    source: "arenas.json event 'division-5'._reconstruction annotation"
+    confidence: 0.5
+    note: "cashReward for division-5, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.division-5.eligibility.maxValue"
+    value: 5000
+    status: Observed
+    source: "harness-specified: division caps documented through play"
+    confidence: 0.6
+    note: "Eligibility threshold for division-5"
+  - id: "arenas.events.division-5.opponentCount"
+    value: 3
+    status: Reconstruction
+    source: "arenas.json event 'division-5'._reconstruction annotation"
+    confidence: 0.5
+    note: "opponentCount for division-5, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.division-5.prestigeReward"
+    value: 1
+    status: Reconstruction
+    source: "arenas.json event 'division-5'._reconstruction annotation"
+    confidence: 0.5
+    note: "prestigeReward for division-5, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.practice.cashReward"
+    value: 0
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "cashReward for practice"
+  - id: "arenas.events.practice.opponentCount"
+    value: 0
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "opponentCount for practice"
+  - id: "arenas.events.practice.prestigeReward"
+    value: 0
+    status: Observed
+    source: "harness-specified: division rewards documented through play"
+    confidence: 0.6
+    note: "prestigeReward for practice"
+  - id: "arenas.events.unlimited.cashReward"
+    value: 7000
+    status: Reconstruction
+    source: "arenas.json event 'unlimited'._reconstruction annotation"
+    confidence: 0.5
+    note: "cashReward for unlimited, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.unlimited.opponentCount"
+    value: 7
+    status: Reconstruction
+    source: "arenas.json event 'unlimited'._reconstruction annotation"
+    confidence: 0.5
+    note: "opponentCount for unlimited, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.events.unlimited.prestigeReward"
+    value: 2
+    status: Reconstruction
+    source: "arenas.json event 'unlimited'._reconstruction annotation"
+    confidence: 0.5
+    note: "prestigeReward for unlimited, this event's own _reconstruction list marks it tunable"
+  - id: "arenas.houseVehicle.armor.FRONT"
+    value: 3
+    status: Observed
+    source: "arenas.json houseVehicle block"
+    confidence: 0.6
+    note: "House kart armor, FRONT"
+  - id: "arenas.houseVehicle.armor.LEFT"
+    value: 3
+    status: Observed
+    source: "arenas.json houseVehicle block"
+    confidence: 0.6
+    note: "House kart armor, LEFT"
+  - id: "arenas.houseVehicle.armor.REAR"
+    value: 3
+    status: Observed
+    source: "arenas.json houseVehicle block"
+    confidence: 0.6
+    note: "House kart armor, REAR"
+  - id: "arenas.houseVehicle.armor.RIGHT"
+    value: 3
+    status: Observed
+    source: "arenas.json houseVehicle block"
+    confidence: 0.6
+    note: "House kart armor, RIGHT"
+  - id: "arenas.houseVehicle.armor.UNDERBODY"
+    value: 3
+    status: Observed
+    source: "arenas.json houseVehicle block"
+    confidence: 0.6
+    note: "House kart armor, UNDERBODY"
+  - id: "arenas.houseVehicle.weapons.0.ammo"
+    value: 20
+    status: Observed
+    source: "arenas.json houseVehicle block"
+    confidence: 0.6
+    note: "House kart loadout ammo count"
+  - id: "arenas.houseVehicle.totalCount"
+    value: 6
+    status: Observed
+    source: "arenas.json houseVehicle block"
+    confidence: 0.6
+    note: "House kart pool size: 5 amateur-night opponents + the player's own loaner (per houseVehicle _note)"
+  - id: "arenas.houseVehicle.salvageable"
+    value: false
+    status: Observed
+    source: "arenas.json houseVehicle block"
+    confidence: 0.6
+    note: "House karts are never salvageable, win or lose (per houseVehicle _note)"
+  - id: "bodies.compact.armorCostPerPoint"
+    value: 13
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.compact.armorCostPerPoint"
+  - id: "bodies.compact.armorWeightPerPoint"
+    value: 6
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.compact.armorWeightPerPoint"
+  - id: "bodies.compact.baseMaxLoadLb"
+    value: 3700
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.compact.baseMaxLoadLb"
+  - id: "bodies.compact.price"
+    value: 400
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.compact.price"
+  - id: "bodies.compact.spaces"
+    value: 10
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.compact.spaces"
+  - id: "bodies.compact.weightLb"
+    value: 1300
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.compact.weightLb"
+  - id: "bodies.luxury.armorCostPerPoint"
+    value: 20
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.luxury.armorCostPerPoint"
+  - id: "bodies.luxury.armorWeightPerPoint"
+    value: 10
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.luxury.armorWeightPerPoint"
+  - id: "bodies.luxury.baseMaxLoadLb"
+    value: 5500
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.luxury.baseMaxLoadLb"
+  - id: "bodies.luxury.price"
+    value: 800
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.luxury.price"
+  - id: "bodies.luxury.spaces"
+    value: 19
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.luxury.spaces"
+  - id: "bodies.luxury.weightLb"
+    value: 1800
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.luxury.weightLb"
+  - id: "bodies.midsized.armorCostPerPoint"
+    value: 16
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.midsized.armorCostPerPoint"
+  - id: "bodies.midsized.armorWeightPerPoint"
+    value: 8
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.midsized.armorWeightPerPoint"
+  - id: "bodies.midsized.baseMaxLoadLb"
+    value: 4800
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.midsized.baseMaxLoadLb"
+  - id: "bodies.midsized.price"
+    value: 600
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.midsized.price"
+  - id: "bodies.midsized.spaces"
+    value: 13
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.midsized.spaces"
+  - id: "bodies.midsized.weightLb"
+    value: 1600
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.midsized.weightLb"
+  - id: "bodies.pickup.armorCostPerPoint"
+    value: 22
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.pickup.armorCostPerPoint"
+  - id: "bodies.pickup.armorWeightPerPoint"
+    value: 11
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.pickup.armorWeightPerPoint"
+  - id: "bodies.pickup.baseMaxLoadLb"
+    value: 6500
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.pickup.baseMaxLoadLb"
+  - id: "bodies.pickup.price"
+    value: 900
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.pickup.price"
+  - id: "bodies.pickup.spaces"
+    value: 24
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.pickup.spaces"
+  - id: "bodies.pickup.weightLb"
+    value: 2100
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.pickup.weightLb"
+  - id: "bodies.stationwagon.armorCostPerPoint"
+    value: 20
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.stationwagon.armorCostPerPoint"
+  - id: "bodies.stationwagon.armorWeightPerPoint"
+    value: 10
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.stationwagon.armorWeightPerPoint"
+  - id: "bodies.stationwagon.baseMaxLoadLb"
+    value: 5500
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.stationwagon.baseMaxLoadLb"
+  - id: "bodies.stationwagon.price"
+    value: 800
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.stationwagon.price"
+  - id: "bodies.stationwagon.spaces"
+    value: 21
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.stationwagon.spaces"
+  - id: "bodies.stationwagon.weightLb"
+    value: 2100
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.stationwagon.weightLb"
+  - id: "bodies.subcompact.armorCostPerPoint"
+    value: 11
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.subcompact.armorCostPerPoint"
+  - id: "bodies.subcompact.armorWeightPerPoint"
+    value: 5
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.subcompact.armorWeightPerPoint"
+  - id: "bodies.subcompact.baseMaxLoadLb"
+    value: 2300
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.subcompact.baseMaxLoadLb"
+  - id: "bodies.subcompact.price"
+    value: 300
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.subcompact.price"
+  - id: "bodies.subcompact.spaces"
+    value: 7
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.subcompact.spaces"
+  - id: "bodies.subcompact.weightLb"
+    value: 1000
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.subcompact.weightLb"
+  - id: "bodies.van.armorCostPerPoint"
+    value: 30
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.van.armorCostPerPoint"
+  - id: "bodies.van.armorWeightPerPoint"
+    value: 14
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.van.armorWeightPerPoint"
+  - id: "bodies.van.baseMaxLoadLb"
+    value: 6000
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.van.baseMaxLoadLb"
+  - id: "bodies.van.price"
+    value: 1000
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.van.price"
+  - id: "bodies.van.spaces"
+    value: 30
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.van.spaces"
+  - id: "bodies.van.weightLb"
+    value: 2000
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: bodies.van.weightLb"
+  - id: "chassis.extraheavy.bodyPriceModifier"
+    value: 1.0
+    status: Exact
+    source: "rulesets/classic/chassis.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: chassis.extraheavy.bodyPriceModifier"
+  - id: "chassis.extraheavy.loadMultiplier"
+    value: 1.2
+    status: Exact
+    source: "rulesets/classic/chassis.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: chassis.extraheavy.loadMultiplier"
+  - id: "chassis.heavy.bodyPriceModifier"
+    value: 0.5
+    status: Exact
+    source: "rulesets/classic/chassis.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: chassis.heavy.bodyPriceModifier"
+  - id: "chassis.heavy.loadMultiplier"
+    value: 1.1
+    status: Exact
+    source: "rulesets/classic/chassis.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: chassis.heavy.loadMultiplier"
+  - id: "chassis.light.bodyPriceModifier"
+    value: -0.2
+    status: Exact
+    source: "rulesets/classic/chassis.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: chassis.light.bodyPriceModifier"
+  - id: "chassis.light.loadMultiplier"
+    value: 0.9
+    status: Exact
+    source: "rulesets/classic/chassis.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: chassis.light.loadMultiplier"
+  - id: "chassis.standard.bodyPriceModifier"
+    value: 0.0
+    status: Exact
+    source: "rulesets/classic/chassis.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: chassis.standard.bodyPriceModifier"
+  - id: "chassis.standard.loadMultiplier"
+    value: 1.0
+    status: Exact
+    source: "rulesets/classic/chassis.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: chassis.standard.loadMultiplier"
+  - id: "cities.championships.cadenceDays"
+    value: 84
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "Championship repeat cadence"
+  - id: "cities.championships.firstDay.albany"
+    value: 29
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "First championship day for albany"
+  - id: "cities.championships.firstDay.atlanticcity"
+    value: 85
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "First championship day for atlanticcity"
+  - id: "cities.championships.firstDay.boston"
+    value: 36
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "First championship day for boston"
+  - id: "cities.championships.firstDay.harrisburg"
+    value: 71
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "First championship day for harrisburg"
+  - id: "cities.championships.firstDay.manchester"
+    value: 92
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "First championship day for manchester"
+  - id: "cities.championships.firstDay.newyork"
+    value: 50
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "First championship day for newyork"
+  - id: "cities.championships.firstDay.pittsburgh"
+    value: 64
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "First championship day for pittsburgh"
+  - id: "cities.championships.firstDay.washington"
+    value: 90
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "First championship day for washington"
+  - id: "cities.championships.firstDay.watertown"
+    value: 85
+    status: Observed
+    source: "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days."
+    confidence: 0.6
+    note: "First championship day for watertown"
+  - id: "cities.cities.albany.x"
+    value: 0.63
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for albany; no original map preserved"
+  - id: "cities.cities.albany.y"
+    value: 0.32
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for albany; no original map preserved"
+  - id: "cities.cities.atlanticcity.x"
+    value: 0.58
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for atlanticcity; no original map preserved"
+  - id: "cities.cities.atlanticcity.y"
+    value: 0.68
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for atlanticcity; no original map preserved"
+  - id: "cities.cities.baltimore.x"
+    value: 0.44
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for baltimore; no original map preserved"
+  - id: "cities.cities.baltimore.y"
+    value: 0.72
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for baltimore; no original map preserved"
+  - id: "cities.cities.boston.x"
+    value: 0.78
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for boston; no original map preserved"
+  - id: "cities.cities.boston.y"
+    value: 0.3
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for boston; no original map preserved"
+  - id: "cities.cities.buffalo.x"
+    value: 0.28
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for buffalo; no original map preserved"
+  - id: "cities.cities.buffalo.y"
+    value: 0.3
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for buffalo; no original map preserved"
+  - id: "cities.cities.dover.x"
+    value: 0.52
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for dover; no original map preserved"
+  - id: "cities.cities.dover.y"
+    value: 0.72
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for dover; no original map preserved"
+  - id: "cities.cities.harrisburg.x"
+    value: 0.38
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for harrisburg; no original map preserved"
+  - id: "cities.cities.harrisburg.y"
+    value: 0.62
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for harrisburg; no original map preserved"
+  - id: "cities.cities.manchester.x"
+    value: 0.8
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for manchester; no original map preserved"
+  - id: "cities.cities.manchester.y"
+    value: 0.2
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for manchester; no original map preserved"
+  - id: "cities.cities.newyork.x"
+    value: 0.62
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for newyork; no original map preserved"
+  - id: "cities.cities.newyork.y"
+    value: 0.52
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for newyork; no original map preserved"
+  - id: "cities.cities.philadelphia.x"
+    value: 0.52
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for philadelphia; no original map preserved"
+  - id: "cities.cities.philadelphia.y"
+    value: 0.62
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for philadelphia; no original map preserved"
+  - id: "cities.cities.pittsburgh.x"
+    value: 0.22
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for pittsburgh; no original map preserved"
+  - id: "cities.cities.pittsburgh.y"
+    value: 0.56
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for pittsburgh; no original map preserved"
+  - id: "cities.cities.providence.x"
+    value: 0.8
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for providence; no original map preserved"
+  - id: "cities.cities.providence.y"
+    value: 0.36
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for providence; no original map preserved"
+  - id: "cities.cities.scranton.x"
+    value: 0.5
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for scranton; no original map preserved"
+  - id: "cities.cities.scranton.y"
+    value: 0.48
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for scranton; no original map preserved"
+  - id: "cities.cities.syracuse.x"
+    value: 0.46
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for syracuse; no original map preserved"
+  - id: "cities.cities.syracuse.y"
+    value: 0.28
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for syracuse; no original map preserved"
+  - id: "cities.cities.washington.x"
+    value: 0.38
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for washington; no original map preserved"
+  - id: "cities.cities.washington.y"
+    value: 0.8
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for washington; no original map preserved"
+  - id: "cities.cities.watertown.x"
+    value: 0.5
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for watertown; no original map preserved"
+  - id: "cities.cities.watertown.y"
+    value: 0.14
+    status: Reconstruction
+    source: "map layout chosen for this recreation"
+    confidence: 0.3
+    note: "Level-layout coordinate for watertown; no original map preserved"
+  - id: "cities.routes.albany-manchester.danger"
+    value: 3
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier albany <-> manchester"
+  - id: "cities.routes.albany-manchester.lengthMiles"
+    value: 175
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance albany <-> manchester"
+  - id: "cities.routes.albany-scranton.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier albany <-> scranton"
+  - id: "cities.routes.albany-scranton.lengthMiles"
+    value: 160
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance albany <-> scranton"
+  - id: "cities.routes.albany-syracuse.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier albany <-> syracuse"
+  - id: "cities.routes.albany-syracuse.lengthMiles"
+    value: 145
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance albany <-> syracuse"
+  - id: "cities.routes.baltimore-washington.danger"
+    value: 1
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier baltimore <-> washington"
+  - id: "cities.routes.baltimore-washington.lengthMiles"
+    value: 40
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance baltimore <-> washington"
+  - id: "cities.routes.boston-albany.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier boston <-> albany"
+  - id: "cities.routes.boston-albany.lengthMiles"
+    value: 170
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance boston <-> albany"
+  - id: "cities.routes.boston-manchester.danger"
+    value: 1
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier boston <-> manchester"
+  - id: "cities.routes.boston-manchester.lengthMiles"
+    value: 55
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance boston <-> manchester"
+  - id: "cities.routes.boston-providence.danger"
+    value: 0
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier boston <-> providence"
+  - id: "cities.routes.boston-providence.lengthMiles"
+    value: 50
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance boston <-> providence"
+  - id: "cities.routes.buffalo-pittsburgh.danger"
+    value: 3
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier buffalo <-> pittsburgh"
+  - id: "cities.routes.buffalo-pittsburgh.lengthMiles"
+    value: 220
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance buffalo <-> pittsburgh"
+  - id: "cities.routes.buffalo-watertown.danger"
+    value: 4
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier buffalo <-> watertown"
+  - id: "cities.routes.buffalo-watertown.lengthMiles"
+    value: 200
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance buffalo <-> watertown"
+  - id: "cities.routes.dover-atlanticcity.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier dover <-> atlanticcity"
+  - id: "cities.routes.dover-atlanticcity.lengthMiles"
+    value: 70
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance dover <-> atlanticcity"
+  - id: "cities.routes.dover-baltimore.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier dover <-> baltimore"
+  - id: "cities.routes.dover-baltimore.lengthMiles"
+    value: 75
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance dover <-> baltimore"
+  - id: "cities.routes.harrisburg-baltimore.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier harrisburg <-> baltimore"
+  - id: "cities.routes.harrisburg-baltimore.lengthMiles"
+    value: 85
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance harrisburg <-> baltimore"
+  - id: "cities.routes.harrisburg-philadelphia.danger"
+    value: 1
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier harrisburg <-> philadelphia"
+  - id: "cities.routes.harrisburg-philadelphia.lengthMiles"
+    value: 105
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance harrisburg <-> philadelphia"
+  - id: "cities.routes.harrisburg-scranton.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier harrisburg <-> scranton"
+  - id: "cities.routes.harrisburg-scranton.lengthMiles"
+    value: 120
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance harrisburg <-> scranton"
+  - id: "cities.routes.ny-albany.danger"
+    value: 1
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier newyork <-> albany"
+  - id: "cities.routes.ny-albany.lengthMiles"
+    value: 150
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance newyork <-> albany"
+  - id: "cities.routes.ny-atlanticcity.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier newyork <-> atlanticcity"
+  - id: "cities.routes.ny-atlanticcity.lengthMiles"
+    value: 125
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance newyork <-> atlanticcity"
+  - id: "cities.routes.ny-philadelphia.danger"
+    value: 1
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier newyork <-> philadelphia"
+  - id: "cities.routes.ny-philadelphia.lengthMiles"
+    value: 95
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance newyork <-> philadelphia"
+  - id: "cities.routes.ny-providence.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier newyork <-> providence"
+  - id: "cities.routes.ny-providence.lengthMiles"
+    value: 180
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance newyork <-> providence"
+  - id: "cities.routes.ny-scranton.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier newyork <-> scranton"
+  - id: "cities.routes.ny-scranton.lengthMiles"
+    value: 120
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance newyork <-> scranton"
+  - id: "cities.routes.philadelphia-atlanticcity.danger"
+    value: 1
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier philadelphia <-> atlanticcity"
+  - id: "cities.routes.philadelphia-atlanticcity.lengthMiles"
+    value: 65
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance philadelphia <-> atlanticcity"
+  - id: "cities.routes.philadelphia-baltimore.danger"
+    value: 1
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier philadelphia <-> baltimore"
+  - id: "cities.routes.philadelphia-baltimore.lengthMiles"
+    value: 100
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance philadelphia <-> baltimore"
+  - id: "cities.routes.philadelphia-dover.danger"
+    value: 1
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier philadelphia <-> dover"
+  - id: "cities.routes.philadelphia-dover.lengthMiles"
+    value: 80
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance philadelphia <-> dover"
+  - id: "cities.routes.pittsburgh-harrisburg.danger"
+    value: 3
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier pittsburgh <-> harrisburg"
+  - id: "cities.routes.pittsburgh-harrisburg.lengthMiles"
+    value: 200
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance pittsburgh <-> harrisburg"
+  - id: "cities.routes.syracuse-buffalo.danger"
+    value: 2
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier syracuse <-> buffalo"
+  - id: "cities.routes.syracuse-buffalo.lengthMiles"
+    value: 150
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance syracuse <-> buffalo"
+  - id: "cities.routes.syracuse-watertown.danger"
+    value: 3
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier syracuse <-> watertown"
+  - id: "cities.routes.syracuse-watertown.lengthMiles"
+    value: 75
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance syracuse <-> watertown"
+  - id: "cities.routes.washington-pittsburgh.danger"
+    value: 4
+    status: Reconstruction
+    source: "invented per-route risk tier, not sourced"
+    confidence: 0.4
+    note: "Route danger tier washington <-> pittsburgh"
+  - id: "cities.routes.washington-pittsburgh.lengthMiles"
+    value: 240
+    status: Exact
+    source: "approximate real-world road mileage between the named cities"
+    confidence: 0.7
+    note: "Route distance washington <-> pittsburgh"
+  - id: "couriers.acceptanceCostDays"
+    value: 1
+    status: Exact
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.9
+    note: "Structural courier-job rule: acceptanceCostDays"
+  - id: "couriers.generation.deadlineDaysPerRoute"
+    value: 1.35
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.deadlineDaysPerRoute"
+  - id: "couriers.generation.deadlineSlackDaysMax"
+    value: 4
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.deadlineSlackDaysMax"
+  - id: "couriers.generation.deadlineSlackDaysMin"
+    value: 1
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.deadlineSlackDaysMin"
+  - id: "couriers.generation.declaredValueMultiplier"
+    value: 4.5
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.declaredValueMultiplier"
+  - id: "couriers.generation.payJitterFraction"
+    value: 0.15
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.payJitterFraction"
+  - id: "couriers.generation.payWeightPerDangerLevel"
+    value: 180
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.payWeightPerDangerLevel"
+  - id: "couriers.generation.payWeightPerHundredPounds"
+    value: 22
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.payWeightPerHundredPounds"
+  - id: "couriers.generation.payWeightPerMile"
+    value: 3.2
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.payWeightPerMile"
+  - id: "couriers.generation.spacesMax"
+    value: 6
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.spacesMax"
+  - id: "couriers.generation.spacesMin"
+    value: 1
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.spacesMin"
+  - id: "couriers.generation.weightLbMax"
+    value: 1800
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.weightLbMax"
+  - id: "couriers.generation.weightLbMin"
+    value: 100
+    status: Reconstruction
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.5
+    note: "Job-generation formula input, tunable: couriers.generation.weightLbMin"
+  - id: "couriers.illicitSale.lawConsequenceChance"
+    value: 0.25
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Illicit-sale mechanic, tunable: couriers.illicitSale.lawConsequenceChance"
+  - id: "couriers.illicitSale.prestigePenalty"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Illicit-sale mechanic, tunable: couriers.illicitSale.prestigePenalty"
+  - id: "couriers.illicitSale.valueFraction"
+    value: 0.35
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Illicit-sale mechanic, tunable: couriers.illicitSale.valueFraction"
+  - id: "couriers.lateness.payDecayPerDay"
+    value: 0.2
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Late-delivery pay decay curve, tunable: couriers.lateness.payDecayPerDay"
+  - id: "couriers.lateness.payFloorFraction"
+    value: 0.0
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Late-delivery pay decay curve, tunable: couriers.lateness.payFloorFraction"
+  - id: "couriers.maxPayloads"
+    value: 3
+    status: Exact
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.9
+    note: "Structural courier-job rule: maxPayloads"
+  - id: "couriers.multipleAcceptsShareOneDay"
+    value: true
+    status: Exact
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.9
+    note: "Structural courier-job rule: multipleAcceptsShareOneDay"
+  - id: "couriers.offersPerVisit"
+    value: 3
+    status: Exact
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.9
+    note: "Structural courier-job rule: offersPerVisit"
+  - id: "couriers.prestigeTiers.0.failurePenalty"
+    value: 2
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 0 (failurePenalty)"
+  - id: "couriers.prestigeTiers.0.maxDangerOffered"
+    value: 2
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 0 (maxDangerOffered)"
+  - id: "couriers.prestigeTiers.0.minPrestige"
+    value: 0
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 0 (minPrestige)"
+  - id: "couriers.prestigeTiers.0.payMultiplier"
+    value: 1.0
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 0 (payMultiplier)"
+  - id: "couriers.prestigeTiers.0.prestigeReward"
+    value: 1
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 0 (prestigeReward)"
+  - id: "couriers.prestigeTiers.1.failurePenalty"
+    value: 3
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 1 (failurePenalty)"
+  - id: "couriers.prestigeTiers.1.maxDangerOffered"
+    value: 3
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 1 (maxDangerOffered)"
+  - id: "couriers.prestigeTiers.1.minPrestige"
+    value: 20
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 1 (minPrestige)"
+  - id: "couriers.prestigeTiers.1.payMultiplier"
+    value: 1.35
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 1 (payMultiplier)"
+  - id: "couriers.prestigeTiers.1.prestigeReward"
+    value: 2
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 1 (prestigeReward)"
+  - id: "couriers.prestigeTiers.2.failurePenalty"
+    value: 4
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 2 (failurePenalty)"
+  - id: "couriers.prestigeTiers.2.maxDangerOffered"
+    value: 4
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 2 (maxDangerOffered)"
+  - id: "couriers.prestigeTiers.2.minPrestige"
+    value: 40
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 2 (minPrestige)"
+  - id: "couriers.prestigeTiers.2.payMultiplier"
+    value: 1.8
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 2 (payMultiplier)"
+  - id: "couriers.prestigeTiers.2.prestigeReward"
+    value: 3
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 2 (prestigeReward)"
+  - id: "couriers.prestigeTiers.3.failurePenalty"
+    value: 5
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 3 (failurePenalty)"
+  - id: "couriers.prestigeTiers.3.maxDangerOffered"
+    value: 4
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 3 (maxDangerOffered)"
+  - id: "couriers.prestigeTiers.3.minPrestige"
+    value: 60
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 3 (minPrestige)"
+  - id: "couriers.prestigeTiers.3.payMultiplier"
+    value: 2.4
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 3 (payMultiplier)"
+  - id: "couriers.prestigeTiers.3.prestigeReward"
+    value: 4
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 3 (prestigeReward)"
+  - id: "couriers.prestigeTiers.4.failurePenalty"
+    value: 6
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 4 (failurePenalty)"
+  - id: "couriers.prestigeTiers.4.maxDangerOffered"
+    value: 4
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 4 (maxDangerOffered)"
+  - id: "couriers.prestigeTiers.4.minPrestige"
+    value: 80
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 4 (minPrestige)"
+  - id: "couriers.prestigeTiers.4.payMultiplier"
+    value: 3.1
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 4 (payMultiplier)"
+  - id: "couriers.prestigeTiers.4.prestigeReward"
+    value: 5
+    status: Observed
+    source: "harness-specified: prestige gates documented through play"
+    confidence: 0.6
+    note: "Prestige-tier 4 (prestigeReward)"
+  - id: "couriers.salvageOccupiesOneCategory"
+    value: true
+    status: Exact
+    source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
+    confidence: 0.9
+    note: "Structural courier-job rule: salvageOccupiesOneCategory"
+  - id: "driving.baseTurnRateDegPerSec"
+    value: 130
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable: baseTurnRateDegPerSec"
+  - id: "driving.battery.full"
+    value: 99
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (battery): driving.battery.full"
+  - id: "driving.battery.movementDrainPerMileBase"
+    value: 0.9
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (battery): driving.battery.movementDrainPerMileBase"
+  - id: "driving.battery.speedFractionScale"
+    value: 0.6
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (battery): driving.battery.speedFractionScale"
+  - id: "driving.battery.weightPowerRatioScale"
+    value: 1.4
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (battery): driving.battery.weightPowerRatioScale"
+  - id: "driving.brakeRateMphPerSec"
+    value: 32
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable: brakeRateMphPerSec"
+  - id: "driving.coastDragMphPerSec"
+    value: 6
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable: coastDragMphPerSec"
+  - id: "driving.collision.armorLossPoints"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (collision): driving.collision.armorLossPoints"
+  - id: "driving.collision.armorLossSpeedMph"
+    value: 25
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (collision): driving.collision.armorLossSpeedMph"
+  - id: "driving.maxReverseSpeedMph"
+    value: 20
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable: maxReverseSpeedMph"
+  - id: "driving.metersPerMile"
+    value: 1609.344
+    status: Exact
+    source: "unit-conversion constant"
+    confidence: 1.0
+    note: "1 mile = 1609.344 meters exactly; not gameplay-tunable, true by definition"
+  - id: "driving.pedestrian.colliderRadiusM"
+    value: 0.4
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (pedestrian): driving.pedestrian.colliderRadiusM"
+  - id: "driving.pedestrian.interactionRadiusM"
+    value: 3.0
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (pedestrian): driving.pedestrian.interactionRadiusM"
+  - id: "driving.pedestrian.speedMps"
+    value: 2.2
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (pedestrian): driving.pedestrian.speedMps"
+  - id: "driving.radar.rangeMiles"
+    value: 3
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (radar): driving.radar.rangeMiles"
+  - id: "driving.radar.visualRangeM"
+    value: 160
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable (radar): driving.radar.visualRangeM"
+  - id: "driving.reverseAccelMphPerSec"
+    value: 8
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable: reverseAccelMphPerSec"
+  - id: "driving.reverseInputDotThreshold"
+    value: -0.5
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable: reverseInputDotThreshold"
+  - id: "driving.reverseThresholdMph"
+    value: 1.5
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable: reverseThresholdMph"
+  - id: "driving.speedTurnCurveExponent"
+    value: 0.65
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving physics coefficient, tunable: speedTurnCurveExponent"
+  - id: "driving.tickRateHz"
+    value: 60
+    status: Reconstruction
+    source: "docs/SPEC.md 'Fixed timestep, 60 Hz'"
+    confidence: 0.5
+    note: "Engine implementation choice for this recreation's fixed-tick loop, not sourced from the original material"
+  - id: "economy._reconstruction.collisionArmorLossSpeedMph"
+    value: 25
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.collisionArmorLossSpeedMph"
+  - id: "economy._reconstruction.latePayDecayPerDay"
+    value: 0.2
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.latePayDecayPerDay"
+  - id: "economy._reconstruction.repairCostFactor"
+    value: 0.65
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.repairCostFactor"
+  - id: "economy._reconstruction.saleValueConditionCeiling"
+    value: 0.55
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.saleValueConditionCeiling"
+  - id: "economy._reconstruction.saleValueConditionFloor"
+    value: 0.1
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.saleValueConditionFloor"
+  - id: "economy._reconstruction.salvageBaseChance"
+    value: 10
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.salvageBaseChance"
+  - id: "economy._reconstruction.salvageBurnPenalty"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.salvageBurnPenalty"
+  - id: "economy._reconstruction.salvageChanceMax"
+    value: 90
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.salvageChanceMax"
+  - id: "economy._reconstruction.salvageChanceMin"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.salvageChanceMin"
+  - id: "economy._reconstruction.salvageMechanicScale"
+    value: 0.75
+    status: Reconstruction
+    source: "harness-specified: all economy decay curves are Reconstruction"
+    confidence: 0.5
+    note: "Economy decay/salvage curve, tunable: economy._reconstruction.salvageMechanicScale"
+  - id: "economy.casino.blackjack.aceHighValue"
+    value: 11
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.aceHighValue"
+  - id: "economy.casino.blackjack.aceLowValue"
+    value: 1
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.aceLowValue"
+  - id: "economy.casino.blackjack.dealerHitsThrough"
+    value: 16
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.dealerHitsThrough"
+  - id: "economy.casino.blackjack.dealerWinsTies"
+    value: true
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.dealerWinsTies"
+  - id: "economy.casino.blackjack.exactTwentyOneWins"
+    value: true
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.exactTwentyOneWins"
+  - id: "economy.casino.blackjack.faceCardValue"
+    value: 10
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.faceCardValue"
+  - id: "economy.casino.blackjack.fiveCardCount"
+    value: 5
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.fiveCardCount"
+  - id: "economy.casino.blackjack.fiveCardNonBustWins"
+    value: true
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.fiveCardNonBustWins"
+  - id: "economy.casino.blackjack.ordinaryPayout"
+    value: 2
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.ordinaryPayout"
+  - id: "economy.casino.blackjack.targetScore"
+    value: 21
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.targetScore"
+  - id: "economy.casino.blackjack.twoCardBlackjackPayout"
+    value: 3
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.twoCardBlackjackPayout"
+  - id: "economy.casino.poker.allowAceLowStraight"
+    value: true
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.allowAceLowStraight"
+  - id: "economy.casino.poker.allowDiscardAllFive"
+    value: true
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.allowDiscardAllFive"
+  - id: "economy.casino.poker.flush"
+    value: 5
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.flush"
+  - id: "economy.casino.poker.fourOfAKind"
+    value: 25
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.fourOfAKind"
+  - id: "economy.casino.poker.fullHouse"
+    value: 7
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.fullHouse"
+  - id: "economy.casino.poker.maxRank"
+    value: 14
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.maxRank"
+  - id: "economy.casino.poker.pair"
+    value: 1
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.pair"
+  - id: "economy.casino.poker.straight"
+    value: 4
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.straight"
+  - id: "economy.casino.poker.straightFlush"
+    value: 70
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.straightFlush"
+  - id: "economy.casino.poker.threeOfAKind"
+    value: 3
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.threeOfAKind"
+  - id: "economy.casino.poker.twoPair"
+    value: 2
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.twoPair"
+  - id: "economy.maxFleetSize"
+    value: 8
+    status: Exact
+    source: "docs/SPEC.md economy table"
+    confidence: 1.0
+    note: "Top-level economy constant: maxFleetSize"
+  - id: "economy.maxPayloads"
+    value: 3
+    status: Exact
+    source: "docs/SPEC.md economy table"
+    confidence: 1.0
+    note: "Top-level economy constant: maxPayloads"
+  - id: "economy.salvageCountsAsPayload"
+    value: true
+    status: Exact
+    source: "docs/SPEC.md economy table"
+    confidence: 1.0
+    note: "Top-level economy constant: salvageCountsAsPayload"
+  - id: "economy.services.arenaPractice.days"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.arenaPractice.days"
+  - id: "economy.services.arenaPractice.price"
+    value: 20
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.arenaPractice.price"
+  - id: "economy.services.batteryRecharge.days"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.batteryRecharge.days"
+  - id: "economy.services.batteryRecharge.price"
+    value: 50
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.batteryRecharge.price"
+  - id: "economy.services.batteryRecharge.restoresTo"
+    value: 99
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.batteryRecharge.restoresTo"
+  - id: "economy.services.bodyArmor.days"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.bodyArmor.days"
+  - id: "economy.services.bodyArmor.dp"
+    value: 3
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.bodyArmor.dp"
+  - id: "economy.services.bodyArmor.price"
+    value: 250
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.bodyArmor.price"
+  - id: "economy.services.braintapeUpdate.days"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.braintapeUpdate.days"
+  - id: "economy.services.braintapeUpdate.price"
+    value: 3000
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.braintapeUpdate.price"
+  - id: "economy.services.busToAdjacentCity.days"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.busToAdjacentCity.days"
+  - id: "economy.services.busToAdjacentCity.price"
+    value: 100
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.busToAdjacentCity.price"
+  - id: "economy.services.clone.days"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.clone.days"
+  - id: "economy.services.clone.price"
+    value: 5000
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.clone.price"
+  - id: "economy.services.drink.days"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.drink.days"
+  - id: "economy.services.drink.price"
+    value: 5
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.drink.price"
+  - id: "economy.services.mechanicLesson.days"
+    value: 5
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.mechanicLesson.days"
+  - id: "economy.services.mechanicLesson.price"
+    value: 500
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.mechanicLesson.price"
+  - id: "economy.services.medicalPerPoint.days"
+    value: 7
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.medicalPerPoint.days"
+  - id: "economy.services.medicalPerPoint.price"
+    value: 100
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.medicalPerPoint.price"
+  - id: "economy.services.retrieveCar.days"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.retrieveCar.days"
+  - id: "economy.services.retrieveCar.price"
+    value: 50
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.retrieveCar.price"
+  - id: "economy.services.storeCar.days"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.storeCar.days"
+  - id: "economy.services.storeCar.paidOnRetrieval"
+    value: 50
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.storeCar.paidOnRetrieval"
+  - id: "economy.services.storeCar.price"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.storeCar.price"
+  - id: "economy.services.truckStopRoomNight.days"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.truckStopRoomNight.days"
+  - id: "economy.services.truckStopRoomNight.price"
+    value: 10
+    status: Exact
+    source: "docs/SPEC.md service price/time-cost table"
+    confidence: 1.0
+    note: "Service price/day-cost: economy.services.truckStopRoomNight.price"
+  - id: "economy.startingCash"
+    value: 2000
+    status: Exact
+    source: "docs/SPEC.md economy table"
+    confidence: 1.0
+    note: "Top-level economy constant: startingCash"
+  - id: "economy.timeCostDays.acceptCourierWork"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.acceptCourierWork"
+  - id: "economy.timeCostDays.arenaEvent"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.arenaEvent"
+  - id: "economy.timeCostDays.buildCar"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.buildCar"
+  - id: "economy.timeCostDays.bus"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.bus"
+  - id: "economy.timeCostDays.buyBodyArmor"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.buyBodyArmor"
+  - id: "economy.timeCostDays.cloneOrUpdate"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.cloneOrUpdate"
+  - id: "economy.timeCostDays.healOnePoint"
+    value: 7
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.healOnePoint"
+  - id: "economy.timeCostDays.mechanicLesson"
+    value: 5
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.mechanicLesson"
+  - id: "economy.timeCostDays.readJobList"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.readJobList"
+  - id: "economy.timeCostDays.readRoadInfo"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.readRoadInfo"
+  - id: "economy.timeCostDays.readRumor"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.readRumor"
+  - id: "economy.timeCostDays.readSchedule"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.readSchedule"
+  - id: "economy.timeCostDays.recharge"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.recharge"
+  - id: "economy.timeCostDays.repairCar"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.repairCar"
+  - id: "economy.timeCostDays.walkInCity"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.walkInCity"
+  - id: "economy.timeCostDays.weaponTransaction"
+    value: 1
+    status: Exact
+    source: "docs/SPEC.md Calendar section (documented day-costs)"
+    confidence: 1.0
+    note: "Time-cost-in-days for this action: economy.timeCostDays.weaponTransaction"
+  - id: "plants.accelerationTiers.0.mphPerSecond"
+    value: 15
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.accelerationTiers.0.mphPerSecond"
+  - id: "plants.accelerationTiers.0.powerRatio"
+    value: 1
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.accelerationTiers.0.powerRatio"
+  - id: "plants.accelerationTiers.1.mphPerSecond"
+    value: 10
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.accelerationTiers.1.mphPerSecond"
+  - id: "plants.accelerationTiers.1.powerRatio"
+    value: 0.5
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.accelerationTiers.1.powerRatio"
+  - id: "plants.accelerationTiers.2.mphPerSecond"
+    value: 5
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.accelerationTiers.2.mphPerSecond"
+  - id: "plants.accelerationTiers.2.powerRatio"
+    value: 0.33334
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.accelerationTiers.2.powerRatio"
+  - id: "plants.large.maxDP"
+    value: 10
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.large.maxDP"
+  - id: "plants.large.power"
+    value: 3600
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.large.power"
+  - id: "plants.large.price"
+    value: 2000
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.large.price"
+  - id: "plants.large.radarFailureThreshold"
+    value: 2
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.large.radarFailureThreshold"
+  - id: "plants.large.spaces"
+    value: 5
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.large.spaces"
+  - id: "plants.large.topSpeedMph"
+    value: 90
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.large.topSpeedMph"
+  - id: "plants.large.weightLb"
+    value: 900
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.large.weightLb"
+  - id: "plants.medium.maxDP"
+    value: 8
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.medium.maxDP"
+  - id: "plants.medium.power"
+    value: 2300
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.medium.power"
+  - id: "plants.medium.price"
+    value: 1000
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.medium.price"
+  - id: "plants.medium.radarFailureThreshold"
+    value: 2
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.medium.radarFailureThreshold"
+  - id: "plants.medium.spaces"
+    value: 4
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.medium.spaces"
+  - id: "plants.medium.topSpeedMph"
+    value: 80
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.medium.topSpeedMph"
+  - id: "plants.medium.weightLb"
+    value: 700
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.medium.weightLb"
+  - id: "plants.small.maxDP"
+    value: 5
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.small.maxDP"
+  - id: "plants.small.power"
+    value: 1000
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.small.power"
+  - id: "plants.small.price"
+    value: 500
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.small.price"
+  - id: "plants.small.radarFailureThreshold"
+    value: 1
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.small.radarFailureThreshold"
+  - id: "plants.small.spaces"
+    value: 3
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.small.spaces"
+  - id: "plants.small.topSpeedMph"
+    value: 70
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.small.topSpeedMph"
+  - id: "plants.small.weightLb"
+    value: 500
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.small.weightLb"
+  - id: "plants.super.maxDP"
+    value: 12
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.super.maxDP"
+  - id: "plants.super.power"
+    value: 5000
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.super.power"
+  - id: "plants.super.price"
+    value: 3000
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.super.price"
+  - id: "plants.super.radarFailureThreshold"
+    value: 3
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.super.radarFailureThreshold"
+  - id: "plants.super.spaces"
+    value: 6
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.super.spaces"
+  - id: "plants.super.topSpeedMph"
+    value: 90
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.super.topSpeedMph"
+  - id: "plants.super.weightLb"
+    value: 1100
+    status: Exact
+    source: "rulesets/classic/plants.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: plants.super.weightLb"
+  - id: "quests.quests.decoy-prize.cargo.declaredValue"
+    value: 9000
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo declaredValue for quest 'decoy-prize'"
+  - id: "quests.quests.decoy-prize.cargo.spaces"
+    value: 1
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo spaces for quest 'decoy-prize'"
+  - id: "quests.quests.decoy-prize.cargo.weightLb"
+    value: 60
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo weightLb for quest 'decoy-prize'"
+  - id: "quests.quests.decoy-prize.dueDays"
+    value: 10
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "dueDays for quest 'decoy-prize'"
+  - id: "quests.quests.decoy-prize.failurePenalty"
+    value: 6
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "failurePenalty for quest 'decoy-prize'"
+  - id: "quests.quests.decoy-prize.gate"
+    value: 20
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "gate for quest 'decoy-prize'"
+  - id: "quests.quests.decoy-prize.order"
+    value: 1
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "order for quest 'decoy-prize'"
+  - id: "quests.quests.decoy-prize.pay"
+    value: 6000
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "pay for quest 'decoy-prize'"
+  - id: "quests.quests.decoy-prize.prestigeReward"
+    value: 12
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "prestigeReward for quest 'decoy-prize'"
+  - id: "quests.quests.fixed-race-proof.cargo.declaredValue"
+    value: 40000
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo declaredValue for quest 'fixed-race-proof'"
+  - id: "quests.quests.fixed-race-proof.cargo.spaces"
+    value: 1
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo spaces for quest 'fixed-race-proof'"
+  - id: "quests.quests.fixed-race-proof.cargo.weightLb"
+    value: 30
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo weightLb for quest 'fixed-race-proof'"
+  - id: "quests.quests.fixed-race-proof.dueDays"
+    value: 8
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "dueDays for quest 'fixed-race-proof'"
+  - id: "quests.quests.fixed-race-proof.failurePenalty"
+    value: 12
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "failurePenalty for quest 'fixed-race-proof'"
+  - id: "quests.quests.fixed-race-proof.gate"
+    value: 80
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "gate for quest 'fixed-race-proof'"
+  - id: "quests.quests.fixed-race-proof.order"
+    value: 4
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "order for quest 'fixed-race-proof'"
+  - id: "quests.quests.fixed-race-proof.pay"
+    value: 10500
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "pay for quest 'fixed-race-proof'"
+  - id: "quests.quests.fixed-race-proof.prestigeReward"
+    value: 12
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "prestigeReward for quest 'fixed-race-proof'"
+  - id: "quests.quests.ledger-evidence.cargo.declaredValue"
+    value: 30000
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo declaredValue for quest 'ledger-evidence'"
+  - id: "quests.quests.ledger-evidence.cargo.spaces"
+    value: 1
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo spaces for quest 'ledger-evidence'"
+  - id: "quests.quests.ledger-evidence.cargo.weightLb"
+    value: 40
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo weightLb for quest 'ledger-evidence'"
+  - id: "quests.quests.ledger-evidence.dueDays"
+    value: 8
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "dueDays for quest 'ledger-evidence'"
+  - id: "quests.quests.ledger-evidence.failurePenalty"
+    value: 12
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "failurePenalty for quest 'ledger-evidence'"
+  - id: "quests.quests.ledger-evidence.gate"
+    value: 60
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "gate for quest 'ledger-evidence'"
+  - id: "quests.quests.ledger-evidence.order"
+    value: 3
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "order for quest 'ledger-evidence'"
+  - id: "quests.quests.ledger-evidence.pay"
+    value: 11600
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "pay for quest 'ledger-evidence'"
+  - id: "quests.quests.ledger-evidence.prestigeReward"
+    value: 12
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "prestigeReward for quest 'ledger-evidence'"
+  - id: "quests.quests.the-boss-tape.cargo.declaredValue"
+    value: 0
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo declaredValue for quest 'the-boss-tape'"
+  - id: "quests.quests.the-boss-tape.cargo.spaces"
+    value: 1
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo spaces for quest 'the-boss-tape'"
+  - id: "quests.quests.the-boss-tape.cargo.weightLb"
+    value: 25
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo weightLb for quest 'the-boss-tape'"
+  - id: "quests.quests.the-boss-tape.dueDays"
+    value: "None"
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "dueDays for quest 'the-boss-tape'"
+  - id: "quests.quests.the-boss-tape.failurePenalty"
+    value: 0
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "failurePenalty for quest 'the-boss-tape'"
+  - id: "quests.quests.the-boss-tape.gate"
+    value: 95
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "gate for quest 'the-boss-tape'"
+  - id: "quests.quests.the-boss-tape.order"
+    value: 5
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "order for quest 'the-boss-tape'"
+  - id: "quests.quests.the-boss-tape.pay"
+    value: 50000
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "pay for quest 'the-boss-tape'"
+  - id: "quests.quests.the-boss-tape.prestigeReward"
+    value: 0
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "prestigeReward for quest 'the-boss-tape'"
+  - id: "quests.quests.the-boss-tape.onAccept.destroyClone"
+    value: true
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "onAccept.destroyClone for quest 'the-boss-tape' (mirrors the 'removes-clone' flag)"
+  - id: "quests.quests.the-boss-tape.onAccept.pursuitLevel"
+    value: 4
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "onAccept.pursuitLevel for quest 'the-boss-tape' (mirrors the 'sustained-pursuit' flag)"
+  - id: "quests.quests.the-boss-tape.onDeliver.victory"
+    value: true
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "onDeliver.victory for quest 'the-boss-tape' (mirrors the 'victory-condition' flag)"
+  - id: "quests.quests.the-boss-tape.onDeliver.sandboxContinues"
+    value: true
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "onDeliver.sandboxContinues for quest 'the-boss-tape' (post-victory sandbox continuation)"
+  - id: "quests.quests.transplant-run.cargo.declaredValue"
+    value: 25000
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo declaredValue for quest 'transplant-run'"
+  - id: "quests.quests.transplant-run.cargo.spaces"
+    value: 2
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo spaces for quest 'transplant-run'"
+  - id: "quests.quests.transplant-run.cargo.weightLb"
+    value: 120
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "Cargo weightLb for quest 'transplant-run'"
+  - id: "quests.quests.transplant-run.dueDays"
+    value: 5
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "dueDays for quest 'transplant-run'"
+  - id: "quests.quests.transplant-run.failurePenalty"
+    value: 10
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "failurePenalty for quest 'transplant-run'"
+  - id: "quests.quests.transplant-run.gate"
+    value: 40
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "gate for quest 'transplant-run'"
+  - id: "quests.quests.transplant-run.order"
+    value: 2
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "order for quest 'transplant-run'"
+  - id: "quests.quests.transplant-run.pay"
+    value: 8000
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "pay for quest 'transplant-run'"
+  - id: "quests.quests.transplant-run.prestigeReward"
+    value: 12
+    status: Observed
+    source: "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'."
+    confidence: 0.6
+    note: "prestigeReward for quest 'transplant-run'"
+  - id: "quests.rumorsPerLocationPerDay"
+    value: 1
+    status: Exact
+    source: "quests.json structural pacing rule"
+    confidence: 0.8
+    note: "One rumor per location per day"
+  - id: "skills._reconstruction.driving.controlLossTicksMax"
+    value: 90
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.controlLossTicksMax"
+  - id: "skills._reconstruction.driving.controlLossTicksMin"
+    value: 30
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.controlLossTicksMin"
+  - id: "skills._reconstruction.driving.controlScoreMax"
+    value: 98
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.controlScoreMax"
+  - id: "skills._reconstruction.driving.controlScoreMin"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.controlScoreMin"
+  - id: "skills._reconstruction.driving.destroyedTirePenalty"
+    value: 30
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.destroyedTirePenalty"
+  - id: "skills._reconstruction.driving.drivingSkillWeight"
+    value: 0.55
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.drivingSkillWeight"
+  - id: "skills._reconstruction.driving.handlingClassWeight"
+    value: 12
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.handlingClassWeight"
+  - id: "skills._reconstruction.driving.handlingScaleDivisor"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.handlingScaleDivisor"
+  - id: "skills._reconstruction.driving.minTireHandlingFactor"
+    value: 0.05
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.minTireHandlingFactor"
+  - id: "skills._reconstruction.driving.oilSurfacePenalty"
+    value: 50
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.oilSurfacePenalty"
+  - id: "skills._reconstruction.driving.speedPenaltyScale"
+    value: 18
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.speedPenaltyScale"
+  - id: "skills._reconstruction.driving.tireIntegrityBonusPerTire"
+    value: 4
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.tireIntegrityBonusPerTire"
+  - id: "skills._reconstruction.driving.turnStressDecayPerSecond"
+    value: 25
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.turnStressDecayPerSecond"
+  - id: "skills._reconstruction.driving.turnStressThreshold"
+    value: 40
+    status: Reconstruction
+    source: "harness-specified: all driving coefficients are Reconstruction"
+    confidence: 0.5
+    note: "Driving-skill coefficient, tunable: skills._reconstruction.driving.turnStressThreshold"
+  - id: "skills._reconstruction.marksmanship.skillPivot"
+    value: 25
+    status: Reconstruction
+    source: "skills.json _reconstruction.marksmanship"
+    confidence: 0.5
+    note: "Marksmanship pivot, tunable: skills._reconstruction.marksmanship.skillPivot"
+  - id: "skills._reconstruction.mechanic.lessonGainBase"
+    value: 90
+    status: Reconstruction
+    source: "skills.json _reconstruction.mechanic"
+    confidence: 0.5
+    note: "Mechanic lesson-gain coefficient, tunable: skills._reconstruction.mechanic.lessonGainBase"
+  - id: "skills._reconstruction.mechanic.lessonGainMax"
+    value: 90
+    status: Reconstruction
+    source: "skills.json _reconstruction.mechanic"
+    confidence: 0.5
+    note: "Mechanic lesson-gain coefficient, tunable: skills._reconstruction.mechanic.lessonGainMax"
+  - id: "skills._reconstruction.mechanic.lessonGainMaxPoints"
+    value: 4
+    status: Reconstruction
+    source: "skills.json _reconstruction.mechanic"
+    confidence: 0.5
+    note: "Mechanic lesson-gain coefficient, tunable: skills._reconstruction.mechanic.lessonGainMaxPoints"
+  - id: "skills._reconstruction.mechanic.lessonGainMin"
+    value: 10
+    status: Reconstruction
+    source: "skills.json _reconstruction.mechanic"
+    confidence: 0.5
+    note: "Mechanic lesson-gain coefficient, tunable: skills._reconstruction.mechanic.lessonGainMin"
+  - id: "skills._reconstruction.mechanic.lessonGainMinPoints"
+    value: 1
+    status: Reconstruction
+    source: "skills.json _reconstruction.mechanic"
+    confidence: 0.5
+    note: "Mechanic lesson-gain coefficient, tunable: skills._reconstruction.mechanic.lessonGainMinPoints"
+  - id: "skills._reconstruction.mechanic.lessonGainSkillScale"
+    value: 0.8
+    status: Reconstruction
+    source: "skills.json _reconstruction.mechanic"
+    confidence: 0.5
+    note: "Mechanic lesson-gain coefficient, tunable: skills._reconstruction.mechanic.lessonGainSkillScale"
+  - id: "skills._reconstruction.mechanic.salvageSkillGainWeights"
+    value: [0, 0, 0, 1]
+    status: Reconstruction
+    source: "skills.json _reconstruction.mechanic"
+    confidence: 0.5
+    note: "Mechanic lesson-gain coefficient, tunable: skills._reconstruction.mechanic.salvageSkillGainWeights"
+  - id: "skills._reconstruction.prestigeGates"
+    value: [20, 40, 60, 80, 95]
+    status: Observed
+    source: "harness-specified: prestige gates 20/40/60/80/95 documented through play"
+    confidence: 0.8
+    note: "Prestige-tier breakpoints (namespaced under _reconstruction in the JSON, but Observed per this task's explicit example list)"
+  - id: "skills.driver.bodyArmorDP"
+    value: 3
+    status: Exact
+    source: "docs/SPEC.md Driver section"
+    confidence: 1.0
+    note: "Driver-creation/health constant: skills.driver.bodyArmorDP"
+  - id: "skills.driver.bodyArmorRepairable"
+    value: false
+    status: Exact
+    source: "docs/SPEC.md Driver section"
+    confidence: 1.0
+    note: "Driver-creation/health constant: skills.driver.bodyArmorRepairable"
+  - id: "skills.driver.nameMaxLength"
+    value: 16
+    status: Exact
+    source: "docs/SPEC.md Driver section"
+    confidence: 1.0
+    note: "Driver-creation/health constant: skills.driver.nameMaxLength"
+  - id: "skills.driver.naturalHealthDP"
+    value: 3
+    status: Exact
+    source: "docs/SPEC.md Driver section"
+    confidence: 1.0
+    note: "Driver-creation/health constant: skills.driver.naturalHealthDP"
+  - id: "skills.driver.prestigeFloor"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md Driver section"
+    confidence: 1.0
+    note: "Driver-creation/health constant: skills.driver.prestigeFloor"
+  - id: "skills.skillMax"
+    value: 99
+    status: Exact
+    source: "docs/SPEC.md Driver section"
+    confidence: 1.0
+    note: "Character-creation constant: skillMax"
+  - id: "skills.skillMin"
+    value: 0
+    status: Exact
+    source: "docs/SPEC.md Driver section"
+    confidence: 1.0
+    note: "Character-creation constant: skillMin"
+  - id: "skills.startingSkillPool"
+    value: 50
+    status: Exact
+    source: "docs/SPEC.md Driver section"
+    confidence: 1.0
+    note: "Character-creation constant: startingSkillPool"
+  - id: "suspension.heavy.bodyPriceModifier"
+    value: 1.5
+    status: Exact
+    source: "rulesets/classic/suspension.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: suspension.heavy.bodyPriceModifier"
+  - id: "suspension.heavy.handlingClass.automobile"
+    value: 3
+    status: Exact
+    source: "rulesets/classic/suspension.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: suspension.heavy.handlingClass.automobile"
+  - id: "suspension.heavy.handlingClass.cargo"
+    value: 2
+    status: Exact
+    source: "rulesets/classic/suspension.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: suspension.heavy.handlingClass.cargo"
+  - id: "suspension.improved.bodyPriceModifier"
+    value: 1.0
+    status: Exact
+    source: "rulesets/classic/suspension.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: suspension.improved.bodyPriceModifier"
+  - id: "suspension.improved.handlingClass.automobile"
+    value: 2
+    status: Exact
+    source: "rulesets/classic/suspension.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: suspension.improved.handlingClass.automobile"
+  - id: "suspension.improved.handlingClass.cargo"
+    value: 1
+    status: Exact
+    source: "rulesets/classic/suspension.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: suspension.improved.handlingClass.cargo"
+  - id: "suspension.light.bodyPriceModifier"
+    value: 0.0
+    status: Exact
+    source: "rulesets/classic/suspension.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: suspension.light.bodyPriceModifier"
+  - id: "suspension.light.handlingClass.automobile"
+    value: 1
+    status: Exact
+    source: "rulesets/classic/suspension.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: suspension.light.handlingClass.automobile"
+  - id: "suspension.light.handlingClass.cargo"
+    value: 0
+    status: Exact
+    source: "rulesets/classic/suspension.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: suspension.light.handlingClass.cargo"
+  - id: "tires.heavyduty.maxDP"
+    value: 6
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.heavyduty.maxDP"
+  - id: "tires.heavyduty.price"
+    value: 100
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.heavyduty.price"
+  - id: "tires.heavyduty.spikeImmune"
+    value: false
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.heavyduty.spikeImmune"
+  - id: "tires.heavyduty.weightLb"
+    value: 40
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.heavyduty.weightLb"
+  - id: "tires.punctureresistant.maxDP"
+    value: 9
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.punctureresistant.maxDP"
+  - id: "tires.punctureresistant.price"
+    value: 200
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.punctureresistant.price"
+  - id: "tires.punctureresistant.spikeImmune"
+    value: false
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.punctureresistant.spikeImmune"
+  - id: "tires.punctureresistant.weightLb"
+    value: 50
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.punctureresistant.weightLb"
+  - id: "tires.solid.maxDP"
+    value: 12
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.solid.maxDP"
+  - id: "tires.solid.price"
+    value: 500
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.solid.price"
+  - id: "tires.solid.spikeImmune"
+    value: true
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.solid.spikeImmune"
+  - id: "tires.solid.weightLb"
+    value: 75
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.solid.weightLb"
+  - id: "tires.standard.maxDP"
+    value: 4
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.standard.maxDP"
+  - id: "tires.standard.price"
+    value: 50
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.standard.price"
+  - id: "tires.standard.spikeImmune"
+    value: false
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.standard.spikeImmune"
+  - id: "tires.standard.weightLb"
+    value: 30
+    status: Exact
+    source: "rulesets/classic/tires.json construction/performance table"
+    confidence: 1.0
+    note: "Manual-stated construction number: tires.standard.weightLb"
+  - id: "weapons._reconstruction.rearPenetrationWeights.cargo"
+    value: 1
+    status: Reconstruction
+    source: "weapons.json _reconstruction block"
+    confidence: 0.5
+    note: "Tunable, chosen to reproduce documented REAR-overflow behavior: weapons._reconstruction.rearPenetrationWeights.cargo"
+  - id: "weapons._reconstruction.rearPenetrationWeights.driver"
+    value: 2
+    status: Reconstruction
+    source: "weapons.json _reconstruction block"
+    confidence: 0.5
+    note: "Tunable, chosen to reproduce documented REAR-overflow behavior: weapons._reconstruction.rearPenetrationWeights.driver"
+  - id: "weapons._reconstruction.rearPenetrationWeights.plant"
+    value: 3
+    status: Reconstruction
+    source: "weapons.json _reconstruction block"
+    confidence: 0.5
+    note: "Tunable, chosen to reproduce documented REAR-overflow behavior: weapons._reconstruction.rearPenetrationWeights.plant"
+  - id: "weapons.antitankgun.allowedFacings"
+    value: "FRONT,REAR"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.antitankgun.allowedFacings"
+  - id: "weapons.antitankgun.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.antitankgun.ammoCapacity"
+  - id: "weapons.antitankgun.ammoCost"
+    value: 50
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.antitankgun.ammoCost"
+  - id: "weapons.antitankgun.ammoWeightLb"
+    value: 10
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.antitankgun.ammoWeightLb"
+  - id: "weapons.antitankgun.baseAccuracy"
+    value: 66
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.baseAccuracy"
+  - id: "weapons.antitankgun.cooldownTicks"
+    value: 72
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.cooldownTicks"
+  - id: "weapons.antitankgun.damage.max"
+    value: 8
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.damage.max"
+  - id: "weapons.antitankgun.damage.min"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.damage.min"
+  - id: "weapons.antitankgun.damageSkillDivisor"
+    value: 25
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.damageSkillDivisor"
+  - id: "weapons.antitankgun.maxChance"
+    value: 92
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.maxChance"
+  - id: "weapons.antitankgun.maxDP"
+    value: 6
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.antitankgun.maxDP"
+  - id: "weapons.antitankgun.minChance"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.minChance"
+  - id: "weapons.antitankgun.penetrationBonus"
+    value: 2
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.penetrationBonus"
+  - id: "weapons.antitankgun.price"
+    value: 2050
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.antitankgun.price"
+  - id: "weapons.antitankgun.projectileSpeedMps"
+    value: 200
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.projectileSpeedMps"
+  - id: "weapons.antitankgun.rangeM"
+    value: 120
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.rangeM"
+  - id: "weapons.antitankgun.skillAccuracyScale"
+    value: 0.5
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.antitankgun.skillAccuracyScale"
+  - id: "weapons.antitankgun.spaces"
+    value: 4
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.antitankgun.spaces"
+  - id: "weapons.antitankgun.weightLb"
+    value: 615
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.antitankgun.weightLb"
+  - id: "weapons.flamethrower.allowedFacings"
+    value: "REAR,LEFT,RIGHT"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.flamethrower.allowedFacings"
+  - id: "weapons.flamethrower.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.flamethrower.ammoCapacity"
+  - id: "weapons.flamethrower.ammoCost"
+    value: 25
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.flamethrower.ammoCost"
+  - id: "weapons.flamethrower.ammoWeightLb"
+    value: 5
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.flamethrower.ammoWeightLb"
+  - id: "weapons.flamethrower.baseAccuracy"
+    value: 86
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.baseAccuracy"
+  - id: "weapons.flamethrower.coneHalfAngleDeg"
+    value: 26
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.coneHalfAngleDeg"
+  - id: "weapons.flamethrower.cooldownTicks"
+    value: 33
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.cooldownTicks"
+  - id: "weapons.flamethrower.damage.max"
+    value: 3
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.damage.max"
+  - id: "weapons.flamethrower.damage.min"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.damage.min"
+  - id: "weapons.flamethrower.damageSkillDivisor"
+    value: 50
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.damageSkillDivisor"
+  - id: "weapons.flamethrower.effects.0.durationTicks"
+    value: 240
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.effects.0.durationTicks"
+  - id: "weapons.flamethrower.effects.0.radiusM"
+    value: 10
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.effects.0.radiusM"
+  - id: "weapons.flamethrower.effects.1.chance"
+    value: 0.2
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.effects.1.chance"
+  - id: "weapons.flamethrower.maxChance"
+    value: 96
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.maxChance"
+  - id: "weapons.flamethrower.maxDP"
+    value: 3
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.flamethrower.maxDP"
+  - id: "weapons.flamethrower.minChance"
+    value: 10
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.minChance"
+  - id: "weapons.flamethrower.price"
+    value: 550
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.flamethrower.price"
+  - id: "weapons.flamethrower.rangeM"
+    value: 30
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.rangeM"
+  - id: "weapons.flamethrower.skillAccuracyScale"
+    value: 0.3
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.flamethrower.skillAccuracyScale"
+  - id: "weapons.flamethrower.spaces"
+    value: 3
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.flamethrower.spaces"
+  - id: "weapons.flamethrower.weightLb"
+    value: 465
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.flamethrower.weightLb"
+  - id: "weapons.heavyrocket.allowedFacings"
+    value: "FRONT,REAR,LEFT,RIGHT"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.heavyrocket.allowedFacings"
+  - id: "weapons.heavyrocket.ammoCapacity"
+    value: 1
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.ammoCapacity"
+  - id: "weapons.heavyrocket.ammoCost"
+    value: 0
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.ammoCost"
+  - id: "weapons.heavyrocket.ammoIncluded"
+    value: true
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.ammoIncluded"
+  - id: "weapons.heavyrocket.ammoWeightLb"
+    value: 0
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.ammoWeightLb"
+  - id: "weapons.heavyrocket.baseAccuracy"
+    value: 52
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.baseAccuracy"
+  - id: "weapons.heavyrocket.cooldownTicks"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.cooldownTicks"
+  - id: "weapons.heavyrocket.damage.max"
+    value: 14
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.damage.max"
+  - id: "weapons.heavyrocket.damage.min"
+    value: 8
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.damage.min"
+  - id: "weapons.heavyrocket.damageSkillDivisor"
+    value: 20
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.damageSkillDivisor"
+  - id: "weapons.heavyrocket.maxChance"
+    value: 88
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.maxChance"
+  - id: "weapons.heavyrocket.maxDP"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.maxDP"
+  - id: "weapons.heavyrocket.minChance"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.minChance"
+  - id: "weapons.heavyrocket.oneShot"
+    value: true
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.oneShot"
+  - id: "weapons.heavyrocket.price"
+    value: 200
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.price"
+  - id: "weapons.heavyrocket.projectileSpeedMps"
+    value: 80
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.projectileSpeedMps"
+  - id: "weapons.heavyrocket.rangeM"
+    value: 90
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.rangeM"
+  - id: "weapons.heavyrocket.removeAfterFire"
+    value: true
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.removeAfterFire"
+  - id: "weapons.heavyrocket.skillAccuracyScale"
+    value: 0.6
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.heavyrocket.skillAccuracyScale"
+  - id: "weapons.heavyrocket.spaces"
+    value: 1
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.spaces"
+  - id: "weapons.heavyrocket.weightLb"
+    value: 100
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.heavyrocket.weightLb"
+  - id: "weapons.laser.allowedFacings"
+    value: "FRONT,REAR,LEFT,RIGHT"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.laser.allowedFacings"
+  - id: "weapons.laser.ammoCapacity"
+    value: 0
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.laser.ammoCapacity"
+  - id: "weapons.laser.ammoCost"
+    value: 0
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.laser.ammoCost"
+  - id: "weapons.laser.ammoWeightLb"
+    value: 0
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.laser.ammoWeightLb"
+  - id: "weapons.laser.baseAccuracy"
+    value: 76
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.baseAccuracy"
+  - id: "weapons.laser.batteryPerShot"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.batteryPerShot"
+  - id: "weapons.laser.cooldownTicks"
+    value: 27
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.cooldownTicks"
+  - id: "weapons.laser.damage.max"
+    value: 7
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.damage.max"
+  - id: "weapons.laser.damage.min"
+    value: 4
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.damage.min"
+  - id: "weapons.laser.damageSkillDivisor"
+    value: 25
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.damageSkillDivisor"
+  - id: "weapons.laser.maxChance"
+    value: 97
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.maxChance"
+  - id: "weapons.laser.maxDP"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.laser.maxDP"
+  - id: "weapons.laser.minChance"
+    value: 10
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.minChance"
+  - id: "weapons.laser.price"
+    value: 8000
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.laser.price"
+  - id: "weapons.laser.rangeM"
+    value: 140
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.rangeM"
+  - id: "weapons.laser.skillAccuracyScale"
+    value: 0.4
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.laser.skillAccuracyScale"
+  - id: "weapons.laser.spaces"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.laser.spaces"
+  - id: "weapons.laser.usesBattery"
+    value: true
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.laser.usesBattery"
+  - id: "weapons.laser.weightLb"
+    value: 500
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.laser.weightLb"
+  - id: "weapons.machinegun.allowedFacings"
+    value: "FRONT,REAR,LEFT,RIGHT"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.machinegun.allowedFacings"
+  - id: "weapons.machinegun.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.machinegun.ammoCapacity"
+  - id: "weapons.machinegun.ammoCost"
+    value: 25
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.machinegun.ammoCost"
+  - id: "weapons.machinegun.ammoWeightLb"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.machinegun.ammoWeightLb"
+  - id: "weapons.machinegun.baseAccuracy"
+    value: 72
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.baseAccuracy"
+  - id: "weapons.machinegun.cooldownTicks"
+    value: 18
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.cooldownTicks"
+  - id: "weapons.machinegun.damage.checks"
+    value: 4
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.damage.checks"
+  - id: "weapons.machinegun.damage.maxPerCheck"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.damage.maxPerCheck"
+  - id: "weapons.machinegun.damage.minPerCheck"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.damage.minPerCheck"
+  - id: "weapons.machinegun.damageSkillDivisor"
+    value: 40
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.damageSkillDivisor"
+  - id: "weapons.machinegun.maxChance"
+    value: 95
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.maxChance"
+  - id: "weapons.machinegun.maxDP"
+    value: 3
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.machinegun.maxDP"
+  - id: "weapons.machinegun.minChance"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.minChance"
+  - id: "weapons.machinegun.price"
+    value: 1000
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.machinegun.price"
+  - id: "weapons.machinegun.projectileSpeedMps"
+    value: 240
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.projectileSpeedMps"
+  - id: "weapons.machinegun.rangeM"
+    value: 85
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.rangeM"
+  - id: "weapons.machinegun.skillAccuracyScale"
+    value: 0.45
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.machinegun.skillAccuracyScale"
+  - id: "weapons.machinegun.spaces"
+    value: 1
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.machinegun.spaces"
+  - id: "weapons.machinegun.weightLb"
+    value: 150
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.machinegun.weightLb"
+  - id: "weapons.minedropper.allowedFacings"
+    value: "REAR"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.minedropper.allowedFacings"
+  - id: "weapons.minedropper.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.minedropper.ammoCapacity"
+  - id: "weapons.minedropper.ammoCost"
+    value: 50
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.minedropper.ammoCost"
+  - id: "weapons.minedropper.ammoWeightLb"
+    value: 5
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.minedropper.ammoWeightLb"
+  - id: "weapons.minedropper.baseAccuracy"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.baseAccuracy"
+  - id: "weapons.minedropper.cooldownTicks"
+    value: 48
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.cooldownTicks"
+  - id: "weapons.minedropper.damage.max"
+    value: 7
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.damage.max"
+  - id: "weapons.minedropper.damage.min"
+    value: 3
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.damage.min"
+  - id: "weapons.minedropper.damageSkillDivisor"
+    value: 999
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.damageSkillDivisor"
+  - id: "weapons.minedropper.deployable.lifetimeDays"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.deployable.lifetimeDays"
+  - id: "weapons.minedropper.deployable.tireSplash"
+    value: true
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.deployable.tireSplash"
+  - id: "weapons.minedropper.deployable.triggerRadiusM"
+    value: 2.2
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.deployable.triggerRadiusM"
+  - id: "weapons.minedropper.maxChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.maxChance"
+  - id: "weapons.minedropper.maxDP"
+    value: 3
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.minedropper.maxDP"
+  - id: "weapons.minedropper.minChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.minChance"
+  - id: "weapons.minedropper.price"
+    value: 550
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.minedropper.price"
+  - id: "weapons.minedropper.rangeM"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.rangeM"
+  - id: "weapons.minedropper.skillAccuracyScale"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.minedropper.skillAccuracyScale"
+  - id: "weapons.minedropper.spaces"
+    value: 3
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.minedropper.spaces"
+  - id: "weapons.minedropper.weightLb"
+    value: 165
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.minedropper.weightLb"
+  - id: "weapons.oiljet.allowedFacings"
+    value: "REAR"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.oiljet.allowedFacings"
+  - id: "weapons.oiljet.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.oiljet.ammoCapacity"
+  - id: "weapons.oiljet.ammoCost"
+    value: 10
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.oiljet.ammoCost"
+  - id: "weapons.oiljet.ammoWeightLb"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.oiljet.ammoWeightLb"
+  - id: "weapons.oiljet.baseAccuracy"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.baseAccuracy"
+  - id: "weapons.oiljet.cooldownTicks"
+    value: 36
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.cooldownTicks"
+  - id: "weapons.oiljet.damageSkillDivisor"
+    value: 999
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.damageSkillDivisor"
+  - id: "weapons.oiljet.deployable.controlPenalty"
+    value: 50
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.deployable.controlPenalty"
+  - id: "weapons.oiljet.deployable.lifetimeTicks"
+    value: 180
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.deployable.lifetimeTicks"
+  - id: "weapons.oiljet.deployable.radiusM"
+    value: 20
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.deployable.radiusM"
+  - id: "weapons.oiljet.deployable.speedCapFraction"
+    value: 0.4
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.deployable.speedCapFraction"
+  - id: "weapons.oiljet.maxChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.maxChance"
+  - id: "weapons.oiljet.maxDP"
+    value: 3
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.oiljet.maxDP"
+  - id: "weapons.oiljet.minChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.minChance"
+  - id: "weapons.oiljet.price"
+    value: 250
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.oiljet.price"
+  - id: "weapons.oiljet.rangeM"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.rangeM"
+  - id: "weapons.oiljet.skillAccuracyScale"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.oiljet.skillAccuracyScale"
+  - id: "weapons.oiljet.spaces"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.oiljet.spaces"
+  - id: "weapons.oiljet.weightLb"
+    value: 25
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.oiljet.weightLb"
+  - id: "weapons.paintsprayer.allowedFacings"
+    value: "REAR,LEFT,RIGHT"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.paintsprayer.allowedFacings"
+  - id: "weapons.paintsprayer.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.paintsprayer.ammoCapacity"
+  - id: "weapons.paintsprayer.ammoCost"
+    value: 10
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.paintsprayer.ammoCost"
+  - id: "weapons.paintsprayer.ammoWeightLb"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.paintsprayer.ammoWeightLb"
+  - id: "weapons.paintsprayer.baseAccuracy"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.baseAccuracy"
+  - id: "weapons.paintsprayer.cooldownTicks"
+    value: 42
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.cooldownTicks"
+  - id: "weapons.paintsprayer.damageSkillDivisor"
+    value: 999
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.damageSkillDivisor"
+  - id: "weapons.paintsprayer.deployable.accuracyPenalty"
+    value: 35
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.deployable.accuracyPenalty"
+  - id: "weapons.paintsprayer.deployable.drivingPenalty"
+    value: 35
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.deployable.drivingPenalty"
+  - id: "weapons.paintsprayer.deployable.lifetimeTicks"
+    value: 240
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.deployable.lifetimeTicks"
+  - id: "weapons.paintsprayer.deployable.radiusM"
+    value: 18
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.deployable.radiusM"
+  - id: "weapons.paintsprayer.deployable.windshieldImpair"
+    value: true
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.deployable.windshieldImpair"
+  - id: "weapons.paintsprayer.maxChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.maxChance"
+  - id: "weapons.paintsprayer.maxDP"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.paintsprayer.maxDP"
+  - id: "weapons.paintsprayer.minChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.minChance"
+  - id: "weapons.paintsprayer.price"
+    value: 400
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.paintsprayer.price"
+  - id: "weapons.paintsprayer.rangeM"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.rangeM"
+  - id: "weapons.paintsprayer.skillAccuracyScale"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.paintsprayer.skillAccuracyScale"
+  - id: "weapons.paintsprayer.spaces"
+    value: 1
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.paintsprayer.spaces"
+  - id: "weapons.paintsprayer.weightLb"
+    value: 25
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.paintsprayer.weightLb"
+  - id: "weapons.recoillessrifle.allowedFacings"
+    value: "FRONT,REAR,LEFT,RIGHT"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.recoillessrifle.allowedFacings"
+  - id: "weapons.recoillessrifle.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.recoillessrifle.ammoCapacity"
+  - id: "weapons.recoillessrifle.ammoCost"
+    value: 35
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.recoillessrifle.ammoCost"
+  - id: "weapons.recoillessrifle.ammoWeightLb"
+    value: 5
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.recoillessrifle.ammoWeightLb"
+  - id: "weapons.recoillessrifle.baseAccuracy"
+    value: 72
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.baseAccuracy"
+  - id: "weapons.recoillessrifle.cooldownTicks"
+    value: 45
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.cooldownTicks"
+  - id: "weapons.recoillessrifle.damage.max"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.damage.max"
+  - id: "weapons.recoillessrifle.damage.min"
+    value: 3
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.damage.min"
+  - id: "weapons.recoillessrifle.damageSkillDivisor"
+    value: 30
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.damageSkillDivisor"
+  - id: "weapons.recoillessrifle.maxChance"
+    value: 95
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.maxChance"
+  - id: "weapons.recoillessrifle.maxDP"
+    value: 5
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.recoillessrifle.maxDP"
+  - id: "weapons.recoillessrifle.minChance"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.minChance"
+  - id: "weapons.recoillessrifle.price"
+    value: 1550
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.recoillessrifle.price"
+  - id: "weapons.recoillessrifle.projectileSpeedMps"
+    value: 180
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.projectileSpeedMps"
+  - id: "weapons.recoillessrifle.rangeM"
+    value: 105
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.rangeM"
+  - id: "weapons.recoillessrifle.skillAccuracyScale"
+    value: 0.45
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.recoillessrifle.skillAccuracyScale"
+  - id: "weapons.recoillessrifle.spaces"
+    value: 3
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.recoillessrifle.spaces"
+  - id: "weapons.recoillessrifle.weightLb"
+    value: 315
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.recoillessrifle.weightLb"
+  - id: "weapons.rocketlauncher.allowedFacings"
+    value: "FRONT,REAR,LEFT,RIGHT"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.rocketlauncher.allowedFacings"
+  - id: "weapons.rocketlauncher.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.rocketlauncher.ammoCapacity"
+  - id: "weapons.rocketlauncher.ammoCost"
+    value: 35
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.rocketlauncher.ammoCost"
+  - id: "weapons.rocketlauncher.ammoWeightLb"
+    value: 5
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.rocketlauncher.ammoWeightLb"
+  - id: "weapons.rocketlauncher.baseAccuracy"
+    value: 58
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.baseAccuracy"
+  - id: "weapons.rocketlauncher.cooldownTicks"
+    value: 54
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.cooldownTicks"
+  - id: "weapons.rocketlauncher.damage.max"
+    value: 6
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.damage.max"
+  - id: "weapons.rocketlauncher.damage.min"
+    value: 3
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.damage.min"
+  - id: "weapons.rocketlauncher.damageSkillDivisor"
+    value: 30
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.damageSkillDivisor"
+  - id: "weapons.rocketlauncher.maxChance"
+    value: 90
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.maxChance"
+  - id: "weapons.rocketlauncher.maxDP"
+    value: 3
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.rocketlauncher.maxDP"
+  - id: "weapons.rocketlauncher.minChance"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.minChance"
+  - id: "weapons.rocketlauncher.minRangeM"
+    value: 8
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.minRangeM"
+  - id: "weapons.rocketlauncher.price"
+    value: 1050
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.rocketlauncher.price"
+  - id: "weapons.rocketlauncher.projectileSpeedMps"
+    value: 90
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.projectileSpeedMps"
+  - id: "weapons.rocketlauncher.rangeM"
+    value: 115
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.rangeM"
+  - id: "weapons.rocketlauncher.skillAccuracyScale"
+    value: 0.55
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.rocketlauncher.skillAccuracyScale"
+  - id: "weapons.rocketlauncher.spaces"
+    value: 3
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.rocketlauncher.spaces"
+  - id: "weapons.rocketlauncher.weightLb"
+    value: 215
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.rocketlauncher.weightLb"
+  - id: "weapons.smokescreen.allowedFacings"
+    value: "REAR,LEFT,RIGHT"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.smokescreen.allowedFacings"
+  - id: "weapons.smokescreen.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.smokescreen.ammoCapacity"
+  - id: "weapons.smokescreen.ammoCost"
+    value: 10
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.smokescreen.ammoCost"
+  - id: "weapons.smokescreen.ammoWeightLb"
+    value: 5
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.smokescreen.ammoWeightLb"
+  - id: "weapons.smokescreen.baseAccuracy"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.baseAccuracy"
+  - id: "weapons.smokescreen.cooldownTicks"
+    value: 42
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.cooldownTicks"
+  - id: "weapons.smokescreen.damageSkillDivisor"
+    value: 999
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.damageSkillDivisor"
+  - id: "weapons.smokescreen.deployable.accuracyPenalty"
+    value: 45
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.deployable.accuracyPenalty"
+  - id: "weapons.smokescreen.deployable.blocksLineOfSight"
+    value: true
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.deployable.blocksLineOfSight"
+  - id: "weapons.smokescreen.deployable.lifetimeTicks"
+    value: 300
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.deployable.lifetimeTicks"
+  - id: "weapons.smokescreen.deployable.radiusM"
+    value: 22
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.deployable.radiusM"
+  - id: "weapons.smokescreen.maxChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.maxChance"
+  - id: "weapons.smokescreen.maxDP"
+    value: 5
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.smokescreen.maxDP"
+  - id: "weapons.smokescreen.minChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.minChance"
+  - id: "weapons.smokescreen.price"
+    value: 300
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.smokescreen.price"
+  - id: "weapons.smokescreen.rangeM"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.rangeM"
+  - id: "weapons.smokescreen.skillAccuracyScale"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.smokescreen.skillAccuracyScale"
+  - id: "weapons.smokescreen.spaces"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.smokescreen.spaces"
+  - id: "weapons.smokescreen.weightLb"
+    value: 40
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.smokescreen.weightLb"
+  - id: "weapons.spikedropper.allowedFacings"
+    value: "REAR"
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Legal mount facings: weapons.spikedropper.allowedFacings"
+  - id: "weapons.spikedropper.ammoCapacity"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.spikedropper.ammoCapacity"
+  - id: "weapons.spikedropper.ammoCost"
+    value: 20
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.spikedropper.ammoCost"
+  - id: "weapons.spikedropper.ammoWeightLb"
+    value: 5
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.spikedropper.ammoWeightLb"
+  - id: "weapons.spikedropper.baseAccuracy"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.baseAccuracy"
+  - id: "weapons.spikedropper.cooldownTicks"
+    value: 27
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.cooldownTicks"
+  - id: "weapons.spikedropper.damage.max"
+    value: 5
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.damage.max"
+  - id: "weapons.spikedropper.damage.min"
+    value: 2
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.damage.min"
+  - id: "weapons.spikedropper.damageSkillDivisor"
+    value: 999
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.damageSkillDivisor"
+  - id: "weapons.spikedropper.deployable.lifetimeDays"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.deployable.lifetimeDays"
+  - id: "weapons.spikedropper.deployable.targetsTiresOnly"
+    value: true
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.deployable.targetsTiresOnly"
+  - id: "weapons.spikedropper.deployable.triggerRadiusM"
+    value: 2.6
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.deployable.triggerRadiusM"
+  - id: "weapons.spikedropper.deployable.zeroVsSpikeImmune"
+    value: true
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.deployable.zeroVsSpikeImmune"
+  - id: "weapons.spikedropper.maxChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.maxChance"
+  - id: "weapons.spikedropper.maxDP"
+    value: 5
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.spikedropper.maxDP"
+  - id: "weapons.spikedropper.minChance"
+    value: 100
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.minChance"
+  - id: "weapons.spikedropper.price"
+    value: 150
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.spikedropper.price"
+  - id: "weapons.spikedropper.rangeM"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.rangeM"
+  - id: "weapons.spikedropper.skillAccuracyScale"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: weapon range/cooldown/accuracy/damage/projectileSpeed are Reconstruction"
+    confidence: 0.6
+    note: "Balance-tuning field, chosen to reproduce documented weapon behavior: weapons.spikedropper.skillAccuracyScale"
+  - id: "weapons.spikedropper.spaces"
+    value: 2
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.spikedropper.spaces"
+  - id: "weapons.spikedropper.weightLb"
+    value: 40
+    status: Exact
+    source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
+    confidence: 1.0
+    note: "Construction-table field: weapons.spikedropper.weightLb"

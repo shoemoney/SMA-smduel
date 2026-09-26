@@ -96,3 +96,21 @@ Then despill the remaining edge fringe.
 - Added `prop-barricade`, `prop-fuel-drum`.
 
 50 frames total, every one carrying metadata.
+
+## 8. Resolved (packer fixes)
+
+- **Section 3 seam choice: 4-way mirror**, not offset+heal. `tools/pack-atlas.mjs`
+  downscales every `tile-*` source to a 256px quadrant, then mirrors it into quadrants
+  (original / h-flip / v-flip / both) to build the final **512px** tile — this hits the
+  section 4 "tiles 512" budget AND makes the tile self-seamless (opposite edges are
+  pixel-identical), so a ground shader can `fract()`-wrap the atlas sub-rect directly and
+  never needs hardware `GL_REPEAT` or a standalone unshared texture. Verified in
+  `tests/unit/atlas.test.ts` (`mirrorQuadrantToSeamlessTile`).
+- **Section 6 hue-band key** is now implemented (`chromaKeyToAlpha` in HSV, saturation
+  floor + value floor), replacing the RGB-distance key this file originally measured and
+  rejected.
+- **Section 4 size budget**: vehicles/props/fx/decals now downscale (area/box filter,
+  never upscale) to fit 256px on their longest edge post-crop; `ui-*` is left at native
+  resolution. Shipped atlas is a single 4096x4096 sheet, ~17MB (was 3 sheets, 66MB).
+- `rotationOffsetDeg` (section 2) is now carried into `atlas.json` and into
+  `AtlasFrameEntry`/`FrameInfo` in `src/render/atlas.ts`.

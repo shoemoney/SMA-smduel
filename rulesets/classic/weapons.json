@@ -103,5 +103,9 @@
       "skillAccuracyScale": 0.60, "damageSkillDivisor": 20,
       "damage": { "kind": "RANGE", "min": 8, "max": 14 },
       "projectileSpeedMps": 80, "effects": [] }
-  ]
+  ],
+  "_reconstruction": {
+    "_note": "RECONSTRUCTION - tunable, see fidelity-notes.yaml. Not from the manual.",
+    "rearPenetrationWeights": { "plant": 3, "driver": 2, "cargo": 1 }
+  }
 }

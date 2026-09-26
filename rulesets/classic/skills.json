@@ -15,7 +15,8 @@
       "controlScoreMin": 5, "controlScoreMax": 98,
       "turnStressThreshold": 40, "turnStressDecayPerSecond": 25,
       "speedPenaltyScale": 18, "oilSurfacePenalty": 50,
-      "controlLossTicksMin": 30, "controlLossTicksMax": 90
+      "controlLossTicksMin": 30, "controlLossTicksMax": 90,
+      "handlingScaleDivisor": 100, "minTireHandlingFactor": 0.05
     },
     "marksmanship": { "skillPivot": 25 },
     "mechanic": {

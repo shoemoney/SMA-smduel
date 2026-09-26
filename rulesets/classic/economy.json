@@ -40,8 +40,9 @@
   },
   "casino": {
     "poker": { "pair": 1, "twoPair": 2, "threeOfAKind": 3, "straight": 4, "flush": 5, "fullHouse": 7, "fourOfAKind": 25, "straightFlush": 70,
-               "allowDiscardAllFive": true, "allowAceLowStraight": true },
+               "allowDiscardAllFive": true, "allowAceLowStraight": true, "maxRank": 14 },
     "blackjack": { "dealerHitsThrough": 16, "dealerWinsTies": true, "fiveCardNonBustWins": true, "exactTwentyOneWins": true,
-                   "ordinaryPayout": 2, "twoCardBlackjackPayout": 3 }
+                   "ordinaryPayout": 2, "twoCardBlackjackPayout": 3,
+                   "targetScore": 21, "aceHighValue": 11, "aceLowValue": 1, "faceCardValue": 10, "fiveCardCount": 5 }
   }
 }

@@ -1,0 +1,428 @@
+/*
+ * Combat HUD overlay styles.
+ *
+ * - Positioning only: upper-left weapons, lower-left radar, bottom
+ *   speed/battery, right-side damage facings, and a capped message feed.
+ * - No state is ever conveyed by color alone: every damage/status element
+ *   carries a `data-state` attribute and its own text/glyph content (see
+ *   hud.ts); the colors below are a redundant reinforcement layer, not the
+ *   only signal.
+ * - `--hud-scale` (set by hud.ts from HudSettings.scale) resizes the whole
+ *   overlay; `data-reduced-flash`/`data-reduced-shake` on the root disable
+ *   the corresponding animations.
+ * - Light/dark-safe: every color is a custom property, redefined under
+ *   `prefers-color-scheme: dark`.
+ */
+
+:root {
+  --hud-scale: 1;
+  --hud-bg: rgba(248, 250, 252, 0.86);
+  --hud-bg-strong: rgba(248, 250, 252, 0.96);
+  --hud-fg: #10151b;
+  --hud-fg-muted: #4a5568;
+  --hud-border: rgba(16, 21, 27, 0.35);
+  --hud-accent: #0a5f8a;
+  --hud-ok: #1a7f37;
+  --hud-damaged: #9a6a00;
+  --hud-critical: #b8330a;
+  --hud-destroyed: #8a1f1f;
+  --hud-active-ring: #0a5f8a;
+  --hud-focus-ring: #0a5f8a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --hud-bg: rgba(12, 16, 22, 0.82);
+    --hud-bg-strong: rgba(12, 16, 22, 0.94);
+    --hud-fg: #eef2f6;
+    --hud-fg-muted: #a8b3c0;
+    --hud-border: rgba(238, 242, 246, 0.28);
+    --hud-accent: #6cc4f0;
+    --hud-ok: #55c26e;
+    --hud-damaged: #e0b23a;
+    --hud-critical: #ef7a4f;
+    --hud-destroyed: #ff8a8a;
+    --hud-active-ring: #6cc4f0;
+    --hud-focus-ring: #6cc4f0;
+  }
+}
+
+:root[data-theme='dark'] {
+  --hud-bg: rgba(12, 16, 22, 0.82);
+  --hud-bg-strong: rgba(12, 16, 22, 0.94);
+  --hud-fg: #eef2f6;
+  --hud-fg-muted: #a8b3c0;
+  --hud-border: rgba(238, 242, 246, 0.28);
+  --hud-accent: #6cc4f0;
+  --hud-ok: #55c26e;
+  --hud-damaged: #e0b23a;
+  --hud-critical: #ef7a4f;
+  --hud-destroyed: #ff8a8a;
+  --hud-active-ring: #6cc4f0;
+  --hud-focus-ring: #6cc4f0;
+}
+
+.hud-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font: calc(13px * var(--hud-scale)) / 1.3 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color: var(--hud-fg);
+  -webkit-font-smoothing: antialiased;
+  z-index: 20;
+}
+
+.hud-root * {
+  box-sizing: border-box;
+}
+
+.hud-panel {
+  position: absolute;
+  pointer-events: auto;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  border-radius: calc(8px * var(--hud-scale));
+  padding: calc(8px * var(--hud-scale)) calc(10px * var(--hud-scale));
+  backdrop-filter: blur(6px);
+  max-width: calc(260px * var(--hud-scale));
+}
+
+.hud-panel-title {
+  margin: 0 0 calc(4px * var(--hud-scale));
+  font-size: calc(11px * var(--hud-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hud-fg-muted);
+}
+
+/* Screen-reader-only content: visually hidden, still in the accessibility tree. */
+.hud-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- layout slots ----------------------------------------------------- */
+
+.hud-panel--weapons {
+  top: calc(12px * var(--hud-scale));
+  left: calc(12px * var(--hud-scale));
+}
+
+.hud-panel--radar {
+  bottom: calc(12px * var(--hud-scale));
+  left: calc(12px * var(--hud-scale));
+  width: calc(180px * var(--hud-scale));
+}
+
+.hud-panel--speed {
+  bottom: calc(12px * var(--hud-scale));
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.hud-panel--damage {
+  top: calc(12px * var(--hud-scale));
+  right: calc(12px * var(--hud-scale));
+}
+
+.hud-panel--messages {
+  top: calc(12px * var(--hud-scale));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(320px * var(--hud-scale));
+}
+
+.hud-panel--a11y {
+  bottom: calc(12px * var(--hud-scale));
+  right: calc(12px * var(--hud-scale));
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--hud-scale));
+}
+
+/* --- weapons ------------------------------------------------------------ */
+
+.hud-weapon-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(3px * var(--hud-scale));
+}
+
+.hud-weapon-row {
+  display: grid;
+  grid-template-columns: 1.4em 3.2em 1fr auto auto auto;
+  align-items: center;
+  gap: calc(6px * var(--hud-scale));
+  padding: calc(2px * var(--hud-scale)) calc(4px * var(--hud-scale));
+  border-radius: calc(4px * var(--hud-scale));
+  border: 1px solid transparent;
+}
+
+/* Active weapon: a border/shape change, not a color-only highlight. */
+.hud-weapon-row--active {
+  border: 2px solid var(--hud-active-ring);
+  font-weight: 700;
+}
+.hud-weapon-row--active .hud-weapon-slot::after {
+  content: ' \25B6'; /* ▶ marks the active row with a shape, not just a border color */
+}
+
+.hud-weapon-slot {
+  color: var(--hud-fg-muted);
+}
+
+.hud-weapon-cooldown--ready {
+  color: var(--hud-ok);
+}
+
+.hud-weapon-dp[data-state='ok'] {
+  color: var(--hud-ok);
+}
+.hud-weapon-dp[data-state='damaged'] {
+  color: var(--hud-damaged);
+}
+.hud-weapon-dp[data-state='critical'] {
+  color: var(--hud-critical);
+}
+.hud-weapon-dp[data-state='destroyed'] {
+  color: var(--hud-destroyed);
+}
+
+/* --- radar --------------------------------------------------------------- */
+
+.hud-panel--radar[data-state='offline'] .hud-radar-offline {
+  color: var(--hud-critical);
+  font-weight: 700;
+}
+
+.hud-radar-face {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 1px solid var(--hud-border);
+  background: repeating-radial-gradient(circle, transparent 0, transparent calc(20% - 1px), var(--hud-border) 20%);
+  margin: calc(6px * var(--hud-scale)) 0;
+  /* Belt-and-suspenders: hud.ts pre-culls contacts to the ruleset's visual
+     range, but this keeps a bad value from ever escaping the circular face. */
+  overflow: hidden;
+}
+
+.hud-radar-player {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--hud-accent);
+}
+
+.hud-radar-contact {
+  position: absolute;
+  /* --hud-radar-x/y are unitless fractions of the ruleset's radar.visualRangeM
+     (see hud.ts), in -1..1 — 50% is the face's radius, so a contact at the
+     edge of sensor range lands exactly on the edge of the dial regardless of
+     panel size. */
+  top: calc(50% - var(--hud-radar-y) * 50%);
+  left: calc(50% + var(--hud-radar-x) * 50%);
+  transform: translate(-50%, -50%);
+  font-size: calc(10px * var(--hud-scale));
+  line-height: 1;
+}
+/* Shape per contact kind — never color alone. */
+.hud-radar-contact--vehicle::before {
+  content: '\25A0'; /* ■ */
+}
+.hud-radar-contact--pedestrian::before {
+  content: '\25CF'; /* ● */
+}
+.hud-radar-contact--hazard::before {
+  content: '\2716'; /* ✖ */
+}
+.hud-radar-contact--wreck::before {
+  content: '\2716'; /* ✖ */
+  opacity: 0.6;
+}
+.hud-radar-contact--hostile {
+  color: var(--hud-critical);
+  font-weight: 700;
+}
+
+.hud-radar-orientation-toggle {
+  margin-top: calc(4px * var(--hud-scale));
+  width: 100%;
+}
+
+/* --- speed / battery ------------------------------------------------------ */
+
+.hud-speed-dial {
+  width: calc(64px * var(--hud-scale));
+  height: calc(64px * var(--hud-scale));
+  margin: 0 auto calc(4px * var(--hud-scale));
+  border-radius: 50%;
+  border: calc(3px * var(--hud-scale)) solid var(--hud-border);
+  background: conic-gradient(var(--hud-accent) calc(var(--hud-speed-frac, 0) * 360deg), transparent 0);
+}
+
+.hud-speed-digital {
+  font-size: calc(20px * var(--hud-scale));
+  font-weight: 700;
+}
+
+.hud-accel-tier,
+.hud-odometer {
+  color: var(--hud-fg-muted);
+  font-size: calc(11px * var(--hud-scale));
+}
+
+.hud-battery {
+  margin-top: calc(4px * var(--hud-scale));
+  font-weight: 700;
+}
+.hud-battery[data-state='ok'] {
+  color: var(--hud-ok);
+}
+.hud-battery[data-state='damaged'] {
+  color: var(--hud-damaged);
+}
+.hud-battery[data-state='critical'] {
+  color: var(--hud-critical);
+}
+.hud-battery--empty,
+.hud-battery[data-state='empty'] {
+  color: var(--hud-destroyed);
+}
+/* Reduced-flash: the empty-battery pulse is opt-out, never the only cue (the glyph/text already says "0%"). */
+.hud-root:not([data-reduced-flash='true']) .hud-battery--empty {
+  animation: hud-pulse 1s ease-in-out infinite;
+}
+
+/* --- condition / armor / tires / plant / driver / cargo -------------------- */
+
+.hud-armor-list,
+.hud-tire-list,
+.hud-cargo-list {
+  list-style: none;
+  margin: 0 0 calc(4px * var(--hud-scale));
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(2px * var(--hud-scale));
+}
+
+[data-state='ok'] {
+  color: var(--hud-ok);
+}
+[data-state='damaged'] {
+  color: var(--hud-damaged);
+}
+[data-state='critical'] {
+  color: var(--hud-critical);
+}
+[data-state='destroyed'] {
+  color: var(--hud-destroyed);
+}
+
+/* --- message feed ----------------------------------------------------------- */
+
+.hud-message-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(2px * var(--hud-scale));
+  max-height: calc(160px * var(--hud-scale));
+  overflow-y: auto;
+}
+
+.hud-message {
+  padding: calc(2px * var(--hud-scale)) calc(4px * var(--hud-scale));
+  border-left: calc(3px * var(--hud-scale)) solid var(--hud-border);
+}
+.hud-message--destroyed,
+.hud-message--controlLoss {
+  border-left-color: var(--hud-critical);
+  font-weight: 700;
+}
+.hud-message--victory {
+  border-left-color: var(--hud-ok);
+  font-weight: 700;
+}
+.hud-message--deadline,
+.hud-message--salvage {
+  border-left-color: var(--hud-damaged);
+}
+
+/* --- accessibility controls -------------------------------------------------- */
+
+.hud-a11y-toggle,
+.hud-radar-orientation-toggle {
+  font: inherit;
+  color: var(--hud-fg);
+  background: var(--hud-bg-strong);
+  border: 1px solid var(--hud-border);
+  border-radius: calc(4px * var(--hud-scale));
+  padding: calc(3px * var(--hud-scale)) calc(6px * var(--hud-scale));
+  cursor: pointer;
+}
+.hud-a11y-toggle[aria-pressed='true'] {
+  border-style: dashed;
+  font-weight: 700;
+}
+.hud-a11y-toggle[aria-pressed='true']::before {
+  content: '\2713 '; /* ✓ shape, not just a color change, when a toggle is on */
+}
+
+.hud-root button:focus-visible {
+  outline: calc(2px * var(--hud-scale)) solid var(--hud-focus-ring);
+  outline-offset: 2px;
+}
+
+/* --- reduced motion ----------------------------------------------------------- */
+
+@keyframes hud-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.hud-root[data-reduced-flash='true'] * {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-root * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Screen-shake is applied by the render layer to the canvas, not the HUD; the
+   HUD only surfaces the setting (data-reduced-shake on .hud-root) so that
+   code can read it from the DOM instead of re-deriving its own copy of the
+   preference. */
+
+@media (max-width: 640px) {
+  .hud-panel {
+    max-width: calc(180px * var(--hud-scale));
+    font-size: calc(11px * var(--hud-scale));
+  }
+  .hud-panel--messages {
+    width: calc(220px * var(--hud-scale));
+  }
+}

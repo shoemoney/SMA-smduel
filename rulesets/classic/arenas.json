@@ -1,0 +1,112 @@
+{
+  "$schemaVersion": 1,
+  "_note": "Arena event tables. Manual-exact: practice's price (mirrors economy.services.arenaPractice), amateur-night's opponent count/kart count/cash reward, division-15's full row, city-championship's full row (cadence ties to cities.json championships.cadenceDays via @/sim/calendar's nextChampionshipDay). Everything an event lists under _reconstruction is a tunable seed, not a documented number - see fidelity-notes.yaml. Ids are neutral, no protected IP strings.",
+  "houseVehicle": {
+    "id": "arena-kart",
+    "name": "Arena Kart",
+    "bodyId": "subcompact",
+    "chassisId": "light",
+    "suspensionId": "improved",
+    "plantId": "small",
+    "tireId": "standard",
+    "armor": { "FRONT": 3, "REAR": 3, "LEFT": 3, "RIGHT": 3, "UNDERBODY": 3 },
+    "weapons": [
+      { "weaponId": "machinegun", "facing": "FRONT", "ammo": 20 }
+    ],
+    "totalCount": 6,
+    "salvageable": false,
+    "_note": "Lightly armored, light-chassis/improved-suspension subcompact with one FRONT machine gun. 6 total = 5 amateur-night opponents + the player's own loaner. House karts are never salvageable, win or lose."
+  },
+  "events": [
+    {
+      "id": "practice",
+      "name": "Practice",
+      "eligibility": { "kind": "own-active-vehicle-affordable", "costService": "arenaPractice" },
+      "opponentCount": 0,
+      "vehicleSource": "own",
+      "cadence": { "kind": "on-demand" },
+      "cashReward": 0,
+      "prestigeReward": 0
+    },
+    {
+      "id": "amateur-night",
+      "name": "Amateur Night",
+      "eligibility": { "kind": "on-foot-under-threshold", "cashBelow": 5000, "prestigeBelow": 6 },
+      "opponentCount": 5,
+      "vehicleSource": "house",
+      "cadence": { "kind": "weekly-plus-non-championship-saturday" },
+      "cashReward": 1500,
+      "prestigeReward": 1,
+      "_reconstruction": ["prestigeReward"]
+    },
+    {
+      "id": "division-5",
+      "name": "Division 5",
+      "eligibility": { "kind": "own-vehicle-value-cap", "maxValue": 5000 },
+      "opponentCount": 3,
+      "vehicleSource": "own",
+      "cadence": { "kind": "weekly" },
+      "cashReward": 1500,
+      "prestigeReward": 1,
+      "_reconstruction": ["opponentCount", "cashReward", "prestigeReward"]
+    },
+    {
+      "id": "division-10",
+      "name": "Division 10",
+      "eligibility": { "kind": "own-vehicle-value-cap", "maxValue": 10000 },
+      "opponentCount": 4,
+      "vehicleSource": "own",
+      "cadence": { "kind": "weekly" },
+      "cashReward": 3000,
+      "prestigeReward": 1,
+      "_reconstruction": ["opponentCount", "cashReward", "prestigeReward"]
+    },
+    {
+      "id": "division-15",
+      "name": "Division 15",
+      "eligibility": { "kind": "own-vehicle-value-cap", "maxValue": 15000 },
+      "opponentCount": 5,
+      "vehicleSource": "own",
+      "cadence": { "kind": "weekly" },
+      "cashReward": 4500,
+      "prestigeReward": 2
+    },
+    {
+      "id": "division-20",
+      "name": "Division 20",
+      "eligibility": { "kind": "own-vehicle-value-cap", "maxValue": 20000 },
+      "opponentCount": 6,
+      "vehicleSource": "own",
+      "cadence": { "kind": "weekly" },
+      "cashReward": 6000,
+      "prestigeReward": 2,
+      "_reconstruction": ["opponentCount", "cashReward", "prestigeReward"]
+    },
+    {
+      "id": "unlimited",
+      "name": "Unlimited",
+      "eligibility": { "kind": "own-vehicle-any-value" },
+      "opponentCount": 7,
+      "vehicleSource": "own",
+      "cadence": { "kind": "scheduled" },
+      "cashReward": 7000,
+      "prestigeReward": 2,
+      "_reconstruction": ["opponentCount", "cashReward", "prestigeReward", "cadence"]
+    },
+    {
+      "id": "city-championship",
+      "name": "City Championship",
+      "eligibility": { "kind": "own-vehicle-any-value" },
+      "opponentCount": 8,
+      "vehicleSource": "own",
+      "cadence": { "kind": "city-championship-cycle" },
+      "cashReward": 9500,
+      "prestigeReward": 3
+    }
+  ],
+  "_reconstruction": {
+    "_note": "RECONSTRUCTION - tunable, not documented by name in any source table. See fidelity-notes.yaml.",
+    "escapePrestigePenalty": 1,
+    "victorySkillGain": { "driving": 1, "marksmanship": 1 }
+  }
+}

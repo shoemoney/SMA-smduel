@@ -1,0 +1,597 @@
+/**
+ * Combat HUD: an accessible DOM/CSS overlay rendered above the WebGPU canvas.
+ *
+ * `renderHud` is a pure function of a read-only `HudSnapshot` (plus the tiny
+ * `HudDocument` it uses to create elements): given the same snapshot it
+ * always produces the same tree. It never mutates world state, never touches
+ * `Math.random`/`Date.now`, and never imports anything runtime from
+ * `@/sim/**` — only types. Every displayed number that comes from game
+ * balance (max DP, ammo capacity, cooldown ticks, battery capacity, top
+ * speed, acceleration tiers, natural-health/body-armor caps, radar range) is
+ * read from the ruleset tables through `@/data/rulesets`, never hardcoded.
+ *
+ * DOM access is injected through the tiny `HudDocument`/`HudElement`
+ * interfaces below instead of the global `document`, so the module has zero
+ * hard dependency on a browser or a DOM polyfill: production code wires it to
+ * the real DOM with `createBrowserHudDocument()`; tests wire it to a small
+ * fake that records the tree it built.
+ */
+import { accelerationTiers, allPlants, drivingConfig, getPlant, getTire, getWeapon, skillsConfig } from '@/data/rulesets';
+import type { Facing, VehicleState, WeaponState } from '@/sim/types';
+
+// ---------------------------------------------------------------------------
+// Minimal injectable DOM
+// ---------------------------------------------------------------------------
+
+/** The subset of `Element` the HUD needs. Implementable by a real DOM node or a test fake. */
+export interface HudElement {
+  readonly tagName: string;
+  setAttribute(name: string, value: string): void;
+  appendChild(child: HudElement): void;
+  /** Detach and discard every child built by a previous render. */
+  clearChildren(): void;
+  setText(text: string): void;
+  addEventListener(type: string, handler: () => void): void;
+}
+
+/** The subset of `Document` the HUD needs. */
+export interface HudDocument {
+  createElement(tag: string): HudElement;
+}
+
+class DomHudElement implements HudElement {
+  constructor(private readonly el: Element) {}
+  get tagName(): string {
+    return this.el.tagName;
+  }
+  setAttribute(name: string, value: string): void {
+    this.el.setAttribute(name, value);
+  }
+  appendChild(child: HudElement): void {
+    if (child instanceof DomHudElement) this.el.appendChild(child.el);
+  }
+  clearChildren(): void {
+    while (this.el.firstChild) this.el.removeChild(this.el.firstChild);
+  }
+  setText(text: string): void {
+    this.el.textContent = text;
+  }
+  addEventListener(type: string, handler: () => void): void {
+    this.el.addEventListener(type, handler);
+  }
+}
+
+/** Wrap a real (or DOM-shimmed) `Document` for production use. */
+export function createBrowserHudDocument(doc: Document): HudDocument {
+  return {
+    createElement(tag: string): HudElement {
+      return new DomHudElement(doc.createElement(tag));
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Snapshot contract
+// ---------------------------------------------------------------------------
+
+export type RadarOrientation = 'world' | 'heading';
+
+export interface HudRadarContact {
+  readonly id: string;
+  readonly kind: 'vehicle' | 'pedestrian' | 'hazard' | 'wreck';
+  /** Meters, world-frame offset from the player (+x east, +y north). */
+  readonly worldDx: number;
+  readonly worldDy: number;
+  readonly hostile: boolean;
+}
+
+export interface HudRadarSnapshot {
+  /** False when plant damage has knocked radar out; renders an offline state, not an empty one. */
+  readonly enabled: boolean;
+  readonly contacts: readonly HudRadarContact[];
+}
+
+export type HudMessageKind = 'hit' | 'destroyed' | 'controlLoss' | 'salvage' | 'deadline' | 'victory' | 'info';
+
+export interface HudMessage {
+  readonly id: string;
+  readonly kind: HudMessageKind;
+  readonly text: string;
+  /** World tick the message was generated at; used only for feed ordering, never wall-clock time. */
+  readonly tick: number;
+}
+
+export interface HudDriverVitals {
+  readonly naturalHealth: number;
+  readonly bodyArmor: number;
+}
+
+export interface HudSettings {
+  /** Multiplies the `--hud-scale` custom property. */
+  readonly scale: number;
+  readonly radarOrientation: RadarOrientation;
+  readonly reducedFlash: boolean;
+  readonly reducedShake: boolean;
+}
+
+export interface HudSnapshot {
+  readonly vehicle: VehicleState;
+  /** Index into `vehicle.weapons`, or null when nothing is selected. */
+  readonly activeWeaponIndex: number | null;
+  /**
+   * mph/s the build currently accelerates at, or `null` when the build is
+   * UNDERPOWERED and cannot move under its own power at all (see
+   * `computeBuild` in `@/sim/construct`, whose `BuildMetrics.accelMphPerSec`
+   * is `number | null` for exactly this reason). The HUD only classifies a
+   * non-null value against the ruleset's acceleration tiers for display; it
+   * never re-derives the build math.
+   */
+  readonly accelMphPerSec: number | null;
+  readonly radar: HudRadarSnapshot;
+  readonly driver: HudDriverVitals;
+  readonly messages: readonly HudMessage[];
+  readonly settings: HudSettings;
+}
+
+/** Optional callbacks wired to the interactive accessibility controls. Pure event forwarding — nothing here reads or mutates world state. */
+export interface HudHandlers {
+  onToggleRadarOrientation?: () => void;
+  onToggleReducedFlash?: () => void;
+  onToggleReducedShake?: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// UI-only constants (not gameplay balance; see file header)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fixed number of weapon-mount rows drawn: by the HUD here, and by the
+ * builder's fixed-length `weaponSlots` array (`@/ui/builder`, which imports
+ * this constant rather than restating it). It is a UI layout constant, not a
+ * legality rule — `computeBuild` (`@/sim/construct`) never rejects a design
+ * for mount *count* alone, only for spaces/cost/etc — so it lives here in
+ * `@/ui/` and not in `@/sim/`, and this is its one definition.
+ */
+export const MAX_WEAPON_ROWS = 10;
+/** Recent-messages window for the feed; a display cap, not a game-balance number. */
+const MESSAGE_FEED_CAP = 8;
+/** Display order for the five armor facings; mirrors the `Facing` union, not a priced/weighed constant. */
+const FACING_ORDER: readonly Facing[] = ['FRONT', 'REAR', 'LEFT', 'RIGHT', 'UNDERBODY'];
+/** Positional labels for the fixed 4-tuple in `VehicleState.tireDP`. */
+const TIRE_LABELS = ['FL', 'FR', 'RL', 'RR'] as const;
+
+// ---------------------------------------------------------------------------
+// Pure display helpers
+// ---------------------------------------------------------------------------
+
+export type DamageState = 'ok' | 'damaged' | 'critical' | 'destroyed';
+
+/** Every damage state maps to a distinct glyph — never color alone. */
+const DAMAGE_GLYPH: Record<DamageState, string> = {
+  ok: '●', // ● filled circle
+  damaged: '▲', // ▲ triangle
+  critical: '◆', // ◆ diamond
+  destroyed: '✕', // ✕ cross
+};
+
+export function damageState(current: number, max: number): DamageState {
+  // A facing/component bought with zero max points (e.g. 0 armor on
+  // UNDERBODY) is a legal, untouched build choice, not battle damage — this
+  // must be checked BEFORE the current<=0 branch, or 0-of-0 reads as
+  // "destroyed" even though nothing has ever been hit.
+  if (max <= 0) return 'ok';
+  if (current <= 0) return 'destroyed';
+  const frac = current / max;
+  if (frac <= 0.25) return 'critical';
+  if (frac <= 0.75) return 'damaged';
+  return 'ok';
+}
+
+function damageLabel(current: number, max: number): string {
+  const state = damageState(current, max);
+  return `${DAMAGE_GLYPH[state]} ${Math.max(0, current)}/${max}`;
+}
+
+function mphFromMps(speedMps: number): number {
+  return (speedMps * 3600) / drivingConfig().metersPerMile;
+}
+
+/**
+ * Acceleration tier label. `computeBuild` (the HUD's only source for this
+ * number, per the `HudSnapshot.accelMphPerSec` contract above) always
+ * assigns it from one EXACT `tier.mphPerSecond` value, or leaves it `null`
+ * for an UNDERPOWERED build — so this looks up the exact tier by value
+ * instead of snapping to the nearest one. A "nearest" scan silently turns
+ * bad input into a plausible-looking wrong tier (0 mph/s -> the slowest
+ * tier, 999 mph/s -> the fastest); an exact lookup surfaces a distinct,
+ * honest state for both instead.
+ */
+function accelTierLabel(accelMphPerSec: number | null): string {
+  if (accelMphPerSec === null) return 'Immobile — cannot accelerate';
+  const tiers = [...accelerationTiers()].sort((a, b) => b.mphPerSecond - a.mphPerSecond);
+  const index = tiers.findIndex((tier) => tier.mphPerSecond === accelMphPerSec);
+  if (index === -1) return `Tier ?/${tiers.length}`;
+  return `Tier ${index + 1}/${tiers.length}`;
+}
+
+function facingArrow(facing: Facing): string {
+  switch (facing) {
+    case 'FRONT':
+      return '↑'; // ↑
+    case 'REAR':
+      return '↓'; // ↓
+    case 'LEFT':
+      return '←'; // ←
+    case 'RIGHT':
+      return '→'; // →
+    case 'UNDERBODY':
+      return '●'; // ●
+  }
+}
+
+/** Fastest `topSpeedMph` across every plant the ruleset defines — the speedometer's honest full-scale value, never a hardcoded guess. */
+function maxTopSpeedMph(): number {
+  return allPlants().reduce((max, plant) => Math.max(max, plant.topSpeedMph), 0);
+}
+
+function rotate(dx: number, dy: number, headingRad: number): { x: number; y: number } {
+  // Rotate a world-frame offset into vehicle-heading frame for display only —
+  // pure coordinate math, not a gameplay computation.
+  const cos = Math.cos(-headingRad);
+  const sin = Math.sin(-headingRad);
+  return { x: dx * cos - dy * sin, y: dx * sin + dy * cos };
+}
+
+// ---------------------------------------------------------------------------
+// Element builders
+// ---------------------------------------------------------------------------
+
+function el(doc: HudDocument, tag: string, attrs?: Readonly<Record<string, string>>, text?: string): HudElement {
+  const node = doc.createElement(tag);
+  if (attrs) {
+    for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
+  }
+  if (text !== undefined) node.setText(text);
+  return node;
+}
+
+function buildWeaponRow(doc: HudDocument, index: number, state: WeaponState, active: boolean): HudElement {
+  const def = getWeapon(state.weaponId);
+  const usesBattery = def.usesBattery === true;
+  const ammoText = usesBattery ? '⚡ battery' : `${state.ammo}/${def.ammoCapacity}`;
+  const cooldownMax = def.cooldownTicks;
+  const cooldownFrac = cooldownMax > 0 ? state.cooldownRemaining / cooldownMax : 0;
+  const cooldownPct = Math.round((1 - Math.min(1, Math.max(0, cooldownFrac))) * 100);
+  const ready = state.cooldownRemaining <= 0;
+
+  const row = el(doc, 'li', {
+    class: `hud-weapon-row${active ? ' hud-weapon-row--active' : ''}`,
+    'data-weapon-index': String(index),
+    'data-active': String(active),
+  });
+  if (active) row.setAttribute('aria-current', 'true');
+
+  row.appendChild(el(doc, 'span', { class: 'hud-weapon-slot' }, String(index + 1)));
+  row.appendChild(
+    el(
+      doc,
+      'span',
+      { class: 'hud-weapon-facing', 'aria-label': `facing ${state.facing}` },
+      `${facingArrow(state.facing)} ${state.facing}`,
+    ),
+  );
+  row.appendChild(el(doc, 'span', { class: 'hud-weapon-name' }, def.name));
+  row.appendChild(
+    el(doc, 'span', { class: 'hud-weapon-ammo', 'aria-label': usesBattery ? 'uses battery' : 'ammunition' }, ammoText),
+  );
+  row.appendChild(
+    el(
+      doc,
+      'span',
+      {
+        class: `hud-weapon-cooldown${ready ? ' hud-weapon-cooldown--ready' : ''}`,
+        'data-ready': String(ready),
+        'aria-label': ready ? 'ready to fire' : `cooling down, ${cooldownPct} percent charged`,
+      },
+      ready ? '● READY' : `◔ ${cooldownPct}%`,
+    ),
+  );
+  const dpState = damageState(state.dp, state.maxDP);
+  row.appendChild(
+    el(
+      doc,
+      'span',
+      { class: 'hud-weapon-dp', 'data-state': dpState, 'aria-label': `component condition ${state.dp} of ${state.maxDP}` },
+      damageLabel(state.dp, state.maxDP),
+    ),
+  );
+  return row;
+}
+
+function buildWeaponList(doc: HudDocument, vehicle: VehicleState, activeIndex: number | null): HudElement {
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--weapons', 'aria-label': 'weapons' });
+  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, 'Weapons'));
+  const list = el(doc, 'ul', { class: 'hud-weapon-list' });
+
+  let shown = 0;
+  vehicle.weapons.forEach((state, index) => {
+    if (state.destroyed) return; // destroyed weapons vanish from the list entirely
+    if (shown >= MAX_WEAPON_ROWS) return;
+    list.appendChild(buildWeaponRow(doc, index, state, index === activeIndex));
+    shown += 1;
+  });
+
+  panel.appendChild(list);
+  return panel;
+}
+
+function buildRadar(doc: HudDocument, snapshot: HudSnapshot, handlers: HudHandlers): HudElement {
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--radar', 'aria-label': 'radar' });
+  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, 'Radar'));
+
+  if (!snapshot.radar.enabled) {
+    panel.setAttribute('data-state', 'offline');
+    panel.appendChild(
+      el(doc, 'p', { class: 'hud-radar-offline', role: 'status' }, '✕ RADAR OFFLINE — plant damaged'),
+    );
+    return panel;
+  }
+  panel.setAttribute('data-state', 'online');
+
+  const visualRangeM = drivingConfig().radar.visualRangeM;
+  const orientation = snapshot.settings.radarOrientation;
+  // 'heading' mode must rotate the player's forward vector onto screen-up.
+  // Forward is (cos(headingRad), sin(headingRad)) (sim/driving.ts), so
+  // heading 0 already sits along +x/screen-right — feeding `rotate` a
+  // heading pre-rotated by -PI/2 is what actually lands "dead ahead" on
+  // screen-up, matching the ▲ player marker and the CSS's +y-is-up mapping.
+  // 'world' mode passes heading 0 through untouched: +y (north) already
+  // renders as screen-up with no rotation needed.
+  const heading = orientation === 'heading' ? snapshot.vehicle.headingRad - Math.PI / 2 : 0;
+
+  // Only contacts the face can actually place stay on it — anything beyond
+  // the ruleset's visual range would render outside the circular dial (see
+  // hud.css .hud-radar-face, sized off this same range) or be misreported.
+  const visibleContacts = snapshot.radar.contacts.filter(
+    (contact) => Math.hypot(contact.worldDx, contact.worldDy) <= visualRangeM,
+  );
+
+  // Decorative only: a compound graphic whose internal kind/color distinctions
+  // AT can't perceive anyway (see the `hud-radar-contact-list` below for the
+  // real, individually-announceable text alternative).
+  const face = el(doc, 'div', { class: 'hud-radar-face', 'aria-hidden': 'true' });
+  face.appendChild(el(doc, 'div', { class: 'hud-radar-player' }, '▲'));
+
+  visibleContacts.forEach((contact) => {
+    const { x, y } = rotate(contact.worldDx, contact.worldDy, heading);
+    // Unitless fraction of visualRangeM, in [-1, 1]; hud.css maps this onto
+    // the face's radius so a contact at the edge of sensor range renders
+    // exactly on the edge of the dial regardless of panel size.
+    const fracX = Math.max(-1, Math.min(1, x / visualRangeM));
+    const fracY = Math.max(-1, Math.min(1, y / visualRangeM));
+    const dot = el(doc, 'div', {
+      class: `hud-radar-contact hud-radar-contact--${contact.kind}${contact.hostile ? ' hud-radar-contact--hostile' : ''}`,
+      'data-kind': contact.kind,
+      'data-hostile': String(contact.hostile),
+      style: `--hud-radar-x:${fracX.toFixed(3)};--hud-radar-y:${fracY.toFixed(3)}`,
+    });
+    face.appendChild(dot);
+  });
+  panel.appendChild(face);
+
+  const summary = el(
+    doc,
+    'p',
+    { class: 'hud-radar-summary hud-visually-hidden' },
+    `${visibleContacts.length} contacts, range ${visualRangeM} meters, oriented to ${orientation}`,
+  );
+  panel.appendChild(summary);
+
+  // Real DOM text per contact, so a screen reader isn't limited to the
+  // summary's aggregate count (see finding: role="img" on the face above
+  // prunes descendant aria-labels from the accessibility tree entirely).
+  const contactList = el(doc, 'ul', { class: 'hud-radar-contact-list hud-visually-hidden' });
+  visibleContacts.forEach((contact) => {
+    contactList.appendChild(
+      el(doc, 'li', { 'data-kind': contact.kind }, `${contact.hostile ? 'hostile' : 'contact'} ${contact.kind}`),
+    );
+  });
+  panel.appendChild(contactList);
+
+  const toggle = el(
+    doc,
+    'button',
+    { type: 'button', class: 'hud-radar-orientation-toggle', 'aria-pressed': String(orientation === 'heading') },
+    orientation === 'heading' ? 'Orientation: heading-up' : 'Orientation: north-up',
+  );
+  if (handlers.onToggleRadarOrientation) toggle.addEventListener('click', handlers.onToggleRadarOrientation);
+  panel.appendChild(toggle);
+  return panel;
+}
+
+function buildSpeedBlock(doc: HudDocument, snapshot: HudSnapshot): HudElement {
+  const vehicle = snapshot.vehicle;
+  const mph = mphFromMps(vehicle.speedMps);
+  const batteryFull = drivingConfig().battery.full;
+  const batteryPct = Math.round((vehicle.battery / batteryFull) * 100);
+  const batteryEmpty = vehicle.battery <= 0;
+
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--speed', 'aria-label': 'speed and power' });
+
+  const dial = el(doc, 'div', {
+    class: 'hud-speed-dial',
+    role: 'img',
+    'aria-label': `speed ${mph.toFixed(0)} miles per hour`,
+    style: `--hud-speed-frac:${Math.max(0, Math.min(1, mph / maxTopSpeedMph())).toFixed(3)}`,
+  });
+  panel.appendChild(dial);
+
+  panel.appendChild(el(doc, 'div', { class: 'hud-speed-digital' }, `${mph.toFixed(0)} mph`));
+  panel.appendChild(el(doc, 'div', { class: 'hud-accel-tier' }, accelTierLabel(snapshot.accelMphPerSec)));
+  panel.appendChild(el(doc, 'div', { class: 'hud-odometer' }, `${vehicle.odometerMiles.toFixed(1)} mi`));
+
+  const batteryState: DamageState = batteryEmpty ? 'destroyed' : damageState(vehicle.battery, batteryFull);
+  panel.appendChild(
+    el(
+      doc,
+      'div',
+      {
+        class: `hud-battery${batteryEmpty ? ' hud-battery--empty' : ''}`,
+        'data-state': batteryEmpty ? 'empty' : batteryState,
+        'aria-label': batteryEmpty ? 'battery empty' : `battery ${batteryPct} percent`,
+      },
+      batteryEmpty ? `${DAMAGE_GLYPH.destroyed} 0%` : `${DAMAGE_GLYPH[batteryState]} ${batteryPct}%`,
+    ),
+  );
+  return panel;
+}
+
+function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: HudDriverVitals): HudElement {
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--damage', 'aria-label': 'vehicle condition' });
+  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, 'Condition'));
+
+  const armorList = el(doc, 'ul', { class: 'hud-armor-list' });
+  FACING_ORDER.forEach((facing) => {
+    const current = vehicle.armorDP[facing];
+    const max = vehicle.design.armor[facing];
+    const state = damageState(current, max);
+    armorList.appendChild(
+      el(
+        doc,
+        'li',
+        { class: 'hud-armor-facing', 'data-state': state, 'aria-label': `${facing} armor ${current} of ${max}` },
+        `${facing}: ${damageLabel(current, max)}`,
+      ),
+    );
+  });
+  panel.appendChild(armorList);
+
+  const tireList = el(doc, 'ul', { class: 'hud-tire-list' });
+  const tireMax = getTire(vehicle.design.tireId).maxDP;
+  vehicle.tireDP.forEach((dp, i) => {
+    const label = TIRE_LABELS[i] ?? `T${i + 1}`;
+    const state = damageState(dp, tireMax);
+    tireList.appendChild(
+      el(doc, 'li', { class: 'hud-tire', 'data-state': state, 'aria-label': `${label} tire ${dp} of ${tireMax}` }, `${label}: ${damageLabel(dp, tireMax)}`),
+    );
+  });
+  panel.appendChild(tireList);
+
+  const plantMax = getPlant(vehicle.design.plantId).maxDP;
+  const plantState = damageState(vehicle.plantDP, plantMax);
+  panel.appendChild(
+    el(
+      doc,
+      'div',
+      { class: 'hud-plant', 'data-state': plantState, 'aria-label': `power plant ${vehicle.plantDP} of ${plantMax}` },
+      `Plant: ${damageLabel(vehicle.plantDP, plantMax)}`,
+    ),
+  );
+
+  const cfg = skillsConfig().driver;
+  const healthState = damageState(driver.naturalHealth, cfg.naturalHealthDP);
+  panel.appendChild(
+    el(
+      doc,
+      'div',
+      { class: 'hud-driver-health', 'data-state': healthState, 'aria-label': `driver health ${driver.naturalHealth} of ${cfg.naturalHealthDP}` },
+      `Driver: ${damageLabel(driver.naturalHealth, cfg.naturalHealthDP)}`,
+    ),
+  );
+  const armorState = damageState(driver.bodyArmor, cfg.bodyArmorDP);
+  panel.appendChild(
+    el(
+      doc,
+      'div',
+      { class: 'hud-driver-armor', 'data-state': armorState, 'aria-label': `body armor ${driver.bodyArmor} of ${cfg.bodyArmorDP}` },
+      `Body armor: ${damageLabel(driver.bodyArmor, cfg.bodyArmorDP)}`,
+    ),
+  );
+
+  if (vehicle.cargo.length > 0) {
+    const cargoList = el(doc, 'ul', { class: 'hud-cargo-list' });
+    vehicle.cargo.forEach((cargo) => {
+      // CargoState defines no ruleset max for `integrity` — it's a raw
+      // DP-scale magnitude that applyCargoDamage (@/sim/damage) chips at
+      // directly with weapon DP, not a percentage of some fixed ceiling. The
+      // only threshold the sim itself treats as meaningful is "hit zero", so
+      // that's the only one displayed here instead of a fabricated fraction.
+      const failed = cargo.integrity <= 0;
+      const state: DamageState = failed ? 'destroyed' : 'ok';
+      const shown = Math.max(0, Math.round(cargo.integrity));
+      cargoList.appendChild(
+        el(
+          doc,
+          'li',
+          { class: 'hud-cargo', 'data-state': state, 'aria-label': `${cargo.kind} ${cargo.id} integrity ${shown}` },
+          `${cargo.kind}: ${DAMAGE_GLYPH[state]} ${shown}`,
+        ),
+      );
+    });
+    panel.appendChild(cargoList);
+  }
+
+  return panel;
+}
+
+function buildMessageFeed(doc: HudDocument, messages: readonly HudMessage[]): HudElement {
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--messages', 'aria-label': 'message feed' });
+  const list = el(doc, 'ul', { class: 'hud-message-list', role: 'log', 'aria-live': 'polite', 'aria-atomic': 'false' });
+
+  const recent = [...messages].sort((a, b) => a.tick - b.tick).slice(-MESSAGE_FEED_CAP);
+  recent.forEach((message) => {
+    list.appendChild(el(doc, 'li', { class: `hud-message hud-message--${message.kind}`, 'data-kind': message.kind }, message.text));
+  });
+
+  panel.appendChild(list);
+  return panel;
+}
+
+function buildAccessibilityControls(doc: HudDocument, settings: HudSettings, handlers: HudHandlers): HudElement {
+  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--a11y', 'aria-label': 'accessibility options' });
+
+  const flashBtn = el(
+    doc,
+    'button',
+    { type: 'button', class: 'hud-a11y-toggle', 'aria-pressed': String(settings.reducedFlash) },
+    settings.reducedFlash ? 'Reduced flash: on' : 'Reduced flash: off',
+  );
+  if (handlers.onToggleReducedFlash) flashBtn.addEventListener('click', handlers.onToggleReducedFlash);
+  panel.appendChild(flashBtn);
+
+  const shakeBtn = el(
+    doc,
+    'button',
+    { type: 'button', class: 'hud-a11y-toggle', 'aria-pressed': String(settings.reducedShake) },
+    settings.reducedShake ? 'Reduced shake: on' : 'Reduced shake: off',
+  );
+  if (handlers.onToggleReducedShake) shakeBtn.addEventListener('click', handlers.onToggleReducedShake);
+  panel.appendChild(shakeBtn);
+
+  return panel;
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+/**
+ * Render the full combat HUD into `root`. Pure given (`doc`, `root`, `snapshot`):
+ * clears and rebuilds `root`'s children from scratch every call so the tree
+ * is always exactly what the current snapshot describes, with no leftover
+ * state from a previous render (e.g. a destroyed weapon's row).
+ */
+export function renderHud(doc: HudDocument, root: HudElement, snapshot: HudSnapshot, handlers: HudHandlers = {}): void {
+  root.clearChildren();
+  root.setAttribute('class', 'hud-root');
+  root.setAttribute('style', `--hud-scale:${snapshot.settings.scale}`);
+  root.setAttribute('data-reduced-flash', String(snapshot.settings.reducedFlash));
+  root.setAttribute('data-reduced-shake', String(snapshot.settings.reducedShake));
+
+  root.appendChild(buildWeaponList(doc, snapshot.vehicle, snapshot.activeWeaponIndex));
+  root.appendChild(buildRadar(doc, snapshot, handlers));
+  root.appendChild(buildSpeedBlock(doc, snapshot));
+  root.appendChild(buildDamageFacings(doc, snapshot.vehicle, snapshot.driver));
+  root.appendChild(buildMessageFeed(doc, snapshot.messages));
+  root.appendChild(buildAccessibilityControls(doc, snapshot.settings, handlers));
+}
