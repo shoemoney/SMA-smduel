@@ -56,3 +56,43 @@ tiles 512, vehicles/props 256, fx/decals 256, UI keep larger. Atlas max 4096, 2p
   often hallucinates glyphs on instrument panels.
 - Vehicle sprites read as slight 3/4 perspective rather than true orthographic. Acceptable
   at 48px game scale, but they are inconsistent with each other — revisit if they clash.
+
+---
+
+## 6. Key by HUE, not by RGB distance (measured, second wave)
+
+Three assets were regenerated on `flux-dev` with much stronger "bird's eye view"
+prompting, which fixed the geometry but introduced a new problem: despite the prompt
+explicitly forbidding both, flux added **a hard drop shadow and a background gradient**.
+
+Measured corner deviation on the regenerated files:
+
+| frame | maxDeviation | cause |
+|---|---|---|
+| prop-chainlink-fence | 69 | gradient + shadow |
+| cycle-topdown | 59 | gradient + shadow |
+| prop-fuel-drum | 55 | gradient + shadow |
+| decal-oil-slick | 25 | soft shadow bleed near the puddle |
+| (flat sprites) | 2-8 | fine |
+
+An RGB-distance key tight enough to preserve dark vehicle detail will **leave the shadow
+in** as a dark halo; loose enough to remove the shadow and it eats black armour plating.
+
+**So: key in HSV by hue band (magenta/pink) with a saturation floor and a value floor.**
+Background pixels are high-saturation pink at any lightness; vehicle blacks and greys are
+low-saturation at any lightness. That separates them cleanly where RGB distance cannot.
+Then despill the remaining edge fringe.
+
+`assets/sprite-meta.json` carries `keyColor` per frame as the hue anchor, plus
+`keyColorDeviation` so the packer can widen tolerance per image.
+
+## 7. Regenerated / superseded
+
+- `cycle-topdown` — was a front elevation. Regenerated, now true overhead, nose UP (rot 0).
+- `prop-chainlink-fence` — was isometric. Regenerated.
+- `fx-explosion-sheet` — **superseded, marked `skip: true`.** Diffusion grid cells do not
+  align reliably enough to slice into an animation. Replaced by five discrete frames,
+  `fx-explosion-1` .. `fx-explosion-5`, listed in `sprite-meta.json.explosionFrames`.
+- Added `prop-barricade`, `prop-fuel-drum`.
+
+50 frames total, every one carrying metadata.

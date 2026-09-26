@@ -1,0 +1,475 @@
+{
+  "generatedBy": "sprite-audit",
+  "note": "keyColor is SAMPLED per image, never assume #FF00FF. rotationOffsetDeg makes the vehicle nose point UP (-Y) at rotation 0. tile-* and ui-hud-frame/ui-title-art are full-bleed art: not keyed, keyColor null, rotationOffsetDeg not applicable (0).",
+  "frames": {
+    "car-compact": {
+      "kind": "car",
+      "keyed": true,
+      "keyColor": "#F4308E",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "car-kart": {
+      "kind": "car",
+      "keyed": true,
+      "keyColor": "#F702A1",
+      "keyColorDeviation": 4,
+      "rotationOffsetDeg": 180,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "car-luxury": {
+      "kind": "car",
+      "keyed": true,
+      "keyColor": "#F80581",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 180,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "car-midsized": {
+      "kind": "car",
+      "keyed": true,
+      "keyColor": "#F10364",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 180,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "car-pickup": {
+      "kind": "car",
+      "keyed": true,
+      "keyColor": "#F90D7D",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "car-stationwagon": {
+      "kind": "car",
+      "keyed": true,
+      "keyColor": "#F51A69",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 90,
+      "view": "orthographic",
+      "readability": "fair"
+    },
+    "car-subcompact": {
+      "kind": "car",
+      "keyed": true,
+      "keyColor": "#E2344F",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 180,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "car-van": {
+      "kind": "car",
+      "keyed": true,
+      "keyColor": "#F7237A",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 180,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "cycle-topdown": {
+      "kind": "cycle",
+      "keyed": true,
+      "keyColor": "#E52881",
+      "keyColorDeviation": 59,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "REGENERATED on flux-dev - was a front elevation, now true overhead, nose UP"
+    },
+    "wreck-burning": {
+      "kind": "wreck",
+      "keyed": true,
+      "keyColor": "#F95D98",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "fair"
+    },
+    "wreck-stripped": {
+      "kind": "wreck",
+      "keyed": true,
+      "keyColor": "#F81373",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "fair"
+    },
+    "decal-mine": {
+      "kind": "decal",
+      "keyed": true,
+      "keyColor": "#E75E7A",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "decal-oil-slick": {
+      "kind": "decal",
+      "keyed": true,
+      "keyColor": "#FD4D93",
+      "keyColorDeviation": 25,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "decal-spikes": {
+      "kind": "decal",
+      "keyed": true,
+      "keyColor": "#F11A77",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "fair"
+    },
+    "decal-tire-marks": {
+      "kind": "decal",
+      "keyed": true,
+      "keyColor": "#FD34AC",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "fx-explosion-sheet": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#F50054",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "fair",
+      "note": "SUPERSEDED by fx-explosion-1..5 - diffusion grid cells do not align reliably enough to slice. Do not pack.",
+      "skip": true
+    },
+    "fx-impact-spark": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#F50062",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "fx-muzzle-flash": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#F6006D",
+      "keyColorDeviation": 4,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "fx-smoke-puff": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#FC4FA7",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "prop-chainlink-fence": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#F279AA",
+      "keyColorDeviation": 69,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "fair",
+      "note": "REGENERATED on flux-dev - was isometric"
+    },
+    "prop-city-gate": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#F90580",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "prop-concrete-barrier": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#F9018F",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "prop-hvac-cluster": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#FB4D95",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "fair"
+    },
+    "ui-radar-bezel": {
+      "kind": "ui",
+      "keyed": true,
+      "keyColor": "#F30077",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "ui-speedo-dial": {
+      "kind": "ui",
+      "keyed": true,
+      "keyColor": "#F10155",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "ui-hud-frame": {
+      "kind": "ui",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good"
+    },
+    "ui-title-art": {
+      "kind": "ui",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "three-quarter",
+      "readability": "good"
+    },
+    "tile-arena-wall": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-asphalt-clean": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-asphalt-cracked": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-concrete-arena": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-dirt-desert": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-gravel": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-intersection": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-oil-stained": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-parking-lot": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-road-markings": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-roof-commercial": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-roof-industrial": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-roof-residential": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-rubble": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-sand": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "tile-scrub-grass": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good"
+    },
+    "fx-explosion-1": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#ED006B",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "radially symmetric, frame 1 of 5"
+    },
+    "fx-explosion-2": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#F5005A",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "frame 2 of 5"
+    },
+    "fx-explosion-3": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#F4005B",
+      "keyColorDeviation": 2,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "frame 3 of 5"
+    },
+    "fx-explosion-4": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#F60968",
+      "keyColorDeviation": 3,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "frame 4 of 5"
+    },
+    "fx-explosion-5": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#F71089",
+      "keyColorDeviation": 4,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "frame 5 of 5"
+    },
+    "prop-barricade": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#E22D72",
+      "keyColorDeviation": 16,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "new"
+    },
+    "prop-fuel-drum": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#ED5291",
+      "keyColorDeviation": 55,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "new, radially symmetric"
+    }
+  },
+  "keyingNote": "Key by HUE (magenta/pink band) with a saturation floor, NOT by RGB distance. Regenerated sprites carry a drop shadow and a background gradient that RGB-distance keying leaves as a dark halo.",
+  "explosionFrames": [
+    "fx-explosion-1",
+    "fx-explosion-2",
+    "fx-explosion-3",
+    "fx-explosion-4",
+    "fx-explosion-5"
+  ]
+}
