@@ -31,7 +31,11 @@ const SIZE_CONFIG_PATH = resolve(PROJECT_ROOT, argValue('--sizes', 'tools/atlas-
 // ---------------------------------------------------------------------------
 
 /** Kinds this pipeline understands, in filename-prefix form. Kept in sync by hand with AssetKind in src/render/atlas.ts. */
-export const ASSET_KINDS = ['tile', 'prop', 'car', 'wreck', 'cycle', 'fx', 'decal', 'ui'];
+// 'building' is a full-bleed top-down map tile for a facility footprint. It is NOT
+// keyed (it has no magenta background) and NOT mirrored (unlike 'tile', which is a
+// seamless ground texture built by mirroring a quadrant — running a building through
+// that path would fold it into a symmetric smear).
+export const ASSET_KINDS = ['tile', 'building', 'prop', 'car', 'wreck', 'cycle', 'fx', 'decal', 'ui'];
 
 /** Classifies a bare frame name (no extension) by its `<kind>-...` filename prefix. Returns null when unrecognized. */
 export function classifyKind(name) {

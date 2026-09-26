@@ -472,6 +472,216 @@
       "view": "orthographic",
       "readability": "good",
       "note": "new - top-down post cap"
+    },
+    "building-arena-small": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-arena": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-assembly": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-bar": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-casino": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-courierguild": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-federal": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-garage": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-hotel": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-medical": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-petshop": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-salvage": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-story": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-studio": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-truckstop": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "building-weaponshop": {
+      "kind": "building",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 facility footprint - full-bleed top-down map tile, NOT keyed and NOT mirrored"
+    },
+    "prop-citywall": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#E96D95",
+      "keyColorDeviation": 43,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 city prop"
+    },
+    "prop-doormarker": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#E1647A",
+      "keyColorDeviation": 59,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 city prop"
+    },
+    "prop-streetlight": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#E75388",
+      "keyColorDeviation": 1,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "Phase 4 city prop"
+    },
+    "tile-cityblock": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good",
+      "note": "Phase 4 city ground texture"
+    },
+    "tile-citypave": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "rotationOffsetDeg": 0,
+      "view": "texture",
+      "readability": "good",
+      "note": "Phase 4 city ground texture"
     }
   },
   "keyingNote": "Key by HUE (magenta/pink band) with a saturation floor, NOT by RGB distance. Regenerated sprites carry a drop shadow and a background gradient that RGB-distance keying leaves as a dark halo.",
