@@ -1,0 +1,12 @@
+{
+  "$schemaVersion": 1,
+  "bodies": [
+    { "id": "subcompact",   "name": "Subcompact",    "price": 300,  "weightLb": 1000, "baseMaxLoadLb": 2300, "spaces": 7,  "class": "automobile", "armorCostPerPoint": 11, "armorWeightPerPoint": 5 },
+    { "id": "compact",      "name": "Compact",       "price": 400,  "weightLb": 1300, "baseMaxLoadLb": 3700, "spaces": 10, "class": "automobile", "armorCostPerPoint": 13, "armorWeightPerPoint": 6 },
+    { "id": "midsized",     "name": "Mid-sized",     "price": 600,  "weightLb": 1600, "baseMaxLoadLb": 4800, "spaces": 13, "class": "automobile", "armorCostPerPoint": 16, "armorWeightPerPoint": 8 },
+    { "id": "luxury",       "name": "Luxury",        "price": 800,  "weightLb": 1800, "baseMaxLoadLb": 5500, "spaces": 19, "class": "automobile", "armorCostPerPoint": 20, "armorWeightPerPoint": 10 },
+    { "id": "stationwagon", "name": "Station Wagon", "price": 800,  "weightLb": 2100, "baseMaxLoadLb": 5500, "spaces": 21, "class": "cargo",      "armorCostPerPoint": 20, "armorWeightPerPoint": 10 },
+    { "id": "pickup",       "name": "Pickup",        "price": 900,  "weightLb": 2100, "baseMaxLoadLb": 6500, "spaces": 24, "class": "cargo",      "armorCostPerPoint": 22, "armorWeightPerPoint": 11 },
+    { "id": "van",          "name": "Van",           "price": 1000, "weightLb": 2000, "baseMaxLoadLb": 6000, "spaces": 30, "class": "cargo",      "armorCostPerPoint": 30, "armorWeightPerPoint": 14 }
+  ]
+}

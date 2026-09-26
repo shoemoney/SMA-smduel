@@ -1,0 +1,18 @@
+{
+  "$schemaVersion": 1,
+  "_note": "ALL RECONSTRUCTION. Tick = 1/60s. 1 mile = 1609.344 m. Battery 0-99.",
+  "tickRateHz": 60,
+  "metersPerMile": 1609.344,
+  "maxReverseSpeedMph": 20,
+  "reverseInputDotThreshold": -0.5,
+  "reverseThresholdMph": 1.5,
+  "baseTurnRateDegPerSec": 130,
+  "speedTurnCurveExponent": 0.65,
+  "brakeRateMphPerSec": 32,
+  "coastDragMphPerSec": 6,
+  "reverseAccelMphPerSec": 8,
+  "battery": { "full": 99, "movementDrainPerMileBase": 0.9, "weightPowerRatioScale": 1.4, "speedFractionScale": 0.6 },
+  "collision": { "armorLossSpeedMph": 25, "armorLossFacing": "FRONT", "armorLossPoints": 1 },
+  "radar": { "rangeMiles": 3, "visualRangeM": 160 },
+  "pedestrian": { "speedMps": 2.2, "colliderRadiusM": 0.4, "interactionRadiusM": 3.0 }
+}

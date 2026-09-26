@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "tires": [
+    { "id": "standard",           "name": "Standard",            "price": 50,  "weightLb": 30, "maxDP": 4,  "spikeImmune": false },
+    { "id": "heavyduty",          "name": "Heavy-Duty",          "price": 100, "weightLb": 40, "maxDP": 6,  "spikeImmune": false },
+    { "id": "punctureresistant",  "name": "Puncture-Resistant",  "price": 200, "weightLb": 50, "maxDP": 9,  "spikeImmune": false },
+    { "id": "solid",              "name": "Solid",               "price": 500, "weightLb": 75, "maxDP": 12, "spikeImmune": true }
+  ]
+}

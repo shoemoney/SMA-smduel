@@ -1,0 +1,28 @@
+{
+  "$schemaVersion": 1,
+  "startingSkillPool": 50,
+  "skillMin": 0,
+  "skillMax": 99,
+  "skills": ["driving", "marksmanship", "mechanic"],
+  "driver": { "naturalHealthDP": 3, "bodyArmorDP": 3, "bodyArmorRepairable": false, "prestigeFloor": 0, "nameMaxLength": 16 },
+  "startingLocation": "newyork",
+  "startingDate": "2030-01-01",
+  "_reconstruction": {
+    "_note": "RECONSTRUCTION - tunable. See fidelity-notes.yaml.",
+    "driving": {
+      "handlingClassWeight": 12, "drivingSkillWeight": 0.55,
+      "tireIntegrityBonusPerTire": 4, "destroyedTirePenalty": 30,
+      "controlScoreMin": 5, "controlScoreMax": 98,
+      "turnStressThreshold": 40, "turnStressDecayPerSecond": 25,
+      "speedPenaltyScale": 18, "oilSurfacePenalty": 50,
+      "controlLossTicksMin": 30, "controlLossTicksMax": 90
+    },
+    "marksmanship": { "skillPivot": 25 },
+    "mechanic": {
+      "lessonGainBase": 90, "lessonGainSkillScale": 0.8, "lessonGainMin": 10, "lessonGainMax": 90,
+      "lessonGainMinPoints": 1, "lessonGainMaxPoints": 4,
+      "salvageSkillGainWeights": [0, 0, 0, 1]
+    },
+    "prestigeGates": [20, 40, 60, 80, 95]
+  }
+}

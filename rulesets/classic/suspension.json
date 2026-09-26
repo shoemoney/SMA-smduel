@@ -1,0 +1,8 @@
+{
+  "$schemaVersion": 1,
+  "suspension": [
+    { "id": "light",    "name": "Light",    "bodyPriceModifier": 0.00, "handlingClass": { "automobile": 1, "cargo": 0 } },
+    { "id": "improved", "name": "Improved", "bodyPriceModifier": 1.00, "handlingClass": { "automobile": 2, "cargo": 1 } },
+    { "id": "heavy",    "name": "Heavy",    "bodyPriceModifier": 1.50, "handlingClass": { "automobile": 3, "cargo": 2 } }
+  ]
+}

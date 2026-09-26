@@ -1,0 +1,9 @@
+{
+  "$schemaVersion": 1,
+  "chassis": [
+    { "id": "light",      "name": "Light",       "loadMultiplier": 0.90, "bodyPriceModifier": -0.20 },
+    { "id": "standard",   "name": "Standard",    "loadMultiplier": 1.00, "bodyPriceModifier": 0.00 },
+    { "id": "heavy",      "name": "Heavy",       "loadMultiplier": 1.10, "bodyPriceModifier": 0.50 },
+    { "id": "extraheavy", "name": "Extra-Heavy", "loadMultiplier": 1.20, "bodyPriceModifier": 1.00 }
+  ]
+}
