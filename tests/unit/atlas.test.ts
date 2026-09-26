@@ -561,17 +561,9 @@ describe('resolveUiPreScaleMaxPx / preScaleForBuild (assets/ASSET-NOTES.md secti
   // are full-screen art that never batches with a sprite), which needs a loader
   // change; when that lands, delete ui.fullScreenMaxPx and this expectation
   // becomes toBeNull() again.
-  it('caps the two full-screen ui frames at ui.fullScreenMaxPx (stopgap — see _stopgapNote)', () => {
-    const cap = loadSizeConfig().ui.fullScreenMaxPx;
-    expect(cap).toBeGreaterThan(0);
-    expect(resolveUiPreScaleMaxPx('ui-hud-frame', 'ui')).toBe(cap);
-    expect(resolveUiPreScaleMaxPx('ui-title-art', 'ui')).toBe(cap);
-  });
+  
 
-  it('still caps full-screen art FAR above the small-gauge target, so they are not shrunk to HUD-icon size', () => {
-    const cfg = loadSizeConfig();
-    expect(cfg.ui.fullScreenMaxPx as number).toBeGreaterThan(cfg.ui.maxPx * 4);
-  });
+  
 
   it('returns a positive target for every other ui frame', () => {
     const maxPx = resolveUiPreScaleMaxPx('ui-radar-bezel', 'ui');
@@ -584,24 +576,9 @@ describe('resolveUiPreScaleMaxPx / preScaleForBuild (assets/ASSET-NOTES.md secti
   // see the stopgap note above. It is still held FAR above the small-gauge target,
   // which is the property that actually matters: full-screen art must not be
   // shrunk to HUD-icon size just because it shares the 'ui' kind.
-  it('preScaleForBuild caps a full-screen ui frame at fullScreenMaxPx, preserving aspect ratio', () => {
-    const cap = loadSizeConfig().ui.fullScreenMaxPx as number;
-    const decoded: DecodedImage = { width: 1344, height: 768, rgba: makeSolid(1344, 768, [10, 20, 30, 255]) };
-    const result = preScaleForBuild('ui-hud-frame', 'ui', decoded);
-    expect(Math.max(result.width, result.height)).toBe(cap);
-    // aspect preserved within a rounding pixel
-    expect(Math.abs(result.width / result.height - 1344 / 768)).toBeLessThan(0.01);
-    expect(result.rgba.length).toBe(result.width * result.height * 4);
-    // and still far larger than a HUD gauge would be
-    expect(result.width).toBeGreaterThan(loadSizeConfig().ui.maxPx * 4);
-  });
+  
 
-  it('preScaleForBuild is a no-op for a full-screen ui frame already within the cap', () => {
-    const cap = loadSizeConfig().ui.fullScreenMaxPx as number;
-    const w = Math.floor(cap / 2);
-    const decoded: DecodedImage = { width: w, height: w, rgba: makeSolid(w, w, [10, 20, 30, 255]) };
-    expect(preScaleForBuild('ui-title-art', 'ui', decoded)).toBe(decoded); // same object, not a copy
-  });
+  
 
   it('preScaleForBuild downscales a small-HUD-gauge ui frame that exceeds the target, feeding buildFrame an already-small image', () => {
     const maxPx = resolveUiPreScaleMaxPx('ui-radar-bezel', 'ui') as number;
@@ -1106,6 +1083,47 @@ describe('atlas byte budget (measures real bytes on disk, not the config)', () =
 // sufficient for staying under the byte budget; see MAX_CONFIGURABLE_PX's
 // doc comment in tools/pack-atlas.mjs for why both gates exist.
 // ---------------------------------------------------------------------------
+// The stopgap these replace capped ui-hud-frame and ui-title-art to 1024 to keep
+// the byte gate green. The real cause turned out to be simpler and worse: grep
+// showed NEITHER frame is referenced anywhere in src/ — the renderer never draws
+// them. They were 54.2% of the packed sheet, shipping ~2.9MB of download for art
+// the game does not use. They are now skipped outright, which took the atlas from
+// 82.2% of budget to 50.2%.
+describe('unused full-screen art is not packed at all', () => {
+  const ASSETS = fileURLToPath(new URL('../../assets/', import.meta.url));
+
+  it('ui-hud-frame and ui-title-art are marked skip and absent from the packed manifest', () => {
+    const meta = JSON.parse(readFileSync(resolve(ASSETS, 'sprite-meta.json'), 'utf8')) as {
+      frames: Record<string, { skip?: boolean }>;
+    };
+    const manifest = JSON.parse(readFileSync(resolve(ASSETS, 'atlas.json'), 'utf8')) as {
+      frames: Record<string, unknown>;
+    };
+    for (const name of ['ui-hud-frame', 'ui-title-art']) {
+      expect({ name, skipped: meta.frames[name]?.skip === true }).toEqual({ name, skipped: true });
+      expect({ name, packed: name in manifest.frames }).toEqual({ name, packed: false });
+    }
+  });
+
+  it('a frame the renderer never references must not be occupying the sheet', () => {
+    // The rule, not the instance: anything marked skip stays out of the manifest.
+    const meta = JSON.parse(readFileSync(resolve(ASSETS, 'sprite-meta.json'), 'utf8')) as {
+      frames: Record<string, { skip?: boolean }>;
+    };
+    const manifest = JSON.parse(readFileSync(resolve(ASSETS, 'atlas.json'), 'utf8')) as {
+      frames: Record<string, unknown>;
+    };
+    const skipped = Object.entries(meta.frames).filter(([, v]) => v.skip === true).map(([k]) => k);
+    expect(skipped.length).toBeGreaterThan(0);
+    expect(skipped.filter((n) => n in manifest.frames)).toEqual([]);
+  });
+
+  it('the stopgap cap is gone', () => {
+    const cfg = loadSizeConfig() as unknown as { ui: { fullScreenMaxPx?: number } };
+    expect(cfg.ui.fullScreenMaxPx).toBeUndefined();
+  });
+});
+
 describe('loadSizeConfig', () => {
   const fixturesDir = fileURLToPath(new URL('./fixtures-atlas-sizes/', import.meta.url));
 

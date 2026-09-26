@@ -238,7 +238,9 @@
       "keyColorDeviation": null,
       "rotationOffsetDeg": 0,
       "view": "orthographic",
-      "readability": "good"
+      "readability": "good",
+      "skip": true,
+      "note": "NOT PACKED. Measured 2026-09-26: ui-hud-frame and ui-title-art were 27.1% of the packed sheet EACH - 54.2% between them - and grep shows NEITHER is referenced anywhere in src/. The renderer never draws them. They were costing every gameplay frame ~2.9MB of download for art the game does not use. TO RE-ENABLE when the title screen / HUD frame is actually wired: delete this skip flag and add the frame to extractStandalone in tools/atlas-sizes.json so it loads as its own image rather than bloating the sprite sheet - full-screen art never batches with a sprite, so an atlas buys it nothing either way."
     },
     "ui-title-art": {
       "kind": "ui",
@@ -247,7 +249,9 @@
       "keyColorDeviation": null,
       "rotationOffsetDeg": 0,
       "view": "three-quarter",
-      "readability": "good"
+      "readability": "good",
+      "skip": true,
+      "note": "NOT PACKED. Measured 2026-09-26: ui-hud-frame and ui-title-art were 27.1% of the packed sheet EACH - 54.2% between them - and grep shows NEITHER is referenced anywhere in src/. The renderer never draws them. They were costing every gameplay frame ~2.9MB of download for art the game does not use. TO RE-ENABLE when the title screen / HUD frame is actually wired: delete this skip flag and add the frame to extractStandalone in tools/atlas-sizes.json so it loads as its own image rather than bloating the sprite sheet - full-screen art never batches with a sprite, so an atlas buys it nothing either way."
     },
     "tile-arena-wall": {
       "kind": "tile",

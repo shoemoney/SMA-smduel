@@ -27,11 +27,6 @@
   },
   "ui": {
     "maxPx": 128,
-    "keepNative": [
-      "ui-hud-frame",
-      "ui-title-art"
-    ],
-    "fullScreenMaxPx": 1024
-  },
-  "_stopgapNote": "ui.fullScreenMaxPx is a STOPGAP added 2026-09-26. ui-hud-frame and ui-title-art are 54.2% of the packed sheet between them (27.1% each, measured) and adding 21 phase-4 frames pushed the atlas to 102.7% of budget. The real fix is extraction - they are full-screen art that never batches with a sprite, so an atlas buys them nothing - but that needs a loader change in src/app.ts, which was owned by a concurrent workflow. Capping them to 1024 is a quality trade taken to keep the gate green. When extractStandalone is enabled, DELETE this key and restore them to native."
+    "keepNative": []
+  }
 }
