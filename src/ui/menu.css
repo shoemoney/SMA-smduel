@@ -1,0 +1,111 @@
+/*
+ * Styling for the shared numbered-menu widget (src/ui/menu.ts) — the title
+ * screen and every building interior render through it.
+ *
+ * It had NO stylesheet at all until now, which produced two visible defects that
+ * 1161 passing tests could not see, because no test rendered a screen and looked
+ * at it:
+ *   1. `menu.ts` builds an <ol> AND writes its own number span (the "press N"
+ *      affordance), so the browser's default list marker duplicated it — every
+ *      row read "1. 1New Driver".
+ *   2. Unstyled, the whole thing was a small bare box on black.
+ *
+ * Tokens mirror hud.css so the menu and the HUD stay one system, and are
+ * redefined for dark mode rather than assuming a light page.
+ */
+
+.sm-menu {
+  /* Dark is the DEFAULT, not an OS-conditional: the game canvas behind this menu
+     is always near-black, so keying off prefers-color-scheme produced a white
+     panel floating on a black page for anyone on a light-themed OS. The light
+     variant below is for an explicitly light-themed host page. */
+  --menu-bg: #141a22;
+  --menu-fg: #e6edf3;
+  --menu-fg-muted: #9aa7b4;
+  --menu-border: rgba(230, 237, 243, 0.18);
+  --menu-accent: #6fd3c2;
+  --menu-disabled: #6b7683;
+  --menu-radius: 10px;
+
+  box-sizing: border-box;
+  width: min(680px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 20px 22px;
+  background: var(--menu-bg);
+  color: var(--menu-fg);
+  border: 1px solid var(--menu-border);
+  border-radius: var(--menu-radius);
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme='light'] .sm-menu {
+  --menu-bg: rgba(248, 250, 252, 0.94);
+  --menu-fg: #10151b;
+  --menu-fg-muted: #4a5568;
+  --menu-border: rgba(16, 21, 27, 0.28);
+  --menu-accent: #0a5f8a;
+  --menu-disabled: #6b7280;
+}
+
+.sm-menu__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--menu-border);
+  color: var(--menu-fg-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+/* THE FIX: menu.ts writes its own number span, so the list must not add one. */
+.sm-menu__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sm-menu__item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sm-menu__item:hover,
+.sm-menu__item[aria-selected='true'] {
+  background: color-mix(in srgb, var(--menu-accent) 16%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--menu-accent) 45%, transparent);
+}
+
+.sm-menu__number {
+  flex: 0 0 1.4em;
+  color: var(--menu-accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sm-menu__label { flex: 1 1 auto; }
+
+/* Ineligible actions stay VISIBLE with their reason — never hidden, so a player
+   can see what they cannot do yet and why, per docs/SPEC.md's building rules. */
+.sm-menu__item[aria-disabled='true'] { cursor: default; }
+.sm-menu__item[aria-disabled='true'] .sm-menu__label { color: var(--menu-disabled); }
+.sm-menu__reason {
+  flex: 0 1 auto;
+  color: var(--menu-disabled);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.sm-menu__message {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--menu-border);
+  color: var(--menu-fg-muted);
+  font-size: 13px;
+}

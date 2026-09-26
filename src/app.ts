@@ -14,6 +14,7 @@
  * is CPU-authoritative regardless of whether anything can render it.
  */
 import '@/ui/builder.css';
+import '@/ui/menu.css';
 import '@/ui/hud.css';
 
 import { citiesConfig, drivingConfig, economy, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
