@@ -10,8 +10,14 @@
  *      row read "1. 1New Driver".
  *   2. Unstyled, the whole thing was a small bare box on black.
  *
- * Tokens mirror hud.css so the menu and the HUD stay one system, and are
- * redefined for dark mode rather than assuming a light page.
+ * Tokens mirror hud.css so the menu and the HUD stay one system.
+ *
+ * NO REGRESSION TEST GUARDS THE LAYOUT HERE, and that is measured rather than
+ * assumed: the DOM harness runs on happy-dom, which does not compute layout —
+ * getBoundingClientRect() returns width 0, height 0 for a styled element. A
+ * clipping assertion there would pass on every possible stylesheet, which is
+ * worse than no test. Overflow bugs in this file are caught by opening the game
+ * in a real browser; both that have appeared so far were found exactly that way.
  */
 
 .sm-menu {
@@ -28,7 +34,13 @@
   --menu-radius: 10px;
 
   box-sizing: border-box;
-  width: min(680px, calc(100vw - 32px));
+  /* min(..., 100%) not min(..., 100vw - 32px): this menu is mounted INSIDE
+     .sm-menu-root, which is sized to the game view (480px at a 1200px viewport),
+     not to the window. Sizing against the viewport made a 680px panel overflow a
+     480px parent, so building menus rendered clipped with a horizontal scrollbar
+     and the ineligibility reasons cut off mid-word. Found by walking into a
+     clinic, not by a test. */
+  width: min(680px, 100%);
   margin: 0 auto;
   padding: 20px 22px;
   background: var(--menu-bg);
@@ -89,14 +101,18 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sm-menu__label { flex: 1 1 auto; }
+.sm-menu__label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 
 /* Ineligible actions stay VISIBLE with their reason — never hidden, so a player
    can see what they cannot do yet and why, per docs/SPEC.md's building rules. */
 .sm-menu__item[aria-disabled='true'] { cursor: default; }
 .sm-menu__item[aria-disabled='true'] .sm-menu__label { color: var(--menu-disabled); }
 .sm-menu__reason {
+  /* Wrap rather than push the row wider — a long refusal reason must not be
+     what makes the whole panel overflow its container. */
   flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--menu-disabled);
   font-size: 13px;
   font-style: italic;
