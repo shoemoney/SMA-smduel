@@ -1,0 +1,41 @@
+{
+  "$schemaVersion": 1,
+  "_note": "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact.",
+  "offersPerVisit": 3,
+  "maxPayloads": 3,
+  "salvageOccupiesOneCategory": true,
+  "acceptanceCostDays": 1,
+  "multipleAcceptsShareOneDay": true,
+  "generation": {
+    "payWeightPerMile": 3.2,
+    "payWeightPerDangerLevel": 180,
+    "payWeightPerHundredPounds": 22,
+    "payJitterFraction": 0.15,
+    "deadlineDaysPerRoute": 1.35,
+    "deadlineSlackDaysMin": 1,
+    "deadlineSlackDaysMax": 4,
+    "declaredValueMultiplier": 4.5,
+    "weightLbMin": 100,
+    "weightLbMax": 1800,
+    "spacesMin": 1,
+    "spacesMax": 6
+  },
+  "prestigeTiers": [
+    { "minPrestige": 0,  "maxDangerOffered": 2, "payMultiplier": 1.00, "prestigeReward": 1, "failurePenalty": 2 },
+    { "minPrestige": 20, "maxDangerOffered": 3, "payMultiplier": 1.35, "prestigeReward": 2, "failurePenalty": 3 },
+    { "minPrestige": 40, "maxDangerOffered": 4, "payMultiplier": 1.80, "prestigeReward": 3, "failurePenalty": 4 },
+    { "minPrestige": 60, "maxDangerOffered": 4, "payMultiplier": 2.40, "prestigeReward": 4, "failurePenalty": 5 },
+    { "minPrestige": 80, "maxDangerOffered": 4, "payMultiplier": 3.10, "prestigeReward": 5, "failurePenalty": 6 }
+  ],
+  "lateness": { "payDecayPerDay": 0.20, "payFloorFraction": 0.0 },
+  "illicitSale": { "valueFraction": 0.35, "prestigePenalty": 5, "lawConsequenceChance": 0.25 },
+  "refusalReasons": [
+    "INSUFFICIENT_PRESTIGE", "INSUFFICIENT_VEHICLE_THREAT", "INSUFFICIENT_SPACE",
+    "INSUFFICIENT_LOAD_CAPACITY", "PAYLOAD_LIMIT_REACHED", "NO_ACTIVE_VEHICLE"
+  ],
+  "cargoNames": [
+    "sealed medical crate", "machine parts", "bonded documents", "refrigerated stock",
+    "industrial catalyst", "spare plating", "precision optics", "archive reels",
+    "live cultures", "sealed isotope flask", "replacement actuators", "bulk propellant"
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "$schemaVersion": 1,
+  "_note": "Facility matrix per the documented source. Map coordinates are ORIGINAL geometry (approximate real-world relative placement, normalized 0..1), NOT traced from the original game's maps. Route lengths and danger are Reconstruction - see fidelity-notes.yaml.",
+  "facilityKinds": ["garage","weaponshop","arena","salvage","bar","medical","assembly","courierguild","truckstop","casino","hotel","federal","story","studio","petshop"],
+  "cities": [
+    { "id": "newyork",     "name": "New York",      "x": 0.62, "y": 0.52, "facilities": ["garage","weaponshop","arena","salvage","bar","medical","assembly","courierguild","truckstop","federal"] },
+    { "id": "boston",      "name": "Boston",        "x": 0.78, "y": 0.30, "facilities": ["truckstop","weaponshop","arena","salvage","bar","medical","assembly","courierguild"] },
+    { "id": "pittsburgh",  "name": "Pittsburgh",    "x": 0.22, "y": 0.56, "facilities": ["garage","weaponshop","arena","salvage","bar","assembly","courierguild","truckstop"] },
+    { "id": "albany",      "name": "Albany",        "x": 0.63, "y": 0.32, "facilities": ["garage","weaponshop","arena","bar","courierguild","truckstop"] },
+    { "id": "atlanticcity","name": "Atlantic City", "x": 0.58, "y": 0.68, "facilities": ["garage","arena","truckstop","casino"] },
+    { "id": "baltimore",   "name": "Baltimore",     "x": 0.44, "y": 0.72, "facilities": ["weaponshop","bar","courierguild","truckstop","hotel"] },
+    { "id": "buffalo",     "name": "Buffalo",       "x": 0.28, "y": 0.30, "facilities": ["weaponshop","salvage","courierguild","truckstop"] },
+    { "id": "dover",       "name": "Dover",         "x": 0.52, "y": 0.72, "facilities": ["weaponshop","salvage","truckstop"] },
+    { "id": "harrisburg",  "name": "Harrisburg",    "x": 0.38, "y": 0.62, "facilities": ["garage","arena","salvage","truckstop"] },
+    { "id": "manchester",  "name": "Manchester",    "x": 0.80, "y": 0.20, "facilities": ["garage","arena","courierguild","truckstop","studio"] },
+    { "id": "philadelphia","name": "Philadelphia",  "x": 0.52, "y": 0.62, "facilities": ["bar","courierguild","petshop","truckstop"] },
+    { "id": "providence",  "name": "Providence",    "x": 0.80, "y": 0.36, "facilities": ["truckstop"] },
+    { "id": "scranton",    "name": "Scranton",      "x": 0.50, "y": 0.48, "facilities": ["weaponshop","salvage","truckstop"] },
+    { "id": "syracuse",    "name": "Syracuse",      "x": 0.46, "y": 0.28, "facilities": ["weaponshop","truckstop"] },
+    { "id": "washington",  "name": "Washington",    "x": 0.38, "y": 0.80, "facilities": ["garage","arena","salvage","truckstop"] },
+    { "id": "watertown",   "name": "Watertown",     "x": 0.50, "y": 0.14, "facilities": ["garage","arena","truckstop","story"] }
+  ],
+  "_cityCountNote": "16 cities are named in the source travel-graph list while the source prose says 15. The discrepancy is UNRESOLVED - we ship 16 and flag it. See fidelity-notes.yaml entry 'world.cityCount'.",
+  "routes": [
+    { "id": "ny-albany",        "a": "newyork",      "b": "albany",       "lengthMiles": 150, "danger": 1 },
+    { "id": "ny-philadelphia",  "a": "newyork",      "b": "philadelphia", "lengthMiles": 95,  "danger": 1 },
+    { "id": "ny-scranton",      "a": "newyork",      "b": "scranton",     "lengthMiles": 120, "danger": 2 },
+    { "id": "ny-atlanticcity",  "a": "newyork",      "b": "atlanticcity", "lengthMiles": 125, "danger": 2 },
+    { "id": "ny-providence",    "a": "newyork",      "b": "providence",   "lengthMiles": 180, "danger": 2 },
+    { "id": "boston-providence","a": "boston",       "b": "providence",   "lengthMiles": 50,  "danger": 0 },
+    { "id": "boston-manchester","a": "boston",       "b": "manchester",   "lengthMiles": 55,  "danger": 1 },
+    { "id": "boston-albany",    "a": "boston",       "b": "albany",       "lengthMiles": 170, "danger": 2 },
+    { "id": "albany-syracuse",  "a": "albany",       "b": "syracuse",     "lengthMiles": 145, "danger": 2 },
+    { "id": "albany-scranton",  "a": "albany",       "b": "scranton",     "lengthMiles": 160, "danger": 2 },
+    { "id": "albany-manchester","a": "albany",       "b": "manchester",   "lengthMiles": 175, "danger": 3 },
+    { "id": "syracuse-buffalo", "a": "syracuse",     "b": "buffalo",      "lengthMiles": 150, "danger": 2 },
+    { "id": "syracuse-watertown","a": "syracuse",    "b": "watertown",    "lengthMiles": 75,  "danger": 3 },
+    { "id": "buffalo-watertown","a": "buffalo",      "b": "watertown",    "lengthMiles": 200, "danger": 4 },
+    { "id": "buffalo-pittsburgh","a": "buffalo",     "b": "pittsburgh",   "lengthMiles": 220, "danger": 3 },
+    { "id": "pittsburgh-harrisburg","a": "pittsburgh","b": "harrisburg",  "lengthMiles": 200, "danger": 3 },
+    { "id": "harrisburg-scranton","a": "harrisburg", "b": "scranton",     "lengthMiles": 120, "danger": 2 },
+    { "id": "harrisburg-philadelphia","a": "harrisburg","b": "philadelphia","lengthMiles": 105,"danger": 1 },
+    { "id": "harrisburg-baltimore","a": "harrisburg","b": "baltimore",    "lengthMiles": 85,  "danger": 2 },
+    { "id": "philadelphia-atlanticcity","a": "philadelphia","b": "atlanticcity","lengthMiles": 65,"danger": 1 },
+    { "id": "philadelphia-dover","a": "philadelphia","b": "dover",        "lengthMiles": 80,  "danger": 1 },
+    { "id": "philadelphia-baltimore","a": "philadelphia","b": "baltimore","lengthMiles": 100, "danger": 1 },
+    { "id": "dover-atlanticcity","a": "dover",       "b": "atlanticcity", "lengthMiles": 70,  "danger": 2 },
+    { "id": "dover-baltimore",  "a": "dover",        "b": "baltimore",    "lengthMiles": 75,  "danger": 2 },
+    { "id": "baltimore-washington","a": "baltimore", "b": "washington",   "lengthMiles": 40,  "danger": 1 },
+    { "id": "washington-pittsburgh","a": "washington","b": "pittsburgh",  "lengthMiles": 240, "danger": 4 }
+  ],
+  "championships": {
+    "_note": "Observed first-run dates, day 0 = 2030-01-01, repeating every 84 days.",
+    "cadenceDays": 84,
+    "firstDay": {
+      "albany": 29, "boston": 36, "newyork": 50, "pittsburgh": 64,
+      "harrisburg": 71, "atlanticcity": 85, "watertown": 85,
+      "washington": 90, "manchester": 92
+    }
+  }
+}

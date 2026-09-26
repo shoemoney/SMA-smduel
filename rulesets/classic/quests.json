@@ -1,0 +1,63 @@
+{
+  "$schemaVersion": 1,
+  "_note": "Prestige gates and payouts are OBSERVED from documented play, never published as formulas. All names, characters and fiction here are ORIGINAL - no protected marks. See fidelity-notes.yaml entries under 'quest.*'.",
+  "rumorsPerLocationPerDay": 1,
+  "quests": [
+    {
+      "id": "decoy-prize", "gate": 20, "order": 1,
+      "title": "The Substituted Prize",
+      "summary": "An arena purse was swapped for a forgery. Follow the chain to the northern arena and hand the real article to the steward.",
+      "clueChain": ["bar:newyork", "bar:albany", "courierguild:albany", "arena:manchester"],
+      "destination": { "cityId": "manchester", "facility": "arena" },
+      "dueDays": 10, "pay": 6000, "prestigeReward": 12, "failurePenalty": 6,
+      "cargo": { "name": "sealed prize case", "weightLb": 60, "spaces": 1, "declaredValue": 9000 }
+    },
+    {
+      "id": "transplant-run", "gate": 40, "order": 2,
+      "title": "Cold Cargo",
+      "summary": "A cloning clinic needs a viable heart moved north before it spoils. Short deadline, no second chance.",
+      "clueChain": ["medical:newyork"],
+      "source": { "cityId": "newyork", "facility": "medical" },
+      "destination": { "cityId": "boston", "facility": "medical" },
+      "dueDays": 5, "pay": 8000, "prestigeReward": 12, "failurePenalty": 10,
+      "cargo": { "name": "cryogenic organ flask", "weightLb": 120, "spaces": 2, "declaredValue": 25000 },
+      "flags": ["perishable", "no-illicit-sale"]
+    },
+    {
+      "id": "ledger-evidence", "gate": 60, "order": 3,
+      "title": "The Ledger",
+      "summary": "Bookkeeping that ties a northern outfit to three fixed events. Carry it south to the guild and expect company.",
+      "clueChain": ["bar:pittsburgh", "truckstop:scranton", "garage:watertown"],
+      "source": { "cityId": "watertown", "facility": "garage" },
+      "destination": { "cityId": "philadelphia", "facility": "courierguild" },
+      "dueDays": 8, "pay": 11600, "prestigeReward": 12, "failurePenalty": 12,
+      "cargo": { "name": "bonded ledger case", "weightLb": 40, "spaces": 1, "declaredValue": 30000 },
+      "flags": ["hostile-interest"]
+    },
+    {
+      "id": "fixed-race-proof", "gate": 80, "order": 4,
+      "title": "Proof of a Fixed Race",
+      "summary": "Recordings that make a championship result indefensible. The bureau wants them in hand, not in the post.",
+      "clueChain": ["arena:washington", "bar:baltimore"],
+      "source": { "cityId": "washington", "facility": "arena" },
+      "destination": { "cityId": "newyork", "facility": "federal" },
+      "dueDays": 8, "pay": 10500, "prestigeReward": 12, "failurePenalty": 12,
+      "cargo": { "name": "sealed evidence reel", "weightLb": 30, "spaces": 1, "declaredValue": 40000 },
+      "flags": ["hostile-interest"]
+    },
+    {
+      "id": "the-boss-tape", "gate": 95, "order": 5,
+      "title": "The Stolen Braintape",
+      "summary": "The recorded mind of the man who runs the northern outfit, taken from his own vault. Bring it to the bureau and the whole structure falls. There is no deadline because there is no second attempt.",
+      "clueChain": ["truckstop:watertown", "story:watertown"],
+      "source": { "cityId": "watertown", "facility": "story" },
+      "destination": { "cityId": "newyork", "facility": "federal" },
+      "dueDays": null, "pay": 50000, "prestigeReward": 0, "failurePenalty": 0,
+      "cargo": { "name": "stolen braintape", "weightLb": 25, "spaces": 1, "declaredValue": 0 },
+      "flags": ["victory-condition", "no-illicit-sale", "removes-clone", "marks-driver",
+                "sustained-pursuit", "rest-assassination-attempts"],
+      "onAccept": { "destroyClone": true, "setFlag": "marked", "pursuitLevel": 4 },
+      "onDeliver": { "victory": true, "sandboxContinues": true }
+    }
+  ]
+}
