@@ -21,6 +21,7 @@
  */
 import Ajv from 'ajv';
 import type { SchemaObject, ValidateFunction } from 'ajv';
+import { drivingConfig } from '@/data/rulesets';
 import { FACINGS, SKILL_NAMES } from '@/sim/types';
 import type { SaveGame } from '@/persist/save';
 
@@ -128,7 +129,9 @@ const vehicleStateSchema = obj({
   position: vec2Schema,
   headingRad: NUM,
   speedMps: NUM,
-  battery: { type: 'integer', minimum: 0, maximum: 99 },
+  // Sourced, not retyped: 99 is driving.json battery.full. A save schema that
+  // hardcodes it would start rejecting valid saves the moment the ruleset changed.
+  battery: { type: 'integer', minimum: 0, maximum: drivingConfig().battery.full },
   odometerMiles: NUM,
   armorDP: armorRecordSchema,
   tireDP: tireDPTupleSchema,

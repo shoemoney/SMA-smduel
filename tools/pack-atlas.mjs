@@ -882,14 +882,21 @@ export function contentGroupIdForKind(kind) {
  * ready for `encodePNG`), and `errors` (every group's packAtlas errors,
  * concatenated — nothing is ever silently dropped).
  */
-export function packFramesByContentGroup(decodedFrames, packOptions = {}) {
+/**
+ * `groups` is injectable so the multi-sheet machinery stays under test even while
+ * the LIVE config is a single group. The split is reverted at runtime (see
+ * CONTENT_GROUPS above) because src/app.ts can only load one sheet — but the
+ * packer half is correct, and deleting its tests to match a temporary config
+ * would throw away the code we need the moment the loader learns about sheet 2.
+ */
+export function packFramesByContentGroup(decodedFrames, packOptions = {}, groups = CONTENT_GROUPS) {
   const frameByName = new Map(decodedFrames.map((f) => [f.name, f]));
   const atlasFileEntries = [];
   const manifestFrames = {};
   const canvases = [];
   const errors = [];
 
-  for (const group of CONTENT_GROUPS) {
+  for (const group of groups) {
     const groupFrames = decodedFrames.filter((f) => group.kinds.includes(f.kind));
     if (groupFrames.length === 0) continue;
 

@@ -74,6 +74,51 @@ interface AtlasSizeConfig {
   ui: { maxPx: number; keepNative: string[] };
   [kind: string]: unknown;
 }
+interface ContentGroup {
+  id: string;
+  kinds: readonly string[];
+}
+interface DecodedFrameForPack {
+  name: string;
+  kind: string;
+  w: number;
+  h: number;
+  rgba: Uint8Array;
+  trimX: number;
+  trimY: number;
+  srcW: number;
+  srcH: number;
+  rotationOffsetDeg: number;
+}
+interface ManifestFrameOut {
+  atlas: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  trimX: number;
+  trimY: number;
+  srcW: number;
+  srcH: number;
+  kind: string;
+  rotationOffsetDeg: number;
+}
+interface AtlasFileEntryOut {
+  file: string;
+  width: number;
+  height: number;
+}
+interface CanvasOut {
+  width: number;
+  height: number;
+  rgba: Uint8Array;
+}
+interface PackFramesByContentGroupResult {
+  atlasFileEntries: AtlasFileEntryOut[];
+  manifestFrames: Record<string, ManifestFrameOut>;
+  canvases: CanvasOut[];
+  errors: PackError[];
+}
 interface PackAtlasModule {
   MAGENTA: readonly [number, number, number];
   TILE_QUADRANT_PX: number;
@@ -81,6 +126,13 @@ interface PackAtlasModule {
   SPRITE_MAX_PX: number;
   MAX_CONFIGURABLE_PX: number;
   ASSET_KINDS: readonly string[];
+  CONTENT_GROUPS: readonly ContentGroup[];
+  contentGroupIdForKind(kind: string): string;
+  packFramesByContentGroup(
+    decodedFrames: readonly DecodedFrameForPack[],
+    packOptions?: { padding?: number; maxSize?: number; minSize?: number },
+    groups?: readonly ContentGroup[],
+  ): PackFramesByContentGroupResult;
   loadSizeConfig(path?: string): AtlasSizeConfig;
   fingerprintSizeConfig(config?: AtlasSizeConfig): string;
   rgbToHsv(r: number, g: number, b: number): { h: number; s: number; v: number };
@@ -140,6 +192,9 @@ const {
   preScaleForBuild,
   loadSpriteMeta,
   packAtlas,
+  CONTENT_GROUPS,
+  contentGroupIdForKind,
+  packFramesByContentGroup,
 } = packAtlasModule;
 
 // ---------------------------------------------------------------------------
@@ -620,6 +675,170 @@ describe('packAtlas', () => {
 
     const placedNames = atlases.flatMap((a) => a.placements.map((p) => p.name));
     expect(placedNames).toEqual(['small']);
+  });
+});
+
+describe('contentGroupIdForKind / CONTENT_GROUPS (tools/pack-atlas.mjs sheet split)', () => {
+  it('covers every ASSET_KIND exactly once, so a newly-added kind cannot silently fall through packing ungrouped', () => {
+    for (const kind of ASSET_KINDS) {
+      expect(() => contentGroupIdForKind(kind)).not.toThrow();
+    }
+    const seen = new Map<string, string[]>();
+    for (const kind of ASSET_KINDS) {
+      const id = contentGroupIdForKind(kind);
+      seen.set(id, [...(seen.get(id) ?? []), kind]);
+    }
+    const totalKindsAcrossGroups = [...seen.values()].reduce((n, kinds) => n + kinds.length, 0);
+    expect(totalKindsAcrossGroups).toBe(ASSET_KINDS.length); // no kind double-counted across groups
+  });
+
+  // The live config was REVERTED to a single group on 2026-09-26 after the split
+  // shipped a game that could render 16 of its 50 frames: src/app.ts fetches only
+  // atlas-0.png and binds that one textureView to both bind groups, so the 34
+  // frames on atlas-1.png had no loader — and tsc, vitest and vite build were all
+  // green throughout. This test now pins the invariant that ACTUALLY holds, and
+  // the split behaviour is exercised against an injected config below, so the
+  // multi-sheet machinery keeps its coverage without the live config claiming a
+  // capability the runtime does not have.
+  it('currently emits a SINGLE sheet — every kind shares one group (see CONTENT_GROUPS for why)', () => {
+    const ids = new Set(ASSET_KINDS.map((k) => contentGroupIdForKind(k)));
+    expect(ids.size).toBe(1);
+  });
+
+  it('re-splitting requires a runtime change: nothing in src/ loads a second sheet yet', () => {
+    // A guard against someone re-enabling the split without teaching the loader.
+    // If you add per-sheet textures to src/app.ts, update this test deliberately.
+    const appSrc = readFileSync(resolve(fileURLToPath(new URL('../../src/', import.meta.url)), 'app.ts'), 'utf8');
+    const loadsMultipleSheets = /manifest\.atlases\s*\.\s*map|for\s*\(.*of\s+.*\.atlases/.test(appSrc);
+    expect(CONTENT_GROUPS.length === 1 || loadsMultipleSheets).toBe(true);
+  });
+
+  it('throws rather than silently ignoring an unconfigured kind', () => {
+    expect(() => contentGroupIdForKind('spaceship')).toThrow();
+  });
+});
+
+// A two-group config INJECTED into the packer. The live CONTENT_GROUPS is a single
+// group (the split was reverted — src/app.ts can only load one sheet), but the
+// multi-sheet packing code is correct and still needed the moment the loader learns
+// about sheet 2. Testing it against an injected config keeps that coverage without
+// the live config advertising a capability the runtime does not have.
+const SPLIT_GROUPS = [
+  { id: 'terrain', kinds: ['tile'] },
+  { id: 'sprites', kinds: ['car', 'wreck', 'cycle', 'prop', 'fx', 'decal', 'ui'] },
+] as const;
+
+describe('packFramesByContentGroup (multi-sheet packing, exercised via an injected config)', () => {
+  function makeDecodedFrame(name: string, kind: string, w: number, h: number, rotationOffsetDeg = 0): DecodedFrameForPack {
+    return {
+      name,
+      kind,
+      w,
+      h,
+      rgba: makeSolid(w, h, [10, 20, 30, 255]),
+      trimX: 1,
+      trimY: 2,
+      srcW: w + 3,
+      srcH: h + 4,
+      rotationOffsetDeg,
+    };
+  }
+
+  it('routes tile frames onto one physical sheet and every other kind onto another, with placements staying inside their OWN sheet', () => {
+    const frames = [
+      makeDecodedFrame('tile-asphalt', 'tile', 40, 40),
+      makeDecodedFrame('tile-arena-wall', 'tile', 40, 40),
+      makeDecodedFrame('car-kart', 'car', 20, 16),
+      makeDecodedFrame('ui-radar-bezel', 'ui', 12, 12, 90),
+    ];
+    const { atlasFileEntries, manifestFrames, canvases, errors } = packFramesByContentGroup(
+      frames,
+      { padding: 2, maxSize: 256, minSize: 16 },
+      SPLIT_GROUPS,
+    );
+    expect(errors).toEqual([]);
+    expect(canvases.length).toBe(atlasFileEntries.length);
+    expect(atlasFileEntries.length).toBeGreaterThanOrEqual(2); // terrain + sprites, at minimum
+
+    const tileAtlas = manifestFrames['tile-asphalt']?.atlas;
+    expect(manifestFrames['tile-arena-wall']?.atlas).toBe(tileAtlas); // both tile frames share a sheet
+    const carAtlas = manifestFrames['car-kart']?.atlas;
+    const uiAtlas = manifestFrames['ui-radar-bezel']?.atlas;
+    expect(carAtlas).toBe(uiAtlas); // non-tile kinds share the other sheet
+    expect(carAtlas).not.toBe(tileAtlas); // and it is NOT the terrain sheet
+
+    // Placement rect must stay inside the bounds of the sheet its OWN
+    // manifest entry claims — the exact regression this split risks: a
+    // frame's `atlas` index pointing at the wrong (globally-offset) sheet.
+    for (const f of Object.values(manifestFrames)) {
+      const sheet = atlasFileEntries[f.atlas];
+      expect(sheet).toBeDefined();
+      expect(f.x + f.w).toBeLessThanOrEqual(sheet!.width);
+      expect(f.y + f.h).toBeLessThanOrEqual(sheet!.height);
+    }
+
+    expect(manifestFrames['ui-radar-bezel']?.rotationOffsetDeg).toBe(90); // survives the regroup
+  });
+
+  it(
+    "resolves correct normalized UVs against EACH frame's OWN sheet dimensions end-to-end through AtlasIndex " +
+      '(regression: a frame reading UVs against a differently-sized sibling sheet is the obvious failure mode of a multi-sheet packer)',
+    () => {
+      // A tiny terrain group (forces a small sheet) alongside a much larger
+      // sprites group (forces a bigger one) — the two physical sheets come
+      // out DIFFERENT sizes, the exact shape that exposes a frame computing
+      // its UVs against the wrong sheet's width/height.
+      const frames = [
+        makeDecodedFrame('tile-only', 'tile', 30, 30),
+        makeDecodedFrame('car-big-1', 'car', 100, 90),
+        makeDecodedFrame('car-big-2', 'car', 100, 90),
+        makeDecodedFrame('car-big-3', 'car', 100, 90),
+      ];
+      const { atlasFileEntries, manifestFrames } = packFramesByContentGroup(frames, { padding: 2, maxSize: 512, minSize: 32 }, SPLIT_GROUPS);
+
+      const tileEntry = manifestFrames['tile-only']!;
+      const carEntry = manifestFrames['car-big-1']!;
+      const tileSheet = atlasFileEntries[tileEntry.atlas]!;
+      const carSheet = atlasFileEntries[carEntry.atlas]!;
+      expect(tileSheet.width).not.toBe(carSheet.width); // sanity: the two sheets actually differ in size
+
+      const manifest: AtlasManifest = parseAtlasManifest({
+        atlases: atlasFileEntries,
+        frames: { 'tile-only': tileEntry, 'car-big-1': carEntry },
+      });
+      const index = new AtlasIndex(manifest);
+
+      const tileInfo = index.frame('tile-only');
+      expect(tileInfo.atlasFile).toBe(tileSheet.file);
+      expect(tileInfo.uv.u0).toBeCloseTo(tileEntry.x / tileSheet.width, 6);
+      expect(tileInfo.uv.u1).toBeCloseTo((tileEntry.x + tileEntry.w) / tileSheet.width, 6);
+      expect(tileInfo.uv.v0).toBeCloseTo(tileEntry.y / tileSheet.height, 6);
+      expect(tileInfo.uv.v1).toBeCloseTo((tileEntry.y + tileEntry.h) / tileSheet.height, 6);
+
+      const carInfo = index.frame('car-big-1');
+      expect(carInfo.atlasFile).toBe(carSheet.file);
+      expect(carInfo.uv.u1).toBeCloseTo((carEntry.x + carEntry.w) / carSheet.width, 6);
+      // The actual failure mode: computing against the WRONG (tile) sheet's
+      // width would give a measurably different UV. Guard it explicitly.
+      expect(carInfo.uv.u1).not.toBeCloseTo((carEntry.x + carEntry.w) / tileSheet.width, 3);
+    },
+  );
+
+  it("propagates a group's packAtlas errors (e.g. an oversized frame) instead of silently dropping them", () => {
+    const frames = [makeDecodedFrame('tile-huge', 'tile', 1000, 1000), makeDecodedFrame('tile-small', 'tile', 10, 10)];
+    const { errors, manifestFrames } = packFramesByContentGroup(frames, { padding: 2, maxSize: 128, minSize: 16 }, SPLIT_GROUPS);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.name).toBe('tile-huge');
+    expect(manifestFrames['tile-huge']).toBeUndefined();
+    expect(manifestFrames['tile-small']).toBeDefined();
+  });
+
+  it('the groups argument is consulted (not hardcoded) — an empty group contributes zero sheets', () => {
+    expect(SPLIT_GROUPS.length).toBeGreaterThanOrEqual(2);
+    const frames = [makeDecodedFrame('car-only', 'car', 10, 10)]; // no tile frames at all
+    const { atlasFileEntries, manifestFrames } = packFramesByContentGroup(frames, { padding: 2, maxSize: 64, minSize: 16 }, SPLIT_GROUPS);
+    expect(atlasFileEntries).toHaveLength(1); // no empty terrain sheet emitted
+    expect(manifestFrames['car-only']?.atlas).toBe(0);
   });
 });
 

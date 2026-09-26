@@ -5,29 +5,85 @@
   "maxPayloads": 3,
   "salvageCountsAsPayload": true,
   "services": {
-    "busToAdjacentCity":   { "price": 100,  "days": 1 },
-    "batteryRecharge":     { "price": 50,   "days": 0, "restoresTo": 99 },
-    "truckStopRoomNight":  { "price": 10,   "days": 1 },
-    "bodyArmor":           { "price": 250,  "days": 0, "dp": 3 },
-    "storeCar":            { "price": 0,    "days": 0, "paidOnRetrieval": 50 },
-    "retrieveCar":         { "price": 50,   "days": 0 },
-    "mechanicLesson":      { "price": 500,  "days": 5 },
-    "arenaPractice":       { "price": 20,   "days": 0 },
-    "clone":               { "price": 5000, "days": 1 },
-    "braintapeUpdate":     { "price": 3000, "days": 1 },
-    "medicalPerPoint":     { "price": 100,  "days": 7 },
-    "drink":               { "price": 5,    "days": 0 }
+    "busToAdjacentCity": {
+      "price": 100,
+      "days": 1
+    },
+    "batteryRecharge": {
+      "price": 50,
+      "days": 0,
+      "restoresTo": 99
+    },
+    "truckStopRoomNight": {
+      "price": 10,
+      "days": 1
+    },
+    "bodyArmor": {
+      "price": 250,
+      "days": 0,
+      "dp": 3
+    },
+    "storeCar": {
+      "price": 0,
+      "days": 0,
+      "paidOnRetrieval": 50
+    },
+    "retrieveCar": {
+      "price": 50,
+      "days": 0
+    },
+    "mechanicLesson": {
+      "price": 500,
+      "days": 5
+    },
+    "arenaPractice": {
+      "price": 20,
+      "days": 0
+    },
+    "clone": {
+      "price": 5000,
+      "days": 1
+    },
+    "braintapeUpdate": {
+      "price": 3000,
+      "days": 1
+    },
+    "medicalPerPoint": {
+      "price": 100,
+      "days": 7
+    },
+    "drink": {
+      "price": 5,
+      "days": 0
+    }
   },
   "timeCostDays": {
-    "walkInCity": 0, "readRumor": 0, "readRoadInfo": 0, "readSchedule": 0, "readJobList": 0,
-    "recharge": 0, "buyBodyArmor": 0, "bus": 1, "buildCar": 1, "weaponTransaction": 1,
-    "repairCar": 1, "acceptCourierWork": 1, "arenaEvent": 1, "cloneOrUpdate": 1,
-    "mechanicLesson": 5, "healOnePoint": 7
+    "walkInCity": 0,
+    "readRumor": 0,
+    "readRoadInfo": 0,
+    "readSchedule": 0,
+    "readJobList": 0,
+    "recharge": 0,
+    "buyBodyArmor": 0,
+    "bus": 1,
+    "buildCar": 1,
+    "weaponTransaction": 1,
+    "repairCar": 1,
+    "acceptCourierWork": 1,
+    "arenaEvent": 1,
+    "cloneOrUpdate": 1,
+    "mechanicLesson": 5,
+    "healOnePoint": 7
   },
-  "alwaysOpenFacilities": ["bar", "truckstop", "medical", "federal"],
+  "alwaysOpenFacilities": [
+    "bar",
+    "truckstop",
+    "medical",
+    "federal"
+  ],
   "_reconstruction": {
     "_note": "RECONSTRUCTION - tunable, see fidelity-notes.yaml. Not from the manual.",
-    "saleValueConditionFloor": 0.10,
+    "saleValueConditionFloor": 0.1,
     "saleValueConditionCeiling": 0.55,
     "repairCostFactor": 0.65,
     "salvageBaseChance": 10,
@@ -35,14 +91,39 @@
     "salvageBurnPenalty": 100,
     "salvageChanceMin": 5,
     "salvageChanceMax": 90,
-    "latePayDecayPerDay": 0.20,
-    "collisionArmorLossSpeedMph": 25
+    "latePayDecayPerDay": 0.2,
+    "collisionArmorLossSpeedMph": 25,
+    "cargoFullIntegrity": 100
   },
   "casino": {
-    "poker": { "pair": 1, "twoPair": 2, "threeOfAKind": 3, "straight": 4, "flush": 5, "fullHouse": 7, "fourOfAKind": 25, "straightFlush": 70,
-               "allowDiscardAllFive": true, "allowAceLowStraight": true, "minRank": 2, "maxRank": 14, "handSize": 5 },
-    "blackjack": { "dealerHitsThrough": 16, "dealerWinsTies": true, "fiveCardNonBustWins": true, "exactTwentyOneWins": true,
-                   "ordinaryPayout": 2, "twoCardBlackjackPayout": 3,
-                   "targetScore": 21, "aceHighValue": 11, "aceLowValue": 1, "faceCardValue": 10, "faceCardMinRank": 11, "fiveCardCount": 5 }
+    "poker": {
+      "pair": 1,
+      "twoPair": 2,
+      "threeOfAKind": 3,
+      "straight": 4,
+      "flush": 5,
+      "fullHouse": 7,
+      "fourOfAKind": 25,
+      "straightFlush": 70,
+      "allowDiscardAllFive": true,
+      "allowAceLowStraight": true,
+      "minRank": 2,
+      "maxRank": 14,
+      "handSize": 5
+    },
+    "blackjack": {
+      "dealerHitsThrough": 16,
+      "dealerWinsTies": true,
+      "fiveCardNonBustWins": true,
+      "exactTwentyOneWins": true,
+      "ordinaryPayout": 2,
+      "twoCardBlackjackPayout": 3,
+      "targetScore": 21,
+      "aceHighValue": 11,
+      "aceLowValue": 1,
+      "faceCardValue": 10,
+      "faceCardMinRank": 11,
+      "fiveCardCount": 5
+    }
   }
 }

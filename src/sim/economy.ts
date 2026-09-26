@@ -287,8 +287,13 @@ export interface Salvager {
   vehicle: VehicleState;
 }
 
-/** A freshly-recovered salvage item is undamaged: full integrity on the same 0..100 scale `damage.ts`/`hud.ts` use everywhere else. */
-const SALVAGE_FULL_INTEGRITY = 100;
+/**
+ * A freshly-recovered salvage item is undamaged: full integrity on the same scale
+ * `damage.ts`/`hud.ts` use everywhere else. Sourced from
+ * economy.json `_reconstruction.cargoFullIntegrity` rather than typed here — an
+ * audit flagged it as a bare gameplay literal with no ruleset key behind it.
+ */
+const salvageFullIntegrity = (): number => economy()._reconstruction.cargoFullIntegrity;
 
 export type SalvageResult =
   | { ok: false; reason: 'alreadySearched' }
@@ -345,7 +350,7 @@ export function salvageRoll(mechanic: Salvager, wreck: Wreck, rng: Rng): Salvage
       kind: 'salvage',
       weightLb: def.weightLb + leftover * def.ammoWeightLb,
       spaces: def.spaces,
-      integrity: SALVAGE_FULL_INTEGRITY,
+      integrity: salvageFullIntegrity(),
     });
   }
 
@@ -355,7 +360,7 @@ export function salvageRoll(mechanic: Salvager, wreck: Wreck, rng: Rng): Salvage
       kind: 'salvage',
       weightLb: item.weightLb,
       spaces: item.spaces,
-      integrity: SALVAGE_FULL_INTEGRITY,
+      integrity: salvageFullIntegrity(),
     });
   }
 

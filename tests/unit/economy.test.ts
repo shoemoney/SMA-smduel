@@ -11,7 +11,7 @@ import {
   type Salvager,
   type Wreck,
 } from '@/sim/economy';
-import { economy, getBody, getPlant, getTire, skillsConfig } from '@/data/rulesets';
+import { drivingConfig, economy, getBody, getPlant, getTire, skillsConfig } from '@/data/rulesets';
 import { initialClock } from '@/sim/calendar';
 import { createRng, type Rng } from '@/util/rng';
 import type { DriverState, VehicleState, WeaponState } from '@/sim/types';
@@ -226,6 +226,41 @@ describe('applyService', () => {
     if (!result.ok) throw new Error('expected ok');
     expect(result.driver.cash).toBe(1000 - svc.price);
     expect(result.world.clock.dayIndex).toBe(svc.days);
+  });
+
+  // Mutation survivor, found 2026-09-26. Changing the clock line to
+  //   advanceDays(world.clock, serviceKey === 'batteryRecharge' ? 1 : service.days)
+  // left 114/114 tests green. economy.json says batteryRecharge.days is 0 and the
+  // docstring claimed it, but NOTHING asserted it — so recharging could silently
+  // have burned a day, which matters directly: a courier deadline is measured in
+  // whole days and recharging is the one service you do repeatedly.
+  it('table-drives EVERY service against its economy.json day cost, so a zero-day service cannot silently start costing a day', () => {
+    const services = economy().services;
+    for (const [key, svc] of Object.entries(services)) {
+      const price = (svc as { price: number }).price;
+      const days = (svc as { days: number }).days;
+      const driver = makeDriver({ cash: price + 10_000 });
+      const world: EconomyWorld = { clock: initialClock(), vehicle: null, vehicleStored: false };
+      const result = applyService(driver, world, key as Parameters<typeof applyService>[2], createRng(`svc-days-${key}`));
+      if (!result.ok) continue; // a service this fixture cannot satisfy is covered elsewhere
+      // include the key in the value so a failure names the offending service
+      expect({ key, days: result.world.clock.dayIndex }).toEqual({ key, days });
+    }
+  });
+
+  it('recharging the battery costs money but NOT a day, and fills to driving.json battery.full', () => {
+    const svc = economy().services.batteryRecharge;
+    expect(svc.days).toBe(0); // guards the fixture itself against a ruleset edit
+    const driver = makeDriver({ cash: 1000 });
+    const vehicle = { battery: 3 } as unknown as EconomyWorld['vehicle'];
+    const world: EconomyWorld = { clock: initialClock(), vehicle, vehicleStored: false };
+
+    const result = applyService(driver, world, 'batteryRecharge', createRng('svc-recharge'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.world.clock.dayIndex).toBe(0);
+    expect(result.driver.cash).toBe(1000 - svc.price);
+    expect(result.world.vehicle?.battery).toBe(drivingConfig().battery.full);
   });
 
   it('refuses when cash is short and does not mutate anything', () => {

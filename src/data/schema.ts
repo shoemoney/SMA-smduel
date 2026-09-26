@@ -358,6 +358,7 @@ export const economySchema: SchemaObject = obj({
       salvageChanceMax: NON_NEG_NUM,
       latePayDecayPerDay: NON_NEG_NUM,
       collisionArmorLossSpeedMph: NON_NEG_NUM,
+      cargoFullIntegrity: NON_NEG_NUM,
     },
     [
       'saleValueConditionFloor',
@@ -370,6 +371,7 @@ export const economySchema: SchemaObject = obj({
       'salvageChanceMax',
       'latePayDecayPerDay',
       'collisionArmorLossSpeedMph',
+      'cargoFullIntegrity',
     ],
   ),
   casino: obj({

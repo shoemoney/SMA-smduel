@@ -28,6 +28,7 @@ import {
   getTire,
   getWeapon,
   skillsConfig,
+  wheelCount,
 } from '@/data/rulesets';
 import { sumArmor } from '@/sim/types';
 import type { DrivingSkillCoefficients, Facing, TireDPTuple, Vec2, VehicleState } from '@/sim/types';
@@ -144,7 +145,12 @@ export function computeVehicleWeightLb(vehicle: VehicleState): number {
   return (
     body.weightLb +
     plant.weightLb +
-    4 * tire.weightLb +
+    // wheelCount() rather than a literal 4: construct.ts already sources it, and a
+    // mutation proved these two silently disagreed under any other wheel count —
+    // bodies.json wheelCount 4 -> 6 left driving.test.ts fully green while the
+    // constructor's golden tests failed, i.e. the car you BUILD and the car you
+    // DRIVE would have had different masses.
+    wheelCount() * tire.weightLb +
     weaponsAndAmmoWeight +
     cargoWeight +
     armorPoints * body.armorWeightPerPoint

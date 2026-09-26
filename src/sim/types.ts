@@ -277,6 +277,8 @@ export interface EconomyReconstruction {
   salvageChanceMax: number;
   latePayDecayPerDay: number;
   collisionArmorLossSpeedMph: number;
+  /** Integrity a freshly-recovered salvage item starts at, on the same scale damage.ts uses. */
+  cargoFullIntegrity: number;
 }
 
 export interface PokerPayouts {

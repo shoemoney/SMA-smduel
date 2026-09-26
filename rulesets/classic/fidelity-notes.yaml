@@ -4304,3 +4304,1084 @@ entries:
     source: "harness-specified: weapon price/weight/spaces/DP/ammo/facings are Exact"
     confidence: 1.0
     note: "Construction-table field: weapons.spikedropper.weightLb"
+
+  - id: "encounters.factions.civilian.hostile"
+    value: false
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.civilian.hostile"
+  - id: "encounters.factions.civilian.retaliates"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.civilian.retaliates"
+  - id: "encounters.factions.civilian.fleesAtDamageFraction"
+    value: 0.25
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.civilian.fleesAtDamageFraction"
+  - id: "encounters.factions.courier.hostile"
+    value: false
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.courier.hostile"
+  - id: "encounters.factions.courier.retaliates"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.courier.retaliates"
+  - id: "encounters.factions.courier.fleesAtDamageFraction"
+    value: 0.4
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.courier.fleesAtDamageFraction"
+  - id: "encounters.factions.arenatraveller.hostile"
+    value: false
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.arenatraveller.hostile"
+  - id: "encounters.factions.arenatraveller.retaliates"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.arenatraveller.retaliates"
+  - id: "encounters.factions.arenatraveller.fleesAtDamageFraction"
+    value: 0.55
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.arenatraveller.fleesAtDamageFraction"
+  - id: "encounters.factions.vigilante.hostile"
+    value: false
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.vigilante.hostile"
+  - id: "encounters.factions.vigilante.retaliates"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.vigilante.retaliates"
+  - id: "encounters.factions.vigilante.fleesAtDamageFraction"
+    value: 0.7
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.vigilante.fleesAtDamageFraction"
+  - id: "encounters.factions.outlaw.hostile"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.outlaw.hostile"
+  - id: "encounters.factions.outlaw.retaliates"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.outlaw.retaliates"
+  - id: "encounters.factions.outlaw.fleesAtDamageFraction"
+    value: 0.65
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.outlaw.fleesAtDamageFraction"
+  - id: "encounters.factions.outlaw.breaksOffBeyondVisualRange"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.outlaw.breaksOffBeyondVisualRange"
+  - id: "encounters.factions.pursuer.hostile"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.pursuer.hostile"
+  - id: "encounters.factions.pursuer.retaliates"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.pursuer.retaliates"
+  - id: "encounters.factions.pursuer.fleesAtDamageFraction"
+    value: 0.95
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.pursuer.fleesAtDamageFraction"
+  - id: "encounters.factions.pursuer.breaksOffBeyondVisualRange"
+    value: false
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Faction disposition - who shoots first and when they break off: encounters.factions.pursuer.breaksOffBeyondVisualRange"
+  - id: "encounters.dangerLevels.0.danger"
+    value: 0
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.danger"
+  - id: "encounters.dangerLevels.0.spawnBudget"
+    value: 2
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.spawnBudget"
+  - id: "encounters.dangerLevels.0.spawnsPerHundredMiles"
+    value: 1
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.spawnsPerHundredMiles"
+  - id: "encounters.dangerLevels.0.outlawChance"
+    value: 0.05
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.outlawChance"
+  - id: "encounters.dangerLevels.0.packSizeMin"
+    value: 1
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.packSizeMin"
+  - id: "encounters.dangerLevels.0.packSizeMax"
+    value: 1
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.packSizeMax"
+  - id: "encounters.dangerLevels.0.factionWeights.civilian"
+    value: 60
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.factionWeights.civilian"
+  - id: "encounters.dangerLevels.0.factionWeights.courier"
+    value: 25
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.factionWeights.courier"
+  - id: "encounters.dangerLevels.0.factionWeights.arenatraveller"
+    value: 10
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.factionWeights.arenatraveller"
+  - id: "encounters.dangerLevels.0.factionWeights.vigilante"
+    value: 5
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.factionWeights.vigilante"
+  - id: "encounters.dangerLevels.0.factionWeights.outlaw"
+    value: 0
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.factionWeights.outlaw"
+  - id: "encounters.dangerLevels.1.danger"
+    value: 1
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.danger"
+  - id: "encounters.dangerLevels.1.spawnBudget"
+    value: 3
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.spawnBudget"
+  - id: "encounters.dangerLevels.1.spawnsPerHundredMiles"
+    value: 1.6
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.spawnsPerHundredMiles"
+  - id: "encounters.dangerLevels.1.outlawChance"
+    value: 0.15
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.outlawChance"
+  - id: "encounters.dangerLevels.1.packSizeMin"
+    value: 1
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.packSizeMin"
+  - id: "encounters.dangerLevels.1.packSizeMax"
+    value: 2
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.packSizeMax"
+  - id: "encounters.dangerLevels.1.factionWeights.civilian"
+    value: 45
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.factionWeights.civilian"
+  - id: "encounters.dangerLevels.1.factionWeights.courier"
+    value: 22
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.factionWeights.courier"
+  - id: "encounters.dangerLevels.1.factionWeights.arenatraveller"
+    value: 13
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.factionWeights.arenatraveller"
+  - id: "encounters.dangerLevels.1.factionWeights.vigilante"
+    value: 7
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.factionWeights.vigilante"
+  - id: "encounters.dangerLevels.1.factionWeights.outlaw"
+    value: 13
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.factionWeights.outlaw"
+  - id: "encounters.dangerLevels.2.danger"
+    value: 2
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.danger"
+  - id: "encounters.dangerLevels.2.spawnBudget"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.spawnBudget"
+  - id: "encounters.dangerLevels.2.spawnsPerHundredMiles"
+    value: 2.3
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.spawnsPerHundredMiles"
+  - id: "encounters.dangerLevels.2.outlawChance"
+    value: 0.3
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.outlawChance"
+  - id: "encounters.dangerLevels.2.packSizeMin"
+    value: 1
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.packSizeMin"
+  - id: "encounters.dangerLevels.2.packSizeMax"
+    value: 3
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.packSizeMax"
+  - id: "encounters.dangerLevels.2.factionWeights.civilian"
+    value: 30
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.factionWeights.civilian"
+  - id: "encounters.dangerLevels.2.factionWeights.courier"
+    value: 18
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.factionWeights.courier"
+  - id: "encounters.dangerLevels.2.factionWeights.arenatraveller"
+    value: 14
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.factionWeights.arenatraveller"
+  - id: "encounters.dangerLevels.2.factionWeights.vigilante"
+    value: 10
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.factionWeights.vigilante"
+  - id: "encounters.dangerLevels.2.factionWeights.outlaw"
+    value: 28
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.factionWeights.outlaw"
+  - id: "encounters.dangerLevels.3.danger"
+    value: 3
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.danger"
+  - id: "encounters.dangerLevels.3.spawnBudget"
+    value: 6
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.spawnBudget"
+  - id: "encounters.dangerLevels.3.spawnsPerHundredMiles"
+    value: 3.1
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.spawnsPerHundredMiles"
+  - id: "encounters.dangerLevels.3.outlawChance"
+    value: 0.48
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.outlawChance"
+  - id: "encounters.dangerLevels.3.packSizeMin"
+    value: 2
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.packSizeMin"
+  - id: "encounters.dangerLevels.3.packSizeMax"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.packSizeMax"
+  - id: "encounters.dangerLevels.3.factionWeights.civilian"
+    value: 16
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.factionWeights.civilian"
+  - id: "encounters.dangerLevels.3.factionWeights.courier"
+    value: 12
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.factionWeights.courier"
+  - id: "encounters.dangerLevels.3.factionWeights.arenatraveller"
+    value: 14
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.factionWeights.arenatraveller"
+  - id: "encounters.dangerLevels.3.factionWeights.vigilante"
+    value: 12
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.factionWeights.vigilante"
+  - id: "encounters.dangerLevels.3.factionWeights.outlaw"
+    value: 46
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.factionWeights.outlaw"
+  - id: "encounters.dangerLevels.4.danger"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.danger"
+  - id: "encounters.dangerLevels.4.spawnBudget"
+    value: 8
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.spawnBudget"
+  - id: "encounters.dangerLevels.4.spawnsPerHundredMiles"
+    value: 4.2
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.spawnsPerHundredMiles"
+  - id: "encounters.dangerLevels.4.outlawChance"
+    value: 0.66
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.outlawChance"
+  - id: "encounters.dangerLevels.4.packSizeMin"
+    value: 2
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.packSizeMin"
+  - id: "encounters.dangerLevels.4.packSizeMax"
+    value: 5
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.packSizeMax"
+  - id: "encounters.dangerLevels.4.factionWeights.civilian"
+    value: 8
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.factionWeights.civilian"
+  - id: "encounters.dangerLevels.4.factionWeights.courier"
+    value: 6
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.factionWeights.courier"
+  - id: "encounters.dangerLevels.4.factionWeights.arenatraveller"
+    value: 12
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.factionWeights.arenatraveller"
+  - id: "encounters.dangerLevels.4.factionWeights.vigilante"
+    value: 12
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.factionWeights.vigilante"
+  - id: "encounters.dangerLevels.4.factionWeights.outlaw"
+    value: 62
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.factionWeights.outlaw"
+  - id: "encounters.repopulation.clearedRouteQuietDays"
+    value: 3
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "How fast a cleared road refills; deliveries make a route safer: encounters.repopulation.clearedRouteQuietDays"
+  - id: "encounters.repopulation.repopulationPerDay"
+    value: 0.25
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "How fast a cleared road refills; deliveries make a route safer: encounters.repopulation.repopulationPerDay"
+  - id: "encounters.repopulation.wellTravelledDangerReductionPerDelivery"
+    value: 0.02
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "How fast a cleared road refills; deliveries make a route safer: encounters.repopulation.wellTravelledDangerReductionPerDelivery"
+  - id: "encounters.repopulation.minEffectiveDanger"
+    value: 0
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "How fast a cleared road refills; deliveries make a route safer: encounters.repopulation.minEffectiveDanger"
+  - id: "encounters.archetypes.beater.valueBand"
+    value: [870,1856]
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.valueBand"
+  - id: "encounters.archetypes.beater.design.armor.FRONT"
+    value: 6
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.design.armor.FRONT"
+  - id: "encounters.archetypes.beater.design.armor.REAR"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.design.armor.REAR"
+  - id: "encounters.archetypes.beater.design.armor.LEFT"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.design.armor.LEFT"
+  - id: "encounters.archetypes.beater.design.armor.RIGHT"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.design.armor.RIGHT"
+  - id: "encounters.archetypes.beater.design.armor.UNDERBODY"
+    value: 2
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.design.armor.UNDERBODY"
+  - id: "encounters.archetypes.beater.skill.driving"
+    value: 25
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.skill.driving"
+  - id: "encounters.archetypes.beater.skill.marksmanship"
+    value: 10
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.skill.marksmanship"
+  - id: "encounters.archetypes.beater.personality.aggression"
+    value: 0.05
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.personality.aggression"
+  - id: "encounters.archetypes.beater.personality.caution"
+    value: 0.9
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.personality.caution"
+  - id: "encounters.archetypes.beater.personality.playerThreatBias"
+    value: 0
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.personality.playerThreatBias"
+  - id: "encounters.archetypes.beater.buildCost"
+    value: 1160
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.beater.buildCost"
+  - id: "encounters.archetypes.runner.valueBand"
+    value: [2360,5034]
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.valueBand"
+  - id: "encounters.archetypes.runner.design.armor.FRONT"
+    value: 10
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.design.armor.FRONT"
+  - id: "encounters.archetypes.runner.design.armor.REAR"
+    value: 12
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.design.armor.REAR"
+  - id: "encounters.archetypes.runner.design.armor.LEFT"
+    value: 8
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.design.armor.LEFT"
+  - id: "encounters.archetypes.runner.design.armor.RIGHT"
+    value: 8
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.design.armor.RIGHT"
+  - id: "encounters.archetypes.runner.design.armor.UNDERBODY"
+    value: 4
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.design.armor.UNDERBODY"
+  - id: "encounters.archetypes.runner.design.weapons.0.ammo"
+    value: 10
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.design.weapons.0.ammo"
+  - id: "encounters.archetypes.runner.skill.driving"
+    value: 55
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.skill.driving"
+  - id: "encounters.archetypes.runner.skill.marksmanship"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.skill.marksmanship"
+  - id: "encounters.archetypes.runner.personality.aggression"
+    value: 0.1
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.personality.aggression"
+  - id: "encounters.archetypes.runner.personality.caution"
+    value: 0.85
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.personality.caution"
+  - id: "encounters.archetypes.runner.personality.playerThreatBias"
+    value: 0
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.personality.playerThreatBias"
+  - id: "encounters.archetypes.runner.buildCost"
+    value: 3146
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.runner.buildCost"
+  - id: "encounters.archetypes.roadthug.valueBand"
+    value: [2686,5730]
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.valueBand"
+  - id: "encounters.archetypes.roadthug.design.armor.FRONT"
+    value: 12
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.design.armor.FRONT"
+  - id: "encounters.archetypes.roadthug.design.armor.REAR"
+    value: 6
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.design.armor.REAR"
+  - id: "encounters.archetypes.roadthug.design.armor.LEFT"
+    value: 8
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.design.armor.LEFT"
+  - id: "encounters.archetypes.roadthug.design.armor.RIGHT"
+    value: 8
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.design.armor.RIGHT"
+  - id: "encounters.archetypes.roadthug.design.armor.UNDERBODY"
+    value: 3
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.design.armor.UNDERBODY"
+  - id: "encounters.archetypes.roadthug.design.weapons.0.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.design.weapons.0.ammo"
+  - id: "encounters.archetypes.roadthug.skill.driving"
+    value: 35
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.skill.driving"
+  - id: "encounters.archetypes.roadthug.skill.marksmanship"
+    value: 35
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.skill.marksmanship"
+  - id: "encounters.archetypes.roadthug.personality.aggression"
+    value: 0.7
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.personality.aggression"
+  - id: "encounters.archetypes.roadthug.personality.caution"
+    value: 0.3
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.personality.caution"
+  - id: "encounters.archetypes.roadthug.personality.playerThreatBias"
+    value: 0.6
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.personality.playerThreatBias"
+  - id: "encounters.archetypes.roadthug.buildCost"
+    value: 3581
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.roadthug.buildCost"
+  - id: "encounters.archetypes.raider.valueBand"
+    value: [5405,11530]
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.valueBand"
+  - id: "encounters.archetypes.raider.design.armor.FRONT"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.design.armor.FRONT"
+  - id: "encounters.archetypes.raider.design.armor.REAR"
+    value: 12
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.design.armor.REAR"
+  - id: "encounters.archetypes.raider.design.armor.LEFT"
+    value: 14
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.design.armor.LEFT"
+  - id: "encounters.archetypes.raider.design.armor.RIGHT"
+    value: 14
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.design.armor.RIGHT"
+  - id: "encounters.archetypes.raider.design.armor.UNDERBODY"
+    value: 6
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.design.armor.UNDERBODY"
+  - id: "encounters.archetypes.raider.design.weapons.0.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.design.weapons.0.ammo"
+  - id: "encounters.archetypes.raider.design.weapons.1.ammo"
+    value: 10
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.design.weapons.1.ammo"
+  - id: "encounters.archetypes.raider.skill.driving"
+    value: 50
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.skill.driving"
+  - id: "encounters.archetypes.raider.skill.marksmanship"
+    value: 50
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.skill.marksmanship"
+  - id: "encounters.archetypes.raider.personality.aggression"
+    value: 0.8
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.personality.aggression"
+  - id: "encounters.archetypes.raider.personality.caution"
+    value: 0.25
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.personality.caution"
+  - id: "encounters.archetypes.raider.personality.playerThreatBias"
+    value: 0.7
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.personality.playerThreatBias"
+  - id: "encounters.archetypes.raider.buildCost"
+    value: 7206
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.raider.buildCost"
+  - id: "encounters.archetypes.warwagon.valueBand"
+    value: [13905,29664]
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.valueBand"
+  - id: "encounters.archetypes.warwagon.design.armor.FRONT"
+    value: 30
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.design.armor.FRONT"
+  - id: "encounters.archetypes.warwagon.design.armor.REAR"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.design.armor.REAR"
+  - id: "encounters.archetypes.warwagon.design.armor.LEFT"
+    value: 24
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.design.armor.LEFT"
+  - id: "encounters.archetypes.warwagon.design.armor.RIGHT"
+    value: 24
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.design.armor.RIGHT"
+  - id: "encounters.archetypes.warwagon.design.armor.UNDERBODY"
+    value: 10
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.design.armor.UNDERBODY"
+  - id: "encounters.archetypes.warwagon.design.weapons.0.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.design.weapons.0.ammo"
+  - id: "encounters.archetypes.warwagon.design.weapons.1.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.design.weapons.1.ammo"
+  - id: "encounters.archetypes.warwagon.design.weapons.2.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.design.weapons.2.ammo"
+  - id: "encounters.archetypes.warwagon.design.weapons.3.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.design.weapons.3.ammo"
+  - id: "encounters.archetypes.warwagon.skill.driving"
+    value: 60
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.skill.driving"
+  - id: "encounters.archetypes.warwagon.skill.marksmanship"
+    value: 65
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.skill.marksmanship"
+  - id: "encounters.archetypes.warwagon.personality.aggression"
+    value: 0.9
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.personality.aggression"
+  - id: "encounters.archetypes.warwagon.personality.caution"
+    value: 0.15
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.personality.caution"
+  - id: "encounters.archetypes.warwagon.personality.playerThreatBias"
+    value: 0.85
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.personality.playerThreatBias"
+  - id: "encounters.archetypes.warwagon.buildCost"
+    value: 18540
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.warwagon.buildCost"
+  - id: "encounters.archetypes.lawman.valueBand"
+    value: [6462,13786]
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.valueBand"
+  - id: "encounters.archetypes.lawman.design.armor.FRONT"
+    value: 22
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.design.armor.FRONT"
+  - id: "encounters.archetypes.lawman.design.armor.REAR"
+    value: 14
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.design.armor.REAR"
+  - id: "encounters.archetypes.lawman.design.armor.LEFT"
+    value: 16
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.design.armor.LEFT"
+  - id: "encounters.archetypes.lawman.design.armor.RIGHT"
+    value: 16
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.design.armor.RIGHT"
+  - id: "encounters.archetypes.lawman.design.armor.UNDERBODY"
+    value: 8
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.design.armor.UNDERBODY"
+  - id: "encounters.archetypes.lawman.design.weapons.0.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.design.weapons.0.ammo"
+  - id: "encounters.archetypes.lawman.design.weapons.1.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.design.weapons.1.ammo"
+  - id: "encounters.archetypes.lawman.skill.driving"
+    value: 65
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.skill.driving"
+  - id: "encounters.archetypes.lawman.skill.marksmanship"
+    value: 60
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.skill.marksmanship"
+  - id: "encounters.archetypes.lawman.personality.aggression"
+    value: 0.5
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.personality.aggression"
+  - id: "encounters.archetypes.lawman.personality.caution"
+    value: 0.5
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.personality.caution"
+  - id: "encounters.archetypes.lawman.personality.playerThreatBias"
+    value: 0.1
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.personality.playerThreatBias"
+  - id: "encounters.archetypes.lawman.buildCost"
+    value: 8616
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.lawman.buildCost"
+  - id: "encounters.archetypes.duellist.valueBand"
+    value: [5670,12096]
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.valueBand"
+  - id: "encounters.archetypes.duellist.design.armor.FRONT"
+    value: 18
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.design.armor.FRONT"
+  - id: "encounters.archetypes.duellist.design.armor.REAR"
+    value: 12
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.design.armor.REAR"
+  - id: "encounters.archetypes.duellist.design.armor.LEFT"
+    value: 14
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.design.armor.LEFT"
+  - id: "encounters.archetypes.duellist.design.armor.RIGHT"
+    value: 14
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.design.armor.RIGHT"
+  - id: "encounters.archetypes.duellist.design.armor.UNDERBODY"
+    value: 5
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.design.armor.UNDERBODY"
+  - id: "encounters.archetypes.duellist.design.weapons.0.ammo"
+    value: 20
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.design.weapons.0.ammo"
+  - id: "encounters.archetypes.duellist.design.weapons.1.ammo"
+    value: 10
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.design.weapons.1.ammo"
+  - id: "encounters.archetypes.duellist.skill.driving"
+    value: 70
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.skill.driving"
+  - id: "encounters.archetypes.duellist.skill.marksmanship"
+    value: 60
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.skill.marksmanship"
+  - id: "encounters.archetypes.duellist.personality.aggression"
+    value: 0.35
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.personality.aggression"
+  - id: "encounters.archetypes.duellist.personality.caution"
+    value: 0.6
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.personality.caution"
+  - id: "encounters.archetypes.duellist.personality.playerThreatBias"
+    value: 0.15
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.personality.playerThreatBias"
+  - id: "encounters.archetypes.duellist.buildCost"
+    value: 7560
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Opponent vehicle design - verified a LEGAL build via src/sim/construct.ts: encounters.archetypes.duellist.buildCost"
+  - id: "encounters.salvage.wreckPersistsSameDay"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Wreck salvage persistence: encounters.salvage.wreckPersistsSameDay"
+  - id: "encounters.salvage.strippedOvernight"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Wreck salvage persistence: encounters.salvage.strippedOvernight"
+  - id: "encounters.salvage.burnedYieldsNothing"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Wreck salvage persistence: encounters.salvage.burnedYieldsNothing"
+  - id: "encounters.salvage.ammoTransfersIfWeaponMatches"
+    value: true
+    status: Reconstruction
+    source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
+    confidence: 0.3
+    note: "Wreck salvage persistence: encounters.salvage.ammoTransfersIfWeaponMatches"
+  - id: "economy._reconstruction.cargoFullIntegrity"
+    value: 100
+    status: Reconstruction
+    source: "economy.json _reconstruction - integrity scale is this recreation's own; the source material published no cargo-damage model"
+    confidence: 0.3
+    note: "Integrity a freshly-recovered salvage item starts at, on the scale damage.ts uses: economy._reconstruction.cargoFullIntegrity"
