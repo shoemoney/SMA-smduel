@@ -122,6 +122,20 @@ export function loadSizeConfig(path = SIZE_CONFIG_PATH) {
   if (!Array.isArray(parsed.ui.keepNative) || !parsed.ui.keepNative.every((n) => typeof n === 'string')) {
     throw new Error(`${path}: ui.keepNative must be an array of frame names`);
   }
+  // Full-screen UI art is exempt from MAX_CONFIGURABLE_PX (that ceiling is for
+  // small batched sprites); it gets its own, much larger bound.
+  if (parsed.ui.fullScreenMaxPx !== undefined) {
+    const v = parsed.ui.fullScreenMaxPx;
+    if (!Number.isInteger(v) || v <= 0 || v > 2048) {
+      throw new Error(`${path}: ui.fullScreenMaxPx must be a positive integer <= 2048`);
+    }
+  }
+  // Optional. Absent means "extract nothing", which is the current shipped state.
+  if (parsed.extractStandalone !== undefined) {
+    if (!Array.isArray(parsed.extractStandalone) || !parsed.extractStandalone.every((n) => typeof n === 'string')) {
+      throw new Error(`${path}: extractStandalone must be an array of frame names`);
+    }
+  }
   return parsed;
 }
 
@@ -189,8 +203,18 @@ const UI_KEEP_NATIVE = new Set(SIZE_CONFIG.ui.keepNative);
  * buildFrame does with whatever size it's handed.
  */
 export function resolveUiPreScaleMaxPx(name, kind) {
+  // FULL-BLEED kinds must be pre-scaled here, because the only other place pixels
+  // shrink is the keyed crop-then-resize path — and a full-bleed frame has no
+  // magenta background, so it is never keyed and never cropped. 'building' was
+  // added to ASSET_KINDS without this and every one of the 16 sailed through at
+  // native 1024x1024, pushing the sheet to 22.2MB (353% of budget) across two
+  // sheets. The byte gate caught it; this is the actual fix.
+  if (kind === 'building') return SIZE_CONFIG.building.maxPx;
   if (kind !== 'ui') return null;
-  if (UI_KEEP_NATIVE.has(name)) return null;
+  // STOPGAP (see _stopgapNote in atlas-sizes.json): the two full-screen UI images
+  // are 54.2% of the sheet. Capping them keeps the byte gate green until they are
+  // extracted out of the atlas entirely, which is the actual fix.
+  if (UI_KEEP_NATIVE.has(name)) return SIZE_CONFIG.ui.fullScreenMaxPx ?? null;
   return SIZE_CONFIG.ui.maxPx;
 }
 
@@ -861,7 +885,7 @@ export function packAtlas(frames, { padding = 2, maxSize = 4096, minSize = 64 } 
  * actually fetched. Until that exists, one sheet is the only honest setting.
  */
 export const CONTENT_GROUPS = [
-  { id: 'all', kinds: ['tile', 'car', 'wreck', 'cycle', 'prop', 'fx', 'decal', 'ui'] },
+  { id: 'all', kinds: ['tile', 'building', 'car', 'wreck', 'cycle', 'prop', 'fx', 'decal', 'ui'] },
 ];
 
 export function contentGroupIdForKind(kind) {
@@ -1195,7 +1219,39 @@ async function main() {
     return;
   }
 
-  const { atlasFileEntries, manifestFrames, canvases, errors } = packFramesByContentGroup(decodedFrames);
+  // ---------------------------------------------------------------------
+  // Standalone extraction (DEFAULT OFF — see extractStandalone in atlas-sizes.json)
+  //
+  // Measured 2026-09-26: ui-hud-frame and ui-title-art are 30.4% of the packed
+  // sheet EACH — 60.7% between them. They are full-screen art that never batches
+  // with a sprite, so an atlas buys them nothing and costs every gameplay frame
+  // ~3.5MB it will not use. Pulling them out drops the sheet to roughly 2.2MB.
+  //
+  // This is DELIBERATELY inert until the runtime can load them. src/app.ts
+  // currently fetches assets/atlas-0.png and nothing else; enabling extraction
+  // before the loader knows about standalone files would repeat exactly the
+  // regression that the sheet split caused — a green build rendering a subset of
+  // its frames. Flip this list and teach the loader in the same change, never
+  // separately.
+  // ---------------------------------------------------------------------
+  const extractNames = new Set(SIZE_CONFIG.extractStandalone ?? []);
+  const standalone = {};
+  const packable = [];
+  for (const f of decodedFrames) {
+    if (!extractNames.has(f.name)) { packable.push(f); continue; }
+    const file = `${f.name}.png`;
+    const { buffer } = encodeAtlasSheet({ width: f.w, height: f.h, rgba: f.rgba }, file);
+    if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
+    writeFileSync(resolve(OUT_DIR, file), buffer);
+    standalone[f.name] = { file, w: f.w, h: f.h, kind: f.kind, bytes: buffer.length };
+    console.log(`pack-atlas: extracted ${f.name} standalone -> ${file} (${buffer.length} bytes, not in any sheet)`);
+  }
+  if (packable.length === 0) {
+    console.log('pack-atlas: every frame was extracted standalone; no sheet emitted.');
+    return;
+  }
+
+  const { atlasFileEntries, manifestFrames, canvases, errors } = packFramesByContentGroup(packable);
   for (const err of errors) skipped.push(err);
 
   if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
@@ -1210,7 +1266,15 @@ async function main() {
   writeFileSync(
     resolve(OUT_DIR, 'atlas.json'),
     JSON.stringify(
-      { atlases: atlasFileEntries, configFingerprint: fingerprintSizeConfig(), frames: manifestFrames },
+      {
+        atlases: atlasFileEntries,
+        configFingerprint: fingerprintSizeConfig(),
+        // Present but empty until extraction is enabled. A loader that reads this
+        // MUST fetch every entry — that is the half missing when the sheet split
+        // shipped 34 frames nothing ever downloaded.
+        standalone,
+        frames: manifestFrames,
+      },
       null,
       2,
     ),

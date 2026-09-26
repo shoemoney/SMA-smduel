@@ -71,7 +71,7 @@ interface SpriteMetaFrame {
 interface AtlasSizeConfig {
   _comment?: string;
   tile: { quadrantPx: number };
-  ui: { maxPx: number; keepNative: string[] };
+  ui: { maxPx: number; keepNative: string[]; fullScreenMaxPx?: number };
   [kind: string]: unknown;
 }
 interface ContentGroup {
@@ -553,9 +553,24 @@ describe('resolveUiPreScaleMaxPx / preScaleForBuild (assets/ASSET-NOTES.md secti
     expect(resolveUiPreScaleMaxPx('car-van', 'car')).toBeNull();
   });
 
-  it('returns null for the two full-screen ui frames', () => {
-    expect(resolveUiPreScaleMaxPx('ui-hud-frame', 'ui')).toBeNull();
-    expect(resolveUiPreScaleMaxPx('ui-title-art', 'ui')).toBeNull();
+  // These two USED to return null (stay fully native). They now return
+  // ui.fullScreenMaxPx, a STOPGAP: measured at 27.1% of the packed sheet EACH —
+  // 54.2% between them — and adding the 21 phase-4 frames pushed the atlas to
+  // 102.7% of its byte budget. Capping them is a deliberate quality trade to keep
+  // the gate green. The real fix is extracting them from the atlas entirely (they
+  // are full-screen art that never batches with a sprite), which needs a loader
+  // change; when that lands, delete ui.fullScreenMaxPx and this expectation
+  // becomes toBeNull() again.
+  it('caps the two full-screen ui frames at ui.fullScreenMaxPx (stopgap — see _stopgapNote)', () => {
+    const cap = loadSizeConfig().ui.fullScreenMaxPx;
+    expect(cap).toBeGreaterThan(0);
+    expect(resolveUiPreScaleMaxPx('ui-hud-frame', 'ui')).toBe(cap);
+    expect(resolveUiPreScaleMaxPx('ui-title-art', 'ui')).toBe(cap);
+  });
+
+  it('still caps full-screen art FAR above the small-gauge target, so they are not shrunk to HUD-icon size', () => {
+    const cfg = loadSizeConfig();
+    expect(cfg.ui.fullScreenMaxPx as number).toBeGreaterThan(cfg.ui.maxPx * 4);
   });
 
   it('returns a positive target for every other ui frame', () => {
@@ -565,10 +580,27 @@ describe('resolveUiPreScaleMaxPx / preScaleForBuild (assets/ASSET-NOTES.md secti
     expect(resolveUiPreScaleMaxPx('ui-speedo-dial', 'ui')).toBe(maxPx);
   });
 
-  it('preScaleForBuild leaves a full-screen ui frame\'s pixels untouched, even above the general target', () => {
+  // Was: "leaves a full-screen ui frame's pixels untouched". It no longer does —
+  // see the stopgap note above. It is still held FAR above the small-gauge target,
+  // which is the property that actually matters: full-screen art must not be
+  // shrunk to HUD-icon size just because it shares the 'ui' kind.
+  it('preScaleForBuild caps a full-screen ui frame at fullScreenMaxPx, preserving aspect ratio', () => {
+    const cap = loadSizeConfig().ui.fullScreenMaxPx as number;
     const decoded: DecodedImage = { width: 1344, height: 768, rgba: makeSolid(1344, 768, [10, 20, 30, 255]) };
     const result = preScaleForBuild('ui-hud-frame', 'ui', decoded);
-    expect(result).toBe(decoded); // same object — not even a copy
+    expect(Math.max(result.width, result.height)).toBe(cap);
+    // aspect preserved within a rounding pixel
+    expect(Math.abs(result.width / result.height - 1344 / 768)).toBeLessThan(0.01);
+    expect(result.rgba.length).toBe(result.width * result.height * 4);
+    // and still far larger than a HUD gauge would be
+    expect(result.width).toBeGreaterThan(loadSizeConfig().ui.maxPx * 4);
+  });
+
+  it('preScaleForBuild is a no-op for a full-screen ui frame already within the cap', () => {
+    const cap = loadSizeConfig().ui.fullScreenMaxPx as number;
+    const w = Math.floor(cap / 2);
+    const decoded: DecodedImage = { width: w, height: w, rgba: makeSolid(w, w, [10, 20, 30, 255]) };
+    expect(preScaleForBuild('ui-title-art', 'ui', decoded)).toBe(decoded); // same object, not a copy
   });
 
   it('preScaleForBuild downscales a small-HUD-gauge ui frame that exceeds the target, feeding buildFrame an already-small image', () => {
@@ -1086,6 +1118,7 @@ describe('loadSizeConfig', () => {
 
   const validBase = {
     tile: { quadrantPx: 100 },
+    building: { maxPx: 90 },
     car: { maxPx: 90 },
     wreck: { maxPx: 90 },
     cycle: { maxPx: 90 },
