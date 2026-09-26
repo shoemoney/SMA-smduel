@@ -45,6 +45,7 @@ import {
   beginRoadTrip,
   crossDestinationGate,
   hasReachedDestination,
+  milesIntoRoute,
   resolveRoute,
   stepRoadTrip,
   type RoadTripState,
@@ -54,6 +55,7 @@ import { repairCost } from '@/sim/economy';
 import { economy, getBody, skillsConfig } from '@/data/rulesets';
 import { makeArmorRecord, type DriverState, type SkillName, type VehicleDesign } from '@/sim/types';
 import { createRng } from '@/util/rng';
+import arenasJsonRaw from '@rulesets/classic/arenas.json';
 
 const SEED = 'phase3-integration';
 
@@ -145,7 +147,14 @@ describe('phase 3: arena win -> repair -> courier -> road -> delivery, headless 
     const driver2 = resolution.driver;
     expect(driver2.cash).toBe(matchResult.driver.cash + resolution.cashAwarded);
     expect(driver2.prestige).toBe(matchResult.driver.prestige + resolution.prestigeDelta);
-    expect(getSkill(driver2, 'driving')).toBeGreaterThanOrEqual(getSkill(driver1, 'driving'));
+    // Independently-derived expected gain, read straight off arenas.json's
+    // own `_reconstruction.victorySkillGain` (never a TS literal) - `>=` was
+    // structurally unfalsifiable here, since `resolveArenaExit` only ever
+    // calls `addSkill` with a non-negative gain, so a zeroed-out or deleted
+    // award would still satisfy it. `toBe` pins the exact post-victory value.
+    const expectedDrivingGain = (arenasJsonRaw as { _reconstruction: { victorySkillGain: { driving: number } } })
+      ._reconstruction.victorySkillGain.driving;
+    expect(getSkill(driver2, 'driving')).toBe(getSkill(driver1, 'driving') + expectedDrivingGain);
 
     clock = advanceDays(clock, resolution.daysConsumed);
     expect(clock.dayIndex).toBe(resolution.daysConsumed);
@@ -230,6 +239,11 @@ describe('phase 3: arena win -> repair -> courier -> road -> delivery, headless 
     }
     expect(arrived).toBe(true);
     expect(hasReachedDestination(trip)).toBe(true);
+    // A partial-distance arrival bug (e.g. hasReachedDestination firing at
+    // half the route's length) still leaves `arrived`/`hasReachedDestination`
+    // both true, so those two checks alone don't prove the FULL route was
+    // driven. Pin the actual mileage against the route's own lengthMiles.
+    expect(milesIntoRoute(trip)).toBeGreaterThanOrEqual(resolvedRoute.route.lengthMiles);
 
     const crossing = crossDestinationGate(trip);
     expect(crossing).not.toBeNull();

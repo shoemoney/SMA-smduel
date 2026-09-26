@@ -133,6 +133,7 @@
     "building.courier.routeInfo": "Route to {city}: danger {danger}",
     "building.courier.accept": "Accept: {cargo} to {city} — pay ${pay}, due day {day}",
     "building.courier.noOffers": "No jobs available here right now.",
+    "building.courier.deliver": "Deliver: {cargo} — pay ${pay}",
 
     "building.medical.clone.name": "Get Cloned",
     "building.medical.braintape.name": "Update Braintape",

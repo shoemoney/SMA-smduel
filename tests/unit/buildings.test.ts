@@ -40,7 +40,7 @@ import {
 import { garageEngine, createGarageState, repairChoices } from '@/ui/buildings/garage';
 import { weaponshopEngine, createWeaponshopState } from '@/ui/buildings/weaponshop';
 import { salvageEngine, createSalvageState, vehicleSaleValue, weaponSaleValue, salvageCargoSaleValue } from '@/ui/buildings/salvage';
-import { courierGuildEngine, createCourierGuildState } from '@/ui/buildings/courierguild';
+import { courierGuildActions, courierGuildEngine, createCourierGuildState } from '@/ui/buildings/courierguild';
 import { medicalEngine, createMedicalState } from '@/ui/buildings/medical';
 import { barEngine, createBarState, illicitPayloadValue } from '@/ui/buildings/bar';
 import { truckstopEngine, createTruckstopState } from '@/ui/buildings/truckstop';
@@ -700,6 +700,90 @@ describe('salvage', () => {
 // ---------------------------------------------------------------------------
 
 describe('courierguild', () => {
+  // ---------------------------------------------------------------------
+  // DELIVERY REACHABILITY.
+  //
+  // These exist because a release gate found deliver() had ZERO production
+  // callers: a player could accept a job, be charged the day, drive to the
+  // destination and walk in, with no way to hand the cargo over. The wiring
+  // was then added WITHOUT tests, and three mutations survived a full green
+  // suite — including returning [] from deliverableJobsFor(), which kills the
+  // feature outright. Each test below is the mutation that used to survive.
+  // ---------------------------------------------------------------------
+  function deliverableCtx(overrides: Partial<BuildingContext> = {}): BuildingContext {
+    const job = makeAcceptedJob();
+    const vehicle = makeCourierVehicle({
+      cargo: [{ id: job.cargoId, kind: 'payload', weightLb: job.offer.weightLb, spaces: job.offer.spaces, integrity: 100 }],
+    });
+    return makeContext({
+      cityId: job.offer.destinationCityId, // standing IN the destination
+      vehicle,
+      activeCourierJobs: [job],
+      ...overrides,
+    });
+  }
+
+  const deliverRows = (ctx: BuildingContext) =>
+    courierGuildActions(createCourierGuildState(ctx)).filter((a) => a.id.startsWith('deliver-'));
+
+  it('offers a deliver row when standing in the destination city with intact cargo (mutation: deliverableJobsFor returning [] used to pass)', () => {
+    const rows = deliverRows(deliverableCtx());
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.eligible).toBe(true);
+  });
+
+  it('offers NO deliver row in a city that is not the destination (mutation: dropping the destinationCityId check used to pass)', () => {
+    const job = makeAcceptedJob();
+    const elsewhere = job.offer.originCityId === job.offer.destinationCityId ? 'pittsburgh' : job.offer.originCityId;
+    expect(deliverRows(deliverableCtx({ cityId: elsewhere }))).toEqual([]);
+  });
+
+  it('offers NO deliver row when the cargo was destroyed (mutation: dropping the integrity check used to pass)', () => {
+    const job = makeAcceptedJob();
+    const wrecked = makeCourierVehicle({
+      cargo: [{ id: job.cargoId, kind: 'payload', weightLb: job.offer.weightLb, spaces: job.offer.spaces, integrity: 0 }],
+    });
+    expect(deliverRows(deliverableCtx({ vehicle: wrecked }))).toEqual([]);
+  });
+
+  it('offers NO deliver row when the cargo is not aboard at all', () => {
+    expect(deliverRows(deliverableCtx({ vehicle: makeCourierVehicle({ cargo: [] }) }))).toEqual([]);
+  });
+
+  it('activating the deliver row actually pays the driver and clears the cargo and the job', () => {
+    const ctx = deliverableCtx();
+    const state = createCourierGuildState(ctx);
+    const row = courierGuildActions(state).find((a) => a.id.startsWith('deliver-'));
+    expect(row).toBeDefined();
+
+    const cashBefore = ctx.driver.cash;
+    const result = courierGuildEngine.activate(state, row!.id);
+    const after = result.state.context;
+
+    expect(after.driver.cash).toBeGreaterThan(cashBefore);
+    expect(after.vehicle?.cargo.find((c) => c.id === makeAcceptedJob().cargoId)).toBeUndefined();
+    expect(after.activeCourierJobs.filter((j) => j.status === 'ACTIVE')).toEqual([]);
+  });
+
+  it('pays LESS for a late delivery than an on-time one, through the same path', () => {
+    const job = makeAcceptedJob();
+    const onTime = deliverableCtx({ clock: { ...initialClock(), dayIndex: job.offer.dueDay } });
+    const late = deliverableCtx({ clock: { ...initialClock(), dayIndex: job.offer.dueDay + 3 } });
+
+    const pay = (ctx: BuildingContext) => {
+      const st = createCourierGuildState(ctx);
+      const row = courierGuildActions(st).find((a) => a.id.startsWith('deliver-'));
+      expect(row).toBeDefined();
+      return courierGuildEngine.activate(st, row!.id).state.context.driver.cash - ctx.driver.cash;
+    };
+
+    const onTimePay = pay(onTime);
+    const latePay = pay(late);
+    expect(onTimePay).toBeGreaterThan(0);
+    expect(latePay).toBeLessThan(onTimePay);
+  });
+
+
   it('generates EXACTLY the ruleset\'s offersPerVisit offers, matching @/sim/courier\'s own generateOffers bit-for-bit (delegation, not a reimplementation)', () => {
     const ctx = makeContext({ rng: createRng('courier-seed-1') });
     const state = createCourierGuildState(ctx);
@@ -718,7 +802,14 @@ describe('courierguild', () => {
     const tier = ctx.driver.prestige; // prestigeFloor -> tier 0
     for (const offer of state.offers) {
       expect(offer.dangerLevel).toBeLessThanOrEqual(couriersConfig().prestigeTiers.find((t) => t.minPrestige <= tier)?.maxDangerOffered ?? 0);
-      expect(offer.pay).toBeGreaterThanOrEqual(0);
+      // `pay` comes from `Math.max(0, Math.round(...))`, so `>= 0` can never
+      // be false - it doesn't even exercise the rounding. Every weight in
+      // couriers.json's generation block is positive and every route has a
+      // positive lengthMiles, so the real formula can never actually reach
+      // the Math.max(0, ...) floor or produce a fraction: assert both a
+      // strictly positive value and integer-ness instead.
+      expect(offer.pay).toBeGreaterThan(0);
+      expect(Number.isInteger(offer.pay)).toBe(true);
       expect(offer.dueDay).toBeGreaterThan(ctx.clock.dayIndex);
     }
   });

@@ -165,10 +165,25 @@ describe('generateOffers', () => {
     }
   });
 
-  it('varies with day and with seed (sanity: not a frozen constant list)', () => {
+  it('varies with day and with seed (sanity: not a frozen constant list, and the RNG stream itself - not just the day-arithmetic id/dueDay fields - moves with day)', () => {
     const driver = makeDriver();
-    expect(generateOffers('newyork', 2, 'seed-a', driver)).not.toEqual(generateOffers('newyork', 1, 'seed-a', driver));
-    expect(generateOffers('newyork', 1, 'seed-b', driver)).not.toEqual(generateOffers('newyork', 1, 'seed-a', driver));
+
+    // `id` (`${cityId}-${day}-${i}`) and `dueDay` (`day + ceil(...) + slack`)
+    // both embed `day` arithmetically, so comparing full offer objects
+    // across two days would pass even if the RNG stream itself never moved
+    // (e.g. a bug that dropped `day` from the RNG stream key entirely).
+    // Strip both before comparing, so this test can only pass when the
+    // RNG-DERIVED fields (destination, route, weight, spaces, cargo, pay,
+    // declaredValue...) actually differ.
+    const rngDerivedFields = (offers: readonly CourierOffer[]) =>
+      offers.map(({ id: _id, dueDay: _dueDay, ...rest }) => rest);
+
+    const day1 = generateOffers('newyork', 1, 'seed-a', driver);
+    const day2 = generateOffers('newyork', 2, 'seed-a', driver);
+    expect(rngDerivedFields(day2)).not.toEqual(rngDerivedFields(day1));
+
+    const seedB = generateOffers('newyork', 1, 'seed-b', driver);
+    expect(rngDerivedFields(seedB)).not.toEqual(rngDerivedFields(day1));
   });
 
   it('every offer targets a real facility, in a real city, reached by a real route from the origin, with matching distance/danger', () => {
@@ -955,9 +970,18 @@ describe('couriers.json shape validation at import time', () => {
     await expect(import('@/sim/courier')).rejects.toThrow(/salvageOccupiesOneCategory/);
   });
 
-  it('does NOT throw for the real, unmodified couriers.json (sanity: the validator accepts valid data)', async () => {
+  it('does NOT throw for the real, unmodified couriers.json, and the validated/cast config matches the raw file field-for-field (sanity: the validator accepts valid data AND passes it through unmutated)', async () => {
     vi.resetModules();
-    await expect(import('@/sim/courier')).resolves.toBeDefined();
+    const rawModule = await import('@rulesets/classic/couriers.json');
+    const mod = await import('@/sim/courier');
+    // toEqual against the untouched raw import (a separate read of the same
+    // file, not derived from anything `courier.ts` computed) is what makes
+    // this able to fail: a validator that quietly clamped/rewrote a field,
+    // or an accidental hardcoded override after the `as CouriersFile` cast,
+    // changes this equality without ever throwing. `resolves.toBeDefined()`
+    // alone could never catch that - a resolved ES module namespace object
+    // is always defined regardless of what it contains.
+    expect(mod.couriersConfig()).toEqual(rawModule.default);
   });
 });
 

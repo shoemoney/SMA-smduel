@@ -37,7 +37,7 @@
  * re-estimating the cargo's worth from its weight.
  */
 import { advanceForTimeCost, timeCostOf } from '@/sim/calendar';
-import { accept, generateOffers, type CourierOffer, type CourierRefusalReason } from '@/sim/courier';
+import { accept, deliver, generateOffers, type AcceptedJob, type CourierOffer, type CourierRefusalReason } from '@/sim/courier';
 import type { VehicleState } from '@/sim/types';
 import { cityName, t } from '@/ui/strings';
 import type { MenuAction } from '@/ui/menu';
@@ -84,6 +84,25 @@ function refusalFor(ctx: BuildingContext, vehicle: VehicleState | null, offer: C
   return reason === undefined || reason === null ? null : `refusal.${reason}`;
 }
 
+/**
+ * Every ACTIVE job this guild can actually hand off right now: standing in
+ * its destination city, at this exact facility (`@/sim/courier`'s `deliver`
+ * requires both — `docs/SPEC.md`'s "right city, wrong building is still
+ * WRONG_LOCATION"), and still carrying its intact cargo (an id present in
+ * `vehicle.cargo` with positive `integrity`; destroyed cargo is a FAILED
+ * delivery, not a deliverable one, so it is left off this list entirely
+ * rather than offered and refused).
+ */
+function deliverableJobsFor(ctx: BuildingContext, vehicle: VehicleState): AcceptedJob[] {
+  return ctx.activeCourierJobs.filter((job) => {
+    if (job.status !== 'ACTIVE') return false;
+    if (job.offer.destinationCityId !== ctx.cityId) return false;
+    if (job.offer.destinationFacility !== COURIERGUILD_KIND) return false;
+    const cargoItem = vehicle.cargo.find((item) => item.id === job.cargoId);
+    return cargoItem !== undefined && cargoItem.integrity > 0;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Engine
 // ---------------------------------------------------------------------------
@@ -112,6 +131,23 @@ export function courierGuildActions(state: CourierGuildState): MenuAction[] {
       eligible: refusalId === null,
       ...(refusalId === null ? {} : { reason: t(refusalId) }),
     });
+  }
+
+  const vehicle = ctx.vehicle;
+  if (vehicle !== null) {
+    for (const job of deliverableJobsFor(ctx, vehicle)) {
+      // Pure preview: @/sim/courier's deliver() rolls no randomness, so
+      // calling it here for the row label and again for real on activation
+      // is the SAME formula run twice, never a duplicated/drifting copy of
+      // its late-decay math — the label always agrees with what activating
+      // this exact row pays out.
+      const preview = deliver(job, ctx.driver, vehicle, ctx.cityId, COURIERGUILD_KIND, ctx.clock);
+      actions.push({
+        id: `deliver-${job.cargoId}`,
+        label: t('building.courier.deliver', { cargo: job.offer.cargoName, pay: preview.paidAmount }),
+        eligible: true,
+      });
+    }
   }
 
   actions.push(leaveAction());
@@ -156,6 +192,36 @@ export const courierGuildEngine: BuildingEngine<CourierGuildState> = {
           },
           offers: state.offers.filter((o) => o.id !== offerId),
           daySpentThisVisit: true,
+        },
+        exit: false,
+      };
+    }
+
+    if (actionId.startsWith('deliver-')) {
+      const cargoId = actionId.slice('deliver-'.length);
+      const vehicle = ctx.vehicle;
+      if (vehicle === null) return { state, exit: false };
+
+      const job = deliverableJobsFor(ctx, vehicle).find((candidate) => candidate.cargoId === cargoId);
+      if (job === undefined) return { state, exit: false };
+
+      // Same call the label above already previewed — pay/prestige/lateness
+      // all flow through this one formula, never a second silently-full-pay
+      // branch.
+      const result = deliver(job, ctx.driver, vehicle, ctx.cityId, COURIERGUILD_KIND, ctx.clock);
+
+      return {
+        state: {
+          ...state,
+          context: {
+            ...ctx,
+            driver: result.driver,
+            vehicle: result.vehicle,
+            // Delivered (or failed) — cleared from the active list entirely
+            // rather than left behind with an updated status, so it can
+            // never be selected, previewed or delivered again.
+            activeCourierJobs: ctx.activeCourierJobs.filter((j) => j.cargoId !== cargoId),
+          },
         },
         exit: false,
       };
