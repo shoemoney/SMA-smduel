@@ -33,6 +33,14 @@
     "event.victory": "Victory",
     "event.info": "Info",
 
+    "victory.announcement": "{questTitle} delivered. The structure falls - and you're still standing.",
+    "victory.summary.days": "Days elapsed: {days}",
+    "victory.summary.cash": "Final cash: ${cash}",
+    "victory.summary.prestige": "Final prestige: {prestige}",
+    "victory.summary.cars": "Cars owned: {cars}",
+    "victory.summary.arenaRecord": "Arena record: {wins}-{losses}",
+    "victory.continue": "Continue",
+
     "ui.panel.weapons": "Weapons",
     "ui.panel.radar": "Radar",
     "ui.panel.condition": "Condition",
@@ -135,6 +143,7 @@
     "building.rumor.newDriver": "Somebody new rolled into town with a car nobody recognizes and money to burn.",
     "building.rumor.wreck": "There's a fresh wreck sitting out on one of the roads out of town, if you're quick about it.",
     "building.rumor.championship": "Talk in here is the next city championship is closer than people think.",
+    "rumour.clue.lead": "Word here ties {quest} to the {facility} in {city} — could be worth the drive.",
 
     "building.garage.recharge.name": "Recharge Battery",
     "building.garage.storeCar.name": "Store Car",
@@ -183,6 +192,8 @@
     "building.truckstop.recharge.name": "Recharge Battery",
     "building.truckstop.room.name": "Rent a Room for the Night",
     "building.truckstop.armor.name": "Buy Body Armor",
+    "building.truckstop.restAttempt.clean": "You slept without incident.",
+    "building.truckstop.restAttempt.triggered": "Someone came for you in the night — {count} pursuer(s) jumped you, and you fought them off.",
 
     "building.assembly.build.name": "Build a New Vehicle",
     "building.assembly.fleetFull": "Fleet is full ({count}/{max}) — sell a car before building another.",
@@ -206,6 +217,23 @@
     "building.casino.disabledLabel": "Casino Games Disabled",
     "building.casino.disabledExplanation": "You've switched off the casino's games for this visit. Enable them again whenever you want to play.",
 
-    "building.stub.notReady": "{facility} isn't open for business yet — coming in a future phase."
+    "building.stub.notReady": "{facility} isn't open for business yet — coming in a future phase.",
+
+    "building.bar.quest.investigate": "Investigate: {title}",
+    "building.truckstop.quest.investigate": "Investigate: {title}",
+    "building.medical.quest.investigate": "Investigate: {title}",
+    "building.garage.quest.investigate": "Investigate: {title}",
+    "building.courierguild.quest.investigate": "Investigate: {title}",
+    "building.stub.quest.investigate": "Investigate: {title}",
+
+    "journal.courier.entry": "{cargo} to {city} ({facility}) — pay ${pay}, due day {day}",
+    "journal.courier.none": "You aren't carrying any courier work right now.",
+    "journal.quest.title": "{title}",
+    "journal.quest.clue": "Lead: {city} — {facility}",
+    "journal.quest.moreToFind": "More leads remain — keep asking around.",
+    "journal.quest.marked": "You've been marked. Expect sustained pursuit, including attacks while you rest.",
+    "journal.quest.none": "No campaign leads uncovered yet.",
+    "journal.quest.completed": "Completed: {title}",
+    "journal.leave": "Close Journal"
   }
 }

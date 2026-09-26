@@ -30,6 +30,7 @@ import { losePrestige } from '@/sim/driver';
 import type { CargoState, ServiceId, VehicleState } from '@/sim/types';
 import { t } from '@/ui/strings';
 import type { MenuAction } from '@/ui/menu';
+import { applyInvestigateAction, questInvestigateRows } from '@/ui/journal';
 import {
   cargoConditionFraction,
   cargoOriginalCostEstimate,
@@ -118,6 +119,8 @@ export function barActions(state: BarState): MenuAction[] {
     ...(heardRumorId === undefined ? {} : { reason: t(heardRumorId) }),
   });
 
+  actions.push(...questInvestigateRows(ctx, BAR_KIND, 'building.bar.quest.investigate'));
+
   const vehicle = ctx.vehicle;
   const payloads = vehicle?.cargo.filter((c) => c.kind === 'payload') ?? [];
   if (payloads.length === 0) {
@@ -163,11 +166,22 @@ export const barEngine: BuildingEngine<BarState> = {
     }
 
     if (actionId === 'rumor') {
-      if (ctx.rumorsHeardToday.has(BAR_KIND)) return { state, exit: false };
+      // No "already heard today" guard here: the row's own eligibility
+      // above (`heardRumorId === undefined`) already refuses activation
+      // for this exact id the moment `ctx.rumorsHeardToday.has(BAR_KIND)`
+      // is true - `@/ui/menu`'s `activate` never fires an ineligible
+      // action's id at all (menu.ts's local `activate`, both from a click
+      // and from the digit-key shortcut), and this engine's `activate` has
+      // exactly one caller (`mountBuildingPanel`'s `onActivate`), reached
+      // only through that same gate. A second guard here was unreachable.
       const rumorId = pickRumorId(ctx.rng);
       const nextHeard = new Map(ctx.rumorsHeardToday);
       nextHeard.set(BAR_KIND, rumorId);
       return { state: { ...state, context: { ...ctx, rumorsHeardToday: nextHeard } }, exit: false };
+    }
+
+    if (actionId.startsWith('investigate-')) {
+      return { state: { ...state, context: applyInvestigateAction(ctx, actionId) }, exit: false };
     }
 
     const vehicle = ctx.vehicle;

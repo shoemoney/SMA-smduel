@@ -26,10 +26,19 @@
  * deterministic and instant, no real wall-clock waiting, no flakiness from
  * a throttled polyfill.
  */
+import 'fake-indexeddb/auto';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { skillsConfig } from '@/data/rulesets';
-import { generateCityLayout } from '@/sim/city';
+import { currentSessionSeed, PLAYER_ID, persistArenaSession, vehicleStateFromDesign } from '@/app';
+import { initialClock } from '@/sim/calendar';
+import { drivingConfig, economy, skillsConfig } from '@/data/rulesets';
+import { createDriver } from '@/sim/driver';
+import { generateCityLayout, type CityLayout } from '@/sim/city';
+import type { DriverState, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
+import { isVictoryQuest, questCargoId, questDefs } from '@/sim/victory';
+import { openSaveDatabase, type QuestState } from '@/persist/save';
+import { t } from '@/ui/strings';
 
 // ---------------------------------------------------------------------------
 // requestAnimationFrame stub: capture, never auto-run
@@ -268,5 +277,379 @@ describe('DOM screens: the two fixed hotkeys a removed `if` cannot fake passing'
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', code: 'KeyX', bubbles: true }));
 
     expect(drivingConfigSpy).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 'J' opens the journal screen — the one screen two previously-shipped
+// features (rumours/clue investigation and the marked-driver banner) sat
+// behind with no reachable way in: a unit test on `@/ui/journal` proves the
+// pure core works, but only a real key reaching a real screen proves a
+// player can ever SEE it.
+// ---------------------------------------------------------------------------
+
+describe('DOM screens: "j" opens the journal screen', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    vi.restoreAllMocks();
+  });
+
+  it('pressing "j" on the city screen opens the journal, showing the empty-state rows, and Escape closes it back to the city', async () => {
+    await bootToCity(root);
+
+    expect(document.querySelector('.sm-menu')).toBeNull();
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', code: 'KeyJ', bubbles: true }));
+
+    const menu = requireOne('.sm-menu');
+    const labels = Array.from(menu.querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
+
+    // A fresh driver has no accepted courier work and no discovered
+    // campaign leads yet — the journal's own real "nothing here" rows
+    // (never a hand-built fixture; this is `boot()`'s real starting state).
+    expect(labels).toContain(t('journal.courier.none'));
+    expect(labels).toContain(t('journal.quest.none'));
+    expect(labels).toContain(t('journal.leave'));
+    // Nothing has marked this driver yet.
+    expect(labels).not.toContain(t('journal.quest.marked'));
+
+    // Escape is the menu's own back-out key (`mountBuildingPanel`'s
+    // `onBack`) — same as every other panel this app mounts.
+    dispatchKey(menu, { key: 'Escape' });
+
+    expect(document.querySelector('.sm-menu')).toBeNull();
+    requireOne('.sm-screen--city');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Victory -> Continue: the one thing `openFacility`'s victory branch
+// (`@/app`) has to get right that nothing else checks afterward — the
+// "Continue" callback it hands `showVictory` has to hand `runState` straight
+// to `showCity` UNCHANGED. `@/sim/victory`'s own module doc is explicit that
+// `deliverQuest` never touches anything but the driver's cash/prestige, the
+// vehicle's cargo and the one delivered `QuestState` row — the fleet, the
+// save, the rest of the quest ledger are the CALLER's to keep intact, and
+// nothing re-verifies that after the fact. A `runState` swapped for a wiped
+// one right there still type-checks and still passes every OTHER test in
+// this suite, which is exactly how a `showTitle`-and-wipe replacement for
+// `() => showCity(root, runState)` could ship.
+//
+// This used to be "NOT ADDED" here: reaching `the-boss-tape` (the campaign's
+// one `onDeliver.victory: true` quest) from `boot()`'s only entry point
+// meant grinding prestige to its gate and a real cross-city road trip to
+// Watertown, for a question that doesn't depend on which quest triggered
+// `showVictory` at all. That blocker is gone — `resumeSession` (`@/app`) now
+// rebuilds a real, playable `CityRunState` (campaign `quests` included) from
+// a save whose `world` is `null`, via `cityRunStateFromSaveGame`. So this
+// writes a real `SaveGame` through `persistArenaSession` (`@/app`'s own real
+// save writer, itself backed by `@/persist/save`'s real two-phase-commit
+// `save()` — never a hand-stuffed IndexedDB record) that already has the
+// victory quest fully clued (`stage: clueChain.length`, `completed: false`,
+// its own cargo already loaded under `questCargoId`) and prestige at its
+// gate, boots the REAL app against that save, presses "Continue" on the
+// real Title screen, and walks the on-foot player into the victory quest's
+// own real destination facility — no grind, no road trip.
+// ---------------------------------------------------------------------------
+
+describe('DOM screens: winning the campaign and pressing "Continue" keeps the sandbox intact', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    vi.restoreAllMocks();
+  });
+
+  // --- Fixtures: same conventions tests/integration/campaign.test.ts uses
+  // for its own (non-DOM) the-boss-tape lifecycle suite. ---
+
+  function evenSkillSplit(): Record<SkillName, number> {
+    const cfg = skillsConfig();
+    const base = Math.floor(cfg.startingSkillPool / cfg.skills.length);
+    const remainder = cfg.startingSkillPool - base * cfg.skills.length;
+    const skills = {} as Record<SkillName, number>;
+    cfg.skills.forEach((name, index) => {
+      skills[name] = base + (index === cfg.skills.length - 1 ? remainder : 0);
+    });
+    return skills;
+  }
+
+  /** `"facility:cityId"` -> `{ facility, cityId }` — quests.json's own clueChain shape (mirrors `@/ui/journal`'s private `parseClueHop`/`campaign.test.ts`'s own `parseHop`), duplicated here only for test setup, never game logic. */
+  function parseHop(raw: string): { readonly facility: string; readonly cityId: string } {
+    const sep = raw.indexOf(':');
+    return { facility: raw.slice(0, sep), cityId: raw.slice(sep + 1) };
+  }
+
+  const TEST_DESIGN: VehicleDesign = {
+    name: 'Victory Continue Rig',
+    bodyId: 'subcompact',
+    chassisId: 'standard',
+    suspensionId: 'light',
+    plantId: 'small',
+    tireId: 'standard',
+    armor: { FRONT: 0, REAR: 0, LEFT: 0, RIGHT: 0, UNDERBODY: 0 },
+    weapons: [],
+  };
+
+  // --- Homing walk: recomputes which WASD keys to hold every real
+  // `stepFrame()` tick from a LOCAL position mirror (identical arithmetic to
+  // `@/sim/city`'s own `stepWalk`: the same `drivingConfig().pedestrian.
+  // speedMps`, the same 250ms-per-tick default, the same diagonal unit
+  // vectors), rather than a single fixed compass direction held for a fixed
+  // step count (this file's own gate-trigger test can get away with that
+  // only because its target — the gate — sits exactly back where the walk
+  // started). A seeded ring's doorway sits at an arbitrary angle, and a
+  // fixed direction drifts wide of it over any real distance; recomputing
+  // every tick keeps this converging on the real target regardless of that
+  // angle. ---
+  function keysTowards(dx: number, dy: number): KeyboardEventInit[] {
+    const keys: KeyboardEventInit[] = [];
+    if (dx > 0) keys.push({ key: 'd', code: 'KeyD' });
+    else if (dx < 0) keys.push({ key: 'a', code: 'KeyA' });
+    if (dy > 0) keys.push({ key: 's', code: 'KeyS' });
+    else if (dy < 0) keys.push({ key: 'w', code: 'KeyW' });
+    return keys;
+  }
+
+  function homeTowards(from: Vec2, to: Vec2, maxSteps: number, stopWhen: (pos: Vec2) => boolean): Vec2 {
+    const stepDist = drivingConfig().pedestrian.speedMps * 0.25; // stepFrame()'s own default deltaMs
+    let pos: Vec2 = { ...from };
+    for (let i = 0; i < maxSteps; i++) {
+      const keys = keysTowards(to.x - pos.x, to.y - pos.y);
+      if (keys.length === 0) return pos; // exactly on target — nothing left to press
+      for (const k of keys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+      stepFrame();
+      for (const k of keys) dispatchKeyUp(window, k);
+      const ux = keys.some((k) => k.code === 'KeyD') ? 1 : keys.some((k) => k.code === 'KeyA') ? -1 : 0;
+      const uy = keys.some((k) => k.code === 'KeyS') ? 1 : keys.some((k) => k.code === 'KeyW') ? -1 : 0;
+      const norm = ux !== 0 && uy !== 0 ? Math.SQRT1_2 : 1;
+      pos = { x: pos.x + ux * norm * stepDist, y: pos.y + uy * norm * stepDist };
+      if (stopWhen(pos)) return pos;
+    }
+    throw new Error('test: homeTowards exceeded maxSteps without reaching its stop condition');
+  }
+
+  /**
+   * Walks the on-foot player (always spawned at `layout.gate.position` —
+   * `showCity`'s own contract) to `doorwayPosition`, via the plaza CENTRE
+   * first rather than a direct line: `generateCityLayout`'s own doc comment
+   * guarantees every doorway/gate sits at least `interactionRadiusM * 2`
+   * apart from its ring neighbors, and every doorway sits the SAME distance
+   * (the ring radius) from the centre at its own unique angle — so a
+   * straight radius line from the centre to one doorway never comes within
+   * `interactionRadiusM` of any OTHER doorway, while a direct gate-to-
+   * doorway chord could. Stops leg 2 the instant a real `.sm-menu` mounts —
+   * a facility panel, or, for the victory quest's own destination, the
+   * victory screen itself (which never opens a facility panel first, see
+   * `openFacility`).
+   */
+  function walkToFacility(layout: CityLayout, doorwayPosition: Vec2): void {
+    const stepDist = drivingConfig().pedestrian.speedMps * 0.25;
+    const maxSteps = Math.ceil((layout.boundsRadiusM * 2) / stepDist) + 100;
+
+    const nearCentre = homeTowards(layout.gate.position, { x: 0, y: 0 }, maxSteps, (pos) => Math.hypot(pos.x, pos.y) <= 2);
+    if (document.querySelector('.sm-menu') !== null) {
+      throw new Error('test: an unexpected menu opened while walking toward the plaza centre — check the layout geometry assumptions');
+    }
+    homeTowards(nearCentre, doorwayPosition, maxSteps, () => document.querySelector('.sm-menu') !== null);
+  }
+
+  it('delivering the-boss-tape and pressing "Continue" preserves cash, prestige, the quest ledger and the fleet', async () => {
+    const victoryQuest = questDefs().find(isVictoryQuest);
+    if (victoryQuest === undefined) throw new Error('test fixture: quests.json defines no onDeliver.victory quest');
+
+    // A second, unrelated quest sharing the victory quest's own destination
+    // city, whose first clue hop sits at an always-open facility — reused
+    // below as a prestige probe: `@/ui/journal`'s `questCluesAvailableHere`
+    // gates its "investigate" row purely on `driver.prestige >= def.gate`,
+    // completely independent of the victory quest's own save-state, so its
+    // presence (or absence) after "Continue" proves prestige specifically
+    // survived, not just conflates it with the quest-ledger check below.
+    const alwaysOpen = economy().alwaysOpenFacilities;
+    const prestigeProbeQuest = questDefs().find((q) => {
+      if (q.id === victoryQuest.id) return false;
+      const hop = parseHop(q.clueChain[0]!);
+      return hop.cityId === victoryQuest.destination.cityId && alwaysOpen.includes(hop.facility);
+    });
+    if (prestigeProbeQuest === undefined) {
+      throw new Error('test fixture: no other always-open-facility quest shares the victory quest\'s destination city to probe prestige with');
+    }
+    const probeHop = parseHop(prestigeProbeQuest.clueChain[0]!);
+
+    const driverResult = createDriver('ContinueTest', evenSkillSplit());
+    if (!driverResult.ok) throw new Error(`test fixture: expected a legal skill split, got "${driverResult.reason}"`);
+
+    const TEST_CASH = 246_000;
+    const TEST_PRESTIGE = victoryQuest.gate + 5;
+    // The real `onAccept.setFlag` effect (`@/ui/journal`'s `revealNextHop`)
+    // a genuine accept would already have folded into `flags` before this
+    // save point — set generically off the quest's own data, never the
+    // literal flag name, same as `campaign.test.ts`'s own hand-built
+    // pre-delivery `QuestState` fixtures do for the identical reason.
+    const acceptFlags: Record<string, boolean> =
+      victoryQuest.onAccept?.setFlag !== undefined ? { [victoryQuest.onAccept.setFlag]: true } : {};
+
+    const driver: DriverState = {
+      ...driverResult.driver,
+      cash: TEST_CASH,
+      prestige: TEST_PRESTIGE,
+      cityId: victoryQuest.destination.cityId,
+    };
+
+    const cargoId = questCargoId(victoryQuest.id);
+    const vehicle: VehicleState = {
+      ...vehicleStateFromDesign(TEST_DESIGN, 'veh-continue-test-1', PLAYER_ID),
+      cargo: [
+        {
+          id: cargoId,
+          kind: 'payload',
+          weightLb: victoryQuest.cargo.weightLb,
+          spaces: victoryQuest.cargo.spaces,
+          integrity: economy()._reconstruction.cargoFullIntegrity,
+        },
+      ],
+    };
+
+    const quests: readonly QuestState[] = [
+      { id: victoryQuest.id, stage: victoryQuest.clueChain.length, completed: false, flags: acceptFlags },
+    ];
+
+    const openDb = () => openSaveDatabase();
+    await persistArenaSession({
+      openDb,
+      driver,
+      vehicle,
+      clock: initialClock(),
+      location: victoryQuest.destination.cityId,
+      quests,
+      sessionSeed: 'screens-victory-continue-seed',
+      world: null, // safely in a city — exactly `showArenaEvent`'s/`openFacility`'s own autosave shape
+    });
+
+    installRafStub();
+    simNowMs = 0;
+    const { boot } = await import('@/app');
+    await boot(root, {
+      search: '',
+      randomSeed: () => 'unused-fresh-session-seed', // a real save exists — resumeSession never touches this
+      openDb,
+    });
+
+    // --- Title: a real save exists, so "Continue" is offered. Enter
+    // activates the menu's own default selection — the first ELIGIBLE
+    // action — rather than a hardcoded digit: every Title row is eligible,
+    // and "continue" is unshifted to the front whenever `onContinue` exists
+    // (`@/app`'s own `showTitle`), so this is "continue" regardless of how
+    // many rows precede/follow it. ---
+    const titleMenu = requireOne('.sm-menu');
+    dispatchKey(titleMenu, { key: 'Enter' });
+
+    // showCity's own initRenderer() microtask, same as bootToCity's.
+    await flushMicrotasks();
+    await flushMicrotasks();
+    requireOne('.sm-screen--city');
+
+    const sessionSeed = currentSessionSeed();
+    if (sessionSeed === null) throw new Error('test fixture: expected a resolved session seed after resuming');
+    let layout = generateCityLayout(victoryQuest.destination.cityId, sessionSeed);
+    const victoryDoorway = layout.doorways.find((d) => d.facilityKind === victoryQuest.destination.facility);
+    if (victoryDoorway === undefined) {
+      throw new Error(`test fixture: "${victoryQuest.destination.cityId}" has no "${victoryQuest.destination.facility}" doorway`);
+    }
+
+    walkToFacility(layout, victoryDoorway.position);
+
+    // The walk landed on the real victory screen — real `attemptQuestDelivery`
+    // (`@/app`), real `deliverQuest` (`@/sim/victory`), never called directly.
+    requireOne('.sm-screen--victory');
+    expect(document.querySelector('.sm-screen--city')).toBeNull();
+
+    const victoryMenu = requireOne('.sm-menu');
+    dispatchKey(victoryMenu, { key: 'Enter' }); // "Continue" — the menu's only eligible row
+
+    // --- THE MUTATION-PROOF ASSERTIONS. Every one of these reads real,
+    // rendered DOM off the real screen "Continue" landed on — never
+    // `runState` (private to `@/app`'s closures) read back out by hand. ---
+
+    requireOne('.sm-screen--city');
+    expect(document.querySelector('.sm-screen--victory')).toBeNull();
+
+    // showCity's own initRenderer() microtask fires again on every fresh call.
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    // Cash: `deliverQuest`'s own real payout (never re-derived here) on top
+    // of what this save started with — proves `driver.cash` is neither 0
+    // nor merely unpaid, but the exact real post-delivery figure.
+    const expectedCash = TEST_CASH + victoryQuest.pay;
+    expect(requireOne('.sm-screen--city').textContent).toContain(`$${expectedCash}`);
+
+    // Quest ledger: the completed victory quest (and, generically, its real
+    // onAccept flag) still on file — `journal.quest.none` would be a false
+    // negative here (it only reports the ACTIVE list, and a completed quest
+    // was never active), so this checks the COMPLETED row by name instead.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', code: 'KeyJ', bubbles: true }));
+    const journalMenu = requireOne('.sm-menu');
+    const journalLabels = Array.from(journalMenu.querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
+    expect(journalLabels).toContain(t('journal.quest.completed', { title: victoryQuest.title }));
+    if (victoryQuest.onAccept?.setFlag !== undefined) {
+      expect(journalLabels).toContain(t('journal.quest.marked'));
+    }
+    dispatchKey(journalMenu, { key: 'Escape' });
+    requireOne('.sm-screen--city');
+
+    // Fleet: the active vehicle is still a real, listed fleet entry — not
+    // an empty roster. Exiting Fleet always calls `showCity` fresh (see
+    // `@/app`'s own `showFleet`/`openFleetScreen`), so the player is back
+    // at the gate and needs its `initRenderer()` microtask flushed again.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', bubbles: true }));
+    const fleetMenu = requireOne('.sm-menu');
+    const fleetLabels = Array.from(fleetMenu.querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
+    expect(fleetLabels).toContain(t('ui.fleet.rowActive', { name: TEST_DESIGN.name }));
+    dispatchKey(fleetMenu, { key: 'Escape' });
+
+    await flushMicrotasks();
+    await flushMicrotasks();
+    requireOne('.sm-screen--city');
+
+    // Prestige: a real, unrelated quest's real "investigate" row, gated
+    // purely on `driver.prestige >= def.gate` — reached the same way a
+    // player would, by walking into its own real clue-chain facility, never
+    // by reading `driver.prestige` back out of anything private.
+    layout = generateCityLayout(victoryQuest.destination.cityId, sessionSeed);
+    const probeDoorway = layout.doorways.find((d) => d.facilityKind === probeHop.facility);
+    if (probeDoorway === undefined) {
+      throw new Error(`test fixture: "${probeHop.cityId}" has no "${probeHop.facility}" doorway`);
+    }
+    walkToFacility(layout, probeDoorway.position);
+
+    const probeMenu = requireOne('.sm-menu');
+    const probeLabels = Array.from(probeMenu.querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
+    expect(probeLabels.some((label) => label !== null && label.includes(prestigeProbeQuest.title))).toBe(true);
+    dispatchKey(probeMenu, { key: 'Escape' });
   });
 });

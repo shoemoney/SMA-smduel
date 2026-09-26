@@ -86,7 +86,6 @@ import {
   type RoadWreck,
 } from '@/sim/road';
 import {
-  generateEncounters,
   recordRouteCleared,
   FRESH_ROUTE_HISTORY,
   type EncounterUnit,
@@ -108,7 +107,19 @@ import { createWorld, type World } from '@/sim/world';
 import { createRng, type Rng } from '@/util/rng';
 import { hashState } from '@/util/hash';
 import { CURRENT_SCHEMA_VERSION } from '@/persist/migrate';
-import { openSaveDatabase, save, load, type LoadResult, type SaveGame } from '@/persist/save';
+import { openSaveDatabase, save, load, type LoadResult, type SaveGame, type QuestState } from '@/persist/save';
+import {
+  deliverQuest,
+  questCargoId,
+  questDefs,
+  buildVictorySummary,
+  victorySummaryLines,
+  type ArenaRecord,
+  type QuestDef,
+  type QuestDeliverResult,
+} from '@/sim/victory';
+import { generateEncountersWithPursuit, pursuitLevelFromQuestState } from '@/sim/pursuit';
+import { createJournalState, journalEngine, questDef as journalQuestDef, type JournalContext } from '@/ui/journal';
 import {
   CONTROLS,
   bindingsForPreset,
@@ -132,7 +143,7 @@ import {
 } from '@/ui/hud';
 import { mountBuilder, type BuilderConfirmedBuild } from '@/ui/builder';
 import { mountFacility, type ArenaEntryResult, type BuildingContext, type MountedFacility } from '@/ui/buildings';
-import { leaveAction, LEAVE_ACTION_ID, type RumorId } from '@/ui/buildings/shared';
+import { leaveAction, LEAVE_ACTION_ID, mountBuildingPanel, type RumorId } from '@/ui/buildings/shared';
 import { buildCityInstances, type CityVehicleView, type CityViewSnapshot } from '@/ui/city-view';
 import { mountMenu, type MenuAction } from '@/ui/menu';
 import { cityName, t } from '@/ui/strings';
@@ -1395,47 +1406,83 @@ function vehicleSpriteInstance(vehicle: VehicleState, atlasIndex: AtlasIndex): S
 // Screen 4: Arena
 // ---------------------------------------------------------------------------
 
-/** Best-effort autosave on exit: two-phase-commits a `SaveGame` (via `@/persist/save`) capturing the live `World` — rngState (tick position included), entities and all — so `boot()`'s next "Continue" restores it verbatim instead of ever re-deriving a seed. Failure (private browsing blocking IndexedDB, etc.) is logged and swallowed — never something the player should lose their run over. */
-async function persistArenaSession(
-  openDb: () => Promise<IDBDatabase>,
-  driverState: DriverState,
-  world: World,
-): Promise<void> {
-  const vehicle = findPlayer(world);
-  if (vehicle === undefined) return;
-  const seed = seedKeyToDisplaySeed(world.rngState.seedKey);
-  const clock = world.clock;
-  const vehicles: Record<string, VehicleState> = { [vehicle.id]: vehicle };
+/**
+ * Everything `persistArenaSession` needs to build a `SaveGame` from a live
+ * session - whether that's the practice arena's own resumable tick-loop
+ * (`world` non-null: `showArena`'s exit) or a driver safely back in a city
+ * with no simulation in flight (`world: null`: `showArenaEvent`'s exit,
+ * right after a real mission arena resolves). `quests` is the whole reason
+ * this is a bag instead of `persistArenaSession`'s old three positional
+ * params: threading a caller's REAL `CityRunState.quests` (or a resumed
+ * save's own `quests`, on the practice-arena path) through to `SaveGame` is
+ * the one thing this shape exists to make impossible to forget - the old
+ * shape had no parameter for quests at all, which is exactly how it ended
+ * up hardcoding `quests: []` on every single save.
+ */
+export interface PersistSessionInput {
+  readonly openDb: () => Promise<IDBDatabase>;
+  readonly driver: DriverState;
+  readonly vehicle: VehicleState;
+  readonly clock: Clock;
+  readonly location: string;
+  readonly quests: readonly QuestState[];
+  /** The session seed driving `rngState` when `world` is `null` (no live World to read `rngState.seedKey` off of instead). */
+  readonly sessionSeed: string;
+  /** The live arena tick-loop `World` when mid-fight, or `null` once back in a city with no simulation in flight - `SaveGame.world`'s own documented contract. */
+  readonly world: World | null;
+}
+
+/**
+ * Best-effort autosave: two-phase-commits a `SaveGame` (via
+ * `@/persist/save`) capturing either the live arena `World` — rngState (tick
+ * position included), entities and all — or, once a mission arena resolves
+ * and hands control back to the city, the driver/vehicle/quests state as it
+ * stands right then with `world: null`. Either way `boot()`'s next
+ * "Continue" (`resumeSession` below) restores it verbatim instead of ever
+ * re-deriving a seed or dropping the campaign's quests. Failure (private
+ * browsing blocking IndexedDB, etc.) is logged and swallowed — never
+ * something the player should lose their run over.
+ *
+ * `arenaRecord` is deliberately never threaded into `SaveGame` here: nothing
+ * in `@/sim/arena` or `@/persist/save` persists a running win/loss tally
+ * today, by design (see `@/sim/victory`'s own `ArenaRecord` doc comment) — a
+ * per-session, caller-tracked number, not save data, so `cityRunStateFromSaveGame`
+ * below always resumes it at `{ wins: 0, losses: 0 }`, exactly as `startNewSession`
+ * does for a brand-new driver.
+ */
+export async function persistArenaSession(input: PersistSessionInput): Promise<void> {
+  const seed = input.world !== null ? seedKeyToDisplaySeed(input.world.rngState.seedKey) : input.sessionSeed;
+  const vehicles: Record<string, VehicleState> = { [input.vehicle.id]: input.vehicle };
   const game: SaveGame = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     rulesetVersion: 'classic-1',
     seed: seedFingerprint(seed),
-    currentDay: clock.dayIndex,
-    phase: clock.phase,
-    location: ARENA_EVENT_ID,
-    driver: driverState,
-    activeVehicleId: vehicle.id,
+    currentDay: input.clock.dayIndex,
+    phase: input.clock.phase,
+    location: input.location,
+    driver: input.driver,
+    activeVehicleId: input.vehicle.id,
     vehicles,
     jobs: [],
-    quests: [],
-    world,
-    // Driver-level stream (jobs/quests/economy - none of which this practice
-    // shell has yet) - a substream of the same session seed, independent of
-    // the world's own draws, per `@/persist/save`'s `SaveGame.rngState` doc.
+    quests: input.quests,
+    world: input.world,
+    // Driver-level stream (jobs/quests/economy) - a substream of the same
+    // session seed, independent of the world's own draws, per
+    // `@/persist/save`'s `SaveGame.rngState` doc.
     rngState: createRng(seed).stream('driver').serialize(),
     lastSafeCitySnapshot: {
-      day: clock.dayIndex,
-      phase: clock.phase,
-      location: ARENA_EVENT_ID,
-      driver: driverState,
+      day: input.clock.dayIndex,
+      phase: input.clock.phase,
+      location: input.location,
+      driver: input.driver,
       vehicles,
-      activeVehicleId: vehicle.id,
+      activeVehicleId: input.vehicle.id,
     },
     controlPreset: currentControlPreset,
     controlBindings: currentControlBindings,
   };
   try {
-    const db = await openDb();
+    const db = await input.openDb();
     await save(db, game);
   } catch (error) {
     console.warn('smduel: autosave failed', error);
@@ -1466,6 +1513,8 @@ export interface ArenaSession {
   /** A restored save's live World, reused verbatim (rngState, tick position and all) instead of building a fresh one. Absent for a brand-new session. */
   readonly restoreWorld?: World;
   readonly openDb: () => Promise<IDBDatabase>;
+  /** A resumed save's own campaign quests, threaded through so `showArena`'s own exit-autosave (`persistArenaSession`) never wipes them back to `[]` — absent (defaults to `[]`) for a brand-new practice session, which has no campaign quests to carry. */
+  readonly quests?: readonly QuestState[];
 }
 
 /** What `resolveArenaWorld` hands back: either the World + driver `showArena` should run with, or a human-readable refusal (e.g. can't afford the practice fee) for the caller to display instead of entering the arena. */
@@ -1735,7 +1784,19 @@ function showArena(
 
   exitBtn.addEventListener('click', () => {
     stop();
-    void persistArenaSession(session.openDb, chargedDriver, world);
+    const player = findPlayer(world);
+    if (player !== undefined) {
+      void persistArenaSession({
+        openDb: session.openDb,
+        driver: chargedDriver,
+        vehicle: player,
+        clock: world.clock,
+        location: ARENA_EVENT_ID,
+        quests: session.quests ?? [],
+        sessionSeed: session.sessionSeed,
+        world,
+      });
+    }
     onExit();
   });
 
@@ -1760,7 +1821,7 @@ function showArena(
  * fixed at 1 (the one active vehicle) so `@/ui/buildings/assembly`'s
  * fleet-cap gate still works honestly off a real number.
  */
-interface CityRunState {
+export interface CityRunState {
   readonly driver: DriverState;
   readonly vehicle: VehicleState;
   readonly vehicleStored: boolean;
@@ -1785,6 +1846,84 @@ interface CityRunState {
   readonly fleet: Fleet;
   /** Per-route repopulation progress (`@/sim/encounters`) — a route just cleared of every hostile goes quiet, then slowly repopulates. Keyed by `RouteDef.id`. */
   readonly routeHistory: ReadonlyMap<string, RouteEncounterHistory>;
+  /**
+   * Campaign quest save-state (`@/persist/save`'s `QuestState[]`) — the same
+   * container `@/ui/journal` and every facility with a `clueChain` hop
+   * (`@/ui/buildings/bar`/`truckstop`/etc, via `BuildingContext.quests`)
+   * already read and write. This is the ONE copy of it for the whole city/
+   * road/arena session; `buildingContextFrom`/`applyBuildingContext` below
+   * are what thread it through a building visit unchanged (or updated, once
+   * a clue is investigated).
+   */
+  readonly quests: readonly QuestState[];
+  /**
+   * Running arena win/loss tally for THIS session — not persisted, not
+   * derived from anything else (`@/sim/arena`'s own resolution is a
+   * per-match outcome, see `@/sim/victory`'s own `ArenaRecord` doc comment
+   * on why this is a caller-tracked input rather than data `@/sim/arena`
+   * keeps itself). Only `showArenaEvent`'s exit handler below writes to
+   * this, counting a `VICTORY` resolution as a win and a `FORFEIT` as a
+   * loss; `ESCAPE` (leaving without clearing the roster) counts as neither.
+   */
+  readonly arenaRecord: ArenaRecord;
+}
+
+/**
+ * Rebuilds a real, playable `CityRunState` (quests included) from a
+ * `SaveGame` written while the driver was safely in a city — `game.world`
+ * is `null`, the exact condition `resumeSession` below now checks before
+ * calling this, rather than either routing to the mid-arena-only `showArena`
+ * screen or discarding the save and starting over (both of which is all it
+ * ever did before, for every save `persistArenaSession` could produce with
+ * `world: null`). Exported (DOM-free) as its own seam, same convention as
+ * `resolveArenaWorld`/`createArenaWorld` above, so a test can drive this
+ * exact reconstruction — including a real `quests` round trip through a real
+ * `save()`/`load()` — without booting a screen.
+ *
+ * Fields `@/persist/save`'s `SaveGame` has no room for today —
+ * `vehicleStored`, `rumorsHeardToday`, `activeCourierJobs`, `routeHistory`,
+ * and every `fleet` entry beyond the one active `vehicle` — fall back to the
+ * same "nothing yet" defaults a brand-new session starts with in
+ * `startNewSession` below. That is a pre-existing gap in what `SaveGame`
+ * captures, not a new decision this function makes; closing it is a
+ * `@/persist/save` schema change out of this fix's scope. `arenaRecord`
+ * resets to `{ wins: 0, losses: 0 }` for the reason documented on
+ * `CityRunState.arenaRecord` and on `persistArenaSession` above: it is
+ * deliberately never save data.
+ */
+export function cityRunStateFromSaveGame(
+  game: SaveGame,
+  vehicle: VehicleState,
+  options: { readonly openDb: () => Promise<IDBDatabase>; readonly search: string; readonly randomSeed?: () => string },
+): CityRunState {
+  const savedSeed = seedKeyToDisplaySeed(game.rngState.seedKey);
+  const sessionSeed = resolveSessionSeed(
+    options.randomSeed !== undefined
+      ? { search: options.search, savedSeed, randomSeed: options.randomSeed }
+      : { search: options.search, savedSeed },
+  );
+  // Restored to the exact saved position (never re-seeded from scratch) -
+  // `game.rngState` is already the driver-level substream `startNewSession`
+  // itself creates (`createRng(sessionSeed).stream('driver')`), so restoring
+  // it directly into a fresh root reproduces that substream verbatim.
+  const rng = createRng(sessionSeed);
+  rng.restore(game.rngState);
+  return {
+    driver: game.driver,
+    vehicle,
+    vehicleStored: false,
+    clock: { dayIndex: game.currentDay, phase: game.phase },
+    cityId: game.location,
+    sessionSeed,
+    openDb: options.openDb,
+    rng,
+    rumorsHeardToday: new Map(),
+    activeCourierJobs: [],
+    fleet: { vehicles: [{ vehicle, stored: false, cityId: game.location }] },
+    routeHistory: new Map(),
+    quests: game.quests,
+    arenaRecord: { wins: 0, losses: 0 },
+  };
 }
 
 function buildingContextFrom(state: CityRunState): BuildingContext {
@@ -1800,7 +1939,149 @@ function buildingContextFrom(state: CityRunState): BuildingContext {
     rumorsHeardToday: state.rumorsHeardToday,
     activeCourierJobs: state.activeCourierJobs,
     routeHistory: state.routeHistory,
+    quests: state.quests,
   };
+}
+
+/**
+ * The `driver`/`vehicle` side effects of a quest's own `onAccept` data,
+ * applied exactly once — the instant a reveal (`@/ui/journal`'s
+ * `applyInvestigateAction`, called from inside whatever facility panel just
+ * exited) crosses a quest's `clueChain` from partially to FULLY revealed.
+ * Detected generically by comparing `previousQuests` (this session's quest
+ * state before the visit) against `ctx.quests` (after) — never by name,
+ * never by quest id: any quest whose `onAccept.destroyClone`/`onAccept.
+ * setFlag` data crosses that same threshold gets the same treatment.
+ *
+ * `onAccept.setFlag` itself is already applied by `@/ui/journal`'s
+ * `revealNextHop` (real data, folded into `QuestState.flags` the moment the
+ * chain completes) — this function only adds the two side effects that
+ * data implies OUTSIDE `QuestState` itself, which `@/ui/journal` has no
+ * access to mutate: `driver.cloneCityId`/`cloneSkills` (a `destroyClone`
+ * quest's "no second attempt", `@/sim/driver`'s own clone fields), and
+ * loading the quest's own `cargo` onto the active vehicle under
+ * `questCargoId(quest.id)` — the reachable stand-in for a dedicated
+ * "accept" screen this codebase doesn't have; there is no other moment
+ * that data could enter the vehicle for a caller to later hand to
+ * `@/sim/victory`'s `deliverQuest`.
+ */
+export function applyQuestAcceptEffects(previousQuests: readonly QuestState[], ctx: BuildingContext): BuildingContext {
+  const quests = ctx.quests ?? [];
+  let driver = ctx.driver;
+  let vehicle = ctx.vehicle;
+
+  for (const state of quests) {
+    const def = journalQuestDef(state.id);
+    if (def === undefined) continue;
+    const wasComplete = (previousQuests.find((q) => q.id === state.id)?.stage ?? 0) >= def.clueChain.length;
+    const isComplete = state.stage >= def.clueChain.length;
+    if (wasComplete || !isComplete) continue; // only the exact crossing, never a re-fire on a later visit
+
+    if (def.onAccept?.destroyClone === true) {
+      driver = { ...driver, cloneCityId: null, cloneSkills: null };
+    }
+    if (vehicle !== null) {
+      const cargoId = questCargoId(def.id);
+      if (!vehicle.cargo.some((item) => item.id === cargoId)) {
+        vehicle = {
+          ...vehicle,
+          cargo: [
+            ...vehicle.cargo,
+            {
+              id: cargoId,
+              kind: 'payload',
+              weightLb: def.cargo.weightLb,
+              spaces: def.cargo.spaces,
+              integrity: economy()._reconstruction.cargoFullIntegrity,
+            },
+          ],
+        };
+      }
+    }
+  }
+
+  return driver === ctx.driver && vehicle === ctx.vehicle ? ctx : { ...ctx, driver, vehicle };
+}
+
+/**
+ * Auto-delivery: entering a facility that is some accepted (chain fully
+ * revealed), not-yet-completed quest's OWN `destination` (`{cityId,
+ * facility}`, real quests.json data — never a quest id or facility kind
+ * literal) delivers it right then, through the real `@/sim/victory`'s
+ * `deliverQuest`, the same way walking up to a courier destination would if
+ * this codebase had a separate confirm step for that either — there is no
+ * dedicated "deliver" menu row anywhere in this UI, so arriving with the
+ * cargo aboard IS the delivery action. Generic over every quest destination
+ * quests.json defines, not just the campaign's victory quest.
+ *
+ * Lateness is intentionally never assessed here (`dueDay` is always
+ * `+Infinity`): `CityRunState`/`QuestState` keep no record of the day a
+ * quest was actually accepted (only `AcceptedJob`, the courier system's own
+ * unrelated ledger, does), so there is no honest due-day to compute for a
+ * quest whose `dueDays` isn't `null` — `the-boss-tape`, the one quest this
+ * integration pass actually has to prove wins the game, sets `dueDays:
+ * null` (no deadline) precisely so this simplification never touches it.
+ */
+export function attemptQuestDelivery(
+  state: CityRunState,
+  facilityKind: string,
+): { readonly state: CityRunState; readonly result: QuestDeliverResult | null; readonly def: QuestDef | null } {
+  for (const def of questDefs()) {
+    if (def.destination.cityId !== state.cityId || def.destination.facility !== facilityKind) continue;
+    const existing = state.quests.find((q) => q.id === def.id);
+    if (existing === undefined || existing.completed || existing.stage < def.clueChain.length) continue;
+
+    const result = deliverQuest(def, state.quests, state.driver, state.vehicle, state.cityId, facilityKind, state.clock, Number.POSITIVE_INFINITY);
+    if (result.outcome !== 'DELIVERED' && result.outcome !== 'LATE') continue; // WRONG_LOCATION/CARGO_MISSING/ALREADY_DELIVERED: nothing to apply
+    return {
+      state: { ...state, driver: result.driver, vehicle: result.vehicle, quests: result.quests },
+      result,
+      def,
+    };
+  }
+  return { state, result: null, def: null };
+}
+
+/**
+ * Victory screen: a real `@/sim/victory` delivery whose own `onDeliver.
+ * victory` came back `true` (see `attemptQuestDelivery`'s call site in
+ * `openFacility`). Just the summary (`victorySummaryLines`, every line
+ * already through `t()`) plus one "Continue" row — `onContinue` hands
+ * control straight back to `showCity` with the SAME `runState` the delivery
+ * already updated, proving the sandbox survives victory rather than ending
+ * the session (`the-boss-tape`'s own `onDeliver.sandboxContinues: true`).
+ */
+function showVictory(root: HTMLElement, state: CityRunState, summary: ReturnType<typeof buildVictorySummary>, onContinue: () => void): void {
+  const container = el('div', 'sm-screen sm-screen--victory');
+  container.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+  const menuHost = el('div');
+  menuHost.style.cssText = 'width:min(420px,90vw);max-height:90vh;overflow:auto;';
+  container.appendChild(menuHost);
+  clearAndAppend(root, container);
+
+  const actions: MenuAction[] = victorySummaryLines(summary).map((label, index) => ({
+    id: `victory-line-${index}`,
+    label,
+    eligible: false,
+    reason: label,
+  }));
+  actions.push({ id: LEAVE_ACTION_ID, label: t('victory.continue'), eligible: true });
+
+  const mounted = mountMenu({
+    container: menuHost,
+    header: { cash: state.driver.cash, dayIndex: state.clock.dayIndex, phase: state.clock.phase, cityName: cityName(state.cityId) },
+    actions,
+    onActivate: (id) => {
+      if (id === LEAVE_ACTION_ID) {
+        mounted.destroy();
+        onContinue();
+      }
+    },
+    onBack: () => {
+      mounted.destroy();
+      onContinue();
+    },
+  });
 }
 
 /**
@@ -1883,6 +2164,7 @@ function applyBuildingContext(state: CityRunState, ctx: BuildingContext): CityRu
     rumorsHeardToday: ctx.rumorsHeardToday,
     activeCourierJobs: ctx.activeCourierJobs,
     routeHistory: ctx.routeHistory,
+    quests: ctx.quests ?? state.quests,
   };
 }
 
@@ -2142,12 +2424,35 @@ function showArenaEvent(
     const resolution: ArenaResolution = resolveArenaExit(matchStateRef.current, driverRef.current, exitMode);
     const nextClock = advanceDays(world.clock, resolution.daysConsumed);
     const nextVehicle = player ?? playerVehicle;
+    const nextArenaRecord: ArenaRecord = {
+      wins: cityState.arenaRecord.wins + (resolution.outcome === 'VICTORY' ? 1 : 0),
+      losses: cityState.arenaRecord.losses + (resolution.outcome === 'FORFEIT' ? 1 : 0),
+    };
+    // The autosave `persistArenaSession` was, until now, ONLY ever reachable
+    // from the practice arena's own resume flow - a mission arena entered
+    // straight from the city (this screen) never persisted anything, so a
+    // driver who accepted the campaign's final mission and walked into an
+    // arena had their `CityRunState.quests` living nowhere but memory.
+    // `world: null` here (never the just-concluded arena's own `World`) —
+    // this event is OVER, control is going straight back to the city, there
+    // is no live simulation left to resume into.
+    void persistArenaSession({
+      openDb: cityState.openDb,
+      driver: resolution.driver,
+      vehicle: nextVehicle,
+      clock: nextClock,
+      location: cityState.cityId,
+      quests: cityState.quests,
+      sessionSeed: cityState.sessionSeed,
+      world: null,
+    });
     onComplete({
       ...cityState,
       driver: resolution.driver,
       vehicle: nextVehicle,
       clock: nextClock,
       fleet: reconcileFleetWithVehicle(cityState.fleet, nextVehicle, false, cityState.cityId),
+      arenaRecord: nextArenaRecord,
     });
   });
 
@@ -2443,6 +2748,32 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   }
 
   function openFacility(kind: string): void {
+    // Auto-deliver BEFORE the panel ever mounts: walking into a quest's own
+    // `destination` facility with its cargo aboard is the one reachable
+    // "deliver" action this UI has (see `attemptQuestDelivery`'s own doc
+    // comment). A victory delivery shows the victory screen instead of the
+    // facility's own panel this visit — `sandboxContinues` means the
+    // driver comes right back to THIS city afterward, not a dead end.
+    const delivery = attemptQuestDelivery(runState, kind);
+    runState = delivery.state;
+    if (delivery.result?.victory === true && delivery.def !== null) {
+      stop();
+      showVictory(
+        root,
+        runState,
+        buildVictorySummary({
+          quest: delivery.def,
+          clock: runState.clock,
+          driver: runState.driver,
+          fleet: runState.fleet,
+          arenaRecord: runState.arenaRecord,
+        }),
+        () => showCity(root, runState),
+      );
+      return;
+    }
+
+    const previousQuests = runState.quests;
     const card = openPanel();
     let mounted: MountedFacility | undefined;
     mounted = mountFacility({
@@ -2450,7 +2781,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
       kind,
       context: buildingContextFrom(runState),
       onExit: (ctx) => {
-        runState = applyBuildingContext(runState, ctx);
+        runState = applyBuildingContext(runState, applyQuestAcceptEffects(previousQuests, ctx));
         mounted?.destroy();
         closePanel();
       },
@@ -2529,7 +2860,8 @@ function showCity(root: HTMLElement, state: CityRunState): void {
         stop();
         const resolved: ResolvedRoute = resolveRoute(runState.cityId, found.neighborCityId);
         const history = runState.routeHistory.get(resolved.route.id) ?? FRESH_ROUTE_HISTORY;
-        const trip = beginRoadTripWithEncounters(resolved, runState.vehicle, runState.clock, runState.sessionSeed, history);
+        const pursuitLevel = pursuitLevelFromQuestState(runState.quests);
+        const trip = beginRoadTripWithEncounters(resolved, runState.vehicle, runState.clock, runState.sessionSeed, history, pursuitLevel);
         showRoad(root, runState, trip, (nextState) => showCity(root, nextState));
       },
       onBack: () => {
@@ -2545,11 +2877,11 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   }
 
   // --- input --------------------------------------------------------------
-  // 'G' (vehicle in/out) and 'F' (fleet roster) are fixed hotkeys, not part
-  // of controls.json's rebindable action set (that table only covers
-  // drive/fire/weapon-select, see `@/ui/input`'s file header) - driving
-  // itself below goes through `resolveInput` so it honors the live control
-  // preset/rebinding.
+  // 'G' (vehicle in/out), 'F' (fleet roster) and 'J' (journal) are fixed
+  // hotkeys, not part of controls.json's rebindable action set (that table
+  // only covers drive/fire/weapon-select, see `@/ui/input`'s file header) -
+  // driving itself below goes through `resolveInput` so it honors the live
+  // control preset/rebinding.
   const codesDown = new Set<string>();
   function onKeyDown(ev: KeyboardEvent): void {
     codesDown.add(ev.code);
@@ -2558,6 +2890,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
       if (toggled.ok) player = toggled.player;
     }
     if ((ev.key === 'f' || ev.key === 'F') && !paused) openFleetScreen();
+    if ((ev.key === 'j' || ev.key === 'J') && !paused) openJournalScreen();
   }
   function onKeyUp(ev: KeyboardEvent): void {
     codesDown.delete(ev.code);
@@ -2570,6 +2903,29 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     showFleet(root, runState, (nextState) => {
       runState = nextState;
       showCity(root, runState);
+    });
+  }
+
+  function journalContextFrom(state: CityRunState): JournalContext {
+    return {
+      driver: state.driver,
+      clock: state.clock,
+      cityId: state.cityId,
+      activeCourierJobs: state.activeCourierJobs,
+      quests: state.quests,
+    };
+  }
+
+  function openJournalScreen(): void {
+    const card = openPanel();
+    const mounted = mountBuildingPanel({
+      container: card,
+      initialState: createJournalState(journalContextFrom(runState)),
+      engine: journalEngine,
+      onExit: () => {
+        mounted.destroy();
+        closePanel();
+      },
     });
   }
 
@@ -2718,6 +3074,14 @@ export function beginRoadTripWithEncounters(
   clock: Clock,
   sessionSeed: string,
   history: RouteEncounterHistory,
+  /**
+   * `@/sim/pursuit`'s `pursuitLevelFromQuestState` — 0 for every caller
+   * that predates campaign wiring (including every existing test call site
+   * of this exported function), which reproduces `generateEncounters`'s own
+   * base-table-only contacts exactly (see `generateEncountersWithPursuit`'s
+   * own doc comment: `pursuitLevel <= 0` returns the identical list).
+   */
+  pursuitLevel = 0,
 ): RoadTripState {
   return {
     resolved,
@@ -2727,7 +3091,7 @@ export function beginRoadTripWithEncounters(
     progressMiles: 0,
     clock,
     dayDebt: 0,
-    contacts: generateEncounters(resolved.route, clock.dayIndex, sessionSeed, history),
+    contacts: generateEncountersWithPursuit(resolved.route, clock.dayIndex, sessionSeed, pursuitLevel, history),
     wrecks: [],
     hazards: [],
   };
@@ -3274,6 +3638,8 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
               activeCourierJobs: [],
               fleet: { vehicles: [{ vehicle, stored: false, cityId: chargedDriver.cityId }] },
               routeHistory: new Map(),
+              quests: [],
+              arenaRecord: { wins: 0, losses: 0 },
             };
             showCity(root, cityState);
           },
@@ -3294,22 +3660,41 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
     }
     const vehicleId = existing.game.activeVehicleId ?? Object.keys(existing.game.vehicles)[0];
     const vehicle = vehicleId !== undefined ? existing.game.vehicles[vehicleId] : undefined;
-    if (vehicle === undefined || existing.game.world === null) {
-      // Nothing resumable (saved between screens with no live arena) - a
-      // fresh session is the only option, same as if no save existed.
+    if (vehicle === undefined) {
+      // Nothing resumable at all (no active vehicle on file) - a fresh
+      // session is the only option, same as if no save existed.
       startNewSession();
       return;
     }
-    // Routed through `resolveResumeSessionSeed` (not just read off the save
-    // directly) so the resume path honors the same documented priority
-    // order as a new session - in practice this always resolves to the
-    // save's own seed, since `loadExistingSave` above already refuses to
-    // resume at all when `?seed=` is present, but it's the seam that keeps
-    // this call itself exercised instead of dead code no test can reach.
-    const sessionSeed = resolveResumeSessionSeed(existing.game.world, { search, randomSeed });
-    lastSessionSeed = sessionSeed;
-    console.info(`smduel: resumed session, seed ${sessionSeed}`);
-    showArena(root, existing.game.driver, vehicle, { sessionSeed, restoreWorld: existing.game.world, openDb }, () => void start());
+    if (existing.game.world !== null) {
+      // Routed through `resolveResumeSessionSeed` (not just read off the save
+      // directly) so the resume path honors the same documented priority
+      // order as a new session - in practice this always resolves to the
+      // save's own seed, since `loadExistingSave` above already refuses to
+      // resume at all when `?seed=` is present, but it's the seam that keeps
+      // this call itself exercised instead of dead code no test can reach.
+      const sessionSeed = resolveResumeSessionSeed(existing.game.world, { search, randomSeed });
+      lastSessionSeed = sessionSeed;
+      console.info(`smduel: resumed session, seed ${sessionSeed}`);
+      showArena(
+        root,
+        existing.game.driver,
+        vehicle,
+        { sessionSeed, restoreWorld: existing.game.world, openDb, quests: existing.game.quests },
+        () => void start(),
+      );
+      return;
+    }
+    // Safely in a city (no live arena World) - the far more common case for
+    // a real campaign session, and the one `resumeSession` used to just
+    // throw away entirely (see `cityRunStateFromSaveGame`'s own doc comment
+    // above). Rebuilds the real `CityRunState` the save was taken from,
+    // campaign `quests` included, and resumes straight into the city rather
+    // than starting over.
+    const cityState = cityRunStateFromSaveGame(existing.game, vehicle, { openDb, search, randomSeed });
+    lastSessionSeed = cityState.sessionSeed;
+    console.info(`smduel: resumed session, seed ${cityState.sessionSeed}`);
+    showCity(root, cityState);
   }
 
   async function start(): Promise<void> {

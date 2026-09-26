@@ -71,6 +71,16 @@ export interface SaveGame {
   readonly activeVehicleId?: string;
   readonly vehicles: Readonly<Record<string, VehicleState>>;
   readonly jobs: readonly JobState[];
+  /**
+   * Campaign quest save-state - `@/app`'s `CityRunState.quests`, threaded
+   * through `persistArenaSession`/`cityRunStateFromSaveGame` on every save
+   * and resume. There is deliberately NO `arenaRecord` field alongside this
+   * one: `@/sim/victory`'s own `ArenaRecord` doc comment documents that a
+   * running arena win/loss tally is intentionally session-only, caller-
+   * tracked state, never save data - the same reason `@/app`'s
+   * `cityRunStateFromSaveGame` always resumes it at `{ wins: 0, losses: 0 }`
+   * rather than reading a field that doesn't exist here.
+   */
   readonly quests: readonly QuestState[];
   /**
    * The live road/arena tick-loop simulation (tick count, entities, arena

@@ -52,6 +52,7 @@ import { shortestPathByDanger, shortestPathByMiles } from '@/sim/world-map';
 import type { VehicleState } from '@/sim/types';
 import { cityName, t } from '@/ui/strings';
 import type { MenuAction } from '@/ui/menu';
+import { applyInvestigateAction, questInvestigateRows } from '@/ui/journal';
 import {
   type BuildingContext,
   type BuildingEngine,
@@ -209,6 +210,8 @@ export function courierGuildActions(state: CourierGuildState): MenuAction[] {
     }
   }
 
+  actions.push(...questInvestigateRows(ctx, COURIERGUILD_KIND, 'building.courierguild.quest.investigate'));
+
   actions.push(leaveAction());
   return actions;
 }
@@ -227,6 +230,9 @@ export const courierGuildEngine: BuildingEngine<CourierGuildState> = {
       actionId.startsWith('route-safe-')
     ) {
       return { state, exit: false };
+    }
+    if (actionId.startsWith('investigate-')) {
+      return { state: { ...state, context: applyInvestigateAction(ctx, actionId) }, exit: false };
     }
 
     if (actionId.startsWith('accept-')) {

@@ -14,6 +14,7 @@ import { FACINGS } from '@/sim/types';
 import type { ServiceId, VehicleState } from '@/sim/types';
 import { t } from '@/ui/strings';
 import type { MenuAction } from '@/ui/menu';
+import { applyInvestigateAction, questInvestigateRows } from '@/ui/journal';
 import {
   type BuildingContext,
   type BuildingEngine,
@@ -198,6 +199,8 @@ export function garageActions(state: GarageState): MenuAction[] {
     reason: insufficientFundsReason(lessonPrice, ctx.driver.cash),
   });
 
+  actions.push(...questInvestigateRows(ctx, GARAGE_KIND, 'building.garage.quest.investigate'));
+
   actions.push(leaveAction());
   return actions;
 }
@@ -222,6 +225,9 @@ export const garageEngine: BuildingEngine<GarageState> = {
     }
     if (actionId === 'mechanicLesson') {
       return { state: { context: applyEconomyService(ctx, 'mechanicLesson') }, exit: false };
+    }
+    if (actionId.startsWith('investigate-')) {
+      return { state: { context: applyInvestigateAction(ctx, actionId) }, exit: false };
     }
 
     if (ctx.vehicle !== null) {

@@ -1234,6 +1234,45 @@ describe('truckstop', () => {
     const action = truckstopEngine.actions(createTruckstopState(ctx)).find((a) => a.id === 'rumor');
     expect(action?.eligible).toBe(true);
   });
+
+  it('an unmarked driver renting a room never rolls a rest assassination attempt', () => {
+    const ctx = makeContext({ driver: makeDriver({ cash: 1_000_000 }), quests: [] });
+    const result = truckstopEngine.activate(createTruckstopState(ctx), 'room');
+    expect(result.state.lastRestAssassinationAttempt).toBeNull();
+  });
+
+  it('a marked driver renting a room genuinely rolls @/sim/pursuit\'s rollRestAssassinationAttempt - the fix for the dead-export defect, not just an unread import', () => {
+    const markedQuests = [{ id: 'the-boss-tape', stage: 0, completed: false, flags: { marked: true } }];
+    let sawTriggered = false;
+    let sawUntriggered = false;
+    for (let day = 0; day < 60 && (!sawTriggered || !sawUntriggered); day++) {
+      const ctx = makeContext({
+        driver: makeDriver({ cash: 1_000_000 }),
+        quests: markedQuests,
+        cityId: 'chicago',
+        clock: { ...initialClock(), dayIndex: day },
+        rng: createRng('truckstop-pursuit-seed'),
+      });
+      const result = truckstopEngine.activate(createTruckstopState(ctx), 'room');
+      const attempt = result.state.lastRestAssassinationAttempt;
+      expect(attempt).not.toBeNull();
+      if (attempt?.triggered) sawTriggered = true;
+      else sawUntriggered = true;
+    }
+    // Not "never" and not "every rest" - and crucially, not null/never-called
+    // either, which is what the confirmed defect actually was (zero
+    // production callers anywhere in src/).
+    expect(sawTriggered).toBe(true);
+    expect(sawUntriggered).toBe(true);
+  });
+
+  it('a room purchase the driver cannot afford never rolls an assassination attempt (no night was actually spent)', () => {
+    const markedQuests = [{ id: 'the-boss-tape', stage: 0, completed: false, flags: { marked: true } }];
+    const ctx = makeContext({ driver: makeDriver({ cash: 0 }), quests: markedQuests });
+    const result = truckstopEngine.activate(createTruckstopState(ctx), 'room');
+    expect(result.state.lastRestAssassinationAttempt).toBeNull();
+    expect(result.state.context.driver.cash).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

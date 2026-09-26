@@ -10,6 +10,7 @@ import { applyService, type EconomyWorld } from '@/sim/economy';
 import type { ServiceId } from '@/sim/types';
 import { t } from '@/ui/strings';
 import type { MenuAction } from '@/ui/menu';
+import { applyInvestigateAction, questInvestigateRows } from '@/ui/journal';
 import {
   type BuildingContext,
   type BuildingEngine,
@@ -77,6 +78,8 @@ export function medicalActions(state: MedicalState): MenuAction[] {
     reason: atFullHealth ? t('building.medical.fullHealth') : insufficientFundsReason(treatmentPrice, ctx.driver.cash),
   });
 
+  actions.push(...questInvestigateRows(ctx, MEDICAL_KIND, 'building.medical.quest.investigate'));
+
   actions.push(leaveAction());
   return actions;
 }
@@ -90,6 +93,9 @@ export const medicalEngine: BuildingEngine<MedicalState> = {
     if (actionId === 'closed') return { state, exit: false };
     if (actionId === 'clone' || actionId === 'braintapeUpdate' || actionId === 'medicalPerPoint') {
       return { state: { context: applyEconomyService(ctx, actionId) }, exit: false };
+    }
+    if (actionId.startsWith('investigate-')) {
+      return { state: { context: applyInvestigateAction(ctx, actionId) }, exit: false };
     }
     return { state, exit: false };
   },

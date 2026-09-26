@@ -28,6 +28,7 @@ import { allWeapons, economy, hasWeapon, getWeapon } from '@/data/rulesets';
 import { cityName, facilityName, t } from '@/ui/strings';
 import type { CargoState, DriverState, ServiceId, VehicleState } from '@/sim/types';
 import type { AcceptedJob } from '@/sim/courier';
+import type { QuestState } from '@/persist/save';
 import type { RouteEncounterHistory } from '@/sim/encounters';
 import type { Rng } from '@/util/rng';
 import couriersJson from '@rulesets/classic/couriers.json';
@@ -88,6 +89,17 @@ export interface BuildingContext {
    * a route being cleared of hostiles.
    */
   readonly routeHistory: ReadonlyMap<string, RouteEncounterHistory>;
+  /**
+   * Campaign quest save-state (`@/persist/save`'s `QuestState[]`) — read by
+   * `@/ui/buildings/bar` and `@/ui/buildings/truckstop` to decide whether
+   * either is currently standing at an unlocked quest's next unrevealed
+   * `clueChain` hop (`@/ui/journal` owns the one clueChain-parsing/reveal
+   * implementation both import, rather than each re-deriving it). Optional
+   * and defaulted to `[]` by both readers — absent from every construction
+   * site that predates campaign wiring (including this suite's own
+   * `makeContext`), so none of them need updating just to keep compiling.
+   */
+  readonly quests?: readonly QuestState[];
 }
 
 /**
