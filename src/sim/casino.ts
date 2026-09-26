@@ -29,13 +29,12 @@ export interface Card {
 }
 
 const SUITS: readonly Suit[] = ['clubs', 'diamonds', 'hearts', 'spades'];
-const MIN_RANK = 2;
 
 function freshDeck(): Card[] {
-  const maxRank = economy().casino.poker.maxRank;
+  const { minRank, maxRank } = economy().casino.poker;
   const deck: Card[] = [];
   for (const suit of SUITS) {
-    for (let rank = MIN_RANK; rank <= maxRank; rank++) deck.push({ rank, suit });
+    for (let rank = minRank; rank <= maxRank; rank++) deck.push({ rank, suit });
   }
   return deck;
 }
@@ -91,15 +90,15 @@ function isFlush(cards: readonly Card[]): boolean {
   return cards.every((c) => c.suit === suit);
 }
 
-/** True for 5 distinct consecutive ranks, INCLUDING the ace-low wheel (A-2-3-4-5). */
-function isStraight(ranks: readonly number[]): boolean {
+/** True for `handSize` distinct consecutive ranks, INCLUDING the ace-low wheel (A-2-3-4-5). */
+function isStraight(ranks: readonly number[], handSize: number): boolean {
   const sorted = [...new Set(ranks)].sort((a, b) => a - b);
-  if (sorted.length !== 5) return false;
+  if (sorted.length !== handSize) return false;
   if (sorted.join(',') === '2,3,4,5,14') return true; // wheel: ace plays low
   const first = sorted[0];
-  const last = sorted[4];
+  const last = sorted[handSize - 1];
   if (first === undefined || last === undefined) return false;
-  return last - first === 4;
+  return last - first === handSize - 1;
 }
 
 function rankCounts(ranks: readonly number[]): number[] {
@@ -108,13 +107,14 @@ function rankCounts(ranks: readonly number[]): number[] {
   return [...counts.values()].sort((a, b) => b - a);
 }
 
-/** Evaluates exactly 5 cards. Ace-high and ace-low (wheel) straights both count as straights. */
+/** Evaluates exactly economy.json's `poker.handSize` cards. Ace-high and ace-low (wheel) straights both count as straights. */
 export function evaluatePokerHand(cards: readonly Card[]): PokerRank {
-  if (cards.length !== 5) throw new RangeError('evaluatePokerHand: exactly 5 cards required');
+  const { handSize } = economy().casino.poker;
+  if (cards.length !== handSize) throw new RangeError(`evaluatePokerHand: exactly ${handSize} cards required`);
 
   const ranks = cards.map((c) => c.rank);
   const flush = isFlush(cards);
-  const straight = isStraight(ranks);
+  const straight = isStraight(ranks, handSize);
   if (straight && flush) return 'straightFlush';
 
   const counts = rankCounts(ranks);
@@ -148,10 +148,11 @@ export interface PokerHandResult {
 }
 
 /**
- * Deals 5 cards, discards the indices in `discardIndices` (0..4, each at most
- * once) and replaces them from the same shuffled deck, then evaluates and
- * pays out the final hand. Discarding all five is allowed whenever
- * economy.json's `allowDiscardAllFive` is true (it is, by default).
+ * Deals economy.json's `poker.handSize` cards, discards the indices in
+ * `discardIndices` (0..handSize-1, each at most once) and replaces them from
+ * the same shuffled deck, then evaluates and pays out the final hand.
+ * Discarding the whole hand is allowed whenever economy.json's
+ * `allowDiscardAllFive` is true (it is, by default).
  */
 export function playFiveCardDraw(bet: number, rng: Rng, discardIndices: readonly number[] = []): PokerHandResult {
   if (!Number.isInteger(bet) || bet <= 0) {
@@ -159,21 +160,23 @@ export function playFiveCardDraw(bet: number, rng: Rng, discardIndices: readonly
   }
 
   const poker = economy().casino.poker;
-  const maxDiscards = poker.allowDiscardAllFive ? 5 : 4;
+  const { handSize } = poker;
+  const maxIndex = handSize - 1;
+  const maxDiscards = poker.allowDiscardAllFive ? handSize : maxIndex;
   const uniqueDiscards = new Set(discardIndices);
   if (uniqueDiscards.size > maxDiscards) {
     throw new RangeError(`playFiveCardDraw: cannot discard more than ${maxDiscards} cards`);
   }
   for (const idx of uniqueDiscards) {
-    if (!Number.isInteger(idx) || idx < 0 || idx > 4) {
-      throw new RangeError(`playFiveCardDraw: discard index ${idx} out of range 0..4`);
+    if (!Number.isInteger(idx) || idx < 0 || idx > maxIndex) {
+      throw new RangeError(`playFiveCardDraw: discard index ${idx} out of range 0..${maxIndex}`);
     }
   }
 
   const shuffled = shuffledDeck(rng);
-  const { drawn: initialHand, rest: afterDeal } = takeCards(shuffled, 5);
+  const { drawn: initialHand, rest: afterDeal } = takeCards(shuffled, handSize);
   const kept = initialHand.filter((_, i) => !uniqueDiscards.has(i));
-  const { drawn: replacements } = takeCards(afterDeal, 5 - kept.length);
+  const { drawn: replacements } = takeCards(afterDeal, handSize - kept.length);
   const finalHand = [...kept, ...replacements];
 
   const rank = evaluatePokerHand(finalHand);
@@ -201,7 +204,7 @@ export function handValue(cards: readonly Card[]): { total: number; soft: boolea
     if (c.rank === maxRank) {
       total += bj.aceHighValue;
       acesAsEleven += 1;
-    } else if (c.rank >= 11) {
+    } else if (c.rank >= bj.faceCardMinRank) {
       total += bj.faceCardValue; // J/Q/K
     } else {
       total += c.rank;

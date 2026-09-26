@@ -16,13 +16,14 @@
  *     all, so "Continue" never re-derives a seed, it restores one.
  */
 import 'fake-indexeddb/auto';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  createArenaWorld,
   randomSessionSeed,
+  resolveArenaWorld,
+  resolveResumeSessionSeed,
   resolveSessionSeed,
   seedOverrideFromSearch,
   withWorldRng,
@@ -33,7 +34,7 @@ import { openSaveDatabase, save, load, type SaveGame } from '@/persist/save';
 import { createGameLoop, createSystemsRegistry, defaultInputFrame, dtSecondsFromTickRate, type SystemFn } from '@/sim/loop';
 import { makeArmorRecord, type DriverState, type VehicleState } from '@/sim/types';
 import { createRng } from '@/util/rng';
-import { createWorld, snapshot, type World } from '@/sim/world';
+import { snapshot, type World } from '@/sim/world';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -95,14 +96,24 @@ const RNG_DRIVEN_SYSTEM: SystemFn = (world) => {
   vehicle.headingRad = (vehicle.headingRad + drawn) % (Math.PI * 2);
 };
 
+/**
+ * Delegates to `@/app`'s OWN `createArenaWorld` - the function that builds a
+ * brand-new arena world from a session seed - rather than reimplementing
+ * "createWorld then set rngState" locally. A local copy of that wiring would
+ * test itself, not `src/app.ts`: it would stay green even if
+ * `createArenaWorld`'s own `createRng(sessionSeed)` call got mutated to
+ * ignore the seed it's handed.
+ *
+ * NOTE what this does NOT cover: `createArenaWorld` is called from
+ * `resolveArenaWorld` (via `session.sessionSeed`), which `buildWorld` never
+ * goes through - so a mutation at THAT call site (e.g. hardcoding the
+ * argument instead of passing `session.sessionSeed` through) is invisible
+ * here. That call site is exercised directly by the
+ * `resolveArenaWorld builds a brand-new arena world from the session seed`
+ * suite below, which drives `resolveArenaWorld` itself.
+ */
 function buildWorld(sessionSeed: string): World {
-  const world = createWorld({
-    rngSeed: 0, // placeholder - immediately replaced below, mirroring @/app's own showArena wiring
-    arena: { id: 'seed-test', kind: 'arena' },
-    entities: { vehicles: [makeVehicle()] },
-  });
-  world.rngState = createRng(sessionSeed).serialize();
-  return world;
+  return createArenaWorld(sessionSeed, makeVehicle());
 }
 
 function runTicks(world: World, ticks: number): void {
@@ -127,6 +138,13 @@ function fakeCrypto(words: readonly number[]): Pick<Crypto, 'getRandomValues'> {
 // ---------------------------------------------------------------------------
 
 describe('a session seed string drives the world RNG deterministically', () => {
+  // `buildWorld` calls `@/app`'s real `createArenaWorld`, so both assertions
+  // below exercise production code, not a local stand-in - but only
+  // `createArenaWorld`'s OWN internal wiring (see the note on `buildWorld`
+  // above for what this does and doesn't cover). The "different seed,
+  // different hash" half is what a mutation that hardcodes/ignores the seed
+  // INSIDE `createArenaWorld` breaks - mutate its `createRng(sessionSeed)`
+  // call to `createRng('IGNORES-THE-SESSION-SEED')` and this test fails.
   it('produces identical world-state hashes across two independent runs of the same seed', () => {
     const seed = 'bug-report-4711aa';
     const worldA = buildWorld(seed);
@@ -143,6 +161,90 @@ describe('a session seed string drives the world RNG deterministically', () => {
     runTicks(worldA, 200);
     runTicks(worldB, 200);
     expect(snapshot(worldA)).not.toBe(snapshot(worldB));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveArenaWorld: the actual branch showArena calls to build/resume a
+// world, including the createArenaWorld(session.sessionSeed, ...) call site
+// itself - not just createArenaWorld's own internal wiring (see the note on
+// `buildWorld` above for the gap this closes).
+// ---------------------------------------------------------------------------
+
+describe('resolveArenaWorld builds a brand-new arena world from the session seed', () => {
+  /** A session with no `restoreWorld`, so `resolveArenaWorld` takes the "charge the practice fee, then build a fresh world from `sessionSeed`" branch - the exact branch `createArenaWorld(session.sessionSeed, playerVehicle)` lives in. */
+  function newGameSession(sessionSeed: string): { readonly sessionSeed: string; readonly openDb: () => Promise<IDBDatabase> } {
+    return { sessionSeed, openDb: () => Promise.reject(new Error('test fixture: openDb should not be called by resolveArenaWorld')) };
+  }
+
+  // This is the mutation-proving half: it fails under the exact mutation
+  // this suite was blind to before - `showArena` (now `resolveArenaWorld`)
+  // hardcoding its `createArenaWorld` call to ignore `session.sessionSeed`.
+  // A "same seed twice -> same hash" assertion alone would NOT catch that
+  // mutation, since a hardcoded seed still produces identical runs of
+  // itself; only a "different seed -> different hash" assertion, driven
+  // through the real branch-selection function, does.
+  it('is sensitive to the session seed - two new-game sessions with different seeds produce different world-state hashes', () => {
+    const driver = makeDriver();
+    const resolutionA = resolveArenaWorld(driver, makeVehicle(), newGameSession('arena-session-seed-one'));
+    const resolutionB = resolveArenaWorld(driver, makeVehicle(), newGameSession('arena-session-seed-two'));
+    if (!resolutionA.ok || !resolutionB.ok) {
+      throw new Error('test fixture: expected the default driver to be eligible for practice');
+    }
+    runTicks(resolutionA.world, 200);
+    runTicks(resolutionB.world, 200);
+    expect(snapshot(resolutionA.world)).not.toBe(snapshot(resolutionB.world));
+  });
+
+  it('produces identical world-state hashes for two independent new-game sessions given the same seed', () => {
+    const driver = makeDriver();
+    const resolutionA = resolveArenaWorld(driver, makeVehicle(), newGameSession('same-arena-seed'));
+    const resolutionB = resolveArenaWorld(driver, makeVehicle(), newGameSession('same-arena-seed'));
+    if (!resolutionA.ok || !resolutionB.ok) {
+      throw new Error('test fixture: expected the default driver to be eligible for practice');
+    }
+    runTicks(resolutionA.world, 200);
+    runTicks(resolutionB.world, 200);
+    expect(snapshot(resolutionA.world)).toBe(snapshot(resolutionB.world));
+  });
+
+  it('resuming a save reuses the restored World verbatim instead of rebuilding one from sessionSeed', () => {
+    const driver = makeDriver();
+    const restoreWorld = buildWorld('whatever-was-saved');
+    runTicks(restoreWorld, 12);
+    const resolution = resolveArenaWorld(driver, makeVehicle(), {
+      // A deliberately DIFFERENT sessionSeed than the restored world's own,
+      // to prove resuming ignores it entirely and reuses restoreWorld as-is.
+      sessionSeed: 'not-the-restored-seed',
+      restoreWorld,
+      openDb: () => Promise.reject(new Error('test fixture: openDb should not be called by resolveArenaWorld')),
+    });
+    if (!resolution.ok) throw new Error('test fixture: expected the restore branch to always succeed');
+    expect(resolution.world).toBe(restoreWorld);
+    expect(resolution.chargedDriver).toBe(driver);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveResumeSessionSeed: resuming a save uses ITS OWN recorded seed, not
+// a freshly generated one - this is survivor (a) from the mutation audit,
+// where deleting the saved-seed lookup in boot()'s resumeSession stayed
+// green because nothing drove that exact call directly.
+// ---------------------------------------------------------------------------
+
+describe('resolveResumeSessionSeed resumes with the save\'s own recorded seed', () => {
+  it('uses the seed already recorded on the restored world, never a freshly generated one', () => {
+    const randomSeed = vi.fn(() => 'should-never-be-used');
+    const restoredWorld = buildWorld('saved-session-seed-123');
+    const resolved = resolveResumeSessionSeed(restoredWorld, { search: '', randomSeed });
+    expect(resolved).toBe('saved-session-seed-123');
+    expect(randomSeed).not.toHaveBeenCalled();
+  });
+
+  it('still lets an explicit ?seed= override win over the saved seed', () => {
+    const restoredWorld = buildWorld('saved-session-seed-123');
+    const resolved = resolveResumeSessionSeed(restoredWorld, { search: '?seed=override-seed' });
+    expect(resolved).toBe('override-seed');
   });
 });
 
@@ -275,11 +377,41 @@ describe('randomSessionSeed', () => {
 // ---------------------------------------------------------------------------
 
 describe('no clock-based seeding remains', () => {
-  it('src/app.ts never CALLS Date.now() in actual code (comments may still explain why not)', () => {
-    const appSource = readFileSync(fileURLToPath(new URL('../../src/app.ts', import.meta.url)), 'utf8');
-    const withoutComments = appSource
-      .replace(/\/\*[\s\S]*?\*\//g, '') // block comments (incl. JSDoc)
-      .replace(/\/\/.*$/gm, ''); // line comments
-    expect(withoutComments).not.toMatch(/Date\.now/);
+  // A source-text grep for `Date.now` is trivially bypassed by
+  // `new Date().getTime()`, `const D = Date; D.now()`, or routing through
+  // `performance.now()` (which src/app.ts's rAF loop already calls
+  // legitimately for frame pacing, so that alias would be plausible AND
+  // invisible to a grep). This guard instead forces the ACTUAL global clock
+  // values `Date.now()` and `performance.now()` return to be wildly
+  // different across two calls and asserts the derived state is identical
+  // anyway - it catches a clock leaking into seed derivation no matter what
+  // syntax or alias smuggled the read in, because it checks the values a
+  // clock read would actually return, not the text that requests them.
+  it('the same explicit seed derives identical arena-world state no matter what Date.now/performance.now return', () => {
+    const dateSpy = vi.spyOn(Date, 'now');
+    const perfSpy = vi.spyOn(performance, 'now');
+    try {
+      function resolveAndRun(clockValue: number): { seed: string; hash: string } {
+        dateSpy.mockReturnValue(clockValue);
+        perfSpy.mockReturnValue(clockValue);
+        const seed = resolveSessionSeed({
+          search: '?seed=fixed-seed-42',
+          randomSeed: () => 'should-never-be-used',
+        });
+        const world = buildWorld(seed);
+        runTicks(world, 200);
+        return { seed, hash: snapshot(world) };
+      }
+
+      const early = resolveAndRun(1_000);
+      const late = resolveAndRun(999_999_999_999);
+
+      expect(early.seed).toBe('fixed-seed-42');
+      expect(late.seed).toBe(early.seed);
+      expect(late.hash).toBe(early.hash);
+    } finally {
+      dateSpy.mockRestore();
+      perfSpy.mockRestore();
+    }
   });
 });

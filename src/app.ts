@@ -216,6 +216,25 @@ function seedKeyToDisplaySeed(seedKey: string): string {
   return colonIndex === -1 ? seedKey : seedKey.slice(colonIndex + 1);
 }
 
+/**
+ * Resolves the session seed used to RESUME an in-progress save: reads the
+ * seed already recorded on the restored World's own `rngState.seedKey`
+ * (never re-derived) and routes it through `resolveSessionSeed`'s same
+ * priority order, so an explicit `?seed=` override still wins even on a
+ * resume. Extracted out of `boot()`'s `resumeSession` closure (which isn't
+ * itself reachable headlessly - it goes straight on to call `showArena`) as
+ * its own seam, so a test can drive this exact call - the saved-seed lookup
+ * AND the `resolveSessionSeed` call together - directly.
+ */
+export function resolveResumeSessionSeed(world: World, options: { readonly search: string; readonly randomSeed?: () => string }): string {
+  const savedSeed = seedKeyToDisplaySeed(world.rngState.seedKey);
+  return resolveSessionSeed(
+    options.randomSeed !== undefined
+      ? { search: options.search, savedSeed, randomSeed: options.randomSeed }
+      : { search: options.search, savedSeed },
+  );
+}
+
 /** Stable 32-bit fingerprint of a string seed, for the legacy numeric `SaveGame.seed` field. The actual reproducible state lives in `world.rngState` (a string `seedKey` plus the 4 xoshiro words), which round-trips through JSON exactly; this fingerprint is display/bookkeeping metadata only. */
 function seedFingerprint(seed: string): number {
   return Number.parseInt(hashState(seed).slice(0, 8), 16);
@@ -666,12 +685,60 @@ async function persistArenaSession(
   }
 }
 
-interface ArenaSession {
+/**
+ * Builds a fresh new-game arena `World`, seeded from the resolved session
+ * seed - never re-derived, never the clock. Exported (not inlined in
+ * `showArena`) as a seam: it's the exact production code the session seed's
+ * reproducibility contract depends on, so a test can drive THIS function
+ * directly instead of a parallel reimplementation that could silently drift
+ * from it (and, as a copy, would never notice this line getting mutated).
+ */
+export function createArenaWorld(sessionSeed: string, playerVehicle: VehicleState): World {
+  const world = createWorld({
+    rngSeed: 0, // placeholder - replaced immediately below by the real session-seeded RNG state
+    arena: { id: ARENA_EVENT_ID, kind: 'arena' },
+    entities: { vehicles: [playerVehicle] },
+  });
+  world.rngState = createRng(sessionSeed).serialize();
+  return world;
+}
+
+export interface ArenaSession {
   /** The seed driving this world's RNG - resolved once at new-game time, or recovered from a restored save. Never re-derived mid-session. */
   readonly sessionSeed: string;
   /** A restored save's live World, reused verbatim (rngState, tick position and all) instead of building a fresh one. Absent for a brand-new session. */
   readonly restoreWorld?: World;
   readonly openDb: () => Promise<IDBDatabase>;
+}
+
+/** What `resolveArenaWorld` hands back: either the World + driver `showArena` should run with, or a human-readable refusal (e.g. can't afford the practice fee) for the caller to display instead of entering the arena. */
+export type ArenaWorldResolution =
+  | { readonly ok: true; readonly chargedDriver: DriverState; readonly world: World }
+  | { readonly ok: false; readonly reason: string };
+
+/**
+ * Decides, and builds, the World + driver `showArena` runs with - the exact
+ * branch between reusing a restored save's live World verbatim and charging
+ * the practice fee then building a brand-new one from `session.sessionSeed`
+ * via `createArenaWorld`. Extracted out of `showArena` (which also owns a
+ * live `root`/canvas and can't be driven headlessly) as its own DOM-free
+ * seam, so a test can drive this exact decision directly - including the
+ * `createArenaWorld(session.sessionSeed, playerVehicle)` call site - instead
+ * of only the `createArenaWorld` half of it.
+ */
+export function resolveArenaWorld(driver: DriverState, playerVehicle: VehicleState, session: ArenaSession): ArenaWorldResolution {
+  if (session.restoreWorld !== undefined) {
+    // Resuming a save: the practice fee was already charged (and the match
+    // already begun) the first time this session entered the arena, so
+    // `driver` here IS that already-charged state - beginArenaMatch must not
+    // run a second time and charge it again. `world` is the exact restored
+    // World - rngState (tick position included), entities and all - never
+    // rebuilt and never reseeded.
+    return { ok: true, chargedDriver: driver, world: session.restoreWorld };
+  }
+  const matchResult = beginArenaMatch(driver, { design: playerVehicle.design, destroyed: false }, ARENA_EVENT_ID);
+  if (!matchResult.ok) return { ok: false, reason: matchResult.reason };
+  return { ok: true, chargedDriver: matchResult.driver, world: createArenaWorld(session.sessionSeed, playerVehicle) };
 }
 
 function showArena(
@@ -702,32 +769,13 @@ function showArena(
   lastSessionSeed = session.sessionSeed;
   const dtSeconds = dtSecondsFromTickRate(drivingConfig().tickRateHz);
 
-  let chargedDriver: DriverState;
-  let world: World;
-  if (session.restoreWorld !== undefined) {
-    // Resuming a save: the practice fee was already charged (and the match
-    // already begun) the first time this session entered the arena, so
-    // `driver` here IS that already-charged state - beginArenaMatch must not
-    // run a second time and charge it again. `world` is the exact restored
-    // World - rngState (tick position included), entities and all - never
-    // rebuilt and never reseeded.
-    chargedDriver = driver;
-    world = session.restoreWorld;
-  } else {
-    const matchResult = beginArenaMatch(driver, { design: playerVehicle.design, destroyed: false }, ARENA_EVENT_ID);
-    if (!matchResult.ok) {
-      status.textContent = `Cannot enter practice: ${matchResult.reason}`;
-      exitBtn.addEventListener('click', onExit, { once: true });
-      return;
-    }
-    chargedDriver = matchResult.driver;
-    world = createWorld({
-      rngSeed: 0, // placeholder - replaced immediately below by the real session-seeded RNG state
-      arena: { id: ARENA_EVENT_ID, kind: 'arena' },
-      entities: { vehicles: [playerVehicle] },
-    });
-    world.rngState = createRng(session.sessionSeed).serialize();
+  const resolution = resolveArenaWorld(driver, playerVehicle, session);
+  if (!resolution.ok) {
+    status.textContent = `Cannot enter practice: ${resolution.reason}`;
+    exitBtn.addEventListener('click', onExit, { once: true });
+    return;
   }
+  const { chargedDriver, world } = resolution;
 
   const driverRef = { current: chargedDriver };
   const spawnCounter = { current: 0 };
@@ -1004,7 +1052,13 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
       startNewSession();
       return;
     }
-    const sessionSeed = seedKeyToDisplaySeed(existing.game.world.rngState.seedKey);
+    // Routed through `resolveResumeSessionSeed` (not just read off the save
+    // directly) so the resume path honors the same documented priority
+    // order as a new session - in practice this always resolves to the
+    // save's own seed, since `loadExistingSave` above already refuses to
+    // resume at all when `?seed=` is present, but it's the seam that keeps
+    // this call itself exercised instead of dead code no test can reach.
+    const sessionSeed = resolveResumeSessionSeed(existing.game.world, { search, randomSeed });
     lastSessionSeed = sessionSeed;
     console.info(`smduel: resumed session, seed ${sessionSeed}`);
     showArena(root, existing.game.driver, vehicle, { sessionSeed, restoreWorld: existing.game.world, openDb }, () => void start());

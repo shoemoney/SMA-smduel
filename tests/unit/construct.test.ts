@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeBuild, validateDesign, type BuildDesign } from '@/sim/construct';
-import { getBody, getPlant, getTire, getWeapon } from '@/data/rulesets';
+import { getBody, getPlant, getTire, getWeapon, wheelCount } from '@/data/rulesets';
 import { makeArmorRecord } from '@/sim/types';
 import type { MountedWeapon } from '@/sim/types';
 // MAX_WEAPON_ROWS is a UI layout constant, not a legality rule, so its one
@@ -35,7 +35,7 @@ describe('computeBuild — baseline sanity', () => {
     const plant = getPlant('medium');
     const tire = getTire('standard');
 
-    expect(metrics.weightTotal).toBe(body.weightLb + plant.weightLb + 4 * tire.weightLb);
+    expect(metrics.weightTotal).toBe(body.weightLb + plant.weightLb + wheelCount() * tire.weightLb);
     expect(metrics.spacesUsed).toBe(plant.spaces);
     expect(metrics.spacesTotal).toBe(body.spaces);
     expect(metrics.maxLoadLb).toBe(body.baseMaxLoadLb); // standard chassis: multiplier 1.0
@@ -128,8 +128,8 @@ describe('computeBuild / validateDesign — violation codes', () => {
 
     // Independently derived: negative/fractional ammo must clamp to 0 rounds
     // for the math, so this is exactly what a legal 0-ammo mount would cost/weigh.
-    const expectedCost = van.price + plant.price + 4 * tire.price + antitankgun.price;
-    const expectedWeight = van.weightLb + plant.weightLb + 4 * tire.weightLb + antitankgun.weightLb;
+    const expectedCost = van.price + plant.price + wheelCount() * tire.price + antitankgun.price;
+    const expectedWeight = van.weightLb + plant.weightLb + wheelCount() * tire.weightLb + antitankgun.weightLb;
 
     const negativeMetrics = computeBuild(negative);
     // -1000 is a whole number, just an out-of-range one — NEGATIVE_AMMO only.

@@ -83,6 +83,12 @@ export const bodiesSchema: SchemaObject = obj({
     }),
     { minItems: 1 },
   ),
+  // Fixed vehicle-wide construction rules that aren't per-body rows — currently
+  // just the tire count every design mounts (front + rear x2), see
+  // fidelity-notes.yaml "bodies.vehicleLimits.wheelCount".
+  vehicleLimits: obj({
+    wheelCount: { type: 'integer', minimum: 1 },
+  }),
 });
 
 export const chassisSchema: SchemaObject = obj({
@@ -378,7 +384,9 @@ export const economySchema: SchemaObject = obj({
       straightFlush: NON_NEG_INT,
       allowDiscardAllFive: BOOL,
       allowAceLowStraight: BOOL,
+      minRank: NON_NEG_INT,
       maxRank: NON_NEG_INT,
+      handSize: NON_NEG_INT,
     }),
     blackjack: obj({
       dealerHitsThrough: NON_NEG_INT,
@@ -391,6 +399,7 @@ export const economySchema: SchemaObject = obj({
       aceHighValue: NON_NEG_INT,
       aceLowValue: NON_NEG_INT,
       faceCardValue: NON_NEG_INT,
+      faceCardMinRank: NON_NEG_INT,
       fiveCardCount: NON_NEG_INT,
     }),
   }),

@@ -28,6 +28,7 @@ import type {
   SkillsConfig,
   SuspensionDef,
   TireDef,
+  VehicleLimits,
   WeaponDef,
 } from '@/sim/types';
 
@@ -154,6 +155,14 @@ export function citiesConfig(): CitiesFile {
 /** Acceleration tiers, sorted by descending powerRatio (first match wins when scanning). */
 export function accelerationTiers(): readonly AccelerationTier[] {
   return RULESETS.plants.accelerationTiers;
+}
+/** Fixed vehicle-wide construction rules (currently just tire count). */
+export function vehicleLimits(): VehicleLimits {
+  return RULESETS.bodies.vehicleLimits;
+}
+/** Tires mounted per vehicle — every classic-ruleset design carries this many identical tires. */
+export function wheelCount(): number {
+  return RULESETS.bodies.vehicleLimits.wheelCount;
 }
 
 const facilityKindSet = new Set(RULESETS.cities.facilityKinds);

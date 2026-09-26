@@ -492,3 +492,158 @@ describe('blackjack: targetScore is sourced from economy.json, not hardcoded', (
     expect(soft).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The five constants a previous round moved into economy.json but never
+// pinned: a verifier re-hardcoded maxRank, aceHighValue, the
+// (aceHighValue - aceLowValue) delta, faceCardValue and fiveCardCount as TS
+// literals and the full suite (26 files, 664 tests) still passed. Same
+// vi.spyOn + afterEach(vi.restoreAllMocks) technique as the targetScore
+// block above (see its comment for why spyOn over vi.mock/resetModules).
+// Each `it` mocks ONE field away from its real economy.json value and
+// asserts the observable result moves to the value implied by the MOCK,
+// not the real ruleset - a hardcoded literal cannot react to that.
+// ---------------------------------------------------------------------------
+
+describe('casino: the five previously-unpinned relocated constants react to economy.json, not a hardcoded literal', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function mockPoker(overrides: Partial<ReturnType<typeof economy>['casino']['poker']>): void {
+    const real = economy();
+    vi.spyOn(rulesetsModule, 'economy').mockReturnValue({
+      ...real,
+      casino: { ...real.casino, poker: { ...real.casino.poker, ...overrides } },
+    });
+  }
+
+  function mockBlackjack(overrides: Partial<ReturnType<typeof economy>['casino']['blackjack']>): void {
+    const real = economy();
+    vi.spyOn(rulesetsModule, 'economy').mockReturnValue({
+      ...real,
+      casino: { ...real.casino, blackjack: { ...real.casino.blackjack, ...overrides } },
+    });
+  }
+
+  it('handValue treats the mocked maxRank as the ace-detection marker instead of a hardcoded 14', () => {
+    mockPoker({ maxRank: 12 });
+    // Under the mock, rank 12 (a Queen in the real deck) IS the ace marker...
+    const queenAsAce = handValue([card(12, 'clubs'), card(6, 'diamonds')]);
+    expect(queenAsAce.total).toBe(17); // aceHighValue(11) + 6
+    expect(queenAsAce.soft).toBe(true);
+    // ...and rank 14 (the real Ace) is demoted to an ordinary face card.
+    const realAceAsFaceCard = handValue([card(14, 'clubs'), card(6, 'diamonds')]);
+    expect(realAceAsFaceCard.total).toBe(16); // faceCardValue(10) + 6
+    expect(realAceAsFaceCard.soft).toBe(false);
+  });
+
+  it('handValue counts an ace at the mocked aceHighValue instead of the real 11', () => {
+    mockBlackjack({ aceHighValue: 9 });
+    // No bust here, so this is isolated to the direct-addition path, not the
+    // (aceHighValue - aceLowValue) reduction loop covered by the next test.
+    const { total, soft } = handValue([card(14, 'clubs'), card(6, 'diamonds')]);
+    expect(total).toBe(15); // mocked 9 + 6, not the real 11 + 6 = 17
+    expect(soft).toBe(true);
+  });
+
+  it("handValue's bust-reduction loop subtracts the mocked (aceHighValue - aceLowValue) delta, not a hardcoded 10", () => {
+    // aceHighValue stays real (11); only aceLowValue moves, so this isolates
+    // the DELTA from the direct-addition use of aceHighValue above.
+    mockBlackjack({ aceLowValue: 3 });
+    // Ace(11) + 9 + 5 = 25: busts with the ace counted high, forcing exactly
+    // one reduction. Real delta (11-1=10) would land at 15; the mocked delta
+    // (11-3=8) lands at 17 instead.
+    const { total, soft } = handValue([card(14, 'clubs'), card(9, 'diamonds'), card(5, 'hearts')]);
+    expect(total).toBe(17);
+    expect(soft).toBe(false);
+  });
+
+  it('handValue counts a face card at the mocked faceCardValue instead of the real 10', () => {
+    mockBlackjack({ faceCardValue: 7 });
+    const { total } = handValue([card(11, 'clubs'), card(6, 'diamonds')]); // Jack + 6
+    expect(total).toBe(13); // mocked 7 + 6, not the real 10 + 6 = 16
+  });
+
+  it("judgeBlackjackHands' N-card non-bust win threshold reacts to the mocked fiveCardCount instead of a hardcoded 5", () => {
+    mockBlackjack({ fiveCardCount: 3 });
+    const player = [card(5, 'clubs'), card(5, 'diamonds'), card(5, 'hearts')]; // 15, non-bust, 3 cards
+    const dealer = [card(10, 'clubs'), card(9, 'diamonds')]; // 19 - would beat 15 under ordinary comparison
+    const outcome = judgeBlackjackHands(100, player, dealer);
+    // Under the real fiveCardCount (5), a 3-card hand never reaches the
+    // N-card auto-win rule, so this would ordinarily be a dealerWin (15 < 19).
+    // Mocked down to 3, the auto-win rule fires and the player wins outright.
+    expect(outcome.result).toBe('playerWin');
+    expect(outcome.multiplier).toBe(economy().casino.blackjack.ordinaryPayout);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The deck/hand-structure literals this round relocated out of casino.ts:
+// MIN_RANK, the jack-rank face-card threshold (now faceCardMinRank, deliberately
+// NOT reusing aceHighValue's name despite sharing the value 11 today - see the
+// comment on BlackjackRules.faceCardMinRank in @/sim/types), and the poker
+// hand size (now handSize, used by evaluatePokerHand's card-count guard,
+// isStraight's run-length check, and playFiveCardDraw's deal/discard bounds -
+// deliberately a separate field from blackjack's fiveCardCount, a different
+// concept that happens to share the value 5).
+// ---------------------------------------------------------------------------
+
+describe('casino: newly-relocated deck/hand-structure constants react to economy.json, not a hardcoded literal', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function mockPoker(overrides: Partial<ReturnType<typeof economy>['casino']['poker']>): void {
+    const real = economy();
+    vi.spyOn(rulesetsModule, 'economy').mockReturnValue({
+      ...real,
+      casino: { ...real.casino, poker: { ...real.casino.poker, ...overrides } },
+    });
+  }
+
+  function mockBlackjack(overrides: Partial<ReturnType<typeof economy>['casino']['blackjack']>): void {
+    const real = economy();
+    vi.spyOn(rulesetsModule, 'economy').mockReturnValue({
+      ...real,
+      casino: { ...real.casino, blackjack: { ...real.casino.blackjack, ...overrides } },
+    });
+  }
+
+  it("the deck's lowest card reacts to the mocked minRank instead of a hardcoded 2", () => {
+    mockPoker({ minRank: 6 });
+    // deckOrderRng leaves the freshly-built deck in construction order (see
+    // its own doc comment), so the dealt hand is exactly the bottom of the
+    // clubs run starting at minRank.
+    const result = playFiveCardDraw(10, deckOrderRng());
+    expect(result.finalHand.map((c) => c.rank)).toEqual([6, 7, 8, 9, 10]);
+  });
+
+  it("handValue's face-card threshold reacts to the mocked faceCardMinRank instead of a hardcoded 11 (a card RANK, not aceHighValue's point value, despite sharing 11 today)", () => {
+    mockBlackjack({ faceCardMinRank: 13 });
+    // A Jack (rank 11) now falls BELOW the mocked threshold of 13, so it
+    // counts at its raw rank (11) instead of the flat faceCardValue (10).
+    const { total } = handValue([card(11, 'clubs'), card(6, 'diamonds')]);
+    expect(total).toBe(17); // 11 + 6, not faceCardValue(10) + 6 = 16
+  });
+
+  it("evaluatePokerHand's card-count guard and isStraight's run-length check both react to the mocked handSize instead of a hardcoded 5", () => {
+    mockPoker({ handSize: 4 });
+    // Under the real handSize (5), calling evaluatePokerHand with 4 cards
+    // throws before isStraight ever runs (see the unmocked 'rejects anything
+    // but exactly 5 cards' test above). Mocked to 4, it must accept exactly
+    // 4 cards AND correctly recognize a 4-card run as a straight.
+    const fourCardStraight = [card(4, 'clubs'), card(5, 'diamonds'), card(6, 'hearts'), card(7, 'spades')];
+    expect(() => evaluatePokerHand(fourCardStraight)).not.toThrow();
+    expect(evaluatePokerHand(fourCardStraight)).toBe('straight');
+  });
+
+  it("playFiveCardDraw deals and allows discarding exactly the mocked handSize, not a hardcoded 5", () => {
+    mockPoker({ handSize: 4 });
+    const result = playFiveCardDraw(10, deckOrderRng(), [0, 1, 2, 3]);
+    expect(result.finalHand).toHaveLength(4);
+    // Index 4 is out of range for a mocked handSize of 4 (valid indices are
+    // 0..3); the real handSize's 0..4 would have allowed it.
+    expect(() => playFiveCardDraw(10, deckOrderRng(), [0, 1, 2, 3, 4])).toThrow(RangeError);
+  });
+});

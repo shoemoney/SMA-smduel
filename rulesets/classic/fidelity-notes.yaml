@@ -518,6 +518,12 @@ entries:
     source: "rulesets/classic/bodies.json construction/performance table"
     confidence: 1.0
     note: "Manual-stated construction number: bodies.van.weightLb"
+  - id: "bodies.vehicleLimits.wheelCount"
+    value: 4
+    status: Exact
+    source: "rulesets/classic/bodies.json construction/performance table"
+    confidence: 1.0
+    note: "Every classic-ruleset vehicle mounts exactly four identical tires; manual-stated construction rule, not tunable. Read via @/data/rulesets wheelCount(), never retyped in TS."
   - id: "chassis.extraheavy.bodyPriceModifier"
     value: 1.0
     status: Exact
@@ -1628,6 +1634,12 @@ entries:
     source: "rulesets/classic/economy.json casino rules table"
     confidence: 1.0
     note: "Stated casino payout/rule: economy.casino.blackjack.exactTwentyOneWins"
+  - id: "economy.casino.blackjack.faceCardMinRank"
+    value: 11
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.blackjack.faceCardMinRank"
   - id: "economy.casino.blackjack.faceCardValue"
     value: 10
     status: Exact
@@ -1694,12 +1706,24 @@ entries:
     source: "rulesets/classic/economy.json casino rules table"
     confidence: 1.0
     note: "Stated casino payout/rule: economy.casino.poker.fullHouse"
+  - id: "economy.casino.poker.handSize"
+    value: 5
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.handSize"
   - id: "economy.casino.poker.maxRank"
     value: 14
     status: Exact
     source: "rulesets/classic/economy.json casino rules table"
     confidence: 1.0
     note: "Stated casino payout/rule: economy.casino.poker.maxRank"
+  - id: "economy.casino.poker.minRank"
+    value: 2
+    status: Exact
+    source: "rulesets/classic/economy.json casino rules table"
+    confidence: 1.0
+    note: "Stated casino payout/rule: economy.casino.poker.minRank"
   - id: "economy.casino.poker.pair"
     value: 1
     status: Exact

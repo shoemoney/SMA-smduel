@@ -89,13 +89,20 @@ Then despill the remaining edge fringe.
 ## 7. Regenerated / superseded
 
 - `cycle-topdown` — was a front elevation. Regenerated, now true overhead, nose UP (rot 0).
-- `prop-chainlink-fence` — was isometric. Regenerated.
+- `prop-chainlink-fence` — was isometric. Regenerated on `flux-dev` — but the regenerate is
+  **still broken, now marked `skip: true`** (measured 2026-09-26): the "chainlink fence" is a
+  single bare fence post on a pink background, no mesh anywhere in frame. Chroma-key + auto-crop
+  at native 1024x1024 (no downscale involved) bboxes it to 36x1024 — 3.5% of the source width —
+  confirming this is the source generation itself having nothing to key out, not a keying
+  tolerance problem. Needs a real regenerate; until then it's excluded from the packed atlas the
+  same way `fx-explosion-sheet` is.
 - `fx-explosion-sheet` — **superseded, marked `skip: true`.** Diffusion grid cells do not
   align reliably enough to slice into an animation. Replaced by five discrete frames,
   `fx-explosion-1` .. `fx-explosion-5`, listed in `sprite-meta.json.explosionFrames`.
 - Added `prop-barricade`, `prop-fuel-drum`.
 
-50 frames total, every one carrying metadata.
+50 frames total carrying metadata; 48 actually packed (`fx-explosion-sheet` and
+`prop-chainlink-fence` are `skip: true`).
 
 ## 8. Resolved (packer fixes)
 
@@ -111,6 +118,41 @@ Then despill the remaining edge fringe.
   rejected.
 - **Section 4 size budget**: vehicles/props/fx/decals now downscale (area/box filter,
   never upscale) to fit 256px on their longest edge post-crop; `ui-*` is left at native
-  resolution. Shipped atlas is a single 4096x4096 sheet, ~17MB (was 3 sheets, 66MB).
+  resolution. That first pass shipped a single 4096x4096 sheet at ~17MB (was 3 sheets, 66MB) —
+  still over a sane download budget, so it was tightened again (section 9).
 - `rotationOffsetDeg` (section 2) is now carried into `atlas.json` and into
   `AtlasFrameEntry`/`FrameInfo` in `src/render/atlas.ts`.
+
+## 9. Current size budget: 6 MiB, per-kind targets in `tools/atlas-sizes.json`
+
+Every target pixel size in this pipeline lives in `tools/atlas-sizes.json`, not as a literal in
+`tools/pack-atlas.mjs` (`loadSizeConfig` reads and validates it; `tests/unit/atlas.test.ts`'s
+`loadSizeConfig` describe block exercises every validation branch). Current shipped values, all
+downscaled with an area/box filter and never upscaled:
+
+| kind | target | meaning |
+|---|---|---|
+| `tile` | `quadrantPx: 128` | pre-mirror quadrant; final seamless tile is 256x256 (`TILE_FINAL_PX = quadrantPx * 2`) |
+| `car` / `wreck` / `cycle` / `prop` / `fx` / `decal` | `maxPx: 128` | longest edge post-crop |
+| `ui` | `maxPx: 128` | longest edge post-crop, **except** `ui.keepNative` (`ui-hud-frame`, `ui-title-art`) which stay at native resolution — full-screen art, not small HUD gauges |
+
+Going from the section-8 256px regime to this 128px regime is the actual downscale that produced
+the current shipped atlas: **`assets/atlas-0.png` is a single 4096x4096 sheet, 5,894,855 bytes
+(5.62 MiB)** as of 2026-09-26 (48 packed frames — see section 7 for the 2 that are `skip: true`),
+comfortably inside a 6 MiB budget.
+
+Two independent guards keep it there:
+
+- **`tests/unit/atlas.test.ts`'s "atlas byte budget" describe block** `statSync`s the actual
+  committed `assets/atlas-0.png` (and any sibling sheets `atlas.json` lists) and fails if their
+  total exceeds 6 MiB. This is the test that would have caught the 512px-quadrant / 1024px-maxPx
+  regression a verifier reintroduced into `tools/atlas-sizes.json` on 2026-09-26 — a ~4x linear
+  blowup back to the section-8 ~17MB regime — which the pre-existing tests (asserting
+  `TILE_FINAL_PX`/`SPRITE_MAX_PX`, both *sourced from* the same config file) could never catch,
+  because they're tautological against whatever the config says.
+- **`loadSizeConfig`'s `MAX_CONFIGURABLE_PX` (256) ceiling** in `tools/pack-atlas.mjs` rejects any
+  `quadrantPx`/`maxPx` above it the moment the config loads, before anything is repacked. It's
+  deliberately coarser than the byte budget — 256px-everywhere passes this ceiling but still packs
+  to ~13.8MB (measured), well over 6 MiB — so it catches gross edits (like the 512/1024
+  regression) without pretending to guarantee the byte budget on its own; only the on-disk
+  byte-budget test does that.

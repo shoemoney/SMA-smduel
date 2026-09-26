@@ -25,6 +25,7 @@ import {
   hasSuspension,
   hasTire,
   hasWeapon,
+  wheelCount,
 } from '@/data/rulesets';
 import { FACINGS, mapFacings, sumArmor } from '@/sim/types';
 import type { BuildMetrics, BuildViolation, MountedWeapon, VehicleDesign, WeaponDef } from '@/sim/types';
@@ -154,8 +155,8 @@ export function computeBuild(design: BuildDesign): BuildMetrics {
   const cargoSpaces = design.cargoSpaces ?? 0;
   const armorPoints = armorPointsForCalc(design.armor);
 
-  const tireWeight = tire ? 4 * tire.weightLb : 0;
-  const tireCost = tire ? 4 * tire.price : 0;
+  const tireWeight = tire ? wheelCount() * tire.weightLb : 0;
+  const tireCost = tire ? wheelCount() * tire.price : 0;
 
   let weaponWeight = 0;
   let weaponSpaces = 0;

@@ -70,6 +70,15 @@ export interface BodyDef {
   armorWeightPerPoint: number;
 }
 
+/**
+ * Fixed vehicle-wide construction rules, not per-body-row data. Currently just
+ * the tire count every design mounts (every classic-ruleset vehicle carries
+ * four identical tires) - see fidelity-notes.yaml "bodies.vehicleLimits.wheelCount".
+ */
+export interface VehicleLimits {
+  wheelCount: number;
+}
+
 export interface ChassisDef {
   id: string;
   name: string;
@@ -281,8 +290,12 @@ export interface PokerPayouts {
   straightFlush: number;
   allowDiscardAllFive: boolean;
   allowAceLowStraight: boolean;
+  /** Lowest card rank in the deck (2). Deck shape, paired with `maxRank`. */
+  minRank: number;
   /** Highest card rank in the deck (14 = Ace); also the ace-detection marker used by `handValue`. */
   maxRank: number;
+  /** Cards dealt/held in a poker hand (5). Deck/hand structure - unrelated to blackjack's `fiveCardCount`. */
+  handSize: number;
 }
 
 export interface BlackjackRules {
@@ -300,6 +313,12 @@ export interface BlackjackRules {
   aceLowValue: number;
   /** Value of a J/Q/K (10). */
   faceCardValue: number;
+  /**
+   * Lowest card RANK treated as a face card (11 = Jack). This is a card rank,
+   * NOT a point value - it happens to equal `aceHighValue` (11 points) today,
+   * but the two are semantically unrelated and must be tuned independently.
+   */
+  faceCardMinRank: number;
   /** Card count at which a non-bust hand wins outright when `fiveCardNonBustWins` is set (5). */
   fiveCardCount: number;
 }
@@ -435,6 +454,7 @@ export interface DrivingConfig {
 export interface BodiesFile {
   $schemaVersion: number;
   bodies: BodyDef[];
+  vehicleLimits: VehicleLimits;
 }
 export interface ChassisFile {
   $schemaVersion: number;
