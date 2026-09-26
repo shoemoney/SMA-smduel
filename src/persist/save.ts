@@ -19,6 +19,7 @@
 import type { DayPhase, DriverState, VehicleState } from '@/sim/types';
 import type { World } from '@/sim/world';
 import type { RngState } from '@/util/rng';
+import type { AllBindings } from '@/ui/input';
 import { migrateSave } from '@/persist/migrate';
 
 // ---------------------------------------------------------------------------
@@ -82,6 +83,17 @@ export interface SaveGame {
   readonly world: World | null;
   /** The driver-level RNG stream (jobs, quests, economy) - independent of any `world.rngState` a live simulation carries. */
   readonly rngState: RngState;
+  /**
+   * The live control preset/rebindings (`@/ui/input`'s `CONTROLS.presets` /
+   * `AllBindings`) at save time - optional (and absent from every older
+   * save/fixture, no schema version bump needed) so a rebind made this
+   * session survives a reload instead of silently reverting to
+   * controls.json's shipped defaults. `@/app`'s `boot()` restores both via
+   * `restoreControls()` when present, and otherwise leaves the module's own
+   * defaults in place exactly as before this field existed.
+   */
+  readonly controlPreset?: string;
+  readonly controlBindings?: AllBindings;
   readonly lastSafeCitySnapshot: SafeCitySnapshot;
 }
 

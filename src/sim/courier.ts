@@ -402,7 +402,7 @@ export function generateOffers(cityId: string, day: number, seed: string | numbe
 // Capacity bookkeeping (shared by projection and acceptance)
 // ---------------------------------------------------------------------------
 
-function cargoWeightAndSpaces(cargo: readonly CargoState[]): { weightLb: number; spaces: number } {
+export function cargoWeightAndSpaces(cargo: readonly CargoState[]): { weightLb: number; spaces: number } {
   let weightLb = 0;
   let spaces = 0;
   for (const item of cargo) {
@@ -413,12 +413,16 @@ function cargoWeightAndSpaces(cargo: readonly CargoState[]): { weightLb: number;
 }
 
 /**
- * How many of `maxPayloads` slots `cargo` currently occupies. Every
- * `'payload'` item is its own slot; `'salvage'` items collectively occupy at
- * most ONE slot together (couriers.json `salvageOccupiesOneCategory`) — ten
- * salvage items cost the same single slot as one.
+ * How many of `maxPayloads` slots `cargo` occupies, given whether salvage
+ * items collectively share ONE slot (couriers.json `salvageOccupiesOneCategory`)
+ * or each cost their own. Every `'payload'` item is always its own slot.
+ *
+ * The one, shared implementation of this counting rule — `@/sim/salvage`'s
+ * `payloadSlotsUsed` calls this too (with the flag read through its own
+ * `couriersConfig()` accessor) rather than keeping a second copy that could
+ * drift from this one.
  */
-function payloadsUsed(cargo: readonly CargoState[]): number {
+export function payloadSlotsFor(cargo: readonly CargoState[], salvageOccupiesOneCategory: boolean): number {
   let payloadCount = 0;
   let hasSalvage = false;
   let salvageCount = 0;
@@ -429,11 +433,15 @@ function payloadsUsed(cargo: readonly CargoState[]): number {
       salvageCount++;
     }
   }
-  const salvageSlots = couriers.salvageOccupiesOneCategory ? (hasSalvage ? 1 : 0) : salvageCount;
+  const salvageSlots = salvageOccupiesOneCategory ? (hasSalvage ? 1 : 0) : salvageCount;
   return payloadCount + salvageSlots;
 }
 
-interface CapacityMetrics {
+function payloadsUsed(cargo: readonly CargoState[]): number {
+  return payloadSlotsFor(cargo, couriers.salvageOccupiesOneCategory);
+}
+
+export interface CapacityMetrics {
   remainingLoadLb: number;
   remainingSpaces: number;
 }
@@ -447,7 +455,7 @@ interface CapacityMetrics {
  * `maxLoadLb - cargoWeight` alone; the latter would let a heavily-armored
  * vehicle "fit" cargo that would actually put it over its GVWR.
  */
-function capacityFor(vehicle: VehicleState, cargo: readonly CargoState[]): CapacityMetrics {
+export function capacityFor(vehicle: VehicleState, cargo: readonly CargoState[]): CapacityMetrics {
   const used = cargoWeightAndSpaces(cargo);
   const design: BuildDesign = { ...vehicle.design, cargoWeightLb: used.weightLb, cargoSpaces: used.spaces };
   const metrics = computeBuild(design);

@@ -286,6 +286,11 @@ export const saveGameSchema: SchemaObject = obj(
     world: nullable(worldSchema),
     rngState: rngStateSchema,
     lastSafeCitySnapshot: safeCitySnapshotSchema,
+    // Optional (not in `required` below): absent from every save written
+    // before this field existed, and from every pre-existing fixture in this
+    // suite - see `SaveGame.controlPreset`'s own doc comment in @/persist/save.
+    controlPreset: NON_EMPTY_STR,
+    controlBindings: { type: 'object' },
   },
   [
     'schemaVersion',

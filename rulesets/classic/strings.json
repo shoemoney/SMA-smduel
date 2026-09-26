@@ -51,6 +51,27 @@
     "ui.title.appName": "smduel",
     "ui.title.newDriver": "New Driver",
     "ui.title.continue": "Continue",
+    "ui.title.controls": "Controls",
+
+    "ui.controls.presetRow": "Preset: {preset} (change)",
+    "ui.controls.actionRow": "{action}: {binding}",
+    "ui.controls.actionRowEmpty": "{action}: (unbound)",
+    "ui.controls.awaitingKey": "{action}: press any key…",
+
+    "ui.fleet.rowActive": "{name} — active",
+    "ui.fleet.rowStoredHere": "{name} — stored here — switch (${price})",
+    "ui.fleet.rowStoredElsewhere": "{name} — stored in {city}",
+
+    "ui.road.trafficPassing": "{faction} traffic passes peacefully.",
+    "ui.road.contactHostile": "{faction} vehicle attacking!",
+    "ui.road.contactDefeated": "{faction} vehicle destroyed — wreck left behind.",
+    "ui.road.contactFled": "{faction} vehicle flees.",
+    "ui.road.wreckHint": "Wreck within reach — press X to search.",
+    "ui.road.wreckSearchSuccess": "Searched the wreck — found salvage.",
+    "ui.road.wreckSearchEmpty": "Searched the wreck — nothing usable.",
+    "ui.road.wreckSearchFull": "Searched the wreck — cargo hold is full, left it behind.",
+    "ui.road.wreckNotPresent": "Nothing here to search.",
+    "ui.road.playerWrecked": "Your car is wrecked — abandoning it on foot.",
     "ui.driverCreation.title": "Create Driver",
     "ui.driverCreation.nameLabel": "Name",
     "ui.driverCreation.pointsRemaining": "Points remaining: {count}",
@@ -60,6 +81,8 @@
     "ui.arena.webgpuUnavailable": "WebGPU unavailable ({reason}) — simulation running, rendering disabled.",
     "ui.arena.practiceHint": "Practice arena — WASD/arrows drive, Space/J fire, Q/E cycle weapon. Seed: {seed}",
     "ui.arena.webgpuDeviceLost": "WebGPU device lost and recovery failed ({reason}) — rendering disabled.",
+    "ui.arena.webgpuRecovering": "WebGPU device lost — recovering rendering, simulation still running.",
+    "ui.arena.webgpuRetry": "Retry",
     "ui.arena.practiceResumed": "Practice arena resumed — seed {seed}.",
     "ui.arena.practiceEntered": "Practice arena entered — free run, no opponents. Seed {seed}.",
     "ui.arena.eventEntered": "{event}: {count} opponent(s) — drive out the gate to exit.",
@@ -132,6 +155,8 @@
     "building.salvage.sellCargo": "Sell Salvage Cargo — ${price}",
 
     "building.courier.routeInfo": "Route to {city}: danger {danger}",
+    "building.courier.routeQuick": "Quick route to {city}: {miles} mi, {days} day(s)",
+    "building.courier.routeSafe": "Safe route to {city}: ~{encounters} expected encounters, {days} day(s)",
     "building.courier.accept": "Accept: {cargo} to {city} — pay ${pay}, due day {day}",
     "building.courier.noOffers": "No jobs available here right now.",
     "building.courier.deliver": "Deliver: {cargo} — pay ${pay}",
@@ -163,6 +188,8 @@
     "building.assembly.fleetFull": "Fleet is full ({count}/{max}) — sell a car before building another.",
 
     "building.arena.enter": "Enter {event}",
+    "building.arena.championshipUpcoming": "{event} is not today — next one in {days} day(s)",
+    "building.arena.championshipSchedule": "{event} upcoming: day {days}",
 
     "building.casino.raiseBet": "Raise Bet (+${step})",
     "building.casino.lowerBet": "Lower Bet (-${step})",
@@ -174,6 +201,10 @@
     "building.casino.roundOver": "The hand is already settled.",
     "building.casino.pokerOutcome": "Poker: {rank} — net ${net}",
     "building.casino.blackjackOutcome": "Blackjack: {result} — net ${net}",
+    "building.casino.disableToggle.name": "Disable Casino Games",
+    "building.casino.enableToggle.name": "Enable Casino Games",
+    "building.casino.disabledLabel": "Casino Games Disabled",
+    "building.casino.disabledExplanation": "You've switched off the casino's games for this visit. Enable them again whenever you want to play.",
 
     "building.stub.notReady": "{facility} isn't open for business yet — coming in a future phase."
   }

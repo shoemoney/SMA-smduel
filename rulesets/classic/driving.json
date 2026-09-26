@@ -22,11 +22,14 @@
     "armorLossFacing": "FRONT",
     "armorLossPoints": 1,
     "projectileRadiusM": 0.25,
-    "vehicleSeparationM": 0.4
+    "vehicleSeparationM": 0.4,
+    "wreckSearchRangeMultiplier": 4,
+    "trafficPassRangeMultiplier": 8
   },
   "radar": {
     "rangeMiles": 3,
-    "visualRangeM": 160
+    "visualRangeM": 160,
+    "aiHazardBoxRangeMultiplier": 2
   },
   "pedestrian": {
     "speedMps": 2.2,

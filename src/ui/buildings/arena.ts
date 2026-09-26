@@ -7,6 +7,25 @@
  * callback, exactly the existing arena flow `@/app.ts`'s own `showArena`
  * already drives from a confirmed build. This module never simulates a
  * match itself.
+ *
+ * Events whose `cadence.kind` is `'city-championship-cycle'` (currently just
+ * `city-championship`) additionally gate on `@/sim/championship`'s calendar:
+ * on any day that isn't this city's actual championship day
+ * (`isChampionshipDay`), the row is shown ineligible with a "next one in N
+ * day(s)" reason (`daysUntilChampionship`) instead of `eligibilityFor`'s
+ * usual vehicle/value check, and for a city with no championship scheduled
+ * at all (`daysUntilChampionship` returns `null`) the row is omitted
+ * entirely rather than offered as a dead end. `@/ui/menu`'s `handleMenuKey`
+ * never dispatches ACTIVATE for an `eligible: false` row, so this is
+ * sufficient to stop the event from ever being entered off-schedule.
+ *
+ * A scheduled city-championship event also gets a standing, always-shown
+ * `SCHEDULE_PREVIEW_COUNT`-deep preview of its own upcoming dates
+ * (`@/sim/championship`'s `scheduleFor`), alongside the single "next one in
+ * N days" reason above — a player planning a courier run INTO this city
+ * ahead of time needs more than just the next date to plan around, the same
+ * reason `@/ui/buildings/courierguild` previews a whole route rather than
+ * just its next leg.
  */
 import {
   allArenaEvents,
@@ -17,6 +36,7 @@ import {
   type ArenaMatchState,
   type ArenaVehicleStatus,
 } from '@/sim/arena';
+import { daysUntilChampionship, isChampionshipDay, scheduleFor } from '@/sim/championship';
 import type { DriverState } from '@/sim/types';
 import { t } from '@/ui/strings';
 import { mountMenu, type MenuAction, type MountedMenu } from '@/ui/menu';
@@ -28,19 +48,53 @@ function vehicleStatus(ctx: BuildingContext): ArenaVehicleStatus | null {
   return ctx.vehicle === null ? null : { design: ctx.vehicle.design, destroyed: ctx.vehicle.destroyed };
 }
 
+/**
+ * How many of a city-championship event's own upcoming dates the schedule
+ * preview row below shows. A display-depth choice only — never a priced,
+ * timed, or otherwise balance-affecting figure (nothing in cities.json's
+ * `championships` table caps or suggests a preview depth), the same
+ * "structural, not a ruleset value" footing `@/ui/buildings/garage`'s fixed
+ * 4-slot `TIRE_LABELS` stands on.
+ */
+const SCHEDULE_PREVIEW_COUNT = 3;
+
+/** The standing "upcoming dates" row for a scheduled city-championship event — shown alongside its entry row whether or not today IS the championship day, so a player can plan a courier run toward a FUTURE date, not just see how many days until the next one. */
+function scheduleAction(ctx: BuildingContext, event: ArenaEventDef): MenuAction {
+  const days = scheduleFor(ctx.cityId, ctx.clock.dayIndex, SCHEDULE_PREVIEW_COUNT);
+  const label = t('building.arena.championshipSchedule', { event: event.name, days: days.join(', ') });
+  return { id: `schedule-${event.id}`, label, eligible: false, reason: label };
+}
+
+/** The row(s) for `event`, or none at all for a championship-cadence event this city never schedules. */
+function actionFor(ctx: BuildingContext, status: ArenaVehicleStatus | null, event: ArenaEventDef): MenuAction[] {
+  const label = t('building.arena.enter', { event: event.name });
+  if (event.cadence.kind === 'city-championship-cycle') {
+    const daysUntil = daysUntilChampionship(ctx.cityId, ctx.clock.dayIndex);
+    if (daysUntil === null) return [];
+    const schedule = scheduleAction(ctx, event);
+    if (!isChampionshipDay(ctx.cityId, ctx.clock.dayIndex)) {
+      return [
+        {
+          id: `enter-${event.id}`,
+          label,
+          eligible: false,
+          reason: t('building.arena.championshipUpcoming', { event: event.name, days: daysUntil }),
+        },
+        schedule,
+      ];
+    }
+    const reason = eligibilityFor(ctx.driver, status, event.id);
+    return [{ id: `enter-${event.id}`, label, eligible: reason === null, ...(reason === null ? {} : { reason }) }, schedule];
+  }
+  const reason = eligibilityFor(ctx.driver, status, event.id);
+  return [{ id: `enter-${event.id}`, label, eligible: reason === null, ...(reason === null ? {} : { reason }) }];
+}
+
 export function arenaActions(ctx: BuildingContext): MenuAction[] {
   if (!facilityOpenNow(ARENA_KIND, ctx)) return [closedAction(ARENA_KIND)];
 
   const status = vehicleStatus(ctx);
-  const actions: MenuAction[] = allArenaEvents().map((event: ArenaEventDef) => {
-    const reason = eligibilityFor(ctx.driver, status, event.id);
-    return {
-      id: `enter-${event.id}`,
-      label: t('building.arena.enter', { event: event.name }),
-      eligible: reason === null,
-      ...(reason === null ? {} : { reason }),
-    };
-  });
+  const actions: MenuAction[] = allArenaEvents().flatMap((event: ArenaEventDef) => actionFor(ctx, status, event));
   actions.push(leaveAction());
   return actions;
 }

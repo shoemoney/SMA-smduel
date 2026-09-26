@@ -24,10 +24,11 @@ import {
 } from '@/ui/menu';
 import { isFacilityOpen } from '@/sim/calendar';
 import type { Clock } from '@/sim/calendar';
-import { allWeapons, citiesConfig, economy, hasWeapon, getWeapon } from '@/data/rulesets';
+import { allWeapons, economy, hasWeapon, getWeapon } from '@/data/rulesets';
 import { cityName, facilityName, t } from '@/ui/strings';
-import type { CargoState, DriverState, RouteDef, ServiceId, VehicleState } from '@/sim/types';
+import type { CargoState, DriverState, ServiceId, VehicleState } from '@/sim/types';
 import type { AcceptedJob } from '@/sim/courier';
+import type { RouteEncounterHistory } from '@/sim/encounters';
 import type { Rng } from '@/util/rng';
 import couriersJson from '@rulesets/classic/couriers.json';
 
@@ -78,6 +79,15 @@ export interface BuildingContext {
    * replaces the entry with `sellIllicit`'s own FAILED copy afterward.
    */
   readonly activeCourierJobs: readonly AcceptedJob[];
+  /**
+   * Per-route repopulation progress (`@/sim/encounters`), keyed by
+   * `RouteDef.id` — the same map `CityRunState.routeHistory` (`@/app`) owns.
+   * `@/ui/buildings/courierguild` reads and bumps this on a successful
+   * delivery (`@/sim/encounters`'s `recordDelivery`), so a route genuinely
+   * becomes safer the more cargo is run on it rather than only reacting to
+   * a route being cleared of hostiles.
+   */
+  readonly routeHistory: ReadonlyMap<string, RouteEncounterHistory>;
 }
 
 /**
@@ -217,16 +227,16 @@ export function cargoConditionFraction(cargo: CargoState): number {
 }
 
 // ---------------------------------------------------------------------------
-// Routes / adjacency (couriers + truckstop's bus both need this)
+// Routes / adjacency (couriers + truckstop's bus both need this) — both
+// re-exported from `@/sim/world-map`, the one adjacency layer, rather than
+// re-implemented here a second time with different unknown-city-id
+// behaviour (a prior version of this file silently returned `[]`/echoed
+// `fromCityId` back for an unrecognised city; `@/sim/world-map`'s
+// `routesFrom`/`neighbourCityOf` throw `UnknownRulesetIdError`/`RangeError`
+// instead, same as every other ruleset-id lookup in this codebase).
 // ---------------------------------------------------------------------------
 
-export function routesFrom(cityId: string): readonly RouteDef[] {
-  return citiesConfig().routes.filter((route) => route.a === cityId || route.b === cityId);
-}
-
-export function destinationCityOf(route: RouteDef, fromCityId: string): string {
-  return route.a === fromCityId ? route.b : route.a;
-}
+export { routesFrom, neighbourCityOf as destinationCityOf } from '@/sim/world-map';
 
 /** `cargo.integrity`'s full-scale value (economy.json `_reconstruction.cargoFullIntegrity`) — the same scale `@/sim/economy`'s `salvageRoll` stamps a freshly-recovered item at. */
 export function fullCargoIntegrity(): number {

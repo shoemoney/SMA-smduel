@@ -427,6 +427,10 @@ export interface CollisionConfig {
   projectileRadiusM: number;
   /** Minimum gap kept between two vehicles resolving a collision. */
   vehicleSeparationM: number;
+  /** `vehicleSeparationM` scaled by this much is how close the player must be to a wreck to search it. */
+  wreckSearchRangeMultiplier: number;
+  /** `vehicleSeparationM` scaled by this much is the range within which a passed peaceful contact triggers the one-time "traffic passing" notice. */
+  trafficPassRangeMultiplier: number;
 }
 
 /** Where arena opponents are placed at match start. */
@@ -438,6 +442,8 @@ export interface ArenaSpawnConfig {
 export interface RadarConfig {
   rangeMiles: number;
   visualRangeM: number;
+  /** `visualRangeM` scaled by this much sizes a road opponent's `decideAI` hazard-avoidance box. */
+  aiHazardBoxRangeMultiplier: number;
 }
 
 export interface PedestrianConfig {

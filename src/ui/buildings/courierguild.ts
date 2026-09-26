@@ -35,9 +35,20 @@
  * `ctx.activeCourierJobs`, the one durable link back to that data;
  * `@/ui/buildings/bar`'s illicit sale reads it back out rather than
  * re-estimating the cargo's worth from its weight.
+ *
+ * Each offer also gets a "quick route" vs "safe route" preview
+ * (`@/sim/world-map`'s `shortestPathByMiles`/`shortestPathByDanger`, this
+ * module's one production caller): a genuine decision belongs here, BEFORE
+ * accepting, because the two can diverge — a longer road can carry FEWER
+ * expected encounters than the offer's own direct route (see that module's
+ * own doc comment) — so a player weighing a dangerous job needs to see that
+ * a safer alternative exists at all, not just the offer's flat `dangerLevel`
+ * number.
  */
 import { advanceForTimeCost, timeCostOf } from '@/sim/calendar';
 import { accept, deliver, generateOffers, type AcceptedJob, type CourierOffer, type CourierRefusalReason } from '@/sim/courier';
+import { FRESH_ROUTE_HISTORY, recordDelivery, type RouteEncounterHistory } from '@/sim/encounters';
+import { shortestPathByDanger, shortestPathByMiles } from '@/sim/world-map';
 import type { VehicleState } from '@/sim/types';
 import { cityName, t } from '@/ui/strings';
 import type { MenuAction } from '@/ui/menu';
@@ -103,6 +114,53 @@ function deliverableJobsFor(ctx: BuildingContext, vehicle: VehicleState): Accept
   });
 }
 
+/**
+ * `ctx.routeHistory` with `routeId`'s `deliveriesCompleted` bumped by one
+ * (`@/sim/encounters`'s `recordDelivery`) — the "roads get safer the more
+ * you use them" mechanic (`encounters.json`'s `repopulation` block), which
+ * otherwise never fires: nothing else in the codebase calls `recordDelivery`.
+ * Never mutates `history`; a route with no prior entry starts from
+ * `FRESH_ROUTE_HISTORY` (day-never-cleared, zero deliveries) same as
+ * `@/app`'s own `nextRouteHistory` does for `recordRouteCleared`.
+ */
+function withRouteDelivery(history: ReadonlyMap<string, RouteEncounterHistory>, routeId: string): ReadonlyMap<string, RouteEncounterHistory> {
+  const current = history.get(routeId) ?? FRESH_ROUTE_HISTORY;
+  const next = new Map(history);
+  next.set(routeId, recordDelivery(current));
+  return next;
+}
+
+/**
+ * The "quick route" / "safe route" preview pair for `offer`, straight from
+ * `@/sim/world-map`'s own path-finders — never a second, hand-rolled
+ * distance/danger estimate. Always exactly two rows (both path-finders
+ * always resolve for a real offer destination, which `@/sim/courier`'s
+ * `generateOffers` only ever draws from a city cities.json actually routes
+ * to `ctx.cityId`), shown whether or not the two happen to agree on this
+ * particular offer's destination.
+ */
+function routePreviewRowsFor(ctx: BuildingContext, offer: CourierOffer): MenuAction[] {
+  const quick = shortestPathByMiles(ctx.cityId, offer.destinationCityId);
+  const safe = shortestPathByDanger(ctx.cityId, offer.destinationCityId);
+  const city = cityName(offer.destinationCityId);
+
+  const quickLabel = t('building.courier.routeQuick', {
+    city,
+    miles: Math.round(quick.totalMiles),
+    days: Math.ceil(quick.totalTravelDays),
+  });
+  const safeLabel = t('building.courier.routeSafe', {
+    city,
+    encounters: Math.round(safe.totalDanger * 10) / 10,
+    days: Math.ceil(safe.totalTravelDays),
+  });
+
+  return [
+    { id: `route-quick-${offer.id}`, label: quickLabel, eligible: false, reason: quickLabel },
+    { id: `route-safe-${offer.id}`, label: safeLabel, eligible: false, reason: safeLabel },
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // Engine
 // ---------------------------------------------------------------------------
@@ -124,6 +182,7 @@ export function courierGuildActions(state: CourierGuildState): MenuAction[] {
   }
 
   for (const offer of state.offers) {
+    actions.push(...routePreviewRowsFor(ctx, offer));
     const refusalId = refusalFor(ctx, ctx.vehicle, offer);
     actions.push({
       id: `accept-${offer.id}`,
@@ -160,7 +219,15 @@ export const courierGuildEngine: BuildingEngine<CourierGuildState> = {
   activate: (state, actionId) => {
     const ctx = state.context;
     if (actionId === LEAVE_ACTION_ID) return { state, exit: true };
-    if (actionId === 'closed' || actionId === 'no-offers' || actionId.startsWith('route-info-')) return { state, exit: false };
+    if (
+      actionId === 'closed' ||
+      actionId === 'no-offers' ||
+      actionId.startsWith('route-info-') ||
+      actionId.startsWith('route-quick-') ||
+      actionId.startsWith('route-safe-')
+    ) {
+      return { state, exit: false };
+    }
 
     if (actionId.startsWith('accept-')) {
       const offerId = actionId.slice('accept-'.length);
@@ -210,6 +277,17 @@ export const courierGuildEngine: BuildingEngine<CourierGuildState> = {
       // branch.
       const result = deliver(job, ctx.driver, vehicle, ctx.cityId, COURIERGUILD_KIND, ctx.clock);
 
+      // `deliverableJobsFor` above already required job.status === 'ACTIVE',
+      // ctx.cityId/COURIERGUILD_KIND to match the offer's destination, and
+      // intact cargo aboard `vehicle` — the exact preconditions `deliver()`
+      // needs to return WRONG_LOCATION or FAILED — so a row reaching this
+      // handler always resolves ON_TIME or LATE. Still branching on the
+      // real outcome (never a bare "we got this far, must be a delivery")
+      // so a real cargo-loss race between the preview and this activation
+      // can't falsely credit the route as well-travelled.
+      const delivered = result.outcome === 'ON_TIME' || result.outcome === 'LATE';
+      const routeHistory = delivered ? withRouteDelivery(ctx.routeHistory, job.offer.routeId) : ctx.routeHistory;
+
       return {
         state: {
           ...state,
@@ -221,6 +299,7 @@ export const courierGuildEngine: BuildingEngine<CourierGuildState> = {
             // rather than left behind with an updated status, so it can
             // never be selected, previewed or delivered again.
             activeCourierJobs: ctx.activeCourierJobs.filter((j) => j.cargoId !== cargoId),
+            routeHistory,
           },
         },
         exit: false,

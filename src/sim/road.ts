@@ -604,7 +604,13 @@ function referenceRouteMiles(): number {
  * integrates to exactly `tripDays()` at arrival no matter how long the route
  * is.
  */
-function daysPerMile(): number {
+/**
+ * Exported so `@/sim/world-map`'s `travelDaysFor` prices a route by calling
+ * this same rate rather than restating `tripDays()`/`referenceRouteMiles()`
+ * as a second, independently-maintained formula that could silently drift
+ * from this one.
+ */
+export function daysPerMile(): number {
   return tripDays() / referenceRouteMiles();
 }
 

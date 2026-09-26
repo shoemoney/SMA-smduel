@@ -1136,6 +1136,150 @@ entries:
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
     note: "Route distance washington <-> pittsburgh"
+  - id: "controls.gamepadAxisThreshold"
+    value: 0.5
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Gamepad half-axis deadzone: an axis reading must cross this before that half-axis counts as pressed"
+  - id: "controls.cityDirectionDeadzone"
+    value: 0.35
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Deadzone applied to @/ui/input's resolved drive vector before @/app snaps it to one of the 8 CityDirections - distinct from gamepadAxisThreshold, which gates a single raw gamepad axis"
+  - id: "controls.defaultBindings.classic.driveUp.gamepadAxes.0.index"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default gamepad binding: driveUp reads standard-mapping axis 1 (left stick Y)"
+  - id: "controls.defaultBindings.classic.driveUp.gamepadAxes.0.sign"
+    value: -1
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default gamepad binding: driveUp fires on axis 1's negative half"
+  - id: "controls.defaultBindings.classic.driveDown.gamepadAxes.0.index"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default gamepad binding: driveDown reads standard-mapping axis 1 (left stick Y)"
+  - id: "controls.defaultBindings.classic.driveDown.gamepadAxes.0.sign"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default gamepad binding: driveDown fires on axis 1's positive half"
+  - id: "controls.defaultBindings.classic.driveLeft.gamepadAxes.0.index"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default gamepad binding: driveLeft reads standard-mapping axis 0 (left stick X)"
+  - id: "controls.defaultBindings.classic.driveLeft.gamepadAxes.0.sign"
+    value: -1
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default gamepad binding: driveLeft fires on axis 0's negative half"
+  - id: "controls.defaultBindings.classic.driveRight.gamepadAxes.0.index"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default gamepad binding: driveRight reads standard-mapping axis 0 (left stick X)"
+  - id: "controls.defaultBindings.classic.driveRight.gamepadAxes.0.sign"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default gamepad binding: driveRight fires on axis 0's positive half"
+  - id: "controls.defaultBindings.classic.fire.mouse"
+    value: [0]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default binding: fire also answers to mouse button 0 (LMB), per docs/SPEC.md Controls"
+  - id: "controls.defaultBindings.classic.fire.gamepadButtons"
+    value: [7]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default binding: fire also answers to standard gamepad button 7 (right trigger)"
+  - id: "controls.defaultBindings.classic.cycleWeaponNext.gamepadButtons"
+    value: [5]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default binding: cycleWeaponNext also answers to standard gamepad button 5 (right bumper)"
+  - id: "controls.defaultBindings.classic.cycleWeaponPrev.gamepadButtons"
+    value: [4]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Classic preset default binding: cycleWeaponPrev also answers to standard gamepad button 4 (left bumper)"
+  - id: "controls.defaultBindings.modern.driveUp.gamepadButtons"
+    value: [7]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset separates throttle from steering by default: driveUp reads the right trigger (button 7) instead of sharing the left stick"
+  - id: "controls.defaultBindings.modern.driveDown.gamepadButtons"
+    value: [6]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset separates throttle from steering by default: driveDown reads the left trigger (button 6) instead of sharing the left stick"
+  - id: "controls.defaultBindings.modern.driveLeft.gamepadAxes.0.index"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset default gamepad binding: driveLeft reads standard-mapping axis 0 (left stick X), steering only"
+  - id: "controls.defaultBindings.modern.driveLeft.gamepadAxes.0.sign"
+    value: -1
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset default gamepad binding: driveLeft fires on axis 0's negative half"
+  - id: "controls.defaultBindings.modern.driveRight.gamepadAxes.0.index"
+    value: 0
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset default gamepad binding: driveRight reads standard-mapping axis 0 (left stick X), steering only"
+  - id: "controls.defaultBindings.modern.driveRight.gamepadAxes.0.sign"
+    value: 1
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset default gamepad binding: driveRight fires on axis 0's positive half"
+  - id: "controls.defaultBindings.modern.fire.mouse"
+    value: [0]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset default binding: fire also answers to mouse button 0 (LMB), per docs/SPEC.md Controls"
+  - id: "controls.defaultBindings.modern.fire.gamepadButtons"
+    value: [7]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset default binding: fire also answers to standard gamepad button 7 (right trigger)"
+  - id: "controls.defaultBindings.modern.cycleWeaponNext.gamepadButtons"
+    value: [5]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset default binding: cycleWeaponNext also answers to standard gamepad button 5 (right bumper)"
+  - id: "controls.defaultBindings.modern.cycleWeaponPrev.gamepadButtons"
+    value: [4]
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Modern preset default binding: cycleWeaponPrev also answers to standard gamepad button 4 (left bumper)"
   - id: "couriers.acceptanceCostDays"
     value: 1
     status: Exact
@@ -1514,6 +1658,12 @@ entries:
     source: "harness-specified: all driving coefficients are Reconstruction"
     confidence: 0.5
     note: "Driving physics coefficient, tunable (radar): driving.radar.visualRangeM"
+  - id: "driving.radar.aiHazardBoxRangeMultiplier"
+    value: 2
+    status: Reconstruction
+    source: "driving.json - authored for this recreation"
+    confidence: 0.3
+    note: "visualRangeM scaled by this much sizes a road opponent's decideAI hazard-avoidance box: driving.radar.aiHazardBoxRangeMultiplier"
   - id: "driving.reverseAccelMphPerSec"
     value: 8
     status: Reconstruction
@@ -5482,6 +5632,18 @@ entries:
     source: "driving.json - authored for this recreation"
     confidence: 0.3
     note: "Minimum separation kept between colliding vehicles: driving.collision.vehicleSeparationM"
+  - id: "driving.collision.wreckSearchRangeMultiplier"
+    value: 4
+    status: Reconstruction
+    source: "driving.json - authored for this recreation"
+    confidence: 0.3
+    note: "vehicleSeparationM scaled by this much is how close the player must be to a RoadWreck to search it: driving.collision.wreckSearchRangeMultiplier"
+  - id: "driving.collision.trafficPassRangeMultiplier"
+    value: 8
+    status: Reconstruction
+    source: "driving.json - authored for this recreation"
+    confidence: 0.3
+    note: "vehicleSeparationM scaled by this much is the range within which a passed peaceful contact triggers the one-time traffic-passing notice: driving.collision.trafficPassRangeMultiplier"
   - id: "driving.arena.spawnRingRadiusM"
     value: 45
     status: Reconstruction

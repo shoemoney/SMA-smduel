@@ -27,7 +27,8 @@ import { playFiveCardDraw } from '@/sim/casino';
 import { generateOffers, type AcceptedJob, type CourierOffer } from '@/sim/courier';
 import { createRng, type Rng } from '@/util/rng';
 import type { CargoState, DriverState, VehicleState, WeaponState } from '@/sim/types';
-import { t } from '@/ui/strings';
+import { cityName, t } from '@/ui/strings';
+import { shortestPathByDanger, shortestPathByMiles } from '@/sim/world-map';
 import {
   couriersConfig,
   menuFor,
@@ -46,6 +47,8 @@ import { barEngine, createBarState, illicitPayloadValue } from '@/ui/buildings/b
 import { truckstopEngine, createTruckstopState } from '@/ui/buildings/truckstop';
 import { fleetHasRoom, assemblyActions, mountAssembly } from '@/ui/buildings/assembly';
 import { arenaActions, mountArenaBuilding } from '@/ui/buildings/arena';
+import { getArenaEvent } from '@/sim/arena';
+import { daysUntilChampionship, isChampionshipDay, scheduleFor } from '@/sim/championship';
 import { casinoEngine, createCasinoState } from '@/ui/buildings/casino';
 import { stubEngine, createStubState } from '@/ui/buildings/stub';
 import { mountFacility, UnknownFacilityKindError } from '@/ui/buildings';
@@ -119,6 +122,7 @@ function makeContext(overrides: Partial<BuildingContext> = {}): BuildingContext 
     rng: createRng('buildings-test-seed'),
     rumorsHeardToday: new Map(),
     activeCourierJobs: [],
+    routeHistory: new Map(),
     ...overrides,
   };
 }
@@ -1016,6 +1020,53 @@ describe('courierguild', () => {
     const result = courierGuildEngine.activate(state, `accept-${offer.id}`);
     expect(result.state).toEqual(state);
   });
+
+  it('shows a quick-route and a safe-route preview row for every offer, priced straight from @/sim/world-map\'s own path-finders (mutation: dropping the preview rows entirely used to pass with no observable difference)', () => {
+    const ctx = makeContext({ rng: createRng('courier-route-preview-seed') });
+    const state = createCourierGuildState(ctx);
+    expect(state.offers.length).toBeGreaterThan(0);
+
+    const rows = courierGuildEngine.actions(state);
+    for (const offer of state.offers) {
+      // Independent oracle: @/sim/world-map's own exported path-finders,
+      // called directly here rather than trusting the row's own math.
+      const quick = shortestPathByMiles(ctx.cityId, offer.destinationCityId);
+      const safe = shortestPathByDanger(ctx.cityId, offer.destinationCityId);
+      const city = cityName(offer.destinationCityId);
+
+      const quickRow = rows.find((a) => a.id === `route-quick-${offer.id}`);
+      const safeRow = rows.find((a) => a.id === `route-safe-${offer.id}`);
+      expect(quickRow).toBeDefined();
+      expect(safeRow).toBeDefined();
+      expect(quickRow?.eligible).toBe(false);
+      expect(safeRow?.eligible).toBe(false);
+      expect(quickRow?.label).toBe(
+        t('building.courier.routeQuick', { city, miles: Math.round(quick.totalMiles), days: Math.ceil(quick.totalTravelDays) }),
+      );
+      expect(safeRow?.label).toBe(
+        t('building.courier.routeSafe', {
+          city,
+          encounters: Math.round(safe.totalDanger * 10) / 10,
+          days: Math.ceil(safe.totalTravelDays),
+        }),
+      );
+    }
+  });
+
+  it('activating a route-quick-/route-safe- preview row is a no-op — never an accept, and the state is untouched', () => {
+    const ctx = makeContext({ rng: createRng('courier-route-preview-activate-seed') });
+    const state = createCourierGuildState(ctx);
+    const offer = state.offers[0];
+    if (offer === undefined) throw new Error('expected at least one offer');
+
+    const afterQuick = courierGuildEngine.activate(state, `route-quick-${offer.id}`);
+    expect(afterQuick.exit).toBe(false);
+    expect(afterQuick.state).toEqual(state);
+
+    const afterSafe = courierGuildEngine.activate(state, `route-safe-${offer.id}`);
+    expect(afterSafe.exit).toBe(false);
+    expect(afterSafe.state).toEqual(state);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1282,6 +1333,87 @@ describe('arena (building)', () => {
     expect(action?.eligible).toBe(false);
     expect(action?.reason).toBeTruthy();
   });
+
+  // startingLocation (newyork) is one of cities.json's 9 championship-scheduled
+  // cities — asserted below so this fixture assumption is caught, not silently
+  // testing nothing, if cities.json's schedule ever changes.
+  it('city-championship is ineligible before this city\'s championship day, with a days-until-next reason', () => {
+    const cityId = skillsConfig().startingLocation;
+    const firstDay = citiesConfig().championships.firstDay[cityId];
+    if (firstDay === undefined) {
+      throw new Error(`fixture assumption broken: ${cityId} (startingLocation) has no championship firstDay`);
+    }
+    expect(isChampionshipDay(cityId, 0)).toBe(false);
+
+    const ctx = makeContext({ cityId, clock: { dayIndex: 0, phase: 'DAY' } });
+    const action = arenaActions(ctx).find((a) => a.id === 'enter-city-championship');
+    expect(action?.eligible).toBe(false);
+    expect(action?.reason).toBe(
+      t('building.arena.championshipUpcoming', {
+        event: getArenaEvent('city-championship').name,
+        days: daysUntilChampionship(cityId, 0) as number,
+      }),
+    );
+  });
+
+  it('city-championship follows the usual own-vehicle eligibility check on the exact championship day', () => {
+    const cityId = skillsConfig().startingLocation;
+    const firstDay = citiesConfig().championships.firstDay[cityId];
+    if (firstDay === undefined) {
+      throw new Error(`fixture assumption broken: ${cityId} (startingLocation) has no championship firstDay`);
+    }
+    expect(isChampionshipDay(cityId, firstDay)).toBe(true);
+
+    const eligibleCtx = makeContext({ cityId, clock: { dayIndex: firstDay, phase: 'DAY' } });
+    expect(arenaActions(eligibleCtx).find((a) => a.id === 'enter-city-championship')?.eligible).toBe(true);
+
+    const noVehicleCtx = makeContext({ cityId, clock: { dayIndex: firstDay, phase: 'DAY' }, vehicle: null });
+    const action = arenaActions(noVehicleCtx).find((a) => a.id === 'enter-city-championship');
+    expect(action?.eligible).toBe(false);
+    expect(action?.reason).toBeTruthy();
+    expect(action?.reason).not.toBe(
+      t('building.arena.championshipUpcoming', { event: getArenaEvent('city-championship').name, days: 0 }),
+    );
+  });
+
+  it('city-championship is omitted entirely for a city with no championship scheduled at all', () => {
+    const cityId = 'baltimore';
+    expect(citiesConfig().championships.firstDay[cityId]).toBeUndefined();
+    const ctx = makeContext({ cityId });
+    expect(arenaActions(ctx).find((a) => a.id === 'enter-city-championship')).toBeUndefined();
+  });
+
+  it('shows a standing multi-date schedule-preview row for a scheduled city-championship, both before AND on its championship day (mutation: dropping the schedule row entirely used to pass with no observable difference)', () => {
+    const cityId = skillsConfig().startingLocation;
+    const firstDay = citiesConfig().championships.firstDay[cityId];
+    if (firstDay === undefined) {
+      throw new Error(`fixture assumption broken: ${cityId} (startingLocation) has no championship firstDay`);
+    }
+
+    // Independent oracle: @/sim/championship's own exported scheduleFor,
+    // called directly here (count=3, matching arena.ts's own preview depth)
+    // rather than trusting the row's own math.
+    const expectedDays = scheduleFor(cityId, 0, 3);
+    expect(expectedDays.length).toBeGreaterThan(1); // proves this is a genuine multi-date preview, not just the single next date daysUntilChampionship already gives
+    const expectedLabel = t('building.arena.championshipSchedule', {
+      event: getArenaEvent('city-championship').name,
+      days: expectedDays.join(', '),
+    });
+
+    const upcomingCtx = makeContext({ cityId, clock: { dayIndex: 0, phase: 'DAY' } });
+    const upcomingRow = arenaActions(upcomingCtx).find((a) => a.id === 'schedule-city-championship');
+    expect(upcomingRow?.eligible).toBe(false);
+    expect(upcomingRow?.reason).toBe(expectedLabel);
+
+    const onDayCtx = makeContext({ cityId, clock: { dayIndex: firstDay, phase: 'DAY' } });
+    expect(arenaActions(onDayCtx).find((a) => a.id === 'schedule-city-championship')).toBeDefined();
+  });
+
+  it('omits the schedule-preview row entirely for a city with no championship scheduled at all', () => {
+    const cityId = 'baltimore';
+    const ctx = makeContext({ cityId });
+    expect(arenaActions(ctx).find((a) => a.id === 'schedule-city-championship')).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1303,20 +1435,23 @@ describe('casino', () => {
     expect(raised.state.bet).toBe(step * 2);
   });
 
-  it('poker: cash moves by the REAL sim payout for this bet/seed (independently replayed via @/sim/casino\'s own playFiveCardDraw), applied exactly once, and a result row appears', () => {
+  it("poker: cash moves by the REAL sim payout for this bet/seed (independently replayed via @/sim/casino's own playFiveCardDraw against a CLONE of ctx.rng's exact pre-deal state), applied exactly once, and a result row appears", () => {
     const seed = 'casino-poker-seed';
     const ctx = makeContext({ driver: makeDriver({ cash: 1_000_000 }), rng: createRng(seed) });
     const state0 = createCasinoState(ctx);
     const before = state0.context.driver.cash;
 
-    // A SEPARATE Rng instance from the identical seed - deterministic and
-    // independent of the one casinoEngine.activate consumes, so this is a
-    // real second computation of the payout, not the same call reused.
-    // PROVED: adding a stray `+ 1` to casino.ts's poker net before charging
-    // cash breaks this equality (it stayed green against
-    // `before + result.state.lastOutcome.net`, since both sides read the
-    // SAME mutated `net`).
-    const expected = playFiveCardDraw(state0.bet, createRng(seed), []);
+    // A SEPARATE Rng instance cloned from ctx.rng's exact state right before
+    // dealing (createRng + restore(), never the same object reference
+    // casinoEngine.activate itself draws from and mutates) - a real second
+    // computation of the payout, not the same call reused. PROVED: adding a
+    // stray `+ 1` to casino.ts's poker net before charging cash breaks this
+    // equality (it stayed green against `before + result.state.lastOutcome.net`,
+    // since both sides read the SAME mutated `net`).
+    const snapshot = ctx.rng.serialize();
+    const clonedRng = createRng(snapshot.seedKey);
+    clonedRng.restore(snapshot);
+    const expected = playFiveCardDraw(state0.bet, clonedRng, []);
 
     const result = casinoEngine.activate(state0, 'poker');
     expect(result.state.round).toBeNull();

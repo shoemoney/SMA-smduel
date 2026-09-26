@@ -16,7 +16,7 @@
 import '@/ui/builder.css';
 import '@/ui/hud.css';
 
-import { citiesConfig, drivingConfig, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
+import { citiesConfig, drivingConfig, economy, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
 import { validateRulesets } from '@/data/schema';
 import {
   beginArenaMatch,
@@ -74,19 +74,51 @@ import {
   type SystemFn,
 } from '@/sim/loop';
 import {
-  beginRoadTrip,
+  createWreck,
   crossDestinationGate,
+  willFire,
   resolveRoute,
   stepRoadTrip,
   type ResolvedRoute,
+  type RoadContact,
   type RoadTripState,
+  type RoadWreck,
 } from '@/sim/road';
+import {
+  generateEncounters,
+  recordRouteCleared,
+  FRESH_ROUTE_HISTORY,
+  type EncounterUnit,
+  type RouteEncounterHistory,
+} from '@/sim/encounters';
+import { canSearchWreck, searchWreck, type SearchWreckResult } from '@/sim/salvage';
+import {
+  activeVehicle as fleetActiveVehicle,
+  addVehicle as fleetAddVehicle,
+  fleetSize as fleetVehicleCount,
+  removeVehicle,
+  switchActiveVehicle,
+  type Fleet,
+  type FleetVehicle,
+} from '@/sim/fleet';
 import type { DriverState, RouteDef, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
+import { FACINGS } from '@/sim/types';
 import { createWorld, type World } from '@/sim/world';
 import { createRng, type Rng } from '@/util/rng';
 import { hashState } from '@/util/hash';
 import { CURRENT_SCHEMA_VERSION } from '@/persist/migrate';
 import { openSaveDatabase, save, load, type LoadResult, type SaveGame } from '@/persist/save';
+import {
+  CONTROLS,
+  bindingsForPreset,
+  cyclePressed,
+  defaultBindings,
+  rebind,
+  resolveInput,
+  type AllBindings,
+  type PresetName,
+  type RawInputState,
+} from '@/ui/input';
 
 import {
   renderHud,
@@ -103,6 +135,7 @@ import { leaveAction, LEAVE_ACTION_ID, type RumorId } from '@/ui/buildings/share
 import { buildCityInstances, type CityVehicleView, type CityViewSnapshot } from '@/ui/city-view';
 import { mountMenu, type MenuAction } from '@/ui/menu';
 import { cityName, t } from '@/ui/strings';
+import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
 
 import { initGpu, type GpuContext } from '@/render/gpu';
 import { loadAtlasIndex, type AtlasIndex, type FrameInfo } from '@/render/atlas';
@@ -209,6 +242,41 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/**
+ * Wires a `GpuContext`'s device-loss/recovery state to a screen's single-line
+ * notice text and a "Retry" button, via `@/ui/gpu-recovery`'s state machine
+ * instead of the four screens each hand-rolling their own `onRecoveryFailed`
+ * text. `retryBtn` starts hidden and only appears while FAILED; clicking it
+ * calls `orchestrator.retry()`. No `RenderLoopController` is passed beyond a
+ * no-op pair: every screen's own `renderFrame()` already gates on
+ * `gpu.isPaused()` (set by `gpu.ts` itself across the loss/recovery cycle),
+ * and the sim keeps ticking regardless — pausing the app's rAF loop here
+ * would also stop the sim, which every `webgpuRecovering`/`webgpuDeviceLost`
+ * string promises stays running.
+ */
+function wireRecoveryUi(gpu: GpuContext, retryBtn: HTMLButtonElement, setNotice: (text: string) => void): RecoveryOrchestrator {
+  retryBtn.textContent = t('ui.arena.webgpuRetry');
+  retryBtn.style.display = 'none';
+  const orchestrator = createRecoveryOrchestrator(gpu, { pause: () => {}, resume: () => {} });
+  retryBtn.addEventListener('click', () => {
+    void orchestrator.retry();
+  });
+  orchestrator.onStateChange((state) => {
+    if (state === 'recovering') {
+      retryBtn.style.display = 'none';
+      setNotice(t('ui.arena.webgpuRecovering'));
+    } else if (state === 'failed') {
+      const reason = orchestrator.getLastFailureReason();
+      retryBtn.style.display = '';
+      setNotice(t('ui.arena.webgpuDeviceLost', { reason: reason?.kind ?? 'unknown' }));
+    } else if (state === 'running') {
+      retryBtn.style.display = 'none';
+      setNotice('');
+    }
+  });
+  return orchestrator;
+}
+
 // ---------------------------------------------------------------------------
 // Session seed resolution
 // ---------------------------------------------------------------------------
@@ -297,6 +365,65 @@ export function currentSessionSeed(): string | null {
 }
 
 // ---------------------------------------------------------------------------
+// Control presets + rebinding (docs/SPEC.md "Controls") — one live selection
+// for the whole running session, read by every screen's own input sampling
+// (`resolveInput` from `@/ui/input`, never a screen's own hardcoded
+// WASD/arrows table) and written only by `showControls` below. Module-level
+// like `lastSessionSeed` above, for the same reason: it is one fact about
+// THIS session, not per-screen state, and every screen (arena, city, road)
+// needs to read the SAME live value, including the boot-time practice arena,
+// which has no `CityRunState` to carry it on.
+// ---------------------------------------------------------------------------
+
+let currentControlPreset: PresetName = CONTROLS.presets[0] ?? 'classic';
+let currentControlBindings: AllBindings = defaultBindings();
+
+export function currentControls(): { readonly preset: PresetName; readonly bindings: AllBindings } {
+  return { preset: currentControlPreset, bindings: currentControlBindings };
+}
+
+/** Restores a previously-saved preset/bindings pair (see `persistArenaSession`'s save and `resumeSession`'s load below) — never re-derived, exactly like a restored session seed. */
+export function restoreControls(preset: PresetName, bindings: AllBindings): void {
+  currentControlPreset = preset;
+  currentControlBindings = bindings;
+}
+
+/** A live `Set` of currently-held `KeyboardEvent.code` values (NOT `.key` — `@/ui/input`'s bindings are all code-keyed, e.g. `"KeyW"`), kept current by window-level listeners for as long as the returned `detach()` hasn't been called. Every screen's own per-frame `RawInputState` reads this same set fresh each frame rather than resampling the DOM. */
+function attachCodeTracking(codesDown: Set<string>): { detach(): void } {
+  function onKeyDown(ev: KeyboardEvent): void {
+    codesDown.add(ev.code);
+  }
+  function onKeyUp(ev: KeyboardEvent): void {
+    codesDown.delete(ev.code);
+  }
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  return {
+    detach(): void {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    },
+  };
+}
+
+function rawInputFrom(codesDown: ReadonlySet<string>): RawInputState {
+  return { keysDown: codesDown, mouseButtonsDown: new Set(), gamepadButtonsDown: new Set(), gamepadAxes: [] };
+}
+
+/** Edge-triggered weapon-cycle helper shared by every driving screen: `@/ui/input`'s `cyclePressed` reports raw HELD state, so this tracks the previous tick's held state itself and only fires `onCycle` on press, exactly once per press, never once per tick held. */
+function makeCycleWeaponEdge(onCycle: (delta: 1 | -1) => void): (raw: RawInputState) => void {
+  let prevNext = false;
+  let prevPrev = false;
+  return (raw) => {
+    const { next, prev } = cyclePressed(raw, currentControlPreset, currentControlBindings);
+    if (next && !prevNext) onCycle(1);
+    if (prev && !prevPrev) onCycle(-1);
+    prevNext = next;
+    prevPrev = prev;
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Screen 1: Title
 // ---------------------------------------------------------------------------
 
@@ -309,7 +436,10 @@ function showTitle(root: HTMLElement, titleOptions: { onNewDriver: () => void; o
   clearAndAppend(root, container);
 
   const clock = initialClock();
-  const actions: MenuAction[] = [{ id: 'new-driver', label: t('ui.title.newDriver'), eligible: true }];
+  const actions: MenuAction[] = [
+    { id: 'new-driver', label: t('ui.title.newDriver'), eligible: true },
+    { id: 'controls', label: t('ui.title.controls'), eligible: true },
+  ];
   if (titleOptions.onContinue !== undefined) {
     actions.unshift({ id: 'continue', label: t('ui.title.continue'), eligible: true });
   }
@@ -322,11 +452,107 @@ function showTitle(root: HTMLElement, titleOptions: { onNewDriver: () => void; o
         titleOptions.onContinue();
         return;
       }
+      if (id === 'controls') {
+        showControls(root, () => showTitle(root, titleOptions));
+        return;
+      }
       titleOptions.onNewDriver();
     },
     onBack: () => {
       /* nothing above Title to back out to */
     },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Screen 1b: Controls — select a preset (`@/ui/input`'s `CONTROLS.presets`)
+// and rebind any action to a new key, live off the one module-level
+// `currentControlPreset`/`currentControlBindings` pair every driving screen
+// reads through `resolveInput`/`cyclePressed`. Reachable from Title (before
+// a session even exists) and persisted with the save (see
+// `persistArenaSession`/`resumeSession`), so a rebind made here outlives the
+// screen it was made on.
+// ---------------------------------------------------------------------------
+
+function bindingSummary(actionId: string): string {
+  const binding = bindingsForPreset(currentControlBindings, currentControlPreset)[actionId];
+  return (binding?.keyboard ?? []).join(', ');
+}
+
+function controlsMenuActions(awaitingActionId: string | null): MenuAction[] {
+  const actions: MenuAction[] = [
+    { id: 'cycle-preset', label: t('ui.controls.presetRow', { preset: currentControlPreset }), eligible: awaitingActionId === null },
+  ];
+  for (const actionId of CONTROLS.actions) {
+    const label =
+      awaitingActionId === actionId
+        ? t('ui.controls.awaitingKey', { action: actionId })
+        : (() => {
+            const summary = bindingSummary(actionId);
+            return summary.length > 0
+              ? t('ui.controls.actionRow', { action: actionId, binding: summary })
+              : t('ui.controls.actionRowEmpty', { action: actionId });
+          })();
+    actions.push({ id: `rebind-${actionId}`, label, eligible: awaitingActionId === null });
+  }
+  actions.push(leaveAction());
+  return actions;
+}
+
+function showControls(root: HTMLElement, onExit: () => void): void {
+  const container = el('div', 'sm-screen sm-screen--controls');
+  container.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+  const menuHost = el('div');
+  menuHost.style.cssText = 'width:min(420px,90vw);max-height:90vh;overflow:auto;';
+  container.appendChild(menuHost);
+  clearAndAppend(root, container);
+
+  const clock = initialClock();
+  let awaitingActionId: string | null = null;
+  let cancelCapture: (() => void) | null = null;
+
+  function exit(): void {
+    cancelCapture?.();
+    onExit();
+  }
+
+  const mounted = mountMenu({
+    container: menuHost,
+    header: { cash: 0, dayIndex: clock.dayIndex, phase: clock.phase, cityName: t('ui.title.controls') },
+    actions: controlsMenuActions(awaitingActionId),
+    onActivate: (id) => {
+      if (id === LEAVE_ACTION_ID) {
+        exit();
+        return;
+      }
+      if (id === 'cycle-preset') {
+        const presets = CONTROLS.presets;
+        const index = presets.indexOf(currentControlPreset);
+        currentControlPreset = presets[(index + 1) % presets.length] ?? currentControlPreset;
+        mounted.setActions(controlsMenuActions(awaitingActionId));
+        return;
+      }
+      if (!id.startsWith('rebind-')) return;
+      const actionId = id.slice('rebind-'.length);
+      awaitingActionId = actionId;
+      mounted.setActions(controlsMenuActions(awaitingActionId));
+
+      // Capture-phase + stopPropagation so this one keypress never ALSO
+      // reaches `@/ui/menu`'s own bubble-phase listener on the container
+      // (which would otherwise navigate the menu with the very key being
+      // captured as this action's new binding).
+      function onCapture(ev: KeyboardEvent): void {
+        ev.preventDefault();
+        ev.stopPropagation();
+        currentControlBindings = rebind(currentControlBindings, currentControlPreset, actionId, { device: 'keyboard', code: ev.code });
+        awaitingActionId = null;
+        cancelCapture = null;
+        mounted.setActions(controlsMenuActions(awaitingActionId));
+      }
+      window.addEventListener('keydown', onCapture, { capture: true, once: true });
+      cancelCapture = () => window.removeEventListener('keydown', onCapture, { capture: true });
+    },
+    onBack: () => exit(),
   });
 }
 
@@ -497,8 +723,9 @@ export function vehicleStateFromDesign(
   };
 }
 
-export function vehicleStateFromConfirmedBuild(confirmed: BuilderConfirmedBuild, ownerId: string): VehicleState {
-  return vehicleStateFromDesign(confirmed.design, `veh-${ownerId}`, ownerId);
+/** `vehicleId` defaults to `veh-${ownerId}` (the original single-car contract every existing caller/test relies on) — a caller adding a SECOND car to an owned fleet passes its own fresh id instead, since two owned cars can never legally share one. */
+export function vehicleStateFromConfirmedBuild(confirmed: BuilderConfirmedBuild, ownerId: string, vehicleId: string = `veh-${ownerId}`): VehicleState {
+  return vehicleStateFromDesign(confirmed.design, vehicleId, ownerId);
 }
 
 export function replaceVehicle(world: World, vehicle: VehicleState): void {
@@ -638,6 +865,30 @@ export function arenaBounds(): ArenaBounds {
   return { minX: -ARENA_HALF_SIZE_M, maxX: ARENA_HALF_SIZE_M, minY: -ARENA_HALF_SIZE_M, maxY: ARENA_HALF_SIZE_M };
 }
 
+/** A road opponent's `decideAI` hazard-avoidance box, centered on the player each tick (the road has no fixed arena floor to bound against) — sized off `driving.json`'s own `radar.visualRangeM` scaled by its sibling `radar.aiHazardBoxRangeMultiplier`, never a literal, so a contact engaged at the very edge of visual range still has room to maneuver before hitting the box wall. */
+export function roadBounds(center: Vec2): ArenaBounds {
+  const half = drivingConfig().radar.visualRangeM * drivingConfig().radar.aiHazardBoxRangeMultiplier;
+  return { minX: center.x - half, maxX: center.x + half, minY: center.y - half, maxY: center.y + half };
+}
+
+/** How close the player's vehicle must be to a `RoadWreck` to search it — `driving.json`'s own `collision.vehicleSeparationM` scaled by its sibling `collision.wreckSearchRangeMultiplier`, never a literal. */
+export function wreckSearchRangeM(): number {
+  return drivingConfig().collision.vehicleSeparationM * drivingConfig().collision.wreckSearchRangeMultiplier;
+}
+
+/** Distance within which a passed `peaceful` contact triggers the one-time "traffic passing" notice — `collision.vehicleSeparationM` scaled by its sibling `collision.trafficPassRangeMultiplier`, never a literal. */
+export function trafficPassRangeM(): number {
+  return drivingConfig().collision.vehicleSeparationM * drivingConfig().collision.trafficPassRangeMultiplier;
+}
+
+/** 1 minus the fraction of `vehicle`'s total armor (across every facing) still standing, 0 for a vehicle mounting no armor at all — the same "how hurt is it" signal `@/sim/road`'s `updateContactFlight` gates a faction's `fleesAtDamageFraction` on, computed from the real live vehicle rather than invented. */
+export function armorDamageFraction(vehicle: VehicleState): number {
+  const maxTotal = FACINGS.reduce((sum, facing) => sum + vehicle.design.armor[facing], 0);
+  if (maxTotal <= 0) return 0;
+  const currentTotal = FACINGS.reduce((sum, facing) => sum + vehicle.armorDP[facing], 0);
+  return 1 - currentTotal / maxTotal;
+}
+
 /**
  * A `DriverState` stand-in for an AI opponent — `applyPenetratingDamage`
  * (via `applyResolvedShot`) needs one to track armor-then-health on a hit
@@ -775,9 +1026,26 @@ function resolveVehicleCollisions(vehicles: readonly VehicleState[]): VehicleSta
  * fire still go through the exact same `stepDriving`/`fire` pipeline the
  * player's own input does.
  */
-export function makeArenaAISystem(playerVehicleId: string, opponents: ReadonlyMap<string, ArenaOpponentState>, aiInputs: Map<string, InputFrame>): SystemFn {
+/**
+ * `boundsFor` decides what the AI treats as the edge of the world, and the two
+ * screens genuinely differ: an arena IS a fixed floor, a road is not.
+ *
+ * Defaulting to `arenaBounds` preserved the arena behaviour while silently giving
+ * the ROAD one too — `showRoad` drove this same system, so road opponents were
+ * bounded by a fixed box centred on the world ORIGIN. Drive far enough from origin
+ * and every opponent believes it is out of bounds and steers back toward the
+ * origin instead of fighting. `roadBounds(center)` was written for exactly this
+ * and was never connected to anything; the gate reported it as dead code, which
+ * it was, because it is the unwired half of a bug fix.
+ */
+export function makeArenaAISystem(
+  playerVehicleId: string,
+  opponents: ReadonlyMap<string, ArenaOpponentState>,
+  aiInputs: Map<string, InputFrame>,
+  boundsFor: (world: World) => ArenaBounds = () => arenaBounds(),
+): SystemFn {
   return (world) => {
-    const bounds = arenaBounds();
+    const bounds = boundsFor(world);
     for (const vehicle of world.entities.vehicles) {
       if (vehicle.id === playerVehicleId || vehicle.destroyed) continue;
       const opponent = opponents.get(vehicle.id);
@@ -961,6 +1229,67 @@ export function makeArenaDamageSystem(
   };
 }
 
+/**
+ * The road's own damage system — same `applyResolvedShot` penetration chain
+ * as `makeArenaDamageSystem` above (never a second physics/roll
+ * implementation), but with no `ArenaMatchState` to record into: a road
+ * encounter has no "match", just contacts that live or die. A defeated
+ * opponent is marked `destroyed` and dropped from `opponents` here; turning
+ * that into an actual `RoadWreck` at the right road position is the road
+ * screen's own job (it reads `world.entities.vehicles` for any newly
+ * `destroyed` non-player vehicle each tick — see `showRoad`), not this
+ * system's, so this stays a plain sibling of the arena version rather than
+ * growing an unrelated concern.
+ */
+export function makeRoadDamageSystem(
+  playerVehicleId: string,
+  driverRef: { current: DriverState },
+  opponents: Map<string, ArenaOpponentState>,
+  projectileTargets: Map<string, string>,
+): SystemFn {
+  return (world) => {
+    const collisionCfg = drivingConfig().collision;
+    const remaining: ProjectileState[] = [];
+
+    for (const projectile of world.entities.projectiles) {
+      const targetId = projectileTargets.get(projectile.id);
+      const targetIndex = targetId === undefined ? -1 : world.entities.vehicles.findIndex((v) => v.id === targetId);
+      const target = targetIndex >= 0 ? world.entities.vehicles[targetIndex] : undefined;
+
+      const reached =
+        target !== undefined && circleIntersectsOrientedRect(projectile.position, collisionCfg.projectileRadiusM, vehicleOrientedRect(target));
+      const expired = projectileExpired(projectile);
+
+      if (!reached && !expired) {
+        remaining.push(projectile);
+        continue;
+      }
+      projectileTargets.delete(projectile.id);
+
+      const { hit, damage, facing } = projectile.outcome;
+      if (target === undefined || target.destroyed || !hit || facing === null) continue;
+
+      const isTargetPlayer = target.id === playerVehicleId;
+      const targetDriver = isTargetPlayer ? driverRef.current : opponents.get(target.id)?.driver;
+      if (targetDriver === undefined) continue;
+      const resolved = withWorldRng(world, (rng) => applyResolvedShot({ vehicle: target, driver: targetDriver }, facing, damage, rng));
+
+      const defeated = opponentDefeatedByReport(resolved.report);
+      const nextVehicle = defeated ? { ...resolved.target.vehicle, destroyed: true } : resolved.target.vehicle;
+      world.entities.vehicles[targetIndex] = nextVehicle;
+
+      if (isTargetPlayer) {
+        driverRef.current = resolved.target.driver;
+      } else {
+        const entry = opponents.get(target.id);
+        if (entry !== undefined) opponents.set(target.id, { ...entry, driver: resolved.target.driver });
+        if (defeated) opponents.delete(target.id);
+      }
+    }
+    world.entities.projectiles = remaining;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
@@ -1101,6 +1430,8 @@ async function persistArenaSession(
       vehicles,
       activeVehicleId: vehicle.id,
     },
+    controlPreset: currentControlPreset,
+    controlBindings: currentControlBindings,
   };
   try {
     const db = await openDb();
@@ -1185,9 +1516,13 @@ function showArena(
   const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
+  const retryBtn = el('button');
+  retryBtn.style.cssText =
+    'position:absolute;top:36px;left:50%;transform:translateX(-50%);pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
   container.appendChild(canvas);
   container.appendChild(hudHost);
   container.appendChild(status);
+  container.appendChild(retryBtn);
   container.appendChild(exitBtn);
   clearAndAppend(root, container);
 
@@ -1226,16 +1561,9 @@ function showArena(
   systems.register('cleanup', cleanupSystem);
 
   // --- input --------------------------------------------------------------
-  const heldKeys = new Set<string>();
+  const codesDown = new Set<string>();
+  const inputTracking = attachCodeTracking(codesDown);
   let activeWeaponIndex: number | null = playerVehicle.weapons.length > 0 ? 0 : null;
-  function onKeyDown(ev: KeyboardEvent): void {
-    heldKeys.add(ev.key.toLowerCase());
-    if (ev.key === 'q' || ev.key === 'Q') cycleWeapon(-1);
-    if (ev.key === 'e' || ev.key === 'E') cycleWeapon(1);
-  }
-  function onKeyUp(ev: KeyboardEvent): void {
-    heldKeys.delete(ev.key.toLowerCase());
-  }
   function cycleWeapon(delta: number): void {
     const player = findPlayer(world);
     const count = player?.weapons.length ?? 0;
@@ -1246,18 +1574,13 @@ function showArena(
     const base = activeWeaponIndex ?? 0;
     activeWeaponIndex = (((base + delta) % count) + count) % count;
   }
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
+  const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
 
   function sampleInput(): InputFrame {
-    let moveX = 0;
-    let moveY = 0;
-    if (heldKeys.has('arrowleft') || heldKeys.has('a')) moveX -= 1;
-    if (heldKeys.has('arrowright') || heldKeys.has('d')) moveX += 1;
-    if (heldKeys.has('arrowup') || heldKeys.has('w')) moveY += 1;
-    if (heldKeys.has('arrowdown') || heldKeys.has('s')) moveY -= 1;
-    const fire = heldKeys.has(' ') || heldKeys.has('j');
-    return { moveX, moveY, fire, weaponSlot: activeWeaponIndex ?? 0 };
+    const raw = rawInputFrom(codesDown);
+    applyCycleEdge(raw);
+    const resolved = resolveInput(raw, currentControlPreset, currentControlBindings);
+    return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: activeWeaponIndex ?? 0 };
   }
 
   const loop = createGameLoop({ world, dtSeconds, systems, sampleInput });
@@ -1339,9 +1662,11 @@ function showArena(
         resources = rebuilt;
       });
     });
-    gpuCtx.onRecoveryFailed((reason) => {
-      status.textContent = t('ui.arena.webgpuDeviceLost', { reason: reason.kind });
+    gpuCtx.onRecoveryFailed(() => {
       resources = undefined;
+    });
+    wireRecoveryUi(gpuCtx, retryBtn, (text) => {
+      status.textContent = text;
     });
   }
 
@@ -1403,8 +1728,7 @@ function showArena(
   function stop(): void {
     stopped = true;
     window.cancelAnimationFrame(rafHandle);
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
+    inputTracking.detach();
     gpuCtx?.destroy();
   }
 
@@ -1447,6 +1771,19 @@ interface CityRunState {
   readonly rng: Rng;
   readonly rumorsHeardToday: ReadonlyMap<string, RumorId>;
   readonly activeCourierJobs: readonly AcceptedJob[];
+  /**
+   * Every car this driver owns beyond (or instead of) `vehicle` — `@/sim/fleet`'s
+   * real `Fleet`, up to economy.json's `maxFleetSize` (8). `vehicle` above stays
+   * the single source of truth for whichever car is CURRENTLY active (garage's
+   * own store/retrieve panel, arena, and road combat all read/write it exactly
+   * as before) — `fleet` never carries a live copy of the active car mid-drive,
+   * only a placeholder synced in immediately before the Fleet screen reads it or
+   * a switch/purchase mutates it (see `syncActiveIntoFleet`), so a car doesn't
+   * accumulate stale armor/cargo in two places at once.
+   */
+  readonly fleet: Fleet;
+  /** Per-route repopulation progress (`@/sim/encounters`) — a route just cleared of every hostile goes quiet, then slowly repopulates. Keyed by `RouteDef.id`. */
+  readonly routeHistory: ReadonlyMap<string, RouteEncounterHistory>;
 }
 
 function buildingContextFrom(state: CityRunState): BuildingContext {
@@ -1456,25 +1793,95 @@ function buildingContextFrom(state: CityRunState): BuildingContext {
     cityId: state.cityId,
     vehicle: state.vehicle,
     vehicleStored: state.vehicleStored,
-    fleetSize: 1,
-    existingCarNames: [state.vehicle.design.name],
+    fleetSize: fleetVehicleCount(state.fleet),
+    existingCarNames: [state.vehicle.design.name, ...state.fleet.vehicles.map((entry) => entry.vehicle.design.name)],
     rng: state.rng,
     rumorsHeardToday: state.rumorsHeardToday,
     activeCourierJobs: state.activeCourierJobs,
+    routeHistory: state.routeHistory,
   };
 }
 
-/** Applies a `BuildingContext` a panel handed back on exit onto `state` - every field a building can actually change, nothing else. `ctx.vehicle` is defensively kept non-null (see `BuildingContext`'s doc comment: none of the currently-wired building panels null it out - `@/sim/economy`'s storeCar only flips `vehicleStored`). */
+/**
+ * Garage's own store/retrieve panel (`@/ui/buildings/garage`) still runs
+ * entirely on `@/sim/economy`'s single-vehicle `EconomyWorld` model
+ * (`vehicle`/`vehicleStored`) — reconciling that with `@/sim/fleet`'s
+ * separate multi-car `Fleet` model happens HERE, at the one boundary where
+ * a building's output re-enters `CityRunState`, rather than by rewriting
+ * either already-tested module to know about the other. A garage visit
+ * that flips `vehicleStored` true/false is mirrored onto `fleet`'s own
+ * active-vehicle entry (added fresh if this is the driver's only car and
+ * `fleet` doesn't have an entry for it yet) so the Fleet screen's roster
+ * and garage's own storage state can never silently disagree.
+ */
+export function reconcileFleetWithVehicle(fleet: Fleet, vehicle: VehicleState, vehicleStored: boolean, cityId: string): Fleet {
+  // A destroyed vehicle is gone for good — `@/sim/fleet`'s own `removeVehicle`
+  // docblock names exactly this case. Every screen that hands a live vehicle
+  // back through this one seam (arena exit, road arrival, the Fleet roster,
+  // opening the constructor) still has to carry SOME `VehicleState` in
+  // `CityRunState.vehicle` (it can never be null), so without this guard the
+  // very next reconciliation call would silently re-add the wreck as a real,
+  // active roster entry — undoing whatever dropped it moments earlier and
+  // leaving exactly the ghost `removeVehicle` exists to prevent.
+  if (vehicle.destroyed) {
+    const removed = removeVehicle(fleet, vehicle.id);
+    return removed.ok ? removed.fleet : fleet;
+  }
+  const index = fleet.vehicles.findIndex((entry) => entry.vehicle.id === vehicle.id);
+  const entry: FleetVehicle = { vehicle, stored: vehicleStored, cityId };
+  if (index === -1) return { vehicles: [...fleet.vehicles, entry] };
+  const vehicles = fleet.vehicles.slice();
+  vehicles[index] = entry;
+  return { vehicles };
+}
+
+/**
+ * Folds a building panel's own vehicle change back onto `fleet` — the same
+ * one seam every building exit reconciles through (`applyBuildingContext`
+ * below). `ctx.vehicle` turns up null only from the salvage yard's own
+ * 'sell-car' action (`@/ui/buildings/salvage.ts`); every other currently-wired
+ * panel at most flips `vehicleStored` and this just reconciles the (still
+ * non-null) vehicle in as usual. A sale is gone for good exactly like a
+ * destroyed active car (`reconcileFleetWithVehicle`'s own `vehicle.destroyed`
+ * branch above) — `previousVehicleId` (the same vehicle's id, read by the
+ * caller off `state.vehicle` before the sale, since `ctx.vehicle` itself is
+ * null and carries no id to remove) is dropped from the roster via
+ * `removeVehicle`. Falling back to the pre-sale vehicle and reconciling it
+ * back in as if nothing happened — the previous behavior — is the exact
+ * ghost-roster-entry bug `removeVehicle` was wired up to close, on top of
+ * having already paid out the sale price for a car still sitting in the
+ * fleet.
+ */
+export function fleetAfterBuildingVisit(fleet: Fleet, previousVehicleId: string, ctx: BuildingContext): Fleet {
+  if (ctx.vehicle === null) {
+    const removed = removeVehicle(fleet, previousVehicleId);
+    return removed.ok ? removed.fleet : fleet;
+  }
+  return reconcileFleetWithVehicle(fleet, ctx.vehicle, ctx.vehicleStored, ctx.cityId);
+}
+
+/**
+ * Applies a `BuildingContext` a panel handed back on exit onto `state` -
+ * every field a building can actually change, nothing else. `ctx.vehicle`
+ * turns up null only from the salvage yard's own 'sell-car' action
+ * (`@/ui/buildings/salvage.ts`) — `CityRunState.vehicle` can never itself be
+ * null (every later screen reads it directly), so it falls back to the
+ * PRE-sale `state.vehicle` purely to keep that shape; `fleetAfterBuildingVisit`
+ * above is what actually keeps the sold car out of `fleet` regardless.
+ */
 function applyBuildingContext(state: CityRunState, ctx: BuildingContext): CityRunState {
+  const vehicle = ctx.vehicle ?? state.vehicle;
   return {
     ...state,
     driver: ctx.driver,
     clock: ctx.clock,
     cityId: ctx.cityId,
-    vehicle: ctx.vehicle ?? state.vehicle,
+    vehicle,
     vehicleStored: ctx.vehicleStored,
+    fleet: fleetAfterBuildingVisit(state.fleet, state.vehicle.id, ctx),
     rumorsHeardToday: ctx.rumorsHeardToday,
     activeCourierJobs: ctx.activeCourierJobs,
+    routeHistory: ctx.routeHistory,
   };
 }
 
@@ -1520,9 +1927,13 @@ function showArenaEvent(
   const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
+  const retryBtn = el('button');
+  retryBtn.style.cssText =
+    'position:absolute;top:36px;left:50%;transform:translateX(-50%);pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
   container.appendChild(canvas);
   container.appendChild(hudHost);
   container.appendChild(status);
+  container.appendChild(retryBtn);
   container.appendChild(exitBtn);
   clearAndAppend(root, container);
 
@@ -1556,16 +1967,9 @@ function showArenaEvent(
   systems.register('ai', makeArenaAISystem(playerVehicleId, opponents, aiInputs));
   systems.register('cleanup', cleanupSystem);
 
-  const heldKeys = new Set<string>();
+  const codesDown = new Set<string>();
+  const inputTracking = attachCodeTracking(codesDown);
   let activeWeaponIndex: number | null = playerVehicle.weapons.length > 0 ? 0 : null;
-  function onKeyDown(ev: KeyboardEvent): void {
-    heldKeys.add(ev.key.toLowerCase());
-    if (ev.key === 'q' || ev.key === 'Q') cycleWeapon(-1);
-    if (ev.key === 'e' || ev.key === 'E') cycleWeapon(1);
-  }
-  function onKeyUp(ev: KeyboardEvent): void {
-    heldKeys.delete(ev.key.toLowerCase());
-  }
   function cycleWeapon(delta: number): void {
     const player = findPlayer(world);
     const count = player?.weapons.length ?? 0;
@@ -1576,18 +1980,13 @@ function showArenaEvent(
     const base = activeWeaponIndex ?? 0;
     activeWeaponIndex = (((base + delta) % count) + count) % count;
   }
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
+  const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
 
   function sampleInput(): InputFrame {
-    let moveX = 0;
-    let moveY = 0;
-    if (heldKeys.has('arrowleft') || heldKeys.has('a')) moveX -= 1;
-    if (heldKeys.has('arrowright') || heldKeys.has('d')) moveX += 1;
-    if (heldKeys.has('arrowup') || heldKeys.has('w')) moveY += 1;
-    if (heldKeys.has('arrowdown') || heldKeys.has('s')) moveY -= 1;
-    const fire = heldKeys.has(' ') || heldKeys.has('j');
-    return { moveX, moveY, fire, weaponSlot: activeWeaponIndex ?? 0 };
+    const raw = rawInputFrom(codesDown);
+    applyCycleEdge(raw);
+    const resolved = resolveInput(raw, currentControlPreset, currentControlBindings);
+    return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: activeWeaponIndex ?? 0 };
   }
 
   const loop = createGameLoop({ world, dtSeconds, systems, sampleInput });
@@ -1667,9 +2066,11 @@ function showArenaEvent(
         resources = rebuilt;
       });
     });
-    gpuCtx.onRecoveryFailed((reason) => {
-      status.textContent = t('ui.arena.webgpuDeviceLost', { reason: reason.kind });
+    gpuCtx.onRecoveryFailed(() => {
       resources = undefined;
+    });
+    wireRecoveryUi(gpuCtx, retryBtn, (text) => {
+      status.textContent = text;
     });
   }
 
@@ -1729,8 +2130,7 @@ function showArenaEvent(
   function stop(): void {
     stopped = true;
     window.cancelAnimationFrame(rafHandle);
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
+    inputTracking.detach();
     gpuCtx?.destroy();
   }
 
@@ -1741,7 +2141,13 @@ function showArenaEvent(
     const resolution: ArenaResolution = resolveArenaExit(matchStateRef.current, driverRef.current, exitMode);
     const nextClock = advanceDays(world.clock, resolution.daysConsumed);
     const nextVehicle = player ?? playerVehicle;
-    onComplete({ ...cityState, driver: resolution.driver, vehicle: nextVehicle, clock: nextClock });
+    onComplete({
+      ...cityState,
+      driver: resolution.driver,
+      vehicle: nextVehicle,
+      clock: nextClock,
+      fleet: reconcileFleetWithVehicle(cityState.fleet, nextVehicle, false, cityState.cityId),
+    });
   });
 
   void initRenderer().finally(() => {
@@ -1847,19 +2253,111 @@ function cityRouteNeighbors(cityId: string): { route: RouteDef; neighborCityId: 
   return neighbors;
 }
 
-/** WASD/arrows -> one of `@/sim/city`'s eight compass `CityDirection`s, or null for centered/no input - the 8-way convention `stepWalk` expects (not the arena/road screens' free 2D stick vector). */
-function cityDirectionFromKeys(heldKeys: ReadonlySet<string>): CityDirection | null {
-  let x = 0;
-  let y = 0;
-  if (heldKeys.has('arrowleft') || heldKeys.has('a')) x -= 1;
-  if (heldKeys.has('arrowright') || heldKeys.has('d')) x += 1;
-  if (heldKeys.has('arrowup') || heldKeys.has('w')) y -= 1;
-  if (heldKeys.has('arrowdown') || heldKeys.has('s')) y += 1;
+/**
+ * `@/ui/input`'s `resolveInput()` drive vector -> one of `@/sim/city`'s eight
+ * compass `CityDirection`s, or null for centered/no input - the 8-way
+ * convention `stepWalk` expects (not the arena/road screens' free 2D stick
+ * vector). `moveY` is negated: `resolveInput`'s contract is world-up-positive
+ * (matching `@/render/camera`'s Y-up convention, see `@/ui/input`'s own file
+ * header), but city's compass here treats "up" (driveUp) as north, which
+ * this function's own callers have always modeled as the negative-y half —
+ * flipping the sign here is this function's job, not `resolveInput`'s.
+ */
+export function cityDirectionFromVector(vec: { readonly x: number; readonly y: number }): CityDirection | null {
+  const deadzone = CONTROLS.cityDirectionDeadzone;
+  const x = Math.abs(vec.x) > deadzone ? Math.sign(vec.x) : 0;
+  const y = Math.abs(vec.y) > deadzone ? -Math.sign(vec.y) : 0;
   if (x === 0 && y === 0) return null;
   if (x === 0) return y < 0 ? 'N' : 'S';
   if (y === 0) return x < 0 ? 'W' : 'E';
   if (x < 0) return y < 0 ? 'NW' : 'SW';
   return y < 0 ? 'NE' : 'SE';
+}
+
+// ---------------------------------------------------------------------------
+// Screen 5b: Fleet roster — up to economy.json's `maxFleetSize` (8) owned
+// cars, switchable from whichever one the driver is standing in this city.
+// ---------------------------------------------------------------------------
+//
+// `@/sim/fleet`'s real `switchActiveVehicle` does the actual work (garages
+// the outgoing car free, charges `retrieveCar`'s fee to bring in the
+// incoming one, exactly as `@/ui/buildings/garage`'s own retrieve action
+// prices it) — this screen is a thin `@/ui/menu` list over that, plus the
+// one bookkeeping step neither `@/sim/fleet` nor `@/ui/buildings/garage`
+// owns: making sure `state.fleet`'s entry for the car currently being
+// driven reflects its REAL live state (armor/cargo/ammo, not whatever it
+// looked like the last time it was stored) before any switch reads it.
+
+function fleetRowLabel(entry: FleetVehicle, driverCityId: string): string {
+  if (!entry.stored) return t('ui.fleet.rowActive', { name: entry.vehicle.design.name });
+  if (entry.cityId === driverCityId) {
+    return t('ui.fleet.rowStoredHere', { name: entry.vehicle.design.name, price: economy().services.retrieveCar.price });
+  }
+  return t('ui.fleet.rowStoredElsewhere', { name: entry.vehicle.design.name, city: cityName(entry.cityId) });
+}
+
+function showFleet(root: HTMLElement, state: CityRunState, onExit: (nextState: CityRunState) => void): void {
+  const container = el('div', 'sm-screen sm-screen--fleet');
+  container.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,7,10,0.85);';
+  const menuHost = el('div');
+  menuHost.style.cssText = 'width:min(480px,92vw);max-height:88vh;overflow:auto;';
+  container.appendChild(menuHost);
+  clearAndAppend(root, container);
+
+  // `fleet` synced with the car actually under the driver right now — the
+  // one entry `@/ui/buildings/garage`'s own store/retrieve never gets to
+  // touch mid-drive (arena damage, road combat, cargo picked up from a
+  // wreck), so this is the one moment that live state is folded back in
+  // before anything here reads or switches off of it.
+  let runState: CityRunState = { ...state, fleet: reconcileFleetWithVehicle(state.fleet, state.vehicle, false, state.cityId) };
+
+  function actionsFor(): MenuAction[] {
+    const actions: MenuAction[] = runState.fleet.vehicles.map((entry) => ({
+      id: `fleet-${entry.vehicle.id}`,
+      label: fleetRowLabel(entry, runState.cityId),
+      eligible: entry.stored && entry.cityId === runState.cityId,
+    }));
+    actions.push(leaveAction());
+    return actions;
+  }
+
+  function header(): { cash: number; dayIndex: number; phase: Clock['phase']; cityName: string } {
+    return { cash: runState.driver.cash, dayIndex: runState.clock.dayIndex, phase: runState.clock.phase, cityName: cityName(runState.cityId) };
+  }
+
+  const mounted = mountMenu({
+    container: menuHost,
+    header: header(),
+    actions: actionsFor(),
+    onActivate: (id) => {
+      if (id === LEAVE_ACTION_ID) {
+        onExit(runState);
+        return;
+      }
+      const vehicleId = id.slice('fleet-'.length);
+      const result = switchActiveVehicle(runState.driver, runState.fleet, runState.clock, vehicleId);
+      if (!result.ok) {
+        mounted.setActions(actionsFor());
+        return;
+      }
+      const nextActive = fleetActiveVehicle(result.fleet);
+      if (nextActive === undefined) {
+        mounted.setActions(actionsFor());
+        return;
+      }
+      runState = {
+        ...runState,
+        driver: result.driver,
+        clock: result.clock,
+        fleet: result.fleet,
+        vehicle: nextActive.vehicle,
+        vehicleStored: false,
+      };
+      mounted.setHeader(header());
+      mounted.setActions(actionsFor());
+    },
+    onBack: () => onExit(runState),
+  });
 }
 
 /**
@@ -1879,10 +2377,18 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   const status = el('div');
   status.style.cssText =
     'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;white-space:pre;';
+  const deviceNotice = el('div');
+  deviceNotice.style.cssText =
+    'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ff6b6b;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
+  const retryBtn = el('button');
+  retryBtn.style.cssText =
+    'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
   const panelHost = el('div');
   panelHost.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,7,10,0.55);';
   container.appendChild(canvas);
   container.appendChild(status);
+  container.appendChild(deviceNotice);
+  container.appendChild(retryBtn);
   container.appendChild(panelHost);
   clearAndAppend(root, container);
 
@@ -1954,13 +2460,26 @@ function showCity(root: HTMLElement, state: CityRunState): void {
           root,
           runState.driver,
           (chargedDriver, confirmed) => {
-            const newVehicle = vehicleStateFromConfirmedBuild(confirmed, PLAYER_ID);
-            runState = { ...runState, driver: chargedDriver, vehicle: newVehicle, vehicleStored: false };
+            // A fresh build becomes the new active car; whatever was active
+            // before (there always is one — the driver walked in here
+            // driving it) is garaged in THIS city instead of discarded, the
+            // same "additional car" flow `@/ui/buildings/assembly`'s own
+            // fleet-cap gate (`ctx.fleetSize < maxFleetSize`) exists for.
+            const newVehicle = vehicleStateFromConfirmedBuild(confirmed, PLAYER_ID, `veh-${PLAYER_ID}-${runState.fleet.vehicles.length}`);
+            const fleetWithOldGaraged = reconcileFleetWithVehicle(runState.fleet, runState.vehicle, true, runState.cityId);
+            const fleetResult = fleetAddVehicle(fleetWithOldGaraged, { vehicle: newVehicle, stored: false, cityId: runState.cityId });
+            runState = {
+              ...runState,
+              driver: chargedDriver,
+              vehicle: newVehicle,
+              vehicleStored: false,
+              fleet: fleetResult.ok ? fleetResult.fleet : fleetWithOldGaraged,
+            };
             showCity(root, runState);
           },
           () => showCity(root, runState),
           [runState.vehicle.design.name],
-          1,
+          fleetVehicleCount(runState.fleet),
         );
       },
       onEnterArena: (result: ArenaEntryResult) => {
@@ -2008,7 +2527,8 @@ function showCity(root: HTMLElement, state: CityRunState): void {
         closePanel();
         stop();
         const resolved: ResolvedRoute = resolveRoute(runState.cityId, found.neighborCityId);
-        const trip = beginRoadTrip(resolved, runState.vehicle, runState.clock, runState.rng);
+        const history = runState.routeHistory.get(resolved.route.id) ?? FRESH_ROUTE_HISTORY;
+        const trip = beginRoadTripWithEncounters(resolved, runState.vehicle, runState.clock, runState.sessionSeed, history);
         showRoad(root, runState, trip, (nextState) => showCity(root, nextState));
       },
       onBack: () => {
@@ -2024,19 +2544,33 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   }
 
   // --- input --------------------------------------------------------------
-  const heldKeys = new Set<string>();
+  // 'G' (vehicle in/out) and 'F' (fleet roster) are fixed hotkeys, not part
+  // of controls.json's rebindable action set (that table only covers
+  // drive/fire/weapon-select, see `@/ui/input`'s file header) - driving
+  // itself below goes through `resolveInput` so it honors the live control
+  // preset/rebinding.
+  const codesDown = new Set<string>();
   function onKeyDown(ev: KeyboardEvent): void {
-    heldKeys.add(ev.key.toLowerCase());
+    codesDown.add(ev.code);
     if ((ev.key === 'g' || ev.key === 'G') && !paused) {
       const toggled = toggleVehicle(player, runState.vehicle.position);
       if (toggled.ok) player = toggled.player;
     }
+    if ((ev.key === 'f' || ev.key === 'F') && !paused) openFleetScreen();
   }
   function onKeyUp(ev: KeyboardEvent): void {
-    heldKeys.delete(ev.key.toLowerCase());
+    codesDown.delete(ev.code);
   }
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
+
+  function openFleetScreen(): void {
+    stop();
+    showFleet(root, runState, (nextState) => {
+      runState = nextState;
+      showCity(root, runState);
+    });
+  }
 
   // --- WebGPU ---------------------------------------------------------------
   let gpuCtx: GpuContext | undefined;
@@ -2052,7 +2586,13 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     canvas.height = Math.max(1, Math.round(rect.height * dpr));
 
     const init = await initGpu(canvas);
-    if (!init.ok) return; // text-only status line still runs the real game below.
+    if (!init.ok) {
+      // Honest state, not a frozen canvas: the real sim (walking, triggers,
+      // buildings) keeps running below on the text status line alone, same
+      // contract as the arena screen's own `webgpuUnavailable` branch.
+      deviceNotice.textContent = t('ui.arena.webgpuUnavailable', { reason: init.reason.kind });
+      return;
+    }
     gpuCtx = init.context;
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
@@ -2075,6 +2615,9 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     });
     gpuCtx.onRecoveryFailed(() => {
       resources = undefined;
+    });
+    wireRecoveryUi(gpuCtx, retryBtn, (text) => {
+      deviceNotice.textContent = text;
     });
   }
 
@@ -2125,7 +2668,8 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     const dtSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
     if (!paused) {
-      const direction = cityDirectionFromKeys(heldKeys);
+      const resolved = resolveInput(rawInputFrom(codesDown), currentControlPreset, currentControlBindings);
+      const direction = cityDirectionFromVector({ x: resolved.moveX, y: resolved.moveY });
       const step = stepWalk({ player, layout, direction, dtSeconds, clock: runState.clock });
       player = step.player;
       runState = { ...runState, clock: step.clock };
@@ -2156,12 +2700,102 @@ function showCity(root: HTMLElement, state: CityRunState): void {
 // ---------------------------------------------------------------------------
 
 /**
+ * Builds a fresh `RoadTripState` whose `contacts` are `@/sim/encounters`'s
+ * real, archetype-bearing `EncounterUnit`s (deterministic in seed/route/day/
+ * history, see that module) rather than `@/sim/road`'s own bare
+ * `generateRouteContacts` (faction/disposition only, no vehicle to fight or
+ * design to render) — every OTHER field matches `beginRoadTrip`'s exact
+ * shape, this is the one substitution. `EncounterUnit extends RoadContact`,
+ * so every existing `@/sim/road` contact function (`updateContactForProgress`,
+ * `updateContactFlight`, `willFire`, ...) already works on these unchanged;
+ * `showRoad` below is what actually reads their extra `design`/`skill`/
+ * `personality` fields to field a real, fightable opponent.
+ */
+export function beginRoadTripWithEncounters(
+  resolved: ResolvedRoute,
+  vehicle: VehicleState,
+  clock: Clock,
+  sessionSeed: string,
+  history: RouteEncounterHistory,
+): RoadTripState {
+  return {
+    resolved,
+    vehicle,
+    startPosition: { ...vehicle.position },
+    routeHeadingRad: vehicle.headingRad,
+    progressMiles: 0,
+    clock,
+    dayDebt: 0,
+    contacts: generateEncounters(resolved.route, clock.dayIndex, sessionSeed, history),
+    wrecks: [],
+    hazards: [],
+  };
+}
+
+/** True while `unit.design` mounts at least one weapon that actually deals damage — mirrors `@/sim/arena`'s/`@/sim/encounters`'s own `isCombatCapableArchetype`, applied to a spawned `EncounterUnit` instead of the archetype table row it came from. */
+export function contactIsCombatCapable(unit: EncounterUnit): boolean {
+  return unit.design.weapons.some((mounted) => getWeapon(mounted.weaponId).damage.kind !== 'NONE');
+}
+
+/**
+ * `@/sim/encounters`'s `EncounterPersonality` (aggression/caution/
+ * playerThreatBias) has no `skill` field — `@/sim/arena`'s `AIPersonality`
+ * (the type `decideAI` actually reads, and `ArenaOpponentState.personality`'s
+ * declared type) requires one. `@/sim/arena` reconciles this same drift for
+ * ITS OWN archetype table by normalizing a raw `driving` skill against
+ * `skillsConfig().skillMax` into that 0..1 knob (see its own unexported
+ * `decisionSkillFromDriving`); this is that same normalization, reapplied
+ * here because that helper isn't exported and a road encounter's archetype
+ * comes from a structurally different table (`encounters.json`, not
+ * `arenas.json`).
+ */
+export function roadOpponentAIPersonality(unit: EncounterUnit): AIPersonality {
+  const cfg = skillsConfig();
+  const span = cfg.skillMax - cfg.skillMin;
+  const skill = span <= 0 ? 0 : Math.min(1, Math.max(0, (unit.skill.driving - cfg.skillMin) / span));
+  return { aggression: unit.personality.aggression, caution: unit.personality.caution, playerThreatBias: unit.personality.playerThreatBias, skill };
+}
+
+/** Narrows a road contact to its `EncounterUnit` shape when it carries one (every contact `beginRoadTripWithEncounters` generates does) — never true for a bare `RoadContact`, which this codebase no longer constructs for a live trip but which the type still technically allows. */
+export function asEncounterUnit(contact: RoadContact): EncounterUnit | undefined {
+  return 'design' in contact ? (contact as EncounterUnit) : undefined;
+}
+
+/** A small, deterministic (never `Math.random`/`Date.now`) per-contact number in a fixed range, derived from `@/util/hash`'s `hashState` — used only for cosmetic spawn placement (lateral offset, AI seed), never anything gameplay-authoritative (that's still `@/sim/encounters`'s own seeded RNG stream). */
+export function deterministicJitter(key: string, span: number): number {
+  const n = Number.parseInt(hashState(key).slice(0, 8), 16);
+  return (n % (span * 2 + 1)) - span;
+}
+
+export function roadOpponentVehicleId(contactId: string): string {
+  return `road-${contactId}`;
+}
+
+/** The one place a defeated road opponent becomes a real `@/sim/road` `RoadWreck` — the fixed `wreck-${unit.id}` id convention `showRoad`'s own `stepCombat` uses, exported so a headless test can drive the exact same production seam instead of a parallel reimplementation. */
+export function createRoadWreckFromDefeat(unit: EncounterUnit, position: Vec2, dayIndex: number): RoadWreck {
+  return createWreck(`wreck-${unit.id}`, position, dayIndex, false);
+}
+
+/**
  * Real-time driving of `initialTrip`'s route (`@/sim/road`'s own
  * `stepRoadTrip`, which itself drives the vehicle through
  * `@/sim/driving`'s `stepDriving` - the exact same movement model the
  * arena and city screens use) until the odometer crosses the route's
  * length, then hands the arrived vehicle/clock and the destination city id
  * back to `onArrive`.
+ *
+ * Road encounters are not just flavor text: every contact `stepRoadTrip`
+ * tracks that is `willFire` (hostile/retaliating) and within
+ * `driving.json`'s own `radar.visualRangeM` gets a REAL spawned opponent
+ * vehicle (`vehicleStateFromDesign` off its `EncounterUnit.design`, see
+ * `beginRoadTripWithEncounters`), driven by the real `decideAI` and firing
+ * through the exact same `fire()`/`applyResolvedShot()` pipeline the arena
+ * screens use (`makeArenaAISystem`/`makeArenaDrivingSystem`/
+ * `makeArenaWeaponsSystem`/`makeRoadDamageSystem`) — never a scripted or
+ * pre-decided outcome. A defeated opponent becomes a real, searchable
+ * `@/sim/road` `RoadWreck` (`createWreck`) at the spot it died; a peaceful
+ * contact the player never attacks just passes by and is logged, never
+ * fought.
  */
 function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripState, onArrive: (nextState: CityRunState) => void): void {
   const container = el('div', 'sm-screen sm-screen--road');
@@ -2171,34 +2805,189 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   const status = el('div');
   status.style.cssText =
     'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
+  const notice = el('div');
+  notice.style.cssText =
+    'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ffd166;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;max-width:80vw;';
+  const retryBtn = el('button');
+  retryBtn.style.cssText =
+    'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
   container.appendChild(canvas);
   container.appendChild(status);
+  container.appendChild(notice);
+  container.appendChild(retryBtn);
   clearAndAppend(root, container);
 
   lastSessionSeed = state.sessionSeed;
 
   let trip = initialTrip;
-  const drivingSkill = getSkill(state.driver, 'driving');
+  let driver = state.driver;
+  const drivingSkill = getSkill(driver, 'driving');
+  const dtSecondsFixed = dtSecondsFromTickRate(drivingConfig().tickRateHz);
+  const playerVehicleId = trip.vehicle.id;
 
-  const heldKeys = new Set<string>();
-  function onKeyDown(ev: KeyboardEvent): void {
-    heldKeys.add(ev.key.toLowerCase());
-  }
-  function onKeyUp(ev: KeyboardEvent): void {
-    heldKeys.delete(ev.key.toLowerCase());
-  }
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', onKeyUp);
+  // --- combat overlay: real spawned opponents for every currently-engaged
+  // hostile/retaliating contact, driven by the exact same @/sim/ai + fire()
+  // pipeline the arena screens use (see this function's own doc comment). ---
+  const combatWorld: World = createWorld({
+    rngSeed: 0,
+    arena: { id: trip.resolved.route.id, kind: 'route' },
+    entities: { vehicles: [trip.vehicle] },
+  });
+  combatWorld.rngState = createRng(state.sessionSeed).stream(`road-combat|${trip.resolved.route.id}`).serialize();
+  const opponentVehicles = new Map<string, VehicleState>();
+  const opponents = new Map<string, ArenaOpponentState>();
+  const contactByVehicleId = new Map<string, EncounterUnit>();
+  const aiInputs = new Map<string, InputFrame>();
+  const projectileTargets = new Map<string, string>();
+  const spawnCounter = { current: 0 };
+  const resolvedContactIds = new Set<string>();
+  const passedContactIds = new Set<string>();
 
-  function sampleStick(): { x: number; y: number } {
-    let x = 0;
-    let y = 0;
-    if (heldKeys.has('arrowleft') || heldKeys.has('a')) x -= 1;
-    if (heldKeys.has('arrowright') || heldKeys.has('d')) x += 1;
-    if (heldKeys.has('arrowup') || heldKeys.has('w')) y += 1;
-    if (heldKeys.has('arrowdown') || heldKeys.has('s')) y -= 1;
-    return { x, y };
+  function logNotice(text: string): void {
+    notice.textContent = text;
   }
+
+  function engagementRangeM(): number {
+    return drivingConfig().radar.visualRangeM;
+  }
+
+  /** Spawns/despawns opponent vehicles for this tick's `trip.contacts` against `trip.progressMiles`, and logs a peaceful pass-by once per contact. Positions are derived from the player's own live position, offset along the route's fixed heading axis by the contact's remaining route-miles — the road has no independent 2D map, so this IS the contact's world position, exactly as `vehicleSpriteInstance`/combat below expect. */
+  function updateEngagement(): void {
+    const axis: Vec2 = { x: Math.cos(trip.routeHeadingRad), y: Math.sin(trip.routeHeadingRad) };
+    const perp: Vec2 = { x: -axis.y, y: axis.x };
+    const metersPerMile = drivingConfig().metersPerMile;
+    const range = engagementRangeM();
+
+    for (const contact of trip.contacts) {
+      const unit = asEncounterUnit(contact);
+      if (unit === undefined || resolvedContactIds.has(unit.id)) continue;
+      const distanceM = Math.abs(unit.routeMiles - trip.progressMiles) * metersPerMile;
+      const vehicleId = roadOpponentVehicleId(unit.id);
+      const engaged = willFire(unit) && contactIsCombatCapable(unit) && distanceM <= range;
+
+      if (engaged && !opponentVehicles.has(vehicleId)) {
+        const deltaM = (unit.routeMiles - trip.progressMiles) * metersPerMile;
+        const lateralM = deterministicJitter(unit.id, 12);
+        const position: Vec2 = {
+          x: trip.vehicle.position.x + axis.x * deltaM + perp.x * lateralM,
+          y: trip.vehicle.position.y + axis.y * deltaM + perp.y * lateralM,
+        };
+        const headingRad = Math.atan2(trip.vehicle.position.y - position.y, trip.vehicle.position.x - position.x);
+        const vehicle = vehicleStateFromDesign(unit.design, vehicleId, vehicleId, position, headingRad);
+        opponentVehicles.set(vehicleId, vehicle);
+        opponents.set(vehicleId, {
+          archetypeId: unit.archetypeId,
+          personality: roadOpponentAIPersonality(unit),
+          driver: opponentDriverState(unit.skill),
+          seed: deterministicJitter(`${unit.id}:seed`, 2 ** 30),
+        });
+        contactByVehicleId.set(vehicleId, unit);
+        logNotice(t('ui.road.contactHostile', { faction: unit.faction }));
+      } else if (!engaged && opponentVehicles.has(vehicleId)) {
+        if (contact.disposition === 'fleeing') logNotice(t('ui.road.contactFled', { faction: unit.faction }));
+        opponentVehicles.delete(vehicleId);
+        opponents.delete(vehicleId);
+        contactByVehicleId.delete(vehicleId);
+      }
+
+      if (
+        contact.disposition === 'peaceful' &&
+        !passedContactIds.has(unit.id) &&
+        distanceM <= trafficPassRangeM()
+      ) {
+        passedContactIds.add(unit.id);
+        logNotice(t('ui.road.trafficPassing', { faction: unit.faction }));
+      }
+    }
+  }
+
+  /** One combat tick against every currently-engaged opponent: real AI, real driving, real fire, real damage — the same systems the arena screens run, minus arena's own match bookkeeping (`makeRoadDamageSystem` instead of `makeArenaDamageSystem`). Any opponent it defeats becomes a real `RoadWreck` at the position it died. */
+  function stepCombat(playerInput: InputFrame, dtSeconds: number): void {
+    combatWorld.tick += 1;
+    combatWorld.entities.vehicles = [trip.vehicle, ...opponentVehicles.values()];
+
+    const driverRef = { current: driver };
+    // The road has no fixed floor: bound the AI on a box that FOLLOWS the player.
+    makeArenaAISystem(playerVehicleId, opponents, aiInputs, (w) => {
+      const p = w.entities.vehicles.find((v) => v.id === playerVehicleId);
+      return roadBounds(p?.position ?? { x: 0, y: 0 });
+    })(combatWorld, playerInput, dtSeconds);
+    makeArenaDrivingSystem(driverRef, playerVehicleId, opponents, aiInputs)(combatWorld, playerInput, dtSeconds);
+    makeArenaWeaponsSystem(driverRef, playerVehicleId, opponents, aiInputs, projectileTargets, spawnCounter, () => {})(
+      combatWorld,
+      playerInput,
+      dtSeconds,
+    );
+    projectilesSystem(combatWorld, playerInput, dtSeconds);
+    makeRoadDamageSystem(playerVehicleId, driverRef, opponents, projectileTargets)(combatWorld, playerInput, dtSeconds);
+    cleanupSystem(combatWorld, playerInput, dtSeconds);
+    driver = driverRef.current;
+
+    // Merge combat-relevant fields back onto the authoritative `trip.vehicle`
+    // (position/heading/speed/odometer/battery stay `stepRoadTrip`'s alone —
+    // this system's own redundant movement of the player entry is discarded).
+    const playerAfter = combatWorld.entities.vehicles.find((v) => v.id === playerVehicleId);
+    if (playerAfter !== undefined) {
+      trip = {
+        ...trip,
+        vehicle: {
+          ...trip.vehicle,
+          armorDP: playerAfter.armorDP,
+          tireDP: playerAfter.tireDP,
+          plantDP: playerAfter.plantDP,
+          weapons: playerAfter.weapons,
+          destroyed: playerAfter.destroyed,
+          statusEffects: playerAfter.statusEffects,
+          controlStress: playerAfter.controlStress,
+          controlLossTicks: playerAfter.controlLossTicks,
+        },
+      };
+    }
+
+    for (const [vehicleId, unit] of [...contactByVehicleId.entries()]) {
+      if (opponents.has(vehicleId)) {
+        const updated = combatWorld.entities.vehicles.find((v) => v.id === vehicleId);
+        if (updated !== undefined) opponentVehicles.set(vehicleId, updated);
+        continue;
+      }
+      // No longer tracked in `opponents` after this tick's damage system ran
+      // -> defeated this tick. Leave behind a real, searchable wreck.
+      const deadVehicle = combatWorld.entities.vehicles.find((v) => v.id === vehicleId) ?? opponentVehicles.get(vehicleId);
+      opponentVehicles.delete(vehicleId);
+      contactByVehicleId.delete(vehicleId);
+      resolvedContactIds.add(unit.id);
+      if (deadVehicle !== undefined) {
+        const wreck: RoadWreck = createRoadWreckFromDefeat(unit, deadVehicle.position, trip.clock.dayIndex);
+        trip = { ...trip, wrecks: [...trip.wrecks, wreck] };
+      }
+      logNotice(t('ui.road.contactDefeated', { faction: unit.faction }));
+    }
+  }
+
+  /** Damage taken so far, per still-tracked contact — what `stepRoadTrip` needs to decide a faction's `fleesAtDamageFraction` break. */
+  function contactDamageThisTick(): ReadonlyMap<string, number> {
+    const damage = new Map<string, number>();
+    for (const [vehicleId, unit] of contactByVehicleId) {
+      const vehicle = opponentVehicles.get(vehicleId);
+      if (vehicle !== undefined) damage.set(unit.id, armorDamageFraction(vehicle));
+    }
+    return damage;
+  }
+
+  // --- input ------------------------------------------------------------
+  const codesDown = new Set<string>();
+  const inputTracking = attachCodeTracking(codesDown);
+  let activeWeaponIndex: number | null = trip.vehicle.weapons.length > 0 ? 0 : null;
+  function cycleWeapon(delta: number): void {
+    const count = trip.vehicle.weapons.length;
+    if (count === 0) {
+      activeWeaponIndex = null;
+      return;
+    }
+    const base = activeWeaponIndex ?? 0;
+    activeWeaponIndex = (((base + delta) % count) + count) % count;
+  }
+  const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
 
   let gpuCtx: GpuContext | undefined;
   let resources: RenderResources | undefined;
@@ -2214,7 +3003,10 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     canvas.height = Math.max(1, Math.round(rect.height * dpr));
 
     const init = await initGpu(canvas);
-    if (!init.ok) return;
+    if (!init.ok) {
+      logNotice(t('ui.arena.webgpuUnavailable', { reason: init.reason.kind }));
+      return;
+    }
     gpuCtx = init.context;
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
@@ -2237,6 +3029,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     gpuCtx.onRecoveryFailed(() => {
       resources = undefined;
     });
+    wireRecoveryUi(gpuCtx, retryBtn, logNotice);
   }
 
   function renderFrame(): void {
@@ -2247,7 +3040,9 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     camera.setCenter(trip.vehicle.position);
     writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
 
-    const spriteInstances = [vehicleSpriteInstance(trip.vehicle, atlasIndex)];
+    const atlas = atlasIndex;
+    const opponentInstances = [...opponentVehicles.values()].filter((v) => !v.destroyed).map((v) => vehicleSpriteInstance(v, atlas));
+    const spriteInstances = [vehicleSpriteInstance(trip.vehicle, atlas), ...opponentInstances];
     writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(floorInstances));
     writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
 
@@ -2279,9 +3074,24 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   function stop(): void {
     stopped = true;
     window.cancelAnimationFrame(rafHandle);
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
+    inputTracking.detach();
+    window.removeEventListener('keydown', onSearchKey);
     gpuCtx?.destroy();
+  }
+
+  /** Every route this driver has ever cleared of live hostiles - folded into the returned `CityRunState.routeHistory` so `@/sim/encounters`'s repopulation clock starts counting from THIS arrival, not re-derived from scratch next time the route is driven. */
+  function nextRouteHistory(): ReadonlyMap<string, RouteEncounterHistory> {
+    const routeId = trip.resolved.route.id;
+    const stillLive = trip.contacts.some((contact) => {
+      const unit = asEncounterUnit(contact);
+      return unit !== undefined && contactIsCombatCapable(unit) && !resolvedContactIds.has(unit.id) && willFire(contact);
+    });
+    if (stillLive) return state.routeHistory;
+    const history = state.routeHistory.get(routeId) ?? FRESH_ROUTE_HISTORY;
+    const cleared = recordRouteCleared(history, trip.clock.dayIndex);
+    const next = new Map(state.routeHistory);
+    next.set(routeId, cleared);
+    return next;
   }
 
   function finish(): void {
@@ -2289,16 +3099,98 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     const crossing = crossDestinationGate(trip);
     const destinationCityId = crossing?.cityId ?? state.cityId;
     const arrivedVehicle = crossing?.vehicle ?? trip.vehicle;
-    onArrive({ ...state, vehicle: arrivedVehicle, cityId: destinationCityId, clock: trip.clock });
+    onArrive({
+      ...state,
+      // `@/sim/road`'s own `stepRoadTrip`/`crossDestinationGate` never touch
+      // `DriverState.cityId` (only `@/sim/economy`'s bus-travel service
+      // does) - kept in sync here so `@/sim/fleet`'s `switchActiveVehicle`
+      // (which gates a retrieval on `target.cityId === driver.cityId`) sees
+      // the city the driver actually just arrived in, not a stale one from
+      // before this trip.
+      driver: { ...driver, cityId: destinationCityId },
+      vehicle: arrivedVehicle,
+      cityId: destinationCityId,
+      clock: trip.clock,
+      fleet: reconcileFleetWithVehicle(state.fleet, arrivedVehicle, false, destinationCityId),
+      routeHistory: nextRouteHistory(),
+    });
   }
+
+  /** Player vehicle destroyed mid-route: abandon it where it died and return on foot to the ORIGIN city (SPEC "Road": abandoning leaves the car behind) rather than silently teleporting to the destination. */
+  function finishDestroyed(): void {
+    stop();
+    logNotice(t('ui.road.playerWrecked'));
+    onArrive({
+      ...state,
+      driver: { ...driver, cityId: trip.resolved.originCityId },
+      vehicle: trip.vehicle,
+      vehicleStored: true,
+      cityId: trip.resolved.originCityId,
+      clock: trip.clock,
+      fleet: reconcileFleetWithVehicle(state.fleet, trip.vehicle, true, trip.resolved.originCityId),
+      routeHistory: nextRouteHistory(),
+    });
+  }
+
+  /** Nearest still-present, unsearched wreck within lunging distance, if any - `X` searches it (see `frame`'s own key handling below). */
+  function nearbySearchableWreck(): RoadWreck | undefined {
+    const reach = wreckSearchRangeM();
+    return trip.wrecks.find(
+      (wreck) => canSearchWreck(wreck, trip.clock.dayIndex) && vecLength(subtractVec(wreck.position, trip.vehicle.position)) <= reach,
+    );
+  }
+
+  function trySearchWreck(): void {
+    const wreck = nearbySearchableWreck();
+    if (wreck === undefined) return;
+    const result: SearchWreckResult = searchWreck(trip.vehicle, driver, wreck, trip.clock.dayIndex, state.rng);
+    if (!result.ok) {
+      logNotice(t('ui.road.wreckNotPresent'));
+      return;
+    }
+    const nextWrecks = trip.wrecks.map((w) => (w.id === result.wreck.id ? result.wreck : w));
+    trip = { ...trip, vehicle: result.vehicle, wrecks: nextWrecks };
+    if (!result.success) {
+      logNotice(t('ui.road.wreckSearchEmpty'));
+    } else if (result.capacityExceeded) {
+      logNotice(t('ui.road.wreckSearchFull'));
+    } else {
+      logNotice(t('ui.road.wreckSearchSuccess'));
+    }
+  }
+
+  // 'X' (search a nearby wreck) is a fixed hotkey, same as city's 'G'/'F' -
+  // not part of controls.json's rebindable action set.
+  function onSearchKey(ev: KeyboardEvent): void {
+    if (ev.key === 'x' || ev.key === 'X') trySearchWreck();
+  }
+  window.addEventListener('keydown', onSearchKey);
 
   function frame(nowMs: number): void {
     if (stopped) return;
     const dtSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
-    const stick = sampleStick();
-    const result = stepRoadTrip(trip, { stick }, dtSeconds, state.rng, drivingSkill, 'normal');
+
+    const raw = rawInputFrom(codesDown);
+    applyCycleEdge(raw);
+    const resolvedInput = resolveInput(raw, currentControlPreset, currentControlBindings);
+    const playerInput: InputFrame = {
+      moveX: resolvedInput.moveX,
+      moveY: resolvedInput.moveY,
+      fire: resolvedInput.fire,
+      weaponSlot: activeWeaponIndex ?? 0,
+    };
+
+    const result = stepRoadTrip(trip, { stick: { x: playerInput.moveX, y: playerInput.moveY } }, dtSeconds, state.rng, drivingSkill, 'normal', contactDamageThisTick());
     trip = result.state;
+    updateEngagement();
+    stepCombat(playerInput, dtSecondsFixed);
+
+    if (trip.vehicle.destroyed) {
+      finishDestroyed();
+      return;
+    }
+
     const remainingMiles = Math.max(0, Math.round(trip.resolved.route.lengthMiles - trip.progressMiles));
     status.textContent = t('ui.road.status', {
       city: cityName(trip.resolved.destinationCityId),
@@ -2306,6 +3198,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
       day: trip.clock.dayIndex,
       phase: trip.clock.phase,
     });
+    if (nearbySearchableWreck() !== undefined) logNotice(t('ui.road.wreckHint'));
     renderFrame();
     if (result.arrived) {
       finish();
@@ -2378,6 +3271,8 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
               rng: createRng(sessionSeed).stream('driver'),
               rumorsHeardToday: new Map(),
               activeCourierJobs: [],
+              fleet: { vehicles: [{ vehicle, stored: false, cityId: chargedDriver.cityId }] },
+              routeHistory: new Map(),
             };
             showCity(root, cityState);
           },
@@ -2393,6 +3288,9 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
   }
 
   function resumeSession(existing: LoadResult): void {
+    if (existing.game.controlPreset !== undefined && existing.game.controlBindings !== undefined) {
+      restoreControls(existing.game.controlPreset, existing.game.controlBindings);
+    }
     const vehicleId = existing.game.activeVehicleId ?? Object.keys(existing.game.vehicles)[0];
     const vehicle = vehicleId !== undefined ? existing.game.vehicles[vehicleId] : undefined;
     if (vehicle === undefined || existing.game.world === null) {

@@ -487,9 +487,11 @@ export const drivingSchema: SchemaObject = obj(
       armorLossPoints: NON_NEG_INT,
       projectileRadiusM: NON_NEG_NUM,
       vehicleSeparationM: NON_NEG_NUM,
+      wreckSearchRangeMultiplier: NON_NEG_NUM,
+      trafficPassRangeMultiplier: NON_NEG_NUM,
     }),
     arena: obj({ spawnRingRadiusM: NON_NEG_NUM, minSpawnSeparationM: NON_NEG_NUM }),
-    radar: obj({ rangeMiles: NON_NEG_NUM, visualRangeM: NON_NEG_NUM }),
+    radar: obj({ rangeMiles: NON_NEG_NUM, visualRangeM: NON_NEG_NUM, aiHazardBoxRangeMultiplier: NON_NEG_NUM }),
     pedestrian: obj({
       speedMps: NON_NEG_NUM,
       colliderRadiusM: NON_NEG_NUM,
@@ -708,4 +710,202 @@ export function validateRulesets(input: RawRulesetInput): Rulesets {
   const result: Rulesets = { bodies, chassis, suspension, plants, tires, weapons, economy, skills, driving, cities };
   memo.set(input, result);
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Controls (rebindable input presets) — a standalone ruleset file loaded
+// directly by `@/ui/input`, not part of the ten-file `Rulesets` aggregate
+// above (that aggregate and its loader in `@/data/rulesets` are load-bearing
+// elsewhere and out of scope for this change). Validated the same way:
+// AJV for shape, a separate JS pass for cross-field invariants the schema
+// language can't express.
+// ---------------------------------------------------------------------------
+
+const ACTION_ID: SchemaObject = { type: 'string', pattern: '^[a-zA-Z][a-zA-Z0-9]*$' };
+const SIGN: SchemaObject = { type: 'number', enum: [1, -1] };
+
+const gamepadAxisBindingSchema: SchemaObject = obj({
+  index: NON_NEG_INT,
+  sign: SIGN,
+});
+
+const actionBindingSchema: SchemaObject = obj({
+  keyboard: arrayOf(NON_EMPTY_STR),
+  mouse: arrayOf(NON_NEG_INT),
+  gamepadButtons: arrayOf(NON_NEG_INT),
+  gamepadAxes: arrayOf(gamepadAxisBindingSchema),
+});
+
+/** An open-keyed map of action id -> binding; the closed check (every id in `actions`, no strays) is a JS invariant below, since JSON Schema can't cross-reference a sibling array's contents. */
+const actionBindingsMapSchema: SchemaObject = {
+  type: 'object',
+  additionalProperties: actionBindingSchema,
+};
+
+export const controlsSchema: SchemaObject = obj({
+  ...SCHEMA_VERSION,
+  _note: STR,
+  gamepadAxisThreshold: { type: 'number', minimum: 0, maximum: 1 },
+  cityDirectionDeadzone: { type: 'number', minimum: 0, maximum: 1 },
+  presets: arrayOf(NON_EMPTY_STR, { minItems: 1 }),
+  actions: arrayOf(ACTION_ID, { minItems: 1 }),
+  defaultBindings: {
+    type: 'object',
+    additionalProperties: actionBindingsMapSchema,
+  },
+});
+
+export interface GamepadAxisBinding {
+  index: number;
+  sign: 1 | -1;
+}
+
+export interface ActionBindingDefaults {
+  keyboard: string[];
+  mouse: number[];
+  gamepadButtons: number[];
+  gamepadAxes: GamepadAxisBinding[];
+}
+
+export interface ControlsConfig {
+  $schemaVersion: number;
+  _note?: string;
+  gamepadAxisThreshold: number;
+  cityDirectionDeadzone: number;
+  presets: string[];
+  actions: string[];
+  defaultBindings: Record<string, Record<string, ActionBindingDefaults>>;
+}
+
+export class ControlsValidationError extends Error {
+  override readonly name = 'ControlsValidationError';
+  constructor(readonly problems: readonly string[]) {
+    super(`controls.json failed validation:\n  ${problems.join('\n  ')}`);
+  }
+}
+
+let controlsValidator: ValidateFunction<ControlsConfig> | null = null;
+
+function getControlsValidator(): ValidateFunction<ControlsConfig> {
+  if (controlsValidator) return controlsValidator;
+  const ajv = new Ajv({ allErrors: true, strict: true });
+  controlsValidator = ajv.compile<ControlsConfig>(controlsSchema);
+  return controlsValidator;
+}
+
+function describeControlsError(err: ErrorObject): string {
+  const path = err.instancePath === '' ? '/' : err.instancePath;
+  let detail = err.message ?? 'is invalid';
+  if (err.keyword === 'additionalProperties' && typeof err.params['additionalProperty'] === 'string') {
+    detail += ` ("${err.params['additionalProperty']}")`;
+  } else if (err.keyword === 'enum' && Array.isArray(err.params['allowedValues'])) {
+    detail += `: ${JSON.stringify(err.params['allowedValues'])}`;
+  }
+  return `controls.json:${path} ${detail}`;
+}
+
+/**
+ * Cross-field invariants AJV's shape check can't express: every preset
+ * named in `presets` must supply a binding for every id in `actions`
+ * (no missing action, no stray unknown key), `actions` and `presets` must
+ * each be duplicate-free, and every action must be reachable by at least
+ * one device by default (an unbound action would be permanently
+ * unplayable until the player rebinds it themselves, which defeats the
+ * point of shipping defaults at all).
+ */
+function checkControlsInvariants(controls: ControlsConfig): void {
+  const problems: string[] = [];
+
+  const seenActions = new Set<string>();
+  for (const id of controls.actions) {
+    if (seenActions.has(id)) problems.push(`controls.json:/actions duplicate action id "${id}"`);
+    seenActions.add(id);
+  }
+
+  const seenPresets = new Set<string>();
+  for (const preset of controls.presets) {
+    if (seenPresets.has(preset)) problems.push(`controls.json:/presets duplicate preset "${preset}"`);
+    seenPresets.add(preset);
+  }
+
+  for (const preset of controls.presets) {
+    const bindings = controls.defaultBindings[preset];
+    if (bindings === undefined) {
+      problems.push(`controls.json:/defaultBindings missing entry for preset "${preset}"`);
+      continue;
+    }
+    const boundIds = new Set(Object.keys(bindings));
+    for (const actionId of controls.actions) {
+      const binding = bindings[actionId];
+      if (binding === undefined) {
+        problems.push(`controls.json:/defaultBindings/${preset} missing binding for action "${actionId}"`);
+        continue;
+      }
+      const hasAnyDevice =
+        binding.keyboard.length > 0 || binding.mouse.length > 0 || binding.gamepadButtons.length > 0 || binding.gamepadAxes.length > 0;
+      if (!hasAnyDevice) {
+        problems.push(`controls.json:/defaultBindings/${preset}/${actionId} has no default binding on any device`);
+      }
+      boundIds.delete(actionId);
+    }
+    for (const strayId of boundIds) {
+      problems.push(`controls.json:/defaultBindings/${preset} binds unknown action "${strayId}"`);
+    }
+
+    // Two different actions sharing one physical input (e.g. gamepad button
+    // 7 driving BOTH throttle and fire) means the player can never trigger
+    // one without also triggering the other. AJV's shape check can't see
+    // this — it validates each action's binding in isolation — so it has to
+    // be caught here, across the whole preset.
+    const claimedBy = new Map<string, string>();
+    for (const actionId of controls.actions) {
+      const binding = bindings[actionId];
+      if (binding === undefined) continue;
+      const physicalInputs: string[] = [
+        ...binding.keyboard.map((code) => `keyboard "${code}"`),
+        ...binding.mouse.map((button) => `mouse button ${button}`),
+        ...binding.gamepadButtons.map((button) => `gamepad button ${button}`),
+        ...binding.gamepadAxes.map((axis) => `gamepad axis ${axis.index} (sign ${axis.sign})`),
+      ];
+      for (const physicalInput of physicalInputs) {
+        const existingActionId = claimedBy.get(physicalInput);
+        if (existingActionId === undefined) {
+          claimedBy.set(physicalInput, actionId);
+        } else if (existingActionId !== actionId) {
+          problems.push(
+            `controls.json:/defaultBindings/${preset} "${existingActionId}" and "${actionId}" are both bound to ${physicalInput} — one can never fire without the other`,
+          );
+        }
+      }
+    }
+  }
+
+  for (const preset of Object.keys(controls.defaultBindings)) {
+    if (!seenPresets.has(preset)) {
+      problems.push(`controls.json:/defaultBindings has bindings for unlisted preset "${preset}"`);
+    }
+  }
+
+  if (problems.length > 0) throw new ControlsValidationError(problems);
+}
+
+/** Validates raw controls.json JSON into the typed `ControlsConfig`. Throws `ControlsValidationError` naming every problem's JSON pointer. Memoized per input object. */
+const controlsMemo = new WeakMap<object, ControlsConfig>();
+
+export function validateControls(input: unknown): ControlsConfig {
+  if (input !== null && typeof input === 'object') {
+    const cached = controlsMemo.get(input);
+    if (cached) return cached;
+  }
+
+  const validate = getControlsValidator();
+  if (!validate(input)) {
+    const problems = (validate.errors ?? []).map(describeControlsError);
+    throw new ControlsValidationError(problems.length > 0 ? problems : ['unknown schema error']);
+  }
+
+  checkControlsInvariants(input);
+
+  if (input !== null && typeof input === 'object') controlsMemo.set(input, input);
+  return input;
 }
