@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -68,11 +68,21 @@ interface SpriteMetaFrame {
   skip?: boolean;
   note?: string;
 }
+interface AtlasSizeConfig {
+  _comment?: string;
+  tile: { quadrantPx: number };
+  ui: { maxPx: number; keepNative: string[] };
+  [kind: string]: unknown;
+}
 interface PackAtlasModule {
   MAGENTA: readonly [number, number, number];
   TILE_QUADRANT_PX: number;
   TILE_FINAL_PX: number;
   SPRITE_MAX_PX: number;
+  MAX_CONFIGURABLE_PX: number;
+  ASSET_KINDS: readonly string[];
+  loadSizeConfig(path?: string): AtlasSizeConfig;
+  fingerprintSizeConfig(config?: AtlasSizeConfig): string;
   rgbToHsv(r: number, g: number, b: number): { h: number; s: number; v: number };
   hueDistance(a: number, b: number): number;
   chromaKeyToAlpha(
@@ -113,6 +123,10 @@ const {
   TILE_QUADRANT_PX,
   TILE_FINAL_PX,
   SPRITE_MAX_PX,
+  MAX_CONFIGURABLE_PX,
+  ASSET_KINDS,
+  loadSizeConfig,
+  fingerprintSizeConfig,
   chromaKeyToAlpha,
   despillEdges,
   autoCropToAlphaBBox,
@@ -752,5 +766,184 @@ describe('parseAtlasManifest', () => {
       },
     };
     expect(() => parseAtlasManifest(bad)).toThrow(MalformedAtlasManifestError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real budget gate: measures bytes actually on disk, not values derived from
+// tools/atlas-sizes.json. The buildFrame tests above (TILE_FINAL_PX /
+// SPRITE_MAX_PX) are tautological against that config file: they'd pass for
+// any value in it, because their expectations are sourced FROM it. This
+// describe block is deliberately NOT like that — it statSyncs the committed
+// PNG(s), so widening the config and repacking (or otherwise regressing the
+// shipped atlas) fails this test even though it would leave every other
+// atlas test green.
+// ---------------------------------------------------------------------------
+describe('atlas byte budget (measures real bytes on disk, not the config)', () => {
+  const ASSETS_DIR = fileURLToPath(new URL('../../assets/', import.meta.url));
+  /** Hard ceiling for the total size of every committed atlas sheet, matching the
+   *  download budget in assets/ASSET-NOTES.md sections 4 and 8. */
+  const ATLAS_BYTE_BUDGET = 6 * 1024 * 1024; // 6 MiB
+
+  it('atlas.json lists at least one sheet', () => {
+    const manifest = JSON.parse(readFileSync(resolve(ASSETS_DIR, 'atlas.json'), 'utf8')) as {
+      atlases: Array<{ file: string }>;
+    };
+    expect(manifest.atlases.length).toBeGreaterThan(0);
+  });
+
+  it(`every sheet atlas.json lists (atlas-0.png and any siblings) totals under the ${ATLAS_BYTE_BUDGET}-byte (6 MiB) budget, measured as real file bytes on disk`, () => {
+    const manifest = JSON.parse(readFileSync(resolve(ASSETS_DIR, 'atlas.json'), 'utf8')) as {
+      atlases: Array<{ file: string }>;
+    };
+    let totalBytes = 0;
+    for (const { file } of manifest.atlases) {
+      totalBytes += statSync(resolve(ASSETS_DIR, file)).size;
+    }
+    // A budget gate that never sees real bytes is not a budget gate — guard
+    // against a manifest pointing at a 0-byte or missing file passing by accident.
+    expect(totalBytes).toBeGreaterThan(0);
+    expect(totalBytes).toBeLessThan(ATLAS_BYTE_BUDGET);
+  });
+
+  // Closes the hole BETWEEN the two gates above, found by mutation (2026-09-26).
+  //
+  // Widening tools/atlas-sizes.json without repacking used to satisfy both:
+  // the config-time ceiling passed because the new value was still legal, and
+  // the byte gate passed because it measures the already-committed PNG, which
+  // no longer corresponds to the config. A verifier repacked that config and
+  // measured 13,610,797 bytes — 2.2x this budget — so a budget-blowing config
+  // could be committed and ship green until someone unrelated ran a repack.
+  //
+  // Stamping the config's fingerprint into atlas.json ties artifact to config:
+  // change tools/atlas-sizes.json and this fails until you repack.
+  it('atlas.json was built from the CURRENT tools/atlas-sizes.json (stale-artifact guard)', () => {
+    const manifest = JSON.parse(readFileSync(resolve(ASSETS_DIR, 'atlas.json'), 'utf8')) as {
+      configFingerprint?: string;
+    };
+    expect(manifest.configFingerprint).toBeTruthy();
+    expect(manifest.configFingerprint).toBe(fingerprintSizeConfig(loadSizeConfig()));
+  });
+
+  // The fingerprint is only worth anything if it actually moves with the
+  // values it claims to track. A first draft of fingerprintSizeConfig used
+  // JSON.stringify's replacer-array, which filters keys at EVERY level and so
+  // silently dropped the nested maxPx/quadrantPx — producing a hash that never
+  // changed. Pin both halves of the property.
+  it('the fingerprint tracks nested size values and ignores key order', () => {
+    const base = loadSizeConfig();
+    const widened = JSON.parse(JSON.stringify(base)) as Record<string, { maxPx: number }>;
+    const carMaxPx = widened.car?.maxPx;
+    expect(typeof carMaxPx).toBe('number');
+    widened.car = { maxPx: (carMaxPx as number) * 2 };
+    expect(fingerprintSizeConfig(widened as unknown as AtlasSizeConfig)).not.toBe(
+      fingerprintSizeConfig(base),
+    );
+
+    const reordered = Object.fromEntries(
+      Object.keys(base).reverse().map((k) => [k, (base as unknown as Record<string, unknown>)[k]]),
+    ) as unknown as AtlasSizeConfig;
+    expect(fingerprintSizeConfig(reordered)).toBe(fingerprintSizeConfig(base));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Config-time bound: independent of the byte gate above, this catches an
+// oversized tools/atlas-sizes.json the moment it's loaded — before anyone
+// repacks anything. It's a coarser guard (MAX_CONFIGURABLE_PX is well above
+// what the shipped atlas actually needs), so passing it is necessary but not
+// sufficient for staying under the byte budget; see MAX_CONFIGURABLE_PX's
+// doc comment in tools/pack-atlas.mjs for why both gates exist.
+// ---------------------------------------------------------------------------
+describe('loadSizeConfig', () => {
+  const fixturesDir = fileURLToPath(new URL('./fixtures-atlas-sizes/', import.meta.url));
+
+  function writeFixture(name: string, contents: string): string {
+    mkdirSync(fixturesDir, { recursive: true });
+    const path = resolve(fixturesDir, name);
+    writeFileSync(path, contents, 'utf8');
+    return path;
+  }
+
+  const validBase = {
+    tile: { quadrantPx: 100 },
+    car: { maxPx: 90 },
+    wreck: { maxPx: 90 },
+    cycle: { maxPx: 90 },
+    prop: { maxPx: 90 },
+    fx: { maxPx: 90 },
+    decal: { maxPx: 90 },
+    ui: { maxPx: 90, keepNative: ['ui-hud-frame'] },
+  };
+
+  it('loads the real committed tools/atlas-sizes.json without throwing', () => {
+    expect(() => loadSizeConfig()).not.toThrow();
+  });
+
+  it('every kind in the real committed config is <= MAX_CONFIGURABLE_PX (regression: this is the config-time half of the atlas byte budget)', () => {
+    const config = loadSizeConfig();
+    expect(config.tile.quadrantPx).toBeLessThanOrEqual(MAX_CONFIGURABLE_PX);
+    for (const kind of ASSET_KINDS) {
+      if (kind === 'tile') continue;
+      const entry = config[kind] as { maxPx: number };
+      expect(entry.maxPx).toBeLessThanOrEqual(MAX_CONFIGURABLE_PX);
+    }
+  });
+
+  it('round-trips a well-formed config unchanged', () => {
+    const path = writeFixture('valid.json', JSON.stringify(validBase));
+    expect(loadSizeConfig(path)).toEqual(validBase);
+  });
+
+  it('throws when the top-level value is not an object (array)', () => {
+    const path = writeFixture('top-level-array.json', JSON.stringify([1, 2, 3]));
+    expect(() => loadSizeConfig(path)).toThrow(/top-level object/);
+  });
+
+  it('throws when the top-level value is not an object (null / primitive)', () => {
+    const nullPath = writeFixture('top-level-null.json', 'null');
+    expect(() => loadSizeConfig(nullPath)).toThrow(/top-level object/);
+    const stringPath = writeFixture('top-level-string.json', JSON.stringify('nope'));
+    expect(() => loadSizeConfig(stringPath)).toThrow(/top-level object/);
+  });
+
+  it('throws when a kind entry is missing (regression: a dropped "fx" key used to fall through to SPRITE_MAX_PX silently)', () => {
+    const { fx: _fx, ...withoutFx } = validBase;
+    const path = writeFixture('missing-kind.json', JSON.stringify(withoutFx));
+    expect(() => loadSizeConfig(path)).toThrow(/missing size entry for kind "fx"/);
+  });
+
+  it('throws when tile.quadrantPx is not an integer', () => {
+    const path = writeFixture(
+      'non-integer-quadrant.json',
+      JSON.stringify({ ...validBase, tile: { quadrantPx: 100.5 } }),
+    );
+    expect(() => loadSizeConfig(path)).toThrow(/tile\.quadrantPx must be a positive integer/);
+  });
+
+  it('throws when a kind\'s maxPx is not an integer', () => {
+    const path = writeFixture('non-integer-maxpx.json', JSON.stringify({ ...validBase, car: { maxPx: '90' } }));
+    expect(() => loadSizeConfig(path)).toThrow(/car\.maxPx must be a positive integer/);
+  });
+
+  it('throws when ui.keepNative is not an array', () => {
+    const path = writeFixture(
+      'non-array-keepnative.json',
+      JSON.stringify({ ...validBase, ui: { maxPx: 90, keepNative: 'ui-hud-frame' } }),
+    );
+    expect(() => loadSizeConfig(path)).toThrow(/ui\.keepNative must be an array/);
+  });
+
+  it('throws when tile.quadrantPx exceeds MAX_CONFIGURABLE_PX (the exact regression a verifier reintroduced: 512/1024, "roughly a 4x linear blowup")', () => {
+    const path = writeFixture(
+      'quadrant-too-big.json',
+      JSON.stringify({ ...validBase, tile: { quadrantPx: 512 } }),
+    );
+    expect(() => loadSizeConfig(path)).toThrow(/tile\.quadrantPx \(512\) exceeds MAX_CONFIGURABLE_PX/);
+  });
+
+  it('throws when a kind\'s maxPx exceeds MAX_CONFIGURABLE_PX', () => {
+    const path = writeFixture('maxpx-too-big.json', JSON.stringify({ ...validBase, car: { maxPx: 1024 } }));
+    expect(() => loadSizeConfig(path)).toThrow(/car\.maxPx \(1024\) exceeds MAX_CONFIGURABLE_PX/);
   });
 });

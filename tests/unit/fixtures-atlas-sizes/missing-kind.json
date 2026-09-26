@@ -1,0 +1,1 @@
+{"tile":{"quadrantPx":100},"car":{"maxPx":90},"wreck":{"maxPx":90},"cycle":{"maxPx":90},"prop":{"maxPx":90},"decal":{"maxPx":90},"ui":{"maxPx":90,"keepNative":["ui-hud-frame"]}}

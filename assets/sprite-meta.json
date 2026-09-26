@@ -179,12 +179,12 @@
     "prop-chainlink-fence": {
       "kind": "prop",
       "keyed": true,
-      "keyColor": "#F279AA",
-      "keyColorDeviation": 69,
+      "keyColor": "#F166A4",
+      "keyColorDeviation": 60,
       "rotationOffsetDeg": 0,
       "view": "orthographic",
-      "readability": "fair",
-      "note": "REGENERATED on flux-dev - was isometric"
+      "readability": "good",
+      "note": "REGENERATED 2026-09-26 (3rd attempt). Prior art was a single bare post cropping to 3.5% of source width - unusable. Now a full panel spanning ~88% of frame width. Mesh interior keys to transparent, which is correct for a fence."
     },
     "prop-city-gate": {
       "kind": "prop",
@@ -462,6 +462,16 @@
       "view": "orthographic",
       "readability": "good",
       "note": "new, radially symmetric"
+    },
+    "prop-fence-post": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#E9477E",
+      "keyColorDeviation": 44,
+      "rotationOffsetDeg": 0,
+      "view": "orthographic",
+      "readability": "good",
+      "note": "new - top-down post cap"
     }
   },
   "keyingNote": "Key by HUE (magenta/pink band) with a saturation floor, NOT by RGB distance. Regenerated sprites carry a drop shadow and a background gradient that RGB-distance keying leaves as a dark halo.",

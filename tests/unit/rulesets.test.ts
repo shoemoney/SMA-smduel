@@ -19,6 +19,8 @@ import {
   getTire,
   getWeapon,
   skillsConfig,
+  vehicleLimits,
+  wheelCount,
 } from '@/data/rulesets';
 import { RulesetValidationError, validateRulesets, type RawRulesetInput } from '@/data/schema';
 import { FACINGS } from '@/sim/types';
@@ -123,6 +125,41 @@ describe('lookups', () => {
     expect(drivingConfig().metersPerMile).toBe(1609.344);
     expect(drivingConfig().battery.full).toBe(99);
     expect(skillsConfig().driver.prestigeFloor).toBe(0);
+  });
+
+  // Mutation-proven gap (2026-09-26). The `exposes config tables` block above
+  // pins each accessor against a hand-written literal, which cannot distinguish
+  // "the accessor read the JSON" from "the accessor returns a literal". A
+  // verifier replaced `wheelCount()`'s body with `return 4;` and the whole
+  // suite stayed green - and green even with bodies.json saying 6, which made
+  // the ruleset entry decorative and left the gameplay constant a TS literal,
+  // just relocated from construct.ts to rulesets.ts.
+  //
+  // Pinning accessor output against RAW_RULESETS (the parsed JSON itself)
+  // closes the class: any accessor that stops reading its table now fails,
+  // whatever value it hardcodes.
+  it('every accessor returns the value from the JSON, not a literal of its own', () => {
+    const raw = RAW_RULESETS as unknown as {
+      bodies: { vehicleLimits: { wheelCount: number } };
+      economy: { startingCash: number; maxFleetSize: number; maxPayloads: number };
+      skills: { startingSkillPool: number; driver: { prestigeFloor: number; naturalHealthDP: number } };
+      driving: { tickRateHz: number; metersPerMile: number; battery: { full: number } };
+    };
+
+    expect(wheelCount()).toBe(raw.bodies.vehicleLimits.wheelCount);
+    expect(vehicleLimits()).toEqual(raw.bodies.vehicleLimits);
+
+    expect(economy().startingCash).toBe(raw.economy.startingCash);
+    expect(economy().maxFleetSize).toBe(raw.economy.maxFleetSize);
+    expect(economy().maxPayloads).toBe(raw.economy.maxPayloads);
+
+    expect(skillsConfig().startingSkillPool).toBe(raw.skills.startingSkillPool);
+    expect(skillsConfig().driver.prestigeFloor).toBe(raw.skills.driver.prestigeFloor);
+    expect(skillsConfig().driver.naturalHealthDP).toBe(raw.skills.driver.naturalHealthDP);
+
+    expect(drivingConfig().tickRateHz).toBe(raw.driving.tickRateHz);
+    expect(drivingConfig().metersPerMile).toBe(raw.driving.metersPerMile);
+    expect(drivingConfig().battery.full).toBe(raw.driving.battery.full);
   });
 
   it('only uses known facings on weapons', () => {

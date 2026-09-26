@@ -8,6 +8,7 @@
 // tools/sample-bg.mjs, extended to also encode and to always return RGBA.
 //
 // Usage: node tools/pack-atlas.mjs [--raw assets/raw] [--out assets]
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -46,6 +47,34 @@ export function classifyKind(name) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Hard ceiling on any per-kind pixel target in tools/atlas-sizes.json (see
+ * assets/ASSET-NOTES.md section 4/8 and the "loadSizeConfig" describe block
+ * in tests/unit/atlas.test.ts). This is the coarse, config-time half of the
+ * atlas size budget: it catches a widened quadrantPx/maxPx the moment the
+ * config is loaded, before a single pixel is repacked. It is deliberately
+ * NOT a promise that any config passing this bound fits the 6 MiB atlas
+ * byte budget on its own — the committed assets/atlas-0.png byte count
+ * (measured in tests/unit/atlas.test.ts's "atlas byte budget" block) is what
+ * proves that for the shipped artifact.
+ *
+ * MEASURED, not guessed (2026-09-26). An earlier revision set this to 256 and
+ * reasoned that the byte gate would catch anything larger. A mutation test
+ * disproved that: widening every kind to 256 WITHOUT repacking leaves the
+ * whole suite green, because the byte gate stats the already-committed PNG
+ * rather than anything derived from the config. The verifier then repacked at
+ * 256 and measured 13,610,797 bytes — 2.2x the 6 MiB budget — so a
+ * budget-blowing config could be committed and ship green until someone
+ * unrelated happened to repack.
+ *
+ * So the ceiling is now the value that ACTUALLY implies the budget: 128, every
+ * kind's shipped value, which packs to 5,896,699 bytes. The companion fix is
+ * `configFingerprint` in the emitted atlas.json, which ties the committed
+ * atlas to the config that produced it so a stale artifact cannot hide a
+ * widened config.
+ */
+export const MAX_CONFIGURABLE_PX = 128;
+
+/**
  * Loads and validates the per-kind target-size table (default
  * tools/atlas-sizes.json). Every number the downscale steps below use comes
  * from this file, never a literal in this tool — a missing or malformed
@@ -72,17 +101,57 @@ export function loadSizeConfig(path = SIZE_CONFIG_PATH) {
   if (!Number.isInteger(quadrantPx) || quadrantPx <= 0) {
     throw new Error(`${path}: tile.quadrantPx must be a positive integer`);
   }
+  if (quadrantPx > MAX_CONFIGURABLE_PX) {
+    throw new Error(`${path}: tile.quadrantPx (${quadrantPx}) exceeds MAX_CONFIGURABLE_PX (${MAX_CONFIGURABLE_PX})`);
+  }
   for (const kind of ASSET_KINDS) {
     if (kind === 'tile') continue;
     const maxPx = parsed[kind].maxPx;
     if (!Number.isInteger(maxPx) || maxPx <= 0) {
       throw new Error(`${path}: ${kind}.maxPx must be a positive integer`);
     }
+    if (maxPx > MAX_CONFIGURABLE_PX) {
+      throw new Error(`${path}: ${kind}.maxPx (${maxPx}) exceeds MAX_CONFIGURABLE_PX (${MAX_CONFIGURABLE_PX})`);
+    }
   }
   if (!Array.isArray(parsed.ui.keepNative) || !parsed.ui.keepNative.every((n) => typeof n === 'string')) {
     throw new Error(`${path}: ui.keepNative must be an array of frame names`);
   }
   return parsed;
+}
+
+/**
+ * Stable hash of the size config, stamped into atlas.json as
+ * `configFingerprint` and asserted by tests/unit/atlas.test.ts.
+ *
+ * This exists because the two size gates had a hole between them: the
+ * config-time ceiling passes any legal value, and the byte gate measures the
+ * ALREADY-COMMITTED png, so widening tools/atlas-sizes.json without repacking
+ * satisfied both while the config on disk would actually have produced a
+ * budget-blowing atlas. Recording which config built the committed artifact
+ * makes that divergence visible: change the config, and the fingerprint test
+ * fails until you repack.
+ *
+ * Keys are sorted recursively so the hash tracks VALUES, not formatting or key
+ * order. Note this canonicalises by hand rather than via JSON.stringify's
+ * replacer-array: that array filters keys at EVERY level, so passing the
+ * top-level key list would silently drop the nested quadrantPx/maxPx values
+ * this hash exists to watch, and the fingerprint would never change.
+ */
+function canonicalise(value) {
+  if (Array.isArray(value)) return value.map(canonicalise);
+  if (value && typeof value === 'object') {
+    /** @type {Record<string, unknown>} */
+    const out = {};
+    for (const key of Object.keys(value).sort()) out[key] = canonicalise(value[key]);
+    return out;
+  }
+  return value;
+}
+
+export function fingerprintSizeConfig(config = loadSizeConfig()) {
+  const canonical = JSON.stringify(canonicalise(config));
+  return createHash('sha256').update(canonical).digest('hex').slice(0, 16);
 }
 
 const SIZE_CONFIG = loadSizeConfig();
@@ -993,7 +1062,11 @@ async function main() {
 
   writeFileSync(
     resolve(OUT_DIR, 'atlas.json'),
-    JSON.stringify({ atlases: atlasFileEntries, frames: manifestFrames }, null, 2),
+    JSON.stringify(
+      { atlases: atlasFileEntries, configFingerprint: fingerprintSizeConfig(), frames: manifestFrames },
+      null,
+      2,
+    ),
   );
 
   console.log(`pack-atlas: packed ${decodedFrames.length} frame(s) into ${atlases.length} atlas(es):`);
