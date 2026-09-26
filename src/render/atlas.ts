@@ -6,7 +6,24 @@
  * RNG — src/render/** stays render-only per house rule.
  */
 
-export const ASSET_KINDS = ['tile', 'prop', 'car', 'wreck', 'cycle', 'fx', 'decal', 'ui'] as const;
+/**
+ * Frame kinds this loader accepts.
+ *
+ * MUST stay in step with tools/pack-atlas.mjs's own ASSET_KINDS. They are two
+ * separate lists on purpose - src/render/** keeps ZERO imports by design, so it
+ * cannot share a constant with a build-time tool - and on 2026-09-26 they
+ * drifted: 'building' was added to the packer, the real atlas.json was packed
+ * with 16 building frames, and this list rejected every one of them. The city
+ * screen threw MalformedAtlasManifestError on load, in production, while 1248
+ * tests passed.
+ *
+ * Nothing caught it because no test parsed the REAL assets/atlas.json through
+ * this parser - tests/unit/city.test.ts deliberately uses a synthetic manifest.
+ * The guard for that now lives in tests/unit/atlas.test.ts ("the REAL shipped
+ * manifest parses"), which is the test that makes this comment enforceable
+ * rather than aspirational.
+ */
+export const ASSET_KINDS = ['tile', 'building', 'prop', 'car', 'wreck', 'cycle', 'fx', 'decal', 'ui'] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 
 export function isAssetKind(value: unknown): value is AssetKind {

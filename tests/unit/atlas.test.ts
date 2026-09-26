@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  ASSET_KINDS as RUNTIME_ASSET_KINDS,
   AtlasIndex,
   MalformedAtlasManifestError,
   parseAtlasManifest,
@@ -1089,6 +1090,43 @@ describe('atlas byte budget (measures real bytes on disk, not the config)', () =
 // them. They were 54.2% of the packed sheet, shipping ~2.9MB of download for art
 // the game does not use. They are now skipped outright, which took the atlas from
 // 82.2% of budget to 50.2%.
+// THE MISSING GUARD. On 2026-09-26 the city screen threw
+// MalformedAtlasManifestError on load, in production, while 1248 tests passed:
+// 'building' was added to tools/pack-atlas.mjs's ASSET_KINDS and the real
+// atlas.json was packed with 16 building frames, but src/render/atlas.ts keeps
+// its OWN kind list (src/render/** has zero imports by design) and rejected
+// every one of them.
+//
+// Nothing caught it because NO test parsed the REAL shipped manifest through the
+// REAL runtime parser — tests/unit/city.test.ts deliberately uses a synthetic
+// fixture. A synthetic manifest can only ever prove the parser is
+// self-consistent; it cannot notice that the artifact we actually ship is
+// unloadable. This does.
+describe('the REAL shipped manifest parses through the REAL runtime loader', () => {
+  const ASSETS = fileURLToPath(new URL('../../assets/', import.meta.url));
+
+  it('assets/atlas.json loads without throwing, with every frame the packer emitted', () => {
+    const raw = JSON.parse(readFileSync(resolve(ASSETS, 'atlas.json'), 'utf8')) as unknown;
+    // parseAtlasManifest is what src/app.ts calls at boot. If this throws, the
+    // game does not start.
+    const manifest = parseAtlasManifest(raw);
+    const frameCount = Object.keys((raw as { frames: Record<string, unknown> }).frames).length;
+    expect(Object.keys(manifest.frames).length).toBe(frameCount);
+    expect(frameCount).toBeGreaterThan(0);
+  });
+
+  it('every kind the packer emits is a kind the runtime loader accepts', () => {
+    // The two ASSET_KINDS lists cannot share a constant (zero-imports rule), so
+    // assert the containment directly rather than trusting a comment.
+    const raw = JSON.parse(readFileSync(resolve(ASSETS, 'atlas.json'), 'utf8')) as {
+      frames: Record<string, { kind: string }>;
+    };
+    const packedKinds = [...new Set(Object.values(raw.frames).map((f) => f.kind))].sort();
+    const unsupported = packedKinds.filter((k) => !(RUNTIME_ASSET_KINDS as readonly string[]).includes(k));
+    expect({ packedKinds, unsupported }).toEqual({ packedKinds, unsupported: [] });
+  });
+});
+
 describe('unused full-screen art is not packed at all', () => {
   const ASSETS = fileURLToPath(new URL('../../assets/', import.meta.url));
 
