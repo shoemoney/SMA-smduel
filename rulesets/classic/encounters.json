@@ -1,0 +1,458 @@
+{
+  "$schemaVersion": 1,
+  "_note": "ALL RECONSTRUCTION. The source never published spawn budgets, faction mixes, or opponent rosters. Every number here is a tunable seed requiring a fidelity-notes.yaml entry. Opponent archetypes reference real component ids from bodies/plants/tires/weapons.json so every AI car is a LEGAL build through src/sim/construct.ts - assert that in a test.",
+  "factions": [
+    {
+      "id": "civilian",
+      "hostile": false,
+      "retaliates": true,
+      "fleesAtDamageFraction": 0.25,
+      "_note": "passes peacefully if left alone"
+    },
+    {
+      "id": "courier",
+      "hostile": false,
+      "retaliates": true,
+      "fleesAtDamageFraction": 0.4,
+      "_note": "evasive, runs rather than fights"
+    },
+    {
+      "id": "arenatraveller",
+      "hostile": false,
+      "retaliates": true,
+      "fleesAtDamageFraction": 0.55,
+      "_note": "armed and defensive, will finish a fight it did not start"
+    },
+    {
+      "id": "vigilante",
+      "hostile": false,
+      "retaliates": true,
+      "fleesAtDamageFraction": 0.7,
+      "hostileTo": [
+        "outlaw"
+      ],
+      "_note": "attacks outlaws on sight, ignores lawful drivers"
+    },
+    {
+      "id": "outlaw",
+      "hostile": true,
+      "retaliates": true,
+      "fleesAtDamageFraction": 0.65,
+      "breaksOffBeyondVisualRange": true
+    },
+    {
+      "id": "pursuer",
+      "hostile": true,
+      "retaliates": true,
+      "fleesAtDamageFraction": 0.95,
+      "breaksOffBeyondVisualRange": false,
+      "_note": "campaign pursuit - never gives up"
+    }
+  ],
+  "dangerLevels": [
+    {
+      "danger": 0,
+      "spawnBudget": 2,
+      "spawnsPerHundredMiles": 1,
+      "outlawChance": 0.05,
+      "packSizeMin": 1,
+      "packSizeMax": 1,
+      "factionWeights": {
+        "civilian": 60,
+        "courier": 25,
+        "arenatraveller": 10,
+        "vigilante": 5,
+        "outlaw": 0
+      }
+    },
+    {
+      "danger": 1,
+      "spawnBudget": 3,
+      "spawnsPerHundredMiles": 1.6,
+      "outlawChance": 0.15,
+      "packSizeMin": 1,
+      "packSizeMax": 2,
+      "factionWeights": {
+        "civilian": 45,
+        "courier": 22,
+        "arenatraveller": 13,
+        "vigilante": 7,
+        "outlaw": 13
+      }
+    },
+    {
+      "danger": 2,
+      "spawnBudget": 4,
+      "spawnsPerHundredMiles": 2.3,
+      "outlawChance": 0.3,
+      "packSizeMin": 1,
+      "packSizeMax": 3,
+      "factionWeights": {
+        "civilian": 30,
+        "courier": 18,
+        "arenatraveller": 14,
+        "vigilante": 10,
+        "outlaw": 28
+      }
+    },
+    {
+      "danger": 3,
+      "spawnBudget": 6,
+      "spawnsPerHundredMiles": 3.1,
+      "outlawChance": 0.48,
+      "packSizeMin": 2,
+      "packSizeMax": 4,
+      "factionWeights": {
+        "civilian": 16,
+        "courier": 12,
+        "arenatraveller": 14,
+        "vigilante": 12,
+        "outlaw": 46
+      }
+    },
+    {
+      "danger": 4,
+      "spawnBudget": 8,
+      "spawnsPerHundredMiles": 4.2,
+      "outlawChance": 0.66,
+      "packSizeMin": 2,
+      "packSizeMax": 5,
+      "factionWeights": {
+        "civilian": 8,
+        "courier": 6,
+        "arenatraveller": 12,
+        "vigilante": 12,
+        "outlaw": 62
+      }
+    }
+  ],
+  "repopulation": {
+    "_note": "New outlaws repopulate GRADUALLY, never instantly - clearing a road should stay cleared for a while.",
+    "clearedRouteQuietDays": 3,
+    "repopulationPerDay": 0.25,
+    "wellTravelledDangerReductionPerDelivery": 0.02,
+    "minEffectiveDanger": 0
+  },
+  "archetypes": [
+    {
+      "id": "beater",
+      "valueBand": [
+        870,
+        1856
+      ],
+      "factions": [
+        "civilian"
+      ],
+      "design": {
+        "bodyId": "subcompact",
+        "chassisId": "light",
+        "suspensionId": "light",
+        "plantId": "small",
+        "tireId": "standard",
+        "armor": {
+          "FRONT": 6,
+          "REAR": 4,
+          "LEFT": 4,
+          "RIGHT": 4,
+          "UNDERBODY": 2
+        },
+        "weapons": []
+      },
+      "skill": {
+        "driving": 25,
+        "marksmanship": 10
+      },
+      "personality": {
+        "aggression": 0.05,
+        "caution": 0.9,
+        "playerThreatBias": 0
+      },
+      "buildCost": 1160
+    },
+    {
+      "id": "runner",
+      "valueBand": [
+        2360,
+        5034
+      ],
+      "factions": [
+        "courier"
+      ],
+      "design": {
+        "bodyId": "compact",
+        "chassisId": "standard",
+        "suspensionId": "improved",
+        "plantId": "medium",
+        "tireId": "heavyduty",
+        "armor": {
+          "FRONT": 10,
+          "REAR": 12,
+          "LEFT": 8,
+          "RIGHT": 8,
+          "UNDERBODY": 4
+        },
+        "weapons": [
+          {
+            "weaponId": "smokescreen",
+            "facing": "REAR",
+            "ammo": 10
+          }
+        ]
+      },
+      "skill": {
+        "driving": 55,
+        "marksmanship": 20
+      },
+      "personality": {
+        "aggression": 0.1,
+        "caution": 0.85,
+        "playerThreatBias": 0
+      },
+      "buildCost": 3146
+    },
+    {
+      "id": "roadthug",
+      "valueBand": [
+        2686,
+        5730
+      ],
+      "factions": [
+        "outlaw"
+      ],
+      "design": {
+        "bodyId": "compact",
+        "chassisId": "standard",
+        "suspensionId": "light",
+        "plantId": "medium",
+        "tireId": "standard",
+        "armor": {
+          "FRONT": 12,
+          "REAR": 6,
+          "LEFT": 8,
+          "RIGHT": 8,
+          "UNDERBODY": 3
+        },
+        "weapons": [
+          {
+            "weaponId": "machinegun",
+            "facing": "FRONT",
+            "ammo": 20
+          }
+        ]
+      },
+      "skill": {
+        "driving": 35,
+        "marksmanship": 35
+      },
+      "personality": {
+        "aggression": 0.7,
+        "caution": 0.3,
+        "playerThreatBias": 0.6
+      },
+      "buildCost": 3581
+    },
+    {
+      "id": "raider",
+      "valueBand": [
+        5405,
+        11530
+      ],
+      "factions": [
+        "outlaw"
+      ],
+      "design": {
+        "bodyId": "midsized",
+        "chassisId": "heavy",
+        "suspensionId": "improved",
+        "plantId": "large",
+        "tireId": "punctureresistant",
+        "armor": {
+          "FRONT": 20,
+          "REAR": 12,
+          "LEFT": 14,
+          "RIGHT": 14,
+          "UNDERBODY": 6
+        },
+        "weapons": [
+          {
+            "weaponId": "machinegun",
+            "facing": "FRONT",
+            "ammo": 20
+          },
+          {
+            "weaponId": "oiljet",
+            "facing": "REAR",
+            "ammo": 10
+          }
+        ]
+      },
+      "skill": {
+        "driving": 50,
+        "marksmanship": 50
+      },
+      "personality": {
+        "aggression": 0.8,
+        "caution": 0.25,
+        "playerThreatBias": 0.7
+      },
+      "buildCost": 7206
+    },
+    {
+      "id": "warwagon",
+      "valueBand": [
+        13905,
+        29664
+      ],
+      "factions": [
+        "outlaw",
+        "pursuer"
+      ],
+      "design": {
+        "bodyId": "van",
+        "chassisId": "extraheavy",
+        "suspensionId": "heavy",
+        "plantId": "super",
+        "tireId": "solid",
+        "armor": {
+          "FRONT": 30,
+          "REAR": 20,
+          "LEFT": 24,
+          "RIGHT": 24,
+          "UNDERBODY": 10
+        },
+        "weapons": [
+          {
+            "weaponId": "recoillessrifle",
+            "facing": "FRONT",
+            "ammo": 20
+          },
+          {
+            "weaponId": "machinegun",
+            "facing": "LEFT",
+            "ammo": 20
+          },
+          {
+            "weaponId": "machinegun",
+            "facing": "RIGHT",
+            "ammo": 20
+          },
+          {
+            "weaponId": "minedropper",
+            "facing": "REAR",
+            "ammo": 20
+          }
+        ]
+      },
+      "skill": {
+        "driving": 60,
+        "marksmanship": 65
+      },
+      "personality": {
+        "aggression": 0.9,
+        "caution": 0.15,
+        "playerThreatBias": 0.85
+      },
+      "buildCost": 18540
+    },
+    {
+      "id": "lawman",
+      "valueBand": [
+        6462,
+        13786
+      ],
+      "factions": [
+        "vigilante"
+      ],
+      "design": {
+        "bodyId": "midsized",
+        "chassisId": "heavy",
+        "suspensionId": "heavy",
+        "plantId": "large",
+        "tireId": "punctureresistant",
+        "armor": {
+          "FRONT": 22,
+          "REAR": 14,
+          "LEFT": 16,
+          "RIGHT": 16,
+          "UNDERBODY": 8
+        },
+        "weapons": [
+          {
+            "weaponId": "recoillessrifle",
+            "facing": "FRONT",
+            "ammo": 20
+          },
+          {
+            "weaponId": "spikedropper",
+            "facing": "REAR",
+            "ammo": 20
+          }
+        ]
+      },
+      "skill": {
+        "driving": 65,
+        "marksmanship": 60
+      },
+      "personality": {
+        "aggression": 0.5,
+        "caution": 0.5,
+        "playerThreatBias": 0.1
+      },
+      "buildCost": 8616
+    },
+    {
+      "id": "duellist",
+      "valueBand": [
+        5670,
+        12096
+      ],
+      "factions": [
+        "arenatraveller"
+      ],
+      "design": {
+        "bodyId": "luxury",
+        "chassisId": "standard",
+        "suspensionId": "heavy",
+        "plantId": "large",
+        "tireId": "heavyduty",
+        "armor": {
+          "FRONT": 18,
+          "REAR": 12,
+          "LEFT": 14,
+          "RIGHT": 14,
+          "UNDERBODY": 5
+        },
+        "weapons": [
+          {
+            "weaponId": "machinegun",
+            "facing": "FRONT",
+            "ammo": 20
+          },
+          {
+            "weaponId": "smokescreen",
+            "facing": "REAR",
+            "ammo": 10
+          }
+        ]
+      },
+      "skill": {
+        "driving": 70,
+        "marksmanship": 60
+      },
+      "personality": {
+        "aggression": 0.35,
+        "caution": 0.6,
+        "playerThreatBias": 0.15
+      },
+      "buildCost": 7560
+    }
+  ],
+  "salvage": {
+    "_note": "Burning wrecks yield NOTHING. Matching-weapon ammo transfers up to magazine capacity; everything else becomes abstract cargo that cannot be installed.",
+    "wreckPersistsSameDay": true,
+    "strippedOvernight": true,
+    "burnedYieldsNothing": true,
+    "ammoTransfersIfWeaponMatches": true
+  },
+  "_archetypeNote": "buildCost is COMPUTED from the real construction math in src/sim/construct.ts and every archetype was verified a LEGAL build (weight<=maxLoad, spaces<=body, power>=weight/3). valueBand brackets that cost for division/danger matching. If you change a design, recompute - do not hand-edit buildCost."
+}
