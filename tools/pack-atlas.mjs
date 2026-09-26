@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, extname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import zlib from 'node:zlib';
+import { analyzeColors, buildIndexedPalette, encodeIndexedPNG } from './quantize.mjs';
 
 const PROJECT_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
@@ -812,6 +813,121 @@ export function packAtlas(frames, { padding = 2, maxSize = 4096, minSize = 64 } 
 }
 
 // ---------------------------------------------------------------------------
+// Content-based sheet grouping (assets/ASSET-NOTES.md section 9 addendum,
+// 2026-09-26): a single shared shelf-packed sheet mixes photographic tile-*
+// terrain (16 frames, each a fixed TILE_FINAL_PX square) with flat-shaded
+// sprites/fx/decals/ui (variable, mostly small, mostly-transparent after
+// chroma-keying). Shelf packing sorts strictly by height then width, so the
+// tile frames' uniform height forces tall shelves that strand the small
+// sprite frames' rows half-empty around them; splitting the two into their
+// own packAtlas() calls removes that cross-contamination and lets EACH
+// group's shelf packer converge on the smallest power-of-two canvas its own
+// content needs, rather than one shared canvas sized by the mix of both
+// (measured: the two groups below each independently fit a 2048x2048 canvas
+// against a single mixed 4096x4096 for the same 50 frames — a 4x reduction in
+// total canvas pixels). This is a PACKER change, not a manifest-format change:
+// atlas.json's `atlases[]` + per-frame `atlas` index already support any
+// number of sheets (src/render/atlas.ts resolves every frame's UVs against
+// its OWN sheet's width/height), so adding a second sheet here needs no
+// changes to the manifest shape or to how a frame is resolved.
+// ---------------------------------------------------------------------------
+
+/**
+ * Ordered physical sheets. Every kind in ASSET_KINDS must appear in exactly
+ * one group — `contentGroupIdForKind` throws otherwise, so a newly-added
+ * AssetKind can't silently fall through packing ungrouped. `tile` gets its
+ * own sheet (photographic, always full-bleed, fixed-size squares); every
+ * other kind (car/wreck/cycle/prop/fx/decal/ui — flat-shaded, chroma-keyed,
+ * mostly-transparent) shares a second sheet.
+ */
+/**
+ * Content groups decide how many sheets the packer emits. One group = one sheet.
+ *
+ * REVERTED TO A SINGLE GROUP 2026-09-26, deliberately, after verification caught
+ * a shipping regression. Splitting terrain from sprites saved 151,218 bytes, but
+ * src/app.ts fetches only `assets/atlas-0.png` and binds that ONE textureView to
+ * both the tile and sprite bind groups. 34 of 50 frames moved to atlas-1.png,
+ * which is never fetched and which `vite build` did not even emit — so the sprite
+ * pass would have sampled the terrain sheet. tsc, vitest and the build were all
+ * green while the game rendered 16 of its 50 frames.
+ *
+ * The multi-sheet path in this file is correct and tested; what is missing is the
+ * runtime half. Re-splitting requires src/app.ts to create a texture and bind
+ * group PER manifest.atlases entry, plus a test asserting every listed sheet is
+ * actually fetched. Until that exists, one sheet is the only honest setting.
+ */
+export const CONTENT_GROUPS = [
+  { id: 'all', kinds: ['tile', 'car', 'wreck', 'cycle', 'prop', 'fx', 'decal', 'ui'] },
+];
+
+export function contentGroupIdForKind(kind) {
+  const group = CONTENT_GROUPS.find((g) => g.kinds.includes(kind));
+  if (!group) throw new Error(`contentGroupIdForKind: no CONTENT_GROUPS entry covers kind "${kind}"`);
+  return group.id;
+}
+
+/**
+ * Packs `decodedFrames` ({name,kind,w,h,rgba,trimX,trimY,srcW,srcH,
+ * rotationOffsetDeg}) into one or more physical sheets PER content group (in
+ * `CONTENT_GROUPS` order), each group packed independently via `packAtlas` so
+ * it converges on its own smallest-fitting power-of-two canvas. Sheet/atlas
+ * indices are assigned globally, in the order sheets are produced (every
+ * `terrain` sheet before every `sprites` sheet), so a frame's `atlas` index
+ * in the returned `manifestFrames` always points at the correct entry in
+ * `atlasFileEntries` regardless of which group it came from.
+ *
+ * Returns `atlasFileEntries` ({file,width,height}, ready for atlas.json),
+ * `manifestFrames` (ready for atlas.json's `frames`), `canvases` (index-
+ * aligned with `atlasFileEntries` — the blitted RGBA pixels for each sheet,
+ * ready for `encodePNG`), and `errors` (every group's packAtlas errors,
+ * concatenated — nothing is ever silently dropped).
+ */
+export function packFramesByContentGroup(decodedFrames, packOptions = {}) {
+  const frameByName = new Map(decodedFrames.map((f) => [f.name, f]));
+  const atlasFileEntries = [];
+  const manifestFrames = {};
+  const canvases = [];
+  const errors = [];
+
+  for (const group of CONTENT_GROUPS) {
+    const groupFrames = decodedFrames.filter((f) => group.kinds.includes(f.kind));
+    if (groupFrames.length === 0) continue;
+
+    const { atlases, errors: groupErrors } = packAtlas(
+      groupFrames.map((f) => ({ name: f.name, w: f.w, h: f.h })),
+      packOptions,
+    );
+    errors.push(...groupErrors);
+
+    for (const atlas of atlases) {
+      const atlasIndex = atlasFileEntries.length;
+      const canvas = new Uint8Array(atlas.width * atlas.height * 4);
+      for (const p of atlas.placements) {
+        const f = frameByName.get(p.name);
+        blit(canvas, atlas.width, f.rgba, f.w, f.h, p.x, p.y);
+        manifestFrames[p.name] = {
+          atlas: atlasIndex,
+          x: p.x,
+          y: p.y,
+          w: p.w,
+          h: p.h,
+          trimX: f.trimX,
+          trimY: f.trimY,
+          srcW: f.srcW,
+          srcH: f.srcH,
+          kind: f.kind,
+          rotationOffsetDeg: f.rotationOffsetDeg,
+        };
+      }
+      atlasFileEntries.push({ file: `atlas-${atlasIndex}.png`, width: atlas.width, height: atlas.height });
+      canvases.push({ width: atlas.width, height: atlas.height, rgba: canvas });
+    }
+  }
+
+  return { atlasFileEntries, manifestFrames, canvases, errors };
+}
+
+// ---------------------------------------------------------------------------
 // CLI pipeline
 // ---------------------------------------------------------------------------
 
@@ -973,6 +1089,47 @@ export function buildFrame(name, kind, decoded, meta) {
   return { name, kind, rgba: cropped, w, h, trimX, trimY, srcW, srcH, rotationOffsetDeg };
 }
 
+/**
+ * Encodes one fully-blitted atlas sheet canvas ({width,height,rgba}),
+ * choosing PNG's indexed color type (3) over truecolor RGBA (6) ONLY when
+ * that is a lossless re-encoding of the exact same pixels AND it comes out
+ * smaller (see tools/quantize.mjs). A shared atlas sheet is one PNG file, so
+ * this is necessarily a WHOLE-SHEET decision — indexed color type applies to
+ * every pixel in the file, not per packed frame, so quantization here can
+ * only help when every frame sharing that sheet, TOGETHER, stays within
+ * PNG's 256-color palette ceiling (see CONTENT_GROUPS above for the
+ * tile-vs-sprite sheet split that keeps photographic tile content off the
+ * same sheet as flat-shaded sprites in the first place).
+ *
+ * Never mutates pixels: `buildIndexedPalette` returns `null` rather than
+ * quantizing when the sheet has more than 256 distinct (r,g,b,a) tuples, and
+ * this function falls back to the existing truecolor `encodePNG` whenever
+ * that happens, or whenever the indexed encoding is not actually smaller.
+ */
+export function encodeAtlasSheet(canvas, fileName) {
+  const truecolorBuf = encodePNG(canvas);
+  const { uniqueCount } = analyzeColors(canvas.rgba);
+  if (uniqueCount > 256) {
+    return {
+      buffer: truecolorBuf,
+      note: `pack-atlas: ${fileName} kept truecolor RGBA (${uniqueCount} distinct colors across the sheet, over PNG's 256-color indexed ceiling — lossless palette quantization does not apply; see tools/quantize.mjs's per-frame report for which individual frames would qualify on their own).`,
+    };
+  }
+  const built = buildIndexedPalette(canvas.rgba, { maxColors: 256 });
+  const indexedBuf = encodeIndexedPNG({ width: canvas.width, height: canvas.height, palette: built.palette, indices: built.indices });
+  if (indexedBuf.length < truecolorBuf.length) {
+    const savedPct = (100 * (1 - indexedBuf.length / truecolorBuf.length)).toFixed(1);
+    return {
+      buffer: indexedBuf,
+      note: `pack-atlas: ${fileName} losslessly re-encoded as indexed PNG (${uniqueCount} colors): ${truecolorBuf.length} -> ${indexedBuf.length} bytes (-${savedPct}%).`,
+    };
+  }
+  return {
+    buffer: truecolorBuf,
+    note: `pack-atlas: ${fileName} qualifies for indexed color (${uniqueCount} colors) but truecolor was not larger (${truecolorBuf.length} bytes either way) — kept truecolor.`,
+  };
+}
+
 async function main() {
   if (!existsSync(RAW_DIR)) {
     console.log(`pack-atlas: ${RAW_DIR} does not exist yet — nothing to pack.`);
@@ -1027,37 +1184,16 @@ async function main() {
     return;
   }
 
-  const { atlases, errors } = packAtlas(decodedFrames.map((f) => ({ name: f.name, w: f.w, h: f.h })));
+  const { atlasFileEntries, manifestFrames, canvases, errors } = packFramesByContentGroup(decodedFrames);
   for (const err of errors) skipped.push(err);
-
-  const frameByName = new Map(decodedFrames.map((f) => [f.name, f]));
-  const manifestFrames = {};
-  const atlasFileEntries = [];
 
   if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
 
-  atlases.forEach((atlas, atlasIndex) => {
-    const canvas = new Uint8Array(atlas.width * atlas.height * 4);
-    for (const p of atlas.placements) {
-      const f = frameByName.get(p.name);
-      blit(canvas, atlas.width, f.rgba, f.w, f.h, p.x, p.y);
-      manifestFrames[p.name] = {
-        atlas: atlasIndex,
-        x: p.x,
-        y: p.y,
-        w: p.w,
-        h: p.h,
-        trimX: f.trimX,
-        trimY: f.trimY,
-        srcW: f.srcW,
-        srcH: f.srcH,
-        kind: f.kind,
-        rotationOffsetDeg: f.rotationOffsetDeg,
-      };
-    }
-    const fileName = `atlas-${atlasIndex}.png`;
-    writeFileSync(resolve(OUT_DIR, fileName), encodePNG({ width: atlas.width, height: atlas.height, rgba: canvas }));
-    atlasFileEntries.push({ file: fileName, width: atlas.width, height: atlas.height });
+  canvases.forEach((canvas, atlasIndex) => {
+    const fileName = atlasFileEntries[atlasIndex].file;
+    const { buffer, note } = encodeAtlasSheet(canvas, fileName);
+    console.log(note);
+    writeFileSync(resolve(OUT_DIR, fileName), buffer);
   });
 
   writeFileSync(
@@ -1069,7 +1205,7 @@ async function main() {
     ),
   );
 
-  console.log(`pack-atlas: packed ${decodedFrames.length} frame(s) into ${atlases.length} atlas(es):`);
+  console.log(`pack-atlas: packed ${decodedFrames.length} frame(s) into ${atlasFileEntries.length} atlas(es):`);
   for (const a of atlasFileEntries) console.log(`  - ${a.file}: ${a.width}x${a.height}`);
   console.log(skipped.length > 0 ? `pack-atlas: skipped ${skipped.length}:` : 'pack-atlas: skipped none');
   for (const s of skipped) console.log(`  - ${s.name}: ${s.reason}`);

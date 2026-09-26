@@ -1,11 +1,12 @@
 {
   "_comment": "Per-kind target pixel sizes for tools/pack-atlas.mjs (assets/ASSET-NOTES.md section 9). tile.quadrantPx is the pre-mirror quadrant (final tile = 2x this, per mirrorQuadrantToSeamlessTile). Every other kind's maxPx caps its longest edge post-crop, area/box-filter downscaled, never upscaled. ui.keepNative lists the only 'ui' frames exempt from ui.maxPx — full-screen art (hud frame, title art) that isn't a small HUD gauge.",
+  "_sizingNotes": "car/wreck/cycle/prop/decal dropped 128->96 on 2026-09-26 per tools/size-report.mjs: these kinds render at 48-96px on screen (measured src/app.ts PIXELS_PER_METER_CSS=14 against typical vehicle/prop world size; ASSET-NOTES.md section 5 'acceptable at 48px game scale'), so every packed frame's longest edge sat above its own display ceiling (measured edgeRatio ~1.33x, ~198.9 KB of isolated-compression estimate recovered — see tools/size-report.mjs output). fx is NOT touched: same shelf as car/prop but no sim/render wiring exists yet to measure its actual display size (grep src/ for explosion/blast radius returns nothing), so tightening it would be guessing, not measuring. tile.quadrantPx is NOT touched: FLOOR_TILE_SIZE_M=10 * PIXELS_PER_METER_CSS=14 = 140 CSS px/tile at zoom 1 (more at devicePixelRatio>1), already close to or above the current 256px final tile — shrinking the quadrant would visibly soften ground texture, not trim waste. ui.maxPx/keepNative are NOT touched: ui-hud-frame/ui-title-art are correctly kept native (full-screen art, not oversized for a >=1344px-wide viewport) and the two small HUD gauges (ui-radar-bezel/ui-speedo-dial) have zero draw call in src today, so there's no measured target to cap them against either. See tools/size-report.mjs for the full measurement.",
   "tile": { "quadrantPx": 128 },
-  "car": { "maxPx": 128 },
-  "wreck": { "maxPx": 128 },
-  "cycle": { "maxPx": 128 },
-  "prop": { "maxPx": 128 },
+  "car": { "maxPx": 96 },
+  "wreck": { "maxPx": 96 },
+  "cycle": { "maxPx": 96 },
+  "prop": { "maxPx": 96 },
   "fx": { "maxPx": 128 },
-  "decal": { "maxPx": 128 },
+  "decal": { "maxPx": 96 },
   "ui": { "maxPx": 128, "keepNative": ["ui-hud-frame", "ui-title-art"] }
 }

@@ -156,3 +156,116 @@ Two independent guards keep it there:
   to ~13.8MB (measured), well over 6 MiB — so it catches gross edits (like the 512/1024
   regression) without pretending to guarantee the byte budget on its own; only the on-disk
   byte-budget test does that.
+
+## 10. Phase-4 headroom pass (2026-09-26): four levers combined, target not fully reached
+
+Before Phase 4 (16 city maps + building interiors), section 9's single 4096x4096
+`assets/atlas-0.png` sat at **5,930,340 bytes (94.3% of the 6 MiB gate, 353 KB headroom)** — not
+enough margin to survive Phase 4's asset growth. Four measurement passes each looked at one lever;
+this section is the integration of the ones that actually compose, plus the real repack.
+
+**Levers measured, and the integration decision:**
+
+| lever | verdict | why |
+|---|---|---|
+| Adaptive per-scanline PNG filtering + `Z_BEST_COMPRESSION` (`encodePNG`) | **kept, composes with everything** | lossless, free (same pixels out), strictly reduces bytes on every sheet regardless of what else runs. No conflict with anything else. |
+| Content-group sheet splitting (`CONTENT_GROUPS` / `packFramesByContentGroup`) | **kept** | `tile` (photographic, uniform-height) and everything else (flat-shaded, chroma-keyed, mostly-transparent, variable size) were sharing one shelf-packed sheet; splitting them lets each group's packer converge on its own smallest power-of-two canvas — measured 4096x4096 (16.78M px) down to two 2048x2048 sheets (8.39M px combined). `src/render/atlas.ts` needed no change: it already resolves a frame's UVs against its own sheet's width/height via `manifest.atlases[entry.atlas]`. |
+| Per-sheet lossless indexed-PNG fallback (`encodeAtlasSheet`, backed by `tools/quantize.mjs`) | **kept, but measured no-op on the current asset set** | applies automatically per sheet, after the sheet split, and only overrides truecolor when it's a byte-for-byte-identical repaint that comes out smaller — so it cannot conflict with the split, only ride on top of it. Real run: both `atlas-0.png` (40,268 distinct colors) and `atlas-1.png` (387,349 distinct colors, even after the maxPx drop below) are far over PNG's 256-color indexed ceiling, so both sheets fall back to truecolor. Only 1 of 50 frames (`tile-sand`, 220 colors) is indexable in isolation, and PNG's indexed color type is whole-file, not per-frame, so one qualifying frame sharing a sheet with 33+ over-256-color frames buys nothing. Left wired in for future assets that might qualify — it's a correct, zero-cost fallback, not dead weight. |
+| `car`/`wreck`/`cycle`/`prop`/`decal` `maxPx` 128 → 96 (`tools/atlas-sizes.json`, measured by `tools/size-report.mjs`) | **kept** | these kinds render 48–96 CSS px on screen (`FLOOR_TILE_SIZE_M=10 * PIXELS_PER_METER_CSS=14` in `src/app.ts`, cross-checked against typical vehicle/prop world size), so every packed frame's longest edge sat ~1.33x above its own display ceiling — genuine, measured waste. `fx`, `ui.maxPx`, and `tile.quadrantPx` were deliberately left alone (see `tools/atlas-sizes.json`'s `_sizingNotes`): `fx` has no sim/render wiring yet to measure a real display size against, `tile` is already close to its on-screen size, and the two `ui.keepNative` frames are full-screen art that isn't oversized for the viewport. |
+
+**Real repack, real measurement** (`node tools/pack-atlas.mjs`, then `stat` on the output — not
+estimated):
+
+| sheet | content | frames | bytes |
+|---|---|---|---|
+| `atlas-0.png` | `tile-*` (terrain) | 16 | 1,828,012 |
+| `atlas-1.png` | `car`/`wreck`/`cycle`/`prop`/`fx`/`decal`/`ui` (sprites) | 34 | 3,741,507 |
+| **total** | | **50** (+1 `skip: true`, unchanged — see section 7) | **5,569,519** |
+
+| | bytes | % of 6 MiB gate | headroom |
+|---|---|---|---|
+| before (section 9, single sheet) | 5,930,340 | 94.3% | 353 KB (5.7%) |
+| **after (this pass)** | **5,569,519** | **88.5%** | **704 KB (11.5%)** |
+| task target | ≤ 3,774,873 | ≤ 60% | ≥ 40% |
+
+Verified alongside the repack: all 50 packable frames still pack (1 `skip: true`,
+`fx-explosion-sheet`, unchanged), every frame keeps a numeric `rotationOffsetDeg`, and
+`atlas.json`'s `configFingerprint` matches a fresh `fingerprintSizeConfig(loadSizeConfig())`.
+
+**Target not reached. What stands in the way, measured, not guessed:**
+
+`tools/size-report.mjs`'s per-kind rollup (isolated-per-frame compression estimate, calibrated
+~2.8x over the real shared-stream sheet — see its printed calibration line) puts `ui-hud-frame` +
+`ui-title-art` at **58.4% of estimated sheet bytes on their own**. Both are already correctly
+un-shrinkable: `ui.keepNative` full-screen art at native 1344x768, not oversized for a
+>=1344px-wide viewport, opaque (no chroma-key transparency to help the indexed-PNG fallback), and
+already lossless-encoded via the same `encodePNG` path as everything else. `tile` is the other
+31.2%, and it's a 256px final tile against a measured ~140 CSS px/tile display size at zoom 1 (more
+at devicePixelRatio > 1) — shrinking it further would visibly soften ground texture, not trim
+waste that isn't there.
+
+The one remaining lever that would move the real number — packing `ui-hud-frame` and
+`ui-title-art` as two standalone PNGs outside `atlas.json`'s `atlases[]` list, since they're never
+frame-batched with sprites and atlasing buys them nothing — requires changing
+`tools/pack-atlas.mjs`'s packing loop **and** `src/render/atlas.ts`'s frame resolution. `src/**` is
+out of scope for this pass (hard rule), so it is a recommendation, not a change made here.
+
+**Recommendation on the gate:** raising the 6 MiB gate is not needed to unblock Phase 4 today —
+this pass alone recovered 704 KB of headroom (2x the pre-pass margin), and Phase 4's 16 city maps
+are gameplay/route data (`rulesets/classic/cities.json`), not atlas pixels, so they don't consume
+this budget directly. Building-interior *art*, if it adds new `tile`/`prop`/`ui` frames, would.
+No page-load cost measurement was taken for a larger gate (out of scope for this pass, and
+premature without a concrete interiors asset list to measure against) — that measurement, plus the
+`ui-hud-frame`/`ui-title-art` standalone-file change above, is the real next lever if 11.5%
+headroom turns out not to be enough once interiors art lands.
+
+---
+
+## 8. The atlas is 60% two images that should not be in it (measured 2026-09-26)
+
+Packed-area share of the single sheet:
+
+| frame | packed | share |
+|---|---|---:|
+| ui-hud-frame | 1344x768 | 30.4% |
+| ui-title-art | 1344x768 | 30.4% |
+| all 48 other frames | — | 39.3% |
+
+By kind: ui 61.3%, tile 30.8%, fx 3.3%, car 1.6%, prop 1.2%, decal 1.0%, wreck 0.4%, cycle 0.1%.
+
+**These two are full-screen art and are never batched with sprites.** They are drawn
+once, alone, on the title screen and around the combat viewport. An atlas exists to let
+many small sprites share one draw call; a full-screen background gains nothing from that
+and forces every gameplay frame to load 3.5 MB it will not use.
+
+**THE FIX: take them out of the atlas** and load them as standalone images, on demand —
+title art only on the title screen, HUD frame only in combat. Expected result: atlas drops
+from ~5.7 MB to ~2.2 MB (35% of budget, ~4 MB headroom), and the two big images load
+lazily instead of blocking first paint.
+
+This needs a loader change in src/render/atlas.ts or src/app.ts, which is why it is not
+done here — src/ was owned by a concurrent workflow. Do it as a standalone pass.
+
+**Do NOT "fix" this by capping their size instead.** They are the two images a player looks
+at longest and least briefly; softening them to save bytes trades visible quality for a
+problem that has a free structural answer.
+
+## 9. Why the sheet split was reverted
+
+Splitting terrain from sprites saved 151,218 bytes and shipped a broken game.
+
+src/app.ts fetches only `assets/atlas-0.png` (line ~903), creates one texture, and binds
+that single textureView to BOTH the tile and sprite bind groups (~594-596). The split moved
+34 of 50 frames onto atlas-1.png, which nothing fetches and which `vite build` did not even
+emit. The sprite pass would have sampled the terrain sheet.
+
+tsc, vitest and vite build were ALL GREEN while the game could render 16 of its 50 frames.
+The multi-sheet code in tools/pack-atlas.mjs is correct and tested — the missing half is
+runtime. Re-splitting requires a texture and bind group per `manifest.atlases` entry, plus a
+test asserting every listed sheet is actually fetched.
+
+**Current state: one sheet, 5,726,330 bytes, 91.0% of the 6 MiB budget.** The 128->96 size
+audit is kept (204,010 bytes, justified by measured display scale). Compression and paletting
+were measured and contributed nothing — adaptive scanline filtering and Z_BEST_COMPRESSION
+were already in the baseline, and both sheets have far too many colours to palette
+(40,268 and 387,349).
