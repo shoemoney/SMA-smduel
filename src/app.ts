@@ -154,7 +154,7 @@ import { leaveAction, LEAVE_ACTION_ID, mountBuildingPanel, type RumorId } from '
 import { buildCityInstances, type CityVehicleView, type CityViewSnapshot } from '@/ui/city-view';
 import { mountMenu, type MenuAction, type MenuHeaderInfo } from '@/ui/menu';
 import { cityName, t } from '@/ui/strings';
-import { isCoarsePointer, mountTouchControls, type TouchControls } from '@/ui/touch';
+import { isCoarsePointer, mountTouchControls, type TouchCommandSpec, type TouchControls } from '@/ui/touch';
 import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
 
 import { initGpu, type GpuContext } from '@/render/gpu';
@@ -445,6 +445,8 @@ interface WeaponSelection {
   update(raw: RawInputState): void;
   /** The mount that will actually fire, guaranteed to index an existing mount whenever it is non-null. */
   active(): number | null;
+  /** Applies a cycle from a source that isn't a bound key or button — the on-screen touch control, which is a tap, not a held action. */
+  cycleOnce(delta: 1 | -1): void;
 }
 
 /**
@@ -497,6 +499,7 @@ function makeWeaponSelection(weaponCount: () => number): WeaponSelection {
       prevDirect = direct;
     },
     active: () => activeIndex,
+    cycleOnce: cycle,
   };
 }
 
@@ -508,6 +511,42 @@ function makeWeaponSelection(weaponCount: () => number): WeaponSelection {
  * mount index by anything that reads the frame later.
  */
 const NO_WEAPON_SLOT = -1;
+
+/**
+ * The on-screen mount-switch control, for the screens where a weapon can
+ * actually fire — every caller of `mountTouchControls({ fire: true, ... })`,
+ * and no others. A phone has no 1-0 row and no Q/E, so without this a touch
+ * player is locked to whichever mount they started on: they cannot switch off
+ * a dry magazine, which is the one tactic amateur night is balanced around
+ * (see `tests/integration/no-active-vehicle.test.ts` on why the loaner
+ * carries four mounts rather than one fat one).
+ *
+ * A `TouchCommandSpec` rather than a new kind of control, because switching
+ * mount is a discrete tap exactly like the existing G/F/J/X commands, and so
+ * inherits their 44px minimum target, `aria-label` and corner stacking for
+ * free. It cycles FORWARD only: a reverse button would crowd the same corner
+ * to save at most two taps on a four-mount car.
+ *
+ * It reports neither which mount is now active nor what that mount has left,
+ * because the HUD's weapons panel is already on screen saying exactly that,
+ * keyed by the same 1-based mount number (`@/ui/hud`'s `buildWeaponRow`: slot
+ * number, ammo/capacity, `aria-current` on the active row). A second, smaller
+ * copy could only drift from it.
+ *
+ * Hidden on a car with fewer than two mounts, where there is nothing to switch
+ * between. Decided once rather than per frame, because `VehicleState.weapons`
+ * never shrinks — a destroyed mount stays in the array.
+ */
+function weaponTouchCommands(selection: WeaponSelection, vehicle: VehicleState): readonly TouchCommandSpec[] {
+  return [
+    {
+      id: 'cycleWeapon',
+      labelKey: 'ui.touch.cycleWeapon',
+      onPress: () => selection.cycleOnce(1),
+      initiallyVisible: vehicle.weapons.length > 1,
+    },
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Screen 1: Title
@@ -1692,7 +1731,7 @@ function showArena(
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
   const weaponSelection = makeWeaponSelection(() => findPlayer(world)?.weapons.length ?? 0);
-  const touch = mountTouchControls(container, { fire: true });
+  const touch = mountTouchControls(container, { fire: true, commands: weaponTouchCommands(weaponSelection, playerVehicle) });
 
   function sampleInput(): InputFrame {
     const raw = rawInputFrom(codesDown, touch);
@@ -2555,7 +2594,7 @@ function showArenaEvent(
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
   const weaponSelection = makeWeaponSelection(() => findPlayer(world)?.weapons.length ?? 0);
-  const touch = mountTouchControls(container, { fire: true });
+  const touch = mountTouchControls(container, { fire: true, commands: weaponTouchCommands(weaponSelection, playerVehicle) });
 
   function sampleInput(): InputFrame {
     const raw = rawInputFrom(codesDown, touch);
@@ -3721,7 +3760,10 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   const weaponSelection = makeWeaponSelection(() => trip.vehicle.weapons.length);
   const touch = mountTouchControls(container, {
     fire: true,
-    commands: [{ id: 'searchWreck', labelKey: 'ui.touch.searchWreck', onPress: trySearchWreck, initiallyVisible: false }],
+    commands: [
+      { id: 'searchWreck', labelKey: 'ui.touch.searchWreck', onPress: trySearchWreck, initiallyVisible: false },
+      ...weaponTouchCommands(weaponSelection, trip.vehicle),
+    ],
   });
 
   let gpuCtx: GpuContext | undefined;

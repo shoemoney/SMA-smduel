@@ -1243,6 +1243,11 @@ describe('DOM screens: road touch wreck-search command visibility', () => {
 // the real Road screen (`showRoad`'s own frame loop builds its `InputFrame`
 // off the same shared `makeWeaponSelection` the two arena screens sample from)
 // in a real car, carrying real mounts the real Constructor put on it.
+//
+// happy-dom computes no layout, so nothing here asserts geometry: that the
+// touch button meets its 44px minimum target and sits clear of the fire
+// button is CSS (`.sm-touch__cmd`, shared with the existing G/F/J/X commands)
+// and is NOT proven by this file.
 // ---------------------------------------------------------------------------
 
 /**
@@ -1370,4 +1375,40 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
     expect(fired.firedSlots()).toEqual([1]);
   });
 
+  it('the on-screen weapon button changes the mount that fires, so a phone player can switch off a dry magazine', async () => {
+    stubPointerCoarse(true);
+    const fired = await driveRoadHoldingFire(2);
+
+    const button = requireOne('button[data-touch-command="cycleWeapon"]');
+    expect({
+      label: button.getAttribute('aria-label'),
+      text: button.textContent,
+      hidden: (button as HTMLButtonElement).hidden,
+    }).toEqual({ label: t('ui.touch.cycleWeapon'), text: t('ui.touch.cycleWeapon'), hidden: false });
+
+    fired.clear();
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([0]);
+
+    fired.clear();
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([1]);
+  });
+
+  it('hides the weapon button on a car with one mount, where there is nothing to switch to', async () => {
+    stubPointerCoarse(true);
+    await driveRoadHoldingFire(1);
+
+    const button = requireOne('button[data-touch-command="cycleWeapon"]');
+    expect((button as HTMLButtonElement).hidden).toBe(true);
+  });
+
+  it('mounts no weapon button at all on a non-coarse pointer', async () => {
+    stubPointerCoarse(false);
+    await driveRoadHoldingFire(2);
+
+    expect(document.querySelector('[data-touch-command="cycleWeapon"]')).toBeNull();
+    expect(document.querySelector('.sm-touch')).toBeNull();
+  });
 });
