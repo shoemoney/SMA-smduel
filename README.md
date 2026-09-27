@@ -6,6 +6,8 @@ A browser vehicular-combat RPG built for [ShoeMoney Arcade](https://arcade.shoem
 
 [Play the game](https://arcade.shoemoney.com/smduel/) · [Rules the JSON cannot hold](docs/SPEC.md) · [Build log](blog/2026-09-26-smduel.md) · [Asset pipeline notes](assets/ASSET-NOTES.md)
 
+![Actual ShoeMoney AutoDuel gameplay: a Division 5 arena match](assets/arcade/smduel-gameplay.png)
+
 ## Play
 
 Create a driver and split your starting skill points across driving, marksmanship, and mechanic. Build a car in the constructor by choosing a body, chassis, suspension, power plant, and tires, then bolt on weapons and armor until you run out of money or load capacity. The constructor refuses illegal builds and tells you which constraint you broke.
