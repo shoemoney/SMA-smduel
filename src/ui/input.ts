@@ -216,22 +216,31 @@ const DIRECT_SELECT_ORDER: readonly [actionId: string, slot: number][] = [
 /**
  * Direct weapon-select only (docs/SPEC.md "1-0 direct select"): the first
  * held digit in 1,2,...,9,0 order maps to slot 0..9, absolute and
- * stateless. Cycling (`fireCycle` below) inherently needs to know the
- * PREVIOUS tick's active slot to advance from, which a pure
+ * stateless. `null` means NO digit is held this tick, which is a different
+ * fact from "slot 0 is asked for" — `resolveInput` below has to flatten the
+ * two together to fill `InputFrame.weaponSlot`, so a caller that owns a
+ * persistent active slot must read this directly rather than that flattened
+ * field, or it can never tell "the player asked for mount 1" from "the
+ * player asked for nothing".
+ *
+ * Cycling (`cyclePressed` below) inherently needs to know the PREVIOUS
+ * tick's active slot to advance from, which a pure
  * `resolveInput(rawState, preset, bindings)` — deliberately given no
  * memory of earlier ticks, so it can't drift out of sync with whatever
  * else reads the same raw state — cannot supply; that persistent slot is
- * the caller's state to own (exactly how `@/app.ts`'s human-input path
- * already tracks its own `activeWeaponIndex` across frames).
+ * the caller's state to own (see `@/app.ts`'s `makeWeaponSelection`, the
+ * one writer of it, which drives BOTH this and `cyclePressed`).
  */
-function resolveDirectWeaponSlot(raw: RawInputState, bindings: PresetBindings, axisThreshold: number): number | null {
+export function directWeaponSlot(raw: RawInputState, preset: PresetName, bindings: AllBindings): number | null {
+  const presetBindings = bindingsForPreset(bindings, preset);
+  const axisThreshold = CONTROLS.gamepadAxisThreshold;
   for (const [actionId, slot] of DIRECT_SELECT_ORDER) {
-    if (isActionActive(raw, actionId, bindings[actionId], axisThreshold)) return slot;
+    if (isActionActive(raw, actionId, presetBindings[actionId], axisThreshold)) return slot;
   }
   return null;
 }
 
-/** Whether cycle-next / cycle-prev are held this tick. Edge-detection and slot bookkeeping are the caller's job (see `resolveDirectWeaponSlot`'s doc) — this only reports the raw, current, rebindable button state. */
+/** Whether cycle-next / cycle-prev are held this tick. Edge-detection and slot bookkeeping are the caller's job (see `directWeaponSlot`'s doc) — this only reports the raw, current, rebindable button state. */
 export function cyclePressed(raw: RawInputState, preset: PresetName, bindings: AllBindings): { next: boolean; prev: boolean } {
   const presetBindings = bindingsForPreset(bindings, preset);
   const axisThreshold = CONTROLS.gamepadAxisThreshold;
@@ -254,9 +263,12 @@ export function cyclePressed(raw: RawInputState, preset: PresetName, bindings: A
  * released is the zero vector — a centered stick, which `stepDriving`
  * reads as "coast", never a hard brake.
  *
- * `weaponSlot`: direct-select only (see `resolveDirectWeaponSlot`),
- * defaulting to 0 (matching `@/sim/loop`'s `defaultInputFrame()`) when no
- * digit is held. Cycling is exposed separately via `cyclePressed()`.
+ * `weaponSlot`: direct-select only (see `directWeaponSlot`), defaulting to 0
+ * (matching `@/sim/loop`'s `defaultInputFrame()`) when no digit is held.
+ * Cycling is exposed separately via `cyclePressed()`. A caller that tracks
+ * its own active slot across ticks must NOT read this field — the default
+ * makes "nothing held" indistinguishable from "mount 1" — and should call
+ * `directWeaponSlot()` instead.
  */
 export function resolveInput(rawState: RawInputState, preset: PresetName, bindings: AllBindings): InputFrame {
   const presetBindings = bindingsForPreset(bindings, preset);
@@ -282,7 +294,7 @@ export function resolveInput(rawState: RawInputState, preset: PresetName, bindin
   }
 
   const fire = active('fire');
-  const weaponSlot = resolveDirectWeaponSlot(rawState, presetBindings, axisThreshold) ?? 0;
+  const weaponSlot = directWeaponSlot(rawState, preset, bindings) ?? 0;
 
   return { moveX, moveY, fire, weaponSlot };
 }
