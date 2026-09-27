@@ -39,9 +39,52 @@
         height: 100dvh;
         overflow: hidden;
       }
+      /* Static chrome lives outside #app: every screen mount in src/app.ts does
+         root.innerHTML = '' on #app (its clearAndAppend helper), which would
+         destroy anything mounted inside it on every screen change. Sitting
+         outside #app survives every transition with no JS and cannot steal
+         focus on mount. */
+      .arcade-home-link {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        min-height: 44px;
+        box-sizing: border-box;
+        background: rgba(10, 14, 20, 0.55);
+        border: 1px solid rgba(79, 214, 196, 0.35);
+        border-radius: 4px;
+        color: #d7e0ea;
+        font-family: system-ui, sans-serif;
+        font-size: 12px;
+        text-decoration: none;
+        line-height: 1;
+      }
+      .arcade-home-link img {
+        display: block;
+        border-radius: 2px;
+      }
+      @media (pointer: coarse) {
+        .arcade-home-link {
+          padding: 6px;
+          min-width: 44px;
+          justify-content: center;
+        }
+        .arcade-home-link .arcade-home-label {
+          display: none;
+        }
+      }
     </style>
   </head>
   <body>
+    <a class="arcade-home-link" href="https://arcade.shoemoney.com/" aria-label="ShoeMoney Arcade">
+      <img src="https://arcade.shoemoney.com/brand/shoemoney-logo.webp" alt="" width="20" height="20" />
+      <span class="arcade-home-label">Arcade</span>
+    </a>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
