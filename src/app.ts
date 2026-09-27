@@ -1575,7 +1575,7 @@ function showArena(
   hudHost.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
   const status = el('div');
   status.style.cssText =
-    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;';
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
   const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
@@ -2361,7 +2361,7 @@ function showArenaEvent(
   hudHost.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
   const status = el('div');
   status.style.cssText =
-    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;';
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
   const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
@@ -2858,7 +2858,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
   const status = el('div');
   status.style.cssText =
-    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;white-space:pre;';
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;white-space:pre-wrap;overflow-wrap:break-word;';
   const deviceNotice = el('div');
   deviceNotice.style.cssText =
     'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ff6b6b;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
@@ -3347,7 +3347,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
   const status = el('div');
   status.style.cssText =
-    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
   const notice = el('div');
   notice.style.cssText =
     'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ffd166;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;max-width:80vw;';
