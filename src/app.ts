@@ -1231,7 +1231,7 @@ export function makeArenaDamageSystem(
         const entry = requireOpponent(opponents, target.id);
         opponents.set(target.id, { ...entry, driver: resolved.target.driver });
         if (defeated) {
-          matchStateRef.current = recordOpponentDefeated(matchStateRef.current);
+          matchStateRef.current = recordOpponentDefeated(matchStateRef.current, resolved.report.driverDefeated);
           const remainingCount = matchStateRef.current.opponentsTotal - matchStateRef.current.opponentsDefeated;
           log('info', t('ui.arena.opponentDefeated', { remaining: String(remainingCount) }));
         }

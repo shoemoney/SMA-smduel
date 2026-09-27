@@ -376,6 +376,7 @@ export interface ArenaMatchState {
   eventId: ArenaEventId;
   opponentsTotal: number;
   opponentsDefeated: number;
+  driverDefeatedCount: number;
 }
 
 export type BeginArenaMatchResult =
@@ -406,15 +407,24 @@ export function beginArenaMatch(
 
   return {
     ok: true,
-    state: { eventId, opponentsTotal: event.opponentCount, opponentsDefeated: 0 },
+    state: { eventId, opponentsTotal: event.opponentCount, opponentsDefeated: 0, driverDefeatedCount: 0 },
     driver: charged,
   };
 }
 
-/** Records one opponent defeated. Clamps at opponentsTotal; never goes negative or over. */
-export function recordOpponentDefeated(state: ArenaMatchState): ArenaMatchState {
+/**
+ * Records one opponent defeated. Clamps at opponentsTotal; never goes negative or over.
+ * `driverDefeated` increments `driverDefeatedCount` past this SAME clamp guard, never at
+ * the call site, so `driverDefeatedCount <= opponentsDefeated` can never drift out from
+ * under a caller that forgets to check the roster is still open.
+ */
+export function recordOpponentDefeated(state: ArenaMatchState, driverDefeated = false): ArenaMatchState {
   if (state.opponentsDefeated >= state.opponentsTotal) return state;
-  return { ...state, opponentsDefeated: state.opponentsDefeated + 1 };
+  return {
+    ...state,
+    opponentsDefeated: state.opponentsDefeated + 1,
+    driverDefeatedCount: state.driverDefeatedCount + (driverDefeated ? 1 : 0),
+  };
 }
 
 /** True once every opponent in the roster (0 for practice) has been defeated. */
