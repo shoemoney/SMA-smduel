@@ -735,4 +735,47 @@ describe('DOM screens: the arcade score submit screen', () => {
     expect(continued).toBe(true);
     expect(calledUrls.some((url) => url.includes('/api/games/smduel/'))).toBe(false);
   });
+
+  it('submitting sends the name the player actually typed, and the sibling input survives the menu re-render that submitting triggers', async () => {
+    const bodies: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown, init: unknown) => {
+        const url = String(input);
+        bodies.push(String((init as { body?: unknown } | undefined)?.body ?? ''));
+        const payload = url.endsWith('/runs') ? { runToken: 'run-token-from-request-1' } : { accepted: true, rank: 7 };
+        return Promise.resolve(new Response(JSON.stringify(payload), { status: 201, headers: { 'Content-Type': 'application/json' } }));
+      }),
+    );
+
+    const payload: ArcadeScorePayload = { score: 7050, wave: 8, kills: 8, headshots: 3, duration: 200 };
+    const header: MenuHeaderInfo = { cash: 9_500, dayIndex: 30, phase: 'MORNING' as DayPhase, cityName: 'Watertown' };
+
+    showArcadeScoreSubmit(root, header, 'Default Name', payload, () => {});
+
+    const nameInput = requireOne('.sm-screen--arcade-submit input') as HTMLInputElement;
+    nameInput.value = 'Typed By Player';
+
+    dispatchKey(requireOne('.sm-menu'), { key: 'Enter' });
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    // The name that reached the scores request is the EDITED one. A screen
+    // that read `driverName` instead of the live input would send
+    // "Default Name" here and this is the only assertion that catches it.
+    const scoresBody = JSON.parse(bodies[1] ?? '{}') as { name?: string; runToken?: string; score?: number };
+    expect(scoresBody.name).toBe('Typed By Player');
+    expect(scoresBody.runToken).toBe('run-token-from-request-1');
+    expect(scoresBody.score).toBe(payload.score);
+
+    // Submitting calls `setActions`, which makes `mountMenu` clear and rebuild
+    // its container. The input is a sibling, so it is still in the document
+    // with the typed value intact — nesting it inside `menuHost` would have
+    // destroyed it at exactly this point.
+    const afterRender = requireOne('.sm-screen--arcade-submit input') as HTMLInputElement;
+    expect(afterRender.value).toBe('Typed By Player');
+
+    const labels = Array.from(requireOne('.sm-menu').querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
+    expect(labels).toContain(t('ui.arena.scoreSubmit.statusAccepted', { rank: 7 }));
+  });
 });

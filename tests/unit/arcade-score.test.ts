@@ -99,9 +99,17 @@ describe('buildArcadePayload(): invariants hold even under states that try to br
     }
   });
 
-  it('duration is round(tick * dtSeconds), clamped to 0..86400', () => {
+  it('duration is round(tick * dtSeconds)', () => {
     const payload = buildArcadePayload(stateFor(3, 3, 1), 600, 1 / 10);
     expect(payload.duration).toBe(60);
+  });
+
+  it("duration clamps at the server's 86400 ceiling, which a long-running tick count would otherwise blow straight past", () => {
+    // 86401 seconds at a 1s timestep - one second over the cap, so a missing
+    // ceiling clamp shows up as 86401 rather than being rounded back into
+    // range by luck. The server rejects anything above 86400 outright.
+    const payload = buildArcadePayload(stateFor(3, 3, 1), 86_401, 1);
+    expect(payload.duration).toBe(86_400);
   });
 });
 
