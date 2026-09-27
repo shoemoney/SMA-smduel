@@ -1944,7 +1944,15 @@ export function cityRunStateFromSaveGame(
   };
 }
 
-function buildingContextFrom(state: CityRunState): BuildingContext {
+/**
+ * The `BuildingContext` a facility panel is handed on entry. Exported as a
+ * test seam, the same convention `reconcileFleetWithVehicle`/
+ * `fleetAfterBuildingVisit`/`cityRunStateFromSaveGame` already stand on:
+ * paired with `applyBuildingContext` below it is the ENTIRE round trip a
+ * building visit makes through `CityRunState`, so a test can drive "walk in,
+ * transact, walk out, walk back in" without booting a screen.
+ */
+export function buildingContextFrom(state: CityRunState): BuildingContext {
   return {
     driver: state.driver,
     clock: state.clock,
@@ -2169,7 +2177,7 @@ export function fleetAfterBuildingVisit(fleet: Fleet, previousVehicleId: string,
  * PRE-sale `state.vehicle` purely to keep that shape; `fleetAfterBuildingVisit`
  * above is what actually keeps the sold car out of `fleet` regardless.
  */
-function applyBuildingContext(state: CityRunState, ctx: BuildingContext): CityRunState {
+export function applyBuildingContext(state: CityRunState, ctx: BuildingContext): CityRunState {
   const vehicle = ctx.vehicle ?? state.vehicle;
   return {
     ...state,
