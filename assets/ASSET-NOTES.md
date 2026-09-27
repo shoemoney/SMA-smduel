@@ -19,20 +19,34 @@ dark asphalt if only alpha-keyed.
 ## 2. Vehicle sprite orientation is inconsistent
 
 Every sprite was prompted "nose pointing UP" and Flux ignored it for most of them.
-Verified by direct inspection:
+Verified by direct inspection of `assets/raw/*.png` (2026-09-27 re-verification, after a
+shipped bug where every vehicle rendered 90 degrees off — see the `rotationOffsetDeg`
+convention below, which the values before that date got wrong):
 
-| sprite         | nose points | rotationOffsetDeg |
-|----------------|-------------|-------------------|
-| car-pickup     | UP          | 0                 |
-| car-subcompact | DOWN        | 180               |
-| car-midsized   | DOWN        | 180               |
-| car-van        | DOWN        | 180               |
-| car-kart       | DOWN        | 180               |
-| (others)       | see sprite-meta.json                |
+| sprite           | nose points   | rotationOffsetDeg |
+|-------------------|--------------|-------------------|
+| car-pickup        | UP           | 270               |
+| car-compact       | UP           | 270               |
+| cycle-topdown     | UP           | 270               |
+| car-subcompact    | DOWN         | 90                |
+| car-midsized      | DOWN         | 90                |
+| car-van           | DOWN         | 90                |
+| car-luxury        | DOWN         | 90                |
+| car-kart          | DOWN         | 90                |
+| car-stationwagon  | LEFT (landscape frame) | 180     |
+
+`rotationOffsetDeg` is degrees ADDED to the vehicle's simulation heading (0 rad == world
++X, `src/sim/driving.ts`'s forward vector) to get the sprite's render rotation
+(`src/app.ts`'s `vehicleSpriteInstance`, `src/ui/city-view.ts`'s player/vehicle
+instances). It must rotate the drawn ART so its nose lands on the frame's local +X:
+nose art at local +Y (top of frame) needs 270, local -Y (bottom) needs 90, local -X
+(left) needs 180, local +X (right) needs 0 — derive this per frame, do not assume "nose
+UP means offset 0", which is the bug that shipped every car sideways.
 
 The renderer MUST apply `rotationOffsetDeg` from the atlas manifest per frame.
-Identify the front by windshield/hood/grille/headlights — NOT by the gun, which is
-mounted in varying places.
+Identify the front by windshield/wipers/hood/grille/headlights — NOT by the gun, which
+is mounted in varying places, and not by a roof panel alone (rear hatch glass and roof
+vents can look similar to a windshield; wipers only ever sit at a windshield's base).
 
 ## 3. tile-* textures are NOT seamless
 

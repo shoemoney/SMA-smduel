@@ -47,7 +47,7 @@ export interface AtlasFrameEntry {
   readonly srcW: number;
   readonly srcH: number;
   readonly kind: AssetKind;
-  /** Degrees to rotate this frame so its nose/front points up (-Y) at world rotation 0. The renderer MUST apply this per frame (assets/ASSET-NOTES.md section 2). */
+  /** Degrees ADDED to a vehicle's simulation heading (0 rad == world +X, see src/sim/driving.ts's forward vector) to get the sprite's render rotation, so this must rotate the drawn ART so its nose lands on the frame's local +X: nose art at local +Y (top of frame) needs 270, local -Y (bottom) needs 90, local -X (left) needs 180, local +X (right) needs 0. The renderer MUST apply this per frame (assets/ASSET-NOTES.md section 2). */
   readonly rotationOffsetDeg: number;
 }
 
@@ -78,7 +78,7 @@ export interface FrameInfo {
   readonly trimY: number;
   readonly srcWidth: number;
   readonly srcHeight: number;
-  /** Degrees to rotate this frame so its nose/front points up (-Y) at world rotation 0. */
+  /** See `AtlasFrameEntry.rotationOffsetDeg` - carried through unchanged. */
   readonly rotationOffsetDeg: number;
 }
 

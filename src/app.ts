@@ -1502,7 +1502,8 @@ function buildFloorInstances(atlasIndex: AtlasIndex): SpriteInstanceInput[] {
   return instances;
 }
 
-function vehicleSpriteInstance(vehicle: VehicleState, atlasIndex: AtlasIndex): SpriteInstanceInput {
+/** Composes a vehicle's render rotation from its simulation heading and its frame's `rotationOffsetDeg` — the exact seam a vehicle-orientation regression test drives directly, instead of reimplementing this formula (assets/ASSET-NOTES.md section 2). */
+export function vehicleSpriteInstance(vehicle: VehicleState, atlasIndex: AtlasIndex): SpriteInstanceInput {
   const frame = atlasIndex.frame(`car-${vehicle.design.bodyId}`);
   return {
     atlasId: '0',
