@@ -47,8 +47,10 @@ import {
   vehicleStateFromDesign,
   type CityRunState,
 } from '@/app';
-import { houseKartDesign, houseVehicleDef, isHouseVehicleSalvageable } from '@/sim/arena';
-import { economy, skillsConfig } from '@/data/rulesets';
+import { houseKartDesign, houseLoanerDesign, isHouseVehicleSalvageable, loanerVehicleDef } from '@/sim/arena';
+import { computeBuild } from '@/sim/construct';
+import { FACINGS } from '@/sim/types';
+import { economy, getWeapon, skillsConfig } from '@/data/rulesets';
 import { initialClock } from '@/sim/calendar';
 import { createDriver } from '@/sim/driver';
 import type { DriverState, SkillName, VehicleDesign, VehicleState } from '@/sim/types';
@@ -243,20 +245,64 @@ describe("amateur-night, the broke driver's on-ramp, is reachable again", () => 
     expect(rowById(rows, 'enter-unlimited')?.eligible).toBe(false);
   });
 
-  it('the house lends a real Arena Kart to a carless entrant, built from arenas.json rather than invented', () => {
+  it('the house lends a real House Loaner to a carless entrant, built from arenas.json rather than invented', () => {
     const loaner = arenaPlayerVehicle(null, 'amateur-night');
-    const house = houseVehicleDef();
+    const row = loanerVehicleDef();
     if (loaner === null) throw new Error('a house-sourced event must always produce a loaner');
 
-    // Compared against the ruleset row, never a literal, so retuning the kart
-    // in arenas.json cannot silently leave the player in a different car from
-    // the one `spawnArenaOpponents` deals the opposition.
-    expect(loaner.design).toEqual(houseKartDesign());
+    // Compared against the ruleset row, never a literal, so retuning the
+    // loaner in arenas.json cannot silently leave the player in a car nobody
+    // wrote down.
+    expect(loaner.design).toEqual(houseLoanerDesign());
     expect(loaner.design.weapons.map((w) => ({ weaponId: w.weaponId, facing: w.facing, ammo: w.ammo }))).toEqual(
-      house.weapons.map((w) => ({ weaponId: w.weaponId, facing: w.facing, ammo: w.ammo })),
+      row.weapons.map((w) => ({ weaponId: w.weaponId, facing: w.facing, ammo: w.ammo })),
     );
     expect(loaner.destroyed).toBe(false);
     expect(loaner.ownerId).toBe(PLAYER_ID);
+  });
+
+  // The fix for an unplayable amateur-night. The loaner used to BE the
+  // opponents' row, which made a five-on-one in identical cars: the player
+  // died around tick 152 on every seed and needed about 59 rounds to clear a
+  // roster their 20-round magazine could never pay for. These assertions are
+  // the ones that would have failed then.
+  it('the loaner out-provisions the karts the house fields against it, in armor and in ammunition', () => {
+    const loaner = houseLoanerDesign();
+    const opponent = houseKartDesign();
+
+    expect(loaner).not.toEqual(opponent);
+    for (const facing of FACINGS) {
+      expect({ facing, better: loaner.armor[facing] > opponent.armor[facing] }).toEqual({ facing, better: true });
+    }
+
+    const rounds = (design: typeof loaner): number => design.weapons.reduce((sum, w) => sum + w.ammo, 0);
+    expect(rounds(loaner)).toBeGreaterThan(rounds(opponent));
+    // Derived, never a literal: clearing the roster costs more rounds than any
+    // ONE mount can legally hold, which is the whole reason the loaner carries
+    // several. Whether the resulting allowance is enough is a balance question,
+    // gated by the win-rate test in arena-victory.test.ts rather than guessed
+    // at with a magic number here.
+    const largestLegalMount = Math.max(...loaner.weapons.map((w) => getWeapon(w.weaponId).ammoCapacity));
+    expect(rounds(loaner)).toBeGreaterThan(largestLegalMount);
+  });
+
+  it('the loaner is a legal build, so the house never lends a car the constructor would reject', () => {
+    const build = computeBuild(houseLoanerDesign());
+    expect({ legal: build.legal, violations: build.violations.map((v) => v.code) }).toEqual({ legal: true, violations: [] });
+  });
+
+  // Every mount sits AT the weapon's own capacity, never over it: @/sim/construct
+  // rejects a mount above `ammoCapacity`, so a larger allowance has to come from
+  // more mounts rather than a fatter magazine. Asserted so nobody "simplifies"
+  // the four mounts into one oversized one and trips the build gate.
+  it('no loaner mount exceeds its weapon capacity', () => {
+    for (const mounted of houseLoanerDesign().weapons) {
+      const capacity = getWeapon(mounted.weaponId).ammoCapacity;
+      expect({ weaponId: mounted.weaponId, overCapacity: mounted.ammo > capacity }).toEqual({
+        weaponId: mounted.weaponId,
+        overCapacity: false,
+      });
+    }
   });
 
   it('an own-vehicle event fights in the driver\'s own car, and offers no loaner when they have none', () => {

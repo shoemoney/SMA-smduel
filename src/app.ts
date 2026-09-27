@@ -28,7 +28,7 @@ import {
   computeArenaSpawnPositions,
   findBearingTarget,
   getArenaEvent,
-  houseKartDesign,
+  houseLoanerDesign,
   isHouseVehicleSalvageable,
   opponentDefeatedByReport,
   orientedRectsOverlap,
@@ -2401,12 +2401,18 @@ export function showArcadeScoreSubmit(
  *
  * A `house`-sourced event is entered ON FOOT (`@/sim/arena`'s
  * `eligibilityFor` refuses any non-null vehicle for amateur-night's
- * `on-foot-under-threshold` branch) and the house lends its own kart:
- * arenas.json's `houseVehicle`, whose `totalCount: 6` note already accounts
- * for it as "5 amateur-night opponents + the player's own loaner". That makes
- * it a symmetric match in identical cars, which is the point of the event.
- * `spawnArenaOpponents` deals the opponents from the same `houseKartDesign`,
- * so both sides come off one ruleset row rather than two.
+ * `on-foot-under-threshold` branch) and the house lends a car: arenas.json's
+ * `loanerVehicle`, NOT the `houseVehicle` row its five opponents come off.
+ *
+ * Those used to be one row, and the symmetry was described here as the point
+ * of the event. It was the bug. One player against five simultaneous cars
+ * that all prefer the player as a target is not a symmetric match however
+ * identical the cars are: five stock karts killed a stock loaner by tick 152
+ * on every seed measured, and clearing the roster costs about 59 rounds
+ * against a 20-round magazine, so VICTORY was unreachable at any skill.
+ * `spawnArenaOpponents` still deals every opponent from `houseKartDesign`,
+ * untouched, because arenas.json marks amateur-night's opponent count and
+ * kart count manual-exact. The loaner is the half that gives.
  *
  * `own`-sourced events use the active vehicle, which the same eligibility
  * check has already refused the entry without. `null` back from here means
@@ -2414,7 +2420,7 @@ export function showArcadeScoreSubmit(
  */
 export function arenaPlayerVehicle(active: VehicleState | null, eventId: ArenaEventId): VehicleState | null {
   if (rosterFor(eventId).vehicleSource !== 'house') return active;
-  return vehicleStateFromDesign(houseKartDesign(), `veh-${PLAYER_ID}-loaner`, PLAYER_ID);
+  return vehicleStateFromDesign(houseLoanerDesign(), `veh-${PLAYER_ID}-loaner`, PLAYER_ID);
 }
 
 /**
