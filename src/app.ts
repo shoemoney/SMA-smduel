@@ -16,6 +16,7 @@
 import '@/ui/builder.css';
 import '@/ui/menu.css';
 import '@/ui/hud.css';
+import '@/ui/touch.css';
 
 import { citiesConfig, drivingConfig, economy, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
 import { validateRulesets } from '@/data/schema';
@@ -149,6 +150,7 @@ import { leaveAction, LEAVE_ACTION_ID, mountBuildingPanel, type RumorId } from '
 import { buildCityInstances, type CityVehicleView, type CityViewSnapshot } from '@/ui/city-view';
 import { mountMenu, type MenuAction, type MenuHeaderInfo } from '@/ui/menu';
 import { cityName, t } from '@/ui/strings';
+import { mountTouchControls, type TouchControls } from '@/ui/touch';
 import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
 
 import { initGpu, type GpuContext } from '@/render/gpu';
@@ -420,8 +422,17 @@ function attachCodeTracking(codesDown: Set<string>): { detach(): void } {
   };
 }
 
-function rawInputFrom(codesDown: ReadonlySet<string>): RawInputState {
-  return { keysDown: codesDown, mouseButtonsDown: new Set(), gamepadButtonsDown: new Set(), gamepadAxes: [] };
+const NO_TOUCH_BUTTONS: ReadonlySet<string> = new Set();
+
+function rawInputFrom(codesDown: ReadonlySet<string>, touch: TouchControls | null): RawInputState {
+  return {
+    keysDown: codesDown,
+    mouseButtonsDown: new Set(),
+    gamepadButtonsDown: new Set(),
+    gamepadAxes: [],
+    touchAxes: touch?.axes() ?? [],
+    touchButtonsDown: touch?.buttonsDown() ?? NO_TOUCH_BUTTONS,
+  };
 }
 
 /** Edge-triggered weapon-cycle helper shared by every driving screen: `@/ui/input`'s `cyclePressed` reports raw HELD state, so this tracks the previous tick's held state itself and only fires `onCycle` on press, exactly once per press, never once per tick held. */
@@ -1615,6 +1626,7 @@ function showArena(
   // --- input --------------------------------------------------------------
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
+  const touch = mountTouchControls(container);
   let activeWeaponIndex: number | null = playerVehicle.weapons.length > 0 ? 0 : null;
   function cycleWeapon(delta: number): void {
     const player = findPlayer(world);
@@ -1629,7 +1641,7 @@ function showArena(
   const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
 
   function sampleInput(): InputFrame {
-    const raw = rawInputFrom(codesDown);
+    const raw = rawInputFrom(codesDown, touch);
     applyCycleEdge(raw);
     const resolved = resolveInput(raw, currentControlPreset, currentControlBindings);
     return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: activeWeaponIndex ?? 0 };
@@ -1781,6 +1793,7 @@ function showArena(
     stopped = true;
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
+    touch?.destroy();
     gpuCtx?.destroy();
   }
 
@@ -2394,6 +2407,7 @@ function showArenaEvent(
 
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
+  const touch = mountTouchControls(container);
   let activeWeaponIndex: number | null = playerVehicle.weapons.length > 0 ? 0 : null;
   function cycleWeapon(delta: number): void {
     const player = findPlayer(world);
@@ -2408,7 +2422,7 @@ function showArenaEvent(
   const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
 
   function sampleInput(): InputFrame {
-    const raw = rawInputFrom(codesDown);
+    const raw = rawInputFrom(codesDown, touch);
     applyCycleEdge(raw);
     const resolved = resolveInput(raw, currentControlPreset, currentControlBindings);
     return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: activeWeaponIndex ?? 0 };
@@ -2556,6 +2570,7 @@ function showArenaEvent(
     stopped = true;
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
+    touch?.destroy();
     gpuCtx?.destroy();
   }
 
@@ -3058,6 +3073,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   }
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
+  const touch = mountTouchControls(container);
 
   function openFleetScreen(): void {
     stop();
@@ -3186,7 +3202,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     const dtSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
     if (!paused) {
-      const resolved = resolveInput(rawInputFrom(codesDown), currentControlPreset, currentControlBindings);
+      const resolved = resolveInput(rawInputFrom(codesDown, touch), currentControlPreset, currentControlBindings);
       const direction = cityDirectionFromVector({ x: resolved.moveX, y: resolved.moveY });
       const step = stepWalk({ player, layout, direction, dtSeconds, clock: runState.clock });
       player = step.player;
@@ -3203,6 +3219,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     window.cancelAnimationFrame(rafHandle);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
+    touch?.destroy();
     gpuCtx?.destroy();
   }
 
@@ -3503,6 +3520,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   // --- input ------------------------------------------------------------
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
+  const touch = mountTouchControls(container);
   let activeWeaponIndex: number | null = trip.vehicle.weapons.length > 0 ? 0 : null;
   function cycleWeapon(delta: number): void {
     const count = trip.vehicle.weapons.length;
@@ -3602,6 +3620,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
     window.removeEventListener('keydown', onSearchKey);
+    touch?.destroy();
     gpuCtx?.destroy();
   }
 
@@ -3697,7 +3716,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     const dtSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
 
-    const raw = rawInputFrom(codesDown);
+    const raw = rawInputFrom(codesDown, touch);
     applyCycleEdge(raw);
     const resolvedInput = resolveInput(raw, currentControlPreset, currentControlBindings);
     const playerInput: InputFrame = {
