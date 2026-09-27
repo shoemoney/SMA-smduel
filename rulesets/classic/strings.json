@@ -107,6 +107,11 @@
     "ui.arena.scoreSubmit.statusSubmitting": "Submitting…",
     "ui.arena.scoreSubmit.statusAccepted": "Accepted — rank {rank}",
     "ui.arena.scoreSubmit.statusFailed": "Could not submit: {error}",
+    "ui.arena.scoreSubmit.errorUnreachable": "could not reach the leaderboard server",
+    "ui.arena.scoreSubmit.errorRunRefused": "the leaderboard server refused to start a run (status {status})",
+    "ui.arena.scoreSubmit.errorNoToken": "the leaderboard server did not return a run token",
+    "ui.arena.scoreSubmit.errorScoreRefused": "the score was rejected (status {status})",
+    "ui.arena.scoreSubmit.errorNotAccepted": "the score was not accepted",
 
     "ui.city.status": "{city} — Day {day} {phase} — ${cash}\nWASD/arrows walk · G enter/exit car · walk into a building or the gate",
     "ui.city.routeOption": "{city} — {miles}mi, danger {danger}",

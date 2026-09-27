@@ -49,7 +49,7 @@ describe('submitArcadeScore(): the two-request flow, fetch faked', () => {
 
     const result = await submitArcadeScore(SUBMISSION);
 
-    expect(result.ok).toBe(false);
+    expect(result).toEqual({ ok: false, failure: { kind: 'run-refused', status: 500 } });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -58,8 +58,50 @@ describe('submitArcadeScore(): the two-request flow, fetch faked', () => {
 
     const result = await submitArcadeScore(SUBMISSION);
 
-    expect(result.ok).toBe(false);
+    expect(result).toEqual({ ok: false, failure: { kind: 'no-token' } });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a rejected request 2 reports the score-refused status and the server\'s OWN message verbatim, never wording invented here', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(201, { runToken: 'abc-run-token' }))
+      .mockResolvedValueOnce(jsonResponse(400, { error: 'Headshots cannot exceed kills' }));
+
+    const result = await submitArcadeScore(SUBMISSION);
+
+    expect(result).toEqual({
+      ok: false,
+      failure: { kind: 'score-refused', status: 400, serverMessage: 'Headshots cannot exceed kills' },
+    });
+  });
+
+  it('a request-2 rejection with no server message leaves serverMessage null, so the UI falls back to its own wording', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(201, { runToken: 'abc-run-token' }))
+      .mockResolvedValueOnce(jsonResponse(503, {}));
+
+    const result = await submitArcadeScore(SUBMISSION);
+
+    expect(result).toEqual({ ok: false, failure: { kind: 'score-refused', status: 503, serverMessage: null } });
+  });
+
+  it('an unreachable server is reported as unreachable, not as a refusal', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    const result = await submitArcadeScore(SUBMISSION);
+
+    expect(result).toEqual({ ok: false, failure: { kind: 'unreachable' } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a 200 that says accepted:false is not treated as an accepted submission', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(201, { runToken: 'abc-run-token' }))
+      .mockResolvedValueOnce(jsonResponse(200, { accepted: false, reason: 'board_changed' }));
+
+    const result = await submitArcadeScore(SUBMISSION);
+
+    expect(result).toEqual({ ok: false, failure: { kind: 'not-accepted' } });
   });
 });
 

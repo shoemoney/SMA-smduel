@@ -19,7 +19,7 @@ import '@/ui/hud.css';
 
 import { citiesConfig, drivingConfig, economy, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
 import { validateRulesets } from '@/data/schema';
-import { arcadeScoringEnabled, submitArcadeScore } from '@/arcade/client';
+import { arcadeScoringEnabled, submitArcadeScore, type ArcadeSubmitFailure } from '@/arcade/client';
 import { buildArcadePayload, shouldSubmitArcadeScore, type ArcadeScorePayload } from '@/arcade/score';
 import {
   beginArenaMatch,
@@ -2187,6 +2187,29 @@ function applyBuildingContext(state: CityRunState, ctx: BuildingContext): CityRu
 const ARCADE_SUBMIT_ACTION_ID = 'arcade-submit-score';
 
 /**
+ * Wording for an `ArcadeSubmitFailure`, resolved HERE rather than in
+ * `@/arcade/client`, so every player-visible sentence still lives in
+ * strings.json (see `@/ui/strings`'s header on why that seam exists). A
+ * `score-refused` carries the arcade server's OWN rejection reason when it
+ * sent one; that text is the server's to word, not this table's, so it is
+ * passed through as a parameter instead of being restated here.
+ */
+function arcadeFailureText(failure: ArcadeSubmitFailure): string {
+  switch (failure.kind) {
+    case 'unreachable':
+      return t('ui.arena.scoreSubmit.errorUnreachable');
+    case 'run-refused':
+      return t('ui.arena.scoreSubmit.errorRunRefused', { status: failure.status });
+    case 'no-token':
+      return t('ui.arena.scoreSubmit.errorNoToken');
+    case 'score-refused':
+      return failure.serverMessage ?? t('ui.arena.scoreSubmit.errorScoreRefused', { status: failure.status });
+    case 'not-accepted':
+      return t('ui.arena.scoreSubmit.errorNotAccepted');
+  }
+}
+
+/**
  * Arcade leaderboard submit screen — shown instead of calling `onComplete`
  * straight away when a real run just won AND arcade scoring is switched on
  * (see `showArenaEvent`'s exit handler below for the gate). Same screen
@@ -2286,7 +2309,7 @@ export function showArcadeScoreSubmit(
       status = { kind: 'submitting' };
       mounted.setActions(actionsFor());
       void submitArcadeScore({ name: nameField.value, ...payload }).then((result) => {
-        status = result.ok ? { kind: 'accepted', rank: result.rank } : { kind: 'failed', error: result.error };
+        status = result.ok ? { kind: 'accepted', rank: result.rank } : { kind: 'failed', error: arcadeFailureText(result.failure) };
         mounted.setActions(actionsFor());
       });
     },

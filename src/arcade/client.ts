@@ -32,9 +32,29 @@ export interface ArcadeRunSubmission extends ArcadeScorePayload {
   readonly name: string;
 }
 
-export type ArcadeSubmitResult = { readonly ok: true; readonly rank: number | null } | { readonly ok: false; readonly error: string };
+/**
+ * Why a tagged failure rather than a ready-made sentence: display wording
+ * lives in rulesets/classic/strings.json and reaches the player through
+ * `@/ui/strings`'s `t()`, which is the whole point of that seam (see its
+ * module header). A network module that returned English prose would put
+ * player-visible text outside the table, where `tests/unit/strings.test.ts`'s
+ * scanner cannot see it either, since that scanner walks `src/ui/**` and
+ * `src/app.ts` and not this directory. `serverMessage` is the one exception
+ * and is deliberately NOT wording this repo owns: it is the arcade server's
+ * own rejection reason, passed through verbatim as a `t()` parameter.
+ */
+export type ArcadeSubmitFailure =
+  | { readonly kind: 'unreachable' }
+  | { readonly kind: 'run-refused'; readonly status: number }
+  | { readonly kind: 'no-token' }
+  | { readonly kind: 'score-refused'; readonly status: number; readonly serverMessage: string | null }
+  | { readonly kind: 'not-accepted' };
 
-type MintResult = { readonly ok: true; readonly runToken: string } | { readonly ok: false; readonly error: string };
+export type ArcadeSubmitResult =
+  | { readonly ok: true; readonly rank: number | null }
+  | { readonly ok: false; readonly failure: ArcadeSubmitFailure };
+
+type MintResult = { readonly ok: true; readonly runToken: string } | { readonly ok: false; readonly failure: ArcadeSubmitFailure };
 
 async function readJson(response: Response): Promise<unknown> {
   try {
@@ -49,12 +69,12 @@ async function mintRunToken(): Promise<MintResult> {
   try {
     response = await fetch(RUNS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   } catch {
-    return { ok: false, error: 'Could not reach the leaderboard server.' };
+    return { ok: false, failure: { kind: 'unreachable' } };
   }
-  if (!response.ok) return { ok: false, error: `The leaderboard server refused to start a run (status ${response.status}).` };
+  if (!response.ok) return { ok: false, failure: { kind: 'run-refused', status: response.status } };
   const body = await readJson(response);
   const runToken = (body as { readonly runToken?: unknown } | null)?.runToken;
-  if (typeof runToken !== 'string') return { ok: false, error: 'The leaderboard server did not return a run token.' };
+  if (typeof runToken !== 'string') return { ok: false, failure: { kind: 'no-token' } };
   return { ok: true, runToken };
 }
 
@@ -74,7 +94,7 @@ function announceScoreSubmitted(): void {
  */
 export async function submitArcadeScore(submission: ArcadeRunSubmission): Promise<ArcadeSubmitResult> {
   const minted = await mintRunToken();
-  if (!minted.ok) return { ok: false, error: minted.error };
+  if (!minted.ok) return { ok: false, failure: minted.failure };
 
   let response: Response;
   try {
@@ -84,15 +104,18 @@ export async function submitArcadeScore(submission: ArcadeRunSubmission): Promis
       body: JSON.stringify({ runToken: minted.runToken, ...submission }),
     });
   } catch {
-    return { ok: false, error: 'Could not reach the leaderboard server.' };
+    return { ok: false, failure: { kind: 'unreachable' } };
   }
   const body = await readJson(response);
   if (!response.ok) {
     const message = (body as { readonly error?: unknown } | null)?.error;
-    return { ok: false, error: typeof message === 'string' ? message : `The score was rejected (status ${response.status}).` };
+    return {
+      ok: false,
+      failure: { kind: 'score-refused', status: response.status, serverMessage: typeof message === 'string' ? message : null },
+    };
   }
   const accepted = body as { readonly accepted?: unknown; readonly rank?: unknown } | null;
-  if (accepted?.accepted !== true) return { ok: false, error: 'The score was rejected.' };
+  if (accepted?.accepted !== true) return { ok: false, failure: { kind: 'not-accepted' } };
 
   announceScoreSubmitted();
   return { ok: true, rank: typeof accepted.rank === 'number' ? accepted.rank : null };
