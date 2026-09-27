@@ -6,3 +6,5 @@ dist/
 .pending-questions.md
 perf-report.json
 assets/raw/
+.remember/
+.claude/
