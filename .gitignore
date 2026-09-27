@@ -8,3 +8,4 @@ perf-report.json
 assets/raw/
 .remember/
 .claude/
+.playwright-mcp/
