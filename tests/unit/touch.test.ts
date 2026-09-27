@@ -40,7 +40,7 @@ describe('mountTouchControls: a release the stick element never sees still recen
   });
 
   it('a pointerup dispatched on window (never bubbling through the stick) zeroes axes(), instead of leaving the last reading stuck forever', () => {
-    const touch = mountTouchControls(container);
+    const touch = mountTouchControls(container, { fire: true });
     if (touch === null) throw new Error('test: expected mountTouchControls to mount under the coarse-pointer stub');
 
     const stick = container.querySelector('.sm-touch__stick');
@@ -62,7 +62,7 @@ describe('mountTouchControls: a release the stick element never sees still recen
   });
 
   it('the same holds for the fire button: a pointerup on window clears it out of buttonsDown()', () => {
-    const touch = mountTouchControls(container) as TouchControls;
+    const touch = mountTouchControls(container, { fire: true }) as TouchControls;
     const fire = container.querySelector('.sm-touch__fire');
     if (fire === null) throw new Error('test: expected a mounted .sm-touch__fire element');
 

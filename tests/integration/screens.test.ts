@@ -92,6 +92,21 @@ function requireOne(selector: string): Element {
   return el;
 }
 
+/** Stubs `window.matchMedia('(pointer: coarse)')` so `@/ui/touch`'s `isCoarsePointer()` reads `matches` — shared by every describe block below that needs the on-screen touch overlay mounted (or deliberately not). Callers restore `window.matchMedia` themselves in their own `afterEach` (see this file's own touch-coarseness block for why: a leaked stub would silently mount a phantom stick/fire/command UI under every OTHER test's driving screen). */
+function stubPointerCoarse(matches: boolean): void {
+  window.matchMedia = ((query: string) =>
+    ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList) as typeof window.matchMedia;
+}
+
 // ---------------------------------------------------------------------------
 // Boot helper: real Title -> Driver Creation -> Constructor -> City, purely
 // through dispatched DOM events (no internal screen function called
@@ -893,31 +908,22 @@ describe('DOM screens: on-screen touch controls follow pointer coarseness', () =
     vi.restoreAllMocks();
   });
 
-  function stubPointerCoarse(matches: boolean): void {
-    window.matchMedia = ((query: string) =>
-      ({
-        matches,
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => false,
-      }) as unknown as MediaQueryList) as typeof window.matchMedia;
-  }
-
   it('touch UI is absent on a driving screen when the pointer is not coarse', async () => {
     stubPointerCoarse(false);
     await bootToCity(root);
     expect(document.querySelector('.sm-touch')).toBeNull();
   });
 
-  it('touch UI is present on a driving screen when matchMedia reports a coarse pointer', async () => {
+  it('touch UI is present on a driving screen when matchMedia reports a coarse pointer, with the fire button withheld on the city screen (its frame loop never reads `resolved.fire`)', async () => {
     stubPointerCoarse(true);
     await bootToCity(root);
     expect(document.querySelector('.sm-touch')).not.toBeNull();
     expect(document.querySelector('.sm-touch__stick')).not.toBeNull();
-    expect(document.querySelector('.sm-touch__fire')).not.toBeNull();
+    // `showCity` passes `fire: false` — a fire button here would be visible
+    // but permanently inert, since the city frame loop only ever reads
+    // `resolved.moveX`/`moveY`. The fixed-hotkey command buttons (G/F/J)
+    // mount instead; see the "city screen touch commands" describe block.
+    expect(document.querySelector('.sm-touch__fire')).toBeNull();
+    expect(document.querySelector('[data-touch-command="enterExitCar"]')).not.toBeNull();
   });
 });
