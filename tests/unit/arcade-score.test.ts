@@ -52,7 +52,11 @@ describe('arcadeScore(): the formula table', () => {
   });
 
   it('clamps at the 0 floor', () => {
-    expect(arcadeScore({ kills: 0, driverKills: 0, opponentsTotal: 0, durationSeconds: 999999 })).toBe(0);
+    // Negative kills is bad-caller-data, never a real recordOpponentDefeated
+    // sweep - but arcadeScore takes plain numbers, and this is the only input
+    // shape that drives raw genuinely negative, so it's the one that can
+    // actually tell a real floor clamp from a clamp that quietly isn't there.
+    expect(arcadeScore({ kills: -1000, driverKills: 0, opponentsTotal: 0, durationSeconds: 0 })).toBe(0);
   });
 
   it('clamps at the maxScore ceiling', () => {
