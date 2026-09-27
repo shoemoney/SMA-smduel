@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allBodies, allWeapons, economy, getBody } from '@/data/rulesets';
+import { allBodies, allWeapons, economy, getBody, skillsConfig } from '@/data/rulesets';
 import { computeBuild, validateDesign } from '@/sim/construct';
 import {
   attemptConfirm,
@@ -7,6 +7,9 @@ import {
   computeRows,
   computeViolations,
   createBuilderState,
+  handleBuilderCycle,
+  handleBuilderName,
+  handleBuilderPointer,
   handleKey,
   mountBuilder,
   toDesign,
@@ -491,5 +494,108 @@ describe('builder — Confirm key', () => {
     expect(result.confirmed).not.toBeNull();
     expect(result.confirmed?.design.name).toBe('Roadhog');
     expect(result.state.name).toBe(''); // reset to a fresh builder
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Touch reducers: handleBuilderPointer / handleBuilderCycle / handleBuilderName
+// ---------------------------------------------------------------------------
+
+/** Drives selectedIndex from `state.selectedIndex` down to `confirmIndex` via ArrowDown, matching the "Confirm key" describe block above. */
+function moveToRow(state: BuilderState, targetIndex: number, ctx: BuilderContext): BuilderState {
+  let cur = state;
+  for (let i = cur.selectedIndex; i < targetIndex; i += 1) cur = handleKey(cur, 'ArrowDown', ctx).state;
+  return cur;
+}
+
+describe('builder — handleBuilderPointer (tap a row)', () => {
+  it('selects the tapped row', () => {
+    const ctx = baseContext();
+    const state = createBuilderState();
+    const result = handleBuilderPointer(state, 3, ctx); // suspension row
+    expect(computeRows(state)[3]?.kind).toBe('suspension');
+    expect(result.state.selectedIndex).toBe(3);
+    expect(result.confirmed).toBeNull();
+  });
+
+  it('on the confirm row confirms a legal build, returning the same BuilderConfirmedBuild the Enter path returns', () => {
+    const ctx = baseContext();
+    let state = createBuilderState();
+    state = typeText(state, 'Roadhog', ctx);
+    const confirmIndex = computeRows(state).findIndex((r) => r.kind === 'confirm');
+    expect(confirmIndex).toBeGreaterThan(0);
+
+    const enterResult = handleKey(moveToRow(state, confirmIndex, ctx), 'Enter', ctx);
+    const tapResult = handleBuilderPointer(state, confirmIndex, ctx);
+
+    expect(enterResult.confirmed).not.toBeNull();
+    expect(tapResult.confirmed).not.toBeNull();
+    expect(tapResult.confirmed).toEqual(enterResult.confirmed);
+    expect(tapResult.state).toEqual(enterResult.state); // both reset to a fresh builder
+  });
+
+  it('on the confirm row with an illegal build does not confirm, and sets the IDENTICAL violation message the Enter path sets', () => {
+    const ctx = baseContext(); // no name typed yet -> NAME_EMPTY
+    const state = createBuilderState();
+    const confirmIndex = computeRows(state).findIndex((r) => r.kind === 'confirm');
+
+    const enterResult = handleKey(moveToRow(state, confirmIndex, ctx), 'Enter', ctx);
+    const tapResult = handleBuilderPointer(state, confirmIndex, ctx);
+
+    expect(enterResult.confirmed).toBeNull();
+    expect(tapResult.confirmed).toBeNull();
+    expect(tapResult.state.message).not.toBeNull();
+    expect(tapResult.state.message).toBe(enterResult.state.message);
+  });
+});
+
+describe('builder — handleBuilderCycle (tap a -/+ control)', () => {
+  it('changes the rows value and matches what ArrowRight/ArrowLeft produce from the same state', () => {
+    const ctx = baseContext();
+    let state = createBuilderState();
+    state = handleKey(state, 'ArrowDown', ctx).state; // body row
+    const index = state.selectedIndex;
+
+    const viaCycleRight = handleBuilderCycle(state, index, 1);
+    const viaArrowRight = handleKey(state, 'ArrowRight', ctx).state;
+    expect(viaCycleRight.bodyId).not.toBe(state.bodyId);
+    expect(viaCycleRight).toEqual(viaArrowRight);
+
+    const viaCycleLeft = handleBuilderCycle(viaCycleRight, index, -1);
+    const viaArrowLeft = handleKey(viaArrowRight, 'ArrowLeft', ctx).state;
+    expect(viaCycleLeft).toEqual(viaArrowLeft);
+  });
+
+  it('selects the targeted row before cycling it, same as tapping the row first then pressing an arrow key', () => {
+    const state = createBuilderState(); // selectedIndex 0 (name row)
+    const bodyRowIndex = computeRows(state).findIndex((r) => r.kind === 'body');
+
+    const result = handleBuilderCycle(state, bodyRowIndex, 1);
+    expect(result.selectedIndex).toBe(bodyRowIndex);
+    expect(result.bodyId).not.toBe(state.bodyId);
+  });
+});
+
+describe('builder — handleBuilderName (typed into the real <input>)', () => {
+  it('sets the name directly', () => {
+    const state = createBuilderState();
+    const result = handleBuilderName(state, 'Roadhog');
+    expect(result.name).toBe('Roadhog');
+  });
+
+  it('does not truncate an over-length name, so NAME_TOO_LONG still fires instead of hiding the invalid state', () => {
+    const ctx = baseContext();
+    const maxLen = skillsConfig().driver.nameMaxLength;
+    const longName = 'x'.repeat(maxLen + 5);
+
+    const state = handleBuilderName(createBuilderState(), longName);
+    expect(state.name).toBe(longName);
+    expect(state.name.length).toBe(maxLen + 5);
+
+    const result = attemptConfirm(state, ctx);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.violations.some((v) => v.code === 'NAME_TOO_LONG')).toBe(true);
+    }
   });
 });
