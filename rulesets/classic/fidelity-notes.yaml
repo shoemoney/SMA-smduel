@@ -1148,6 +1148,18 @@ entries:
     source: "harness-specified: input-preset default bindings are Reconstruction"
     confidence: 0.5
     note: "Deadzone applied to @/ui/input's resolved drive vector before @/app snaps it to one of the 8 CityDirections - distinct from gamepadAxisThreshold, which gates a single raw gamepad axis"
+  - id: "controls.touch.axisDeadzone"
+    value: 0.16
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "On-screen thumbstick's own deadzone, deliberately smaller than gamepadAxisThreshold (0.5) - a virtual stick has no spring-return rest slop to reject"
+  - id: "controls.touch.stickRadiusPx"
+    value: 56
+    status: Reconstruction
+    source: "harness-specified: input-preset default bindings are Reconstruction"
+    confidence: 0.5
+    note: "Thumb travel in CSS pixels at which the on-screen stick reads full deflection - the one number @/ui/touch's normalisation and the pad's rendered size both derive from"
   - id: "controls.defaultBindings.classic.driveUp.gamepadAxes.0.index"
     value: 1
     status: Reconstruction
