@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { mountTouchControls, type TouchControls } from '@/ui/touch';
+import { t } from '@/ui/strings';
 
 describe('mountTouchControls: a release the stick element never sees still recentres it', () => {
   let container: HTMLElement;
@@ -72,5 +73,109 @@ describe('mountTouchControls: a release the stick element never sees still recen
     window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2, bubbles: true }));
 
     expect(touch.buttonsDown().has('fire')).toBe(false);
+  });
+});
+
+describe('mountTouchControls: fixed-hotkey command buttons', () => {
+  let container: HTMLElement;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+
+    originalMatchMedia = window.matchMedia;
+    window.matchMedia = ((query: string) =>
+      ({ matches: true, media: query }) as MediaQueryList) as typeof window.matchMedia;
+  });
+
+  afterEach(() => {
+    container.remove();
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it('a command button renders with its t() label as aria-label, and pressing it calls onPress exactly once', () => {
+    let pressCount = 0;
+    const touch = mountTouchControls(container, {
+      fire: true,
+      commands: [{ id: 'enterExitCar', labelKey: 'ui.touch.enterExitCar', onPress: () => (pressCount += 1) }],
+    });
+    if (touch === null) throw new Error('test: expected mountTouchControls to mount under the coarse-pointer stub');
+
+    const btn = container.querySelector('[data-touch-command="enterExitCar"]');
+    if (btn === null) throw new Error('test: expected a mounted command button for "enterExitCar"');
+    expect(btn.getAttribute('aria-label')).toBe(t('ui.touch.enterExitCar'));
+
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(pressCount).toBe(1);
+
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(pressCount).toBe(2);
+  });
+
+  it('setCommandVisible hides and shows a command, and initiallyVisible: false starts hidden', () => {
+    const touch = mountTouchControls(container, {
+      fire: true,
+      commands: [
+        { id: 'fleet', labelKey: 'ui.touch.fleet', onPress: () => {} },
+        { id: 'searchWreck', labelKey: 'ui.touch.searchWreck', onPress: () => {}, initiallyVisible: false },
+      ],
+    });
+    if (touch === null) throw new Error('test: expected mountTouchControls to mount under the coarse-pointer stub');
+
+    const fleetBtn = container.querySelector<HTMLButtonElement>('[data-touch-command="fleet"]');
+    const wreckBtn = container.querySelector<HTMLButtonElement>('[data-touch-command="searchWreck"]');
+    if (fleetBtn === null || wreckBtn === null) throw new Error('test: expected both command buttons to be mounted');
+
+    expect(fleetBtn.hidden).toBe(false);
+    expect(wreckBtn.hidden).toBe(true);
+
+    touch.setCommandVisible('fleet', false);
+    expect(fleetBtn.hidden).toBe(true);
+
+    touch.setCommandVisible('searchWreck', true);
+    expect(wreckBtn.hidden).toBe(false);
+  });
+
+  it('an unknown id passed to setCommandVisible does not throw', () => {
+    const touch = mountTouchControls(container, { fire: true, commands: [] });
+    if (touch === null) throw new Error('test: expected mountTouchControls to mount under the coarse-pointer stub');
+
+    expect(() => touch.setCommandVisible('does-not-exist', true)).not.toThrow();
+  });
+
+  it('fire: false renders no fire button, and fire: true renders one', () => {
+    const withoutFire = mountTouchControls(container, { fire: false });
+    if (withoutFire === null) throw new Error('test: expected mountTouchControls to mount under the coarse-pointer stub');
+    expect(container.querySelector('.sm-touch__fire')).toBeNull();
+    withoutFire.destroy();
+
+    const withFire = mountTouchControls(container, { fire: true });
+    if (withFire === null) throw new Error('test: expected mountTouchControls to mount under the coarse-pointer stub');
+    expect(container.querySelector('.sm-touch__fire')).not.toBeNull();
+    withFire.destroy();
+  });
+
+  it('destroy() removes the command buttons from the DOM and their click listeners stop firing onPress', () => {
+    let pressCount = 0;
+    const touch = mountTouchControls(container, {
+      fire: true,
+      commands: [{ id: 'journal', labelKey: 'ui.touch.journal', onPress: () => (pressCount += 1) }],
+    });
+    if (touch === null) throw new Error('test: expected mountTouchControls to mount under the coarse-pointer stub');
+
+    const btn = container.querySelector('[data-touch-command="journal"]');
+    if (btn === null) throw new Error('test: expected a mounted command button for "journal"');
+
+    touch.destroy();
+    expect(container.querySelector('[data-touch-command="journal"]')).toBeNull();
+
+    // The saved reference still exists as a detached node — dispatching
+    // directly on it (not through `container`) is what proves the click
+    // LISTENER was removed, not merely that the node left the DOM (a
+    // detached element still fires its own listeners if they were never
+    // unregistered).
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(pressCount).toBe(0);
   });
 });

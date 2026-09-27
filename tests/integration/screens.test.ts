@@ -927,3 +927,157 @@ describe('DOM screens: on-screen touch controls follow pointer coarseness', () =
     expect(document.querySelector('[data-touch-command="enterExitCar"]')).not.toBeNull();
   });
 });
+
+describe('DOM screens: city touch command buttons run the exact same code as their fixed hotkey', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    originalMatchMedia = window.matchMedia;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+    stubPointerCoarse(true);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
+  });
+
+  it('tapping the "Car" command enters the vehicle exactly like pressing "g" does — the same walk that reaches the gate trigger when on foot goes nowhere and never opens the route menu', async () => {
+    await bootToCity(root);
+
+    // Player and vehicle both spawn exactly on the gate (`showCity`'s own
+    // `layout.gate.position` — see `createCityPlayerState`), so entering
+    // the car is trivially within `isVehicleInRange` at t=0; no walking to
+    // the car first is needed.
+    const carBtn = requireOne('[data-touch-command="enterExitCar"]');
+    carBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    // Identical walk-away-then-walk-back sequence this file's own 'x' test
+    // uses to reach the gate trigger (`checkCityTrigger` is edge-triggered
+    // — starting already inside the interaction radius never fires it).
+    // `stepWalk` no-ops ALL movement while `player.inVehicle` is true
+    // (`@/sim/city`'s own file header) — if the tap above toggled the SAME
+    // `player.inVehicle` the 'g' key does, this walk cycle moves nowhere,
+    // never crosses back into the gate's radius, and `.sm-menu` never
+    // mounts. Contrast this file's own 'x' test, whose IDENTICAL key
+    // sequence — with no car toggle first — DOES open `.sm-menu`.
+    const cityId = skillsConfig().startingLocation;
+    const layout = generateCityLayout(cityId, TEST_SEED);
+    const gate = layout.gate.position;
+
+    const inwardKeys: KeyboardEventInit[] = [];
+    if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
+    else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
+    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
+    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    expect(inwardKeys.length).toBeGreaterThan(0);
+
+    const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
+      if (k.code === 'KeyD') return { key: 'a', code: 'KeyA' };
+      if (k.code === 'KeyA') return { key: 'd', code: 'KeyD' };
+      if (k.code === 'KeyW') return { key: 's', code: 'KeyS' };
+      return { key: 'w', code: 'KeyW' };
+    });
+
+    const STEPS_PER_LEG = 15;
+
+    for (const k of inwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (const k of inwardKeys) dispatchKeyUp(window, k);
+
+    for (const k of outwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (const k of outwardKeys) dispatchKeyUp(window, k);
+
+    expect(document.querySelector('.sm-menu')).toBeNull();
+  });
+});
+
+describe('DOM screens: road touch wreck-search command visibility', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    originalMatchMedia = window.matchMedia;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+    stubPointerCoarse(true);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
+  });
+
+  it('the wreck-search command mounts hidden on a fresh road trip, with no wreck in reach yet', async () => {
+    await bootToCity(root);
+
+    const cityId = skillsConfig().startingLocation;
+    const layout = generateCityLayout(cityId, TEST_SEED);
+    const gate = layout.gate.position;
+
+    const inwardKeys: KeyboardEventInit[] = [];
+    if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
+    else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
+    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
+    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    expect(inwardKeys.length).toBeGreaterThan(0);
+
+    const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
+      if (k.code === 'KeyD') return { key: 'a', code: 'KeyA' };
+      if (k.code === 'KeyA') return { key: 'd', code: 'KeyD' };
+      if (k.code === 'KeyW') return { key: 's', code: 'KeyS' };
+      return { key: 'w', code: 'KeyW' };
+    });
+
+    const STEPS_PER_LEG = 15;
+
+    for (const k of inwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (const k of inwardKeys) dispatchKeyUp(window, k);
+
+    for (const k of outwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (const k of outwardKeys) dispatchKeyUp(window, k);
+
+    const routeMenu = requireOne('.sm-menu');
+    dispatchKey(routeMenu, { key: '1' });
+
+    await flushMicrotasks();
+    await flushMicrotasks();
+    requireOne('.sm-screen--road');
+
+    // Asserted BEFORE any `frame()` tick runs (the stubbed
+    // `requestAnimationFrame` only captures its callback here, see this
+    // file's own `installRafStub`) — this is `mountTouchControls`'s own
+    // `initiallyVisible: false` at mount time, not the ongoing per-frame
+    // `setCommandVisible('searchWreck', ...)` gate in `frame()`, which
+    // would mask the mount-time flag by re-hiding it anyway on its very
+    // first tick (a fresh trip's `wrecks` is always empty).
+    const wreckBtn = requireOne('[data-touch-command="searchWreck"]') as HTMLButtonElement;
+    expect(wreckBtn.hidden).toBe(true);
+
+    // The OTHER half of this requirement — the button un-hiding once a
+    // wreck is actually in reach — is not practical to prove from this
+    // harness: a fresh trip's `wrecks` array is always empty (this file's
+    // own 'x' test makes the same call: "reaching an actual
+    // defeated-opponent wreck is a full combat encounter, out of scope").
+    // Stating that plainly here rather than faking a passing assertion.
+  });
+});
