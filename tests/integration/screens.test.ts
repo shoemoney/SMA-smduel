@@ -1412,3 +1412,90 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
     expect(document.querySelector('.sm-touch')).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Enter in a text field submits the form's primary action
+// ---------------------------------------------------------------------------
+//
+// Reported: in the driver name / car name fields you must arrow down to
+// Confirm; Enter does nothing. Reproduced on the pre-fix build (both cases
+// below failed): Driver Creation has no wrapping <form>, so a bare <input>
+// gives Enter no default action at all; the Constructor's name row IS wired
+// to a keyboard reducer, but that reducer's own Enter branch only fires
+// `runConfirm` when the SELECTED row is 'confirm' — the name row itself,
+// which is what's selected while a player is typing into it — so Enter
+// there was silently swallowed by the name-input's own
+// `keydown -> stopPropagation()` (added earlier so typed characters don't
+// also get replayed through the container's row reducer).
+
+describe('DOM screens: Enter in a text field submits the form, without hijacking digit-menu keys', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    vi.restoreAllMocks();
+  });
+
+  it('Enter in the Driver Creation name field submits Create Driver, same as clicking the button', async () => {
+    const titleMenu = await bootFresh(root);
+    dispatchKey(titleMenu, { key: '1' });
+
+    const nameInput = requireOne('.sm-screen--driver input[type="text"]') as HTMLInputElement;
+    dispatchKey(nameInput, { key: 'Enter' });
+
+    requireOne('.sm-screen--constructor');
+  });
+
+  it('Enter in the Constructor car name field confirms the build, same as Enter on the Confirm row', async () => {
+    const titleMenu = await bootFresh(root);
+    dispatchKey(titleMenu, { key: '1' });
+    requireOne('.sm-screen--driver button').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    requireOne('.sm-screen--constructor');
+    const nameInput = requireOne('.sm-builder__row-input') as HTMLInputElement;
+    nameInput.focus();
+    nameInput.value = 'TestRig';
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    dispatchKey(nameInput, { key: 'Enter' });
+
+    // showCity's initRenderer() microtask, same as bootToCity's own.
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    requireOne('.sm-screen--city');
+  });
+
+  it('digits typed into the Constructor car name field land in the field and never rebuild it', async () => {
+    const titleMenu = await bootFresh(root);
+    dispatchKey(titleMenu, { key: '1' });
+    requireOne('.sm-screen--driver button').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    const nameInput = requireOne('.sm-builder__row-input') as HTMLInputElement;
+    nameInput.focus();
+
+    for (const digit of '2001') {
+      dispatchKey(nameInput, { key: digit });
+      nameInput.value += digit;
+      nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    expect(nameInput.value).toBe('2001');
+    // Same DOM node throughout: a digit key that bubbled to the container
+    // would trigger a full re-render, destroying and recreating this input
+    // (the exact focus/caret bug the name row's `stopPropagation()` guards
+    // against) — so identity, not just the string, is what this asserts.
+    expect(requireOne('.sm-builder__row-input')).toBe(nameInput);
+    requireOne('.sm-screen--constructor');
+  });
+});
