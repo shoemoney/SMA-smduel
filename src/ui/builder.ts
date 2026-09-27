@@ -630,6 +630,7 @@ interface BuilderRowHandlers {
   readonly onRowActivate: (index: number) => void;
   readonly onRowCycle: (index: number, dir: -1 | 1) => void;
   readonly onNameInput: (value: string) => void;
+  readonly onNameSubmit: () => void;
 }
 
 /**
@@ -676,7 +677,22 @@ function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLE
       // via `handleKey`, which would fight the input's native editing and,
       // through `onKeyDown`'s full re-render, destroy and recreate this very
       // input mid-keystroke (the focus/caret bug this task exists to avoid).
-      input.addEventListener('keydown', (ev) => ev.stopPropagation());
+      //
+      // Enter is the one exception, routed to `onSubmit` instead of
+      // `handleKey`'s own Enter branch: that branch only confirms when the
+      // SELECTED row is 'confirm', so a player who typed a name and hit
+      // Enter without first arrowing down to Confirm got silently ignored.
+      // `onSubmit` runs the identical `runConfirm` the Confirm row and a tap
+      // on it already share, so Enter-from-the-name-field can never legalize
+      // (or refuse) a build differently than Confirm itself would.
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          handlers.onNameSubmit();
+          return;
+        }
+        ev.stopPropagation();
+      });
       input.addEventListener('input', () => handlers.onNameInput(input.value));
       li.appendChild(input);
     } else {
@@ -803,7 +819,7 @@ export function mountBuilder(options: BuilderMountOptions): MountedBuilder {
     options.container.innerHTML = '';
     const root = document.createElement('div');
     root.className = 'sm-builder';
-    root.appendChild(buildLeftPane(state, { onRowActivate, onRowCycle, onNameInput }));
+    root.appendChild(buildLeftPane(state, { onRowActivate, onRowCycle, onNameInput, onNameSubmit }));
     rightPaneEl = buildRightPane(state, context);
     root.appendChild(rightPaneEl);
     options.container.appendChild(root);
@@ -866,6 +882,26 @@ export function mountBuilder(options: BuilderMountOptions): MountedBuilder {
 
   function onNameInput(value: string): void {
     state = handleBuilderName(state, value);
+    refreshRightPane();
+  }
+
+  /**
+   * Enter pressed inside the name `<input>` — routed here instead of through
+   * `handleKey`'s Enter branch because that branch only fires on the
+   * SELECTED row, and the name row is selected while the player is typing
+   * into it, not the confirm row. Shares `runConfirm` with the Confirm row
+   * (Enter-on-selection) and a tap on it, so all three agree on what "submit
+   * this build" means. A failed confirm only swaps the right pane (message),
+   * matching `onNameInput`'s no-full-rebuild discipline so the player keeps
+   * focus/caret in the field to fix the name and try again.
+   */
+  function onNameSubmit(): void {
+    const result = runConfirm(state, context);
+    state = result.state;
+    if (result.confirmed !== null) {
+      options.onBuilt(result.confirmed);
+      return;
+    }
     refreshRightPane();
   }
 

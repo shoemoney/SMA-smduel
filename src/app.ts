@@ -785,6 +785,19 @@ function showDriverCreation(root: HTMLElement, onCreated: (driver: DriverState) 
   });
   card.appendChild(submit);
 
+  // This screen has no wrapping <form>, so a bare `<input>` gives Enter no
+  // default action at all — reported as "you must arrow down [to the skill
+  // rows and back] to the button; Enter does nothing." Reuses `submit`'s own
+  // click handler (`.click()`, not a copy of its body) so the validation and
+  // navigation behind Enter can never drift from what clicking the button
+  // does. Skill point fields are `type="number"`, not the reported "name
+  // field", and are left alone.
+  nameInput.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Enter') return;
+    ev.preventDefault();
+    submit.click();
+  });
+
   container.appendChild(card);
   clearAndAppend(root, container);
   nameInput.focus();
