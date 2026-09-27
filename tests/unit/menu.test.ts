@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createMenu,
   handleMenuKey,
+  handleMenuPointer,
   mountMenu,
   renderHeaderText,
   setMenuActions,
@@ -148,6 +149,28 @@ describe('menu — handleMenuKey activation', () => {
       expect(outcome).toEqual({ kind: 'ACTIVATE', id: `a${digit - 1}` });
     }
     expect(handleMenuKey(state, '0').outcome).toEqual({ kind: 'ACTIVATE', id: 'a9' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleMenuPointer — a tap/click, routed through the same activate() a digit key uses
+// ---------------------------------------------------------------------------
+
+describe('menu — handleMenuPointer', () => {
+  it('on an eligible index returns ACTIVATE with that row\'s id', () => {
+    const actions = [action('a0'), action('a1')];
+    const state = createMenu(actions);
+    expect(handleMenuPointer(state, 1).outcome).toEqual({ kind: 'ACTIVATE', id: 'a1' });
+  });
+
+  it('on an ineligible index returns NONE and sets the row\'s refusal message, identical to the digit-key path', () => {
+    const actions = [action('a0', { eligible: false, reason: 'too poor' })];
+    const state = createMenu(actions);
+    const viaPointer = handleMenuPointer(state, 0);
+    const viaDigit = handleMenuKey(state, '1');
+    expect(viaPointer.outcome).toEqual({ kind: 'NONE' });
+    expect(viaPointer.state.message).toBe('too poor');
+    expect(viaPointer.state.message).toBe(viaDigit.state.message);
   });
 });
 
@@ -334,6 +357,56 @@ describe('menu — mountMenu DOM layer', () => {
       expect(container.children).toHaveLength(1);
       expect(container.children[0]).toBe(hostMarkers[0]);
     }
+  });
+
+  it('dispatching click on an eligible <li> calls onActivate with that row\'s id; on an ineligible <li> it does not', () => {
+    installFakeDom();
+    const container = new FakeElement('div');
+    const activated: string[] = [];
+    const actions = [action('a0'), action('a1', { eligible: false, reason: 'nope' })];
+
+    mountMenu({
+      container: container as unknown as HTMLElement,
+      header: header(),
+      actions,
+      onActivate: (id) => activated.push(id),
+      onBack: () => {},
+    });
+
+    const root = container.children[0];
+    if (root === undefined) throw new Error('mountMenu did not render anything');
+    const rows = [...root.walk()].filter((el) => el.tagName === 'LI');
+    expect(rows).toHaveLength(2);
+
+    rows[0]?.dispatch('click', fakeKeyEvent(''));
+    expect(activated).toEqual(['a0']);
+
+    activated.length = 0;
+    rows[1]?.dispatch('click', fakeKeyEvent(''));
+    expect(activated).toEqual([]);
+  });
+
+  it('rows carry role="button", and the selected/ineligible rows carry aria-selected/aria-disabled (presence only — FakeElement records the attribute NAME, not its value)', () => {
+    installFakeDom();
+    const container = new FakeElement('div');
+    const actions = [action('a0'), action('a1', { eligible: false, reason: 'nope' })];
+
+    mountMenu({
+      container: container as unknown as HTMLElement,
+      header: header(),
+      actions,
+      onActivate: () => {},
+      onBack: () => {},
+    });
+
+    const root = container.children[0];
+    if (root === undefined) throw new Error('mountMenu did not render anything');
+    const rows = [...root.walk()].filter((el) => el.tagName === 'LI');
+    expect(rows.every((row) => row.hasAttribute('role'))).toBe(true);
+    expect(rows[0]?.hasAttribute('aria-selected')).toBe(true);
+    expect(rows[1]?.hasAttribute('aria-selected')).toBe(false);
+    expect(rows[0]?.hasAttribute('aria-disabled')).toBe(false);
+    expect(rows[1]?.hasAttribute('aria-disabled')).toBe(true);
   });
 
   it('destroy() clears the DOM and the classes/attributes it added, not just the listener', () => {

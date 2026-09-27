@@ -54,6 +54,7 @@
     "ui.builder.legalityTitle": "Legality",
     "ui.builder.noViolations": "No violations — ready to build.",
     "ui.menu.actionUnavailable": "{label} is not available right now",
+    "ui.touch.fire": "Fire",
     "ui.confirm.buildVehicle": "Build this vehicle",
 
     "ui.title.appName": "smduel",

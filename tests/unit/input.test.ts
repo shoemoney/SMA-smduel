@@ -34,6 +34,14 @@ function withGamepadAxes(...axes: number[]): RawInputState {
   return { ...emptyRawInputState(), gamepadAxes: axes };
 }
 
+function withTouchAxes(...axes: number[]): RawInputState {
+  return { ...emptyRawInputState(), touchAxes: axes };
+}
+
+function withTouchButtons(...ids: string[]): RawInputState {
+  return { ...emptyRawInputState(), touchButtonsDown: new Set(ids) };
+}
+
 // ---------------------------------------------------------------------------
 // Direction resolution: the world-convention sign, every device, every axis
 // ---------------------------------------------------------------------------
@@ -149,6 +157,63 @@ describe('resolveInput: gamepad axis magnitude is preserved, not collapsed to a 
       vi.doUnmock('@rulesets/classic/controls.json');
       vi.resetModules();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Touch channel: a distinct analog + digital source, independent of gamepad
+// ---------------------------------------------------------------------------
+
+describe('resolveInput: touch channel', () => {
+  it('touch stick axes fold into moveX/moveY with the correct signs for all four cardinals', () => {
+    expect(resolveInput(withTouchAxes(0, -1), 'classic', defaultBindings()).moveY).toBe(1);
+    expect(resolveInput(withTouchAxes(0, 1), 'classic', defaultBindings()).moveY).toBe(-1);
+    expect(resolveInput(withTouchAxes(-1, 0), 'classic', defaultBindings()).moveX).toBe(-1);
+    expect(resolveInput(withTouchAxes(1, 0), 'classic', defaultBindings()).moveX).toBe(1);
+  });
+
+  it('the touch deadzone is CONTROLS.touch.axisDeadzone, NOT gamepadAxisThreshold: a 0.3 stick (above 0.16, below 0.5) yields non-zero movement', () => {
+    expect(CONTROLS.touch.axisDeadzone).toBeLessThan(0.3);
+    expect(CONTROLS.gamepadAxisThreshold).toBeGreaterThan(0.3);
+    const frame = resolveInput(withTouchAxes(0, -0.3), 'classic', defaultBindings());
+    expect(frame.moveY).not.toBe(0);
+    expect(frame.moveY).toBeCloseTo(0.3, 6);
+  });
+
+  it('magnitude is preserved, not collapsed to 1 (a 0.5 stick reads 0.5)', () => {
+    const frame = resolveInput(withTouchAxes(0.5, 0), 'classic', defaultBindings());
+    expect(frame.moveX).toBeCloseTo(0.5, 6);
+    expect(frame.moveX).not.toBe(1);
+  });
+
+  it('a diagonal stick push is normalised to length <= 1', () => {
+    const frame = resolveInput(withTouchAxes(1, -1), 'classic', defaultBindings());
+    expect(Math.hypot(frame.moveX, frame.moveY)).toBeCloseTo(1, 6);
+    expect(frame.moveX).toBeGreaterThan(0);
+    expect(frame.moveY).toBeGreaterThan(0);
+  });
+
+  it('gamepad and touch analog contributions on the SAME action combine via MAX, not a sum: 0.5 gamepad plus 0.6 touch yields 0.6, never 1.1', () => {
+    const raw: RawInputState = { ...emptyRawInputState(), gamepadAxes: [0, -0.5], touchAxes: [0, -0.6] };
+    const frame = resolveInput(raw, 'classic', defaultBindings());
+    expect(frame.moveY).toBeCloseTo(0.6, 6);
+    expect(frame.moveY).not.toBeCloseTo(1.1, 6);
+  });
+
+  it('a held KeyW plus stick DOWN 0.6 cancels toward 0.4 exactly as the max rule predicts (up=max(1,0)=1, down=max(0,0.6)=0.6, 1-0.6=0.4)', () => {
+    const raw: RawInputState = { ...withKeys('KeyW'), touchAxes: [0, 0.6] };
+    expect(resolveInput(raw, 'classic', defaultBindings()).moveY).toBeCloseTo(0.4, 6);
+  });
+
+  it('a touch fire button sets fire', () => {
+    expect(resolveInput(withTouchButtons('fire'), 'classic', defaultBindings()).fire).toBe(true);
+  });
+
+  it('touch and gamepad are independent channels: each alone reproduces the identical analog result the other channel would', () => {
+    const gamepadOnly = resolveInput({ ...emptyRawInputState(), gamepadAxes: [0, -0.75] }, 'classic', defaultBindings());
+    const touchOnly = resolveInput({ ...emptyRawInputState(), touchAxes: [0, -0.75] }, 'classic', defaultBindings());
+    expect(gamepadOnly.moveY).toBeCloseTo(0.75, 6);
+    expect(touchOnly.moveY).toBeCloseTo(0.75, 6);
   });
 });
 

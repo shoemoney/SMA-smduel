@@ -747,6 +747,10 @@ export const controlsSchema: SchemaObject = obj({
   _note: STR,
   gamepadAxisThreshold: { type: 'number', minimum: 0, maximum: 1 },
   cityDirectionDeadzone: { type: 'number', minimum: 0, maximum: 1 },
+  touch: obj({
+    axisDeadzone: { type: 'number', minimum: 0, maximum: 1 },
+    stickRadiusPx: { type: 'integer', minimum: 1 },
+  }),
   presets: arrayOf(NON_EMPTY_STR, { minItems: 1 }),
   actions: arrayOf(ACTION_ID, { minItems: 1 }),
   defaultBindings: {
@@ -772,6 +776,7 @@ export interface ControlsConfig {
   _note?: string;
   gamepadAxisThreshold: number;
   cityDirectionDeadzone: number;
+  touch: { axisDeadzone: number; stickRadiusPx: number };
   presets: string[];
   actions: string[];
   defaultBindings: Record<string, Record<string, ActionBindingDefaults>>;
