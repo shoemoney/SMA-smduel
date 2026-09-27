@@ -27,6 +27,7 @@ export interface TouchControls {
 }
 
 const NO_BUTTONS_DOWN: ReadonlySet<string> = new Set();
+const FIRE_DOWN: ReadonlySet<string> = new Set(['fire']);
 
 /**
  * True only on a genuinely coarse pointer. A capability query, never a
@@ -50,8 +51,11 @@ function capturePointer(el: HTMLElement, pointerId: number): void {
     el.setPointerCapture(pointerId);
   } catch {
     // Some hosts (and some already-released pointer ids) throw here; the
-    // stick still works without capture, just without the "keeps steering
-    // off-pad" guarantee.
+    // stick/button still work without capture — a slid-off thumb just
+    // stops tracking `pointermove` until it lifts, rather than continuing
+    // to steer off-pad. The window-level release fallback below is what
+    // keeps a release reachable even so; capture only affects move
+    // fidelity, never whether a release is ever seen.
   }
 }
 
@@ -139,12 +143,26 @@ export function mountTouchControls(container: HTMLElement): TouchControls | null
   fire.addEventListener('pointerup', onFireRelease);
   fire.addEventListener('pointercancel', onFireRelease);
 
+  // `capturePointer` swallows a missing/throwing `setPointerCapture` — a
+  // thumb that slides off the round pad before lifting then sends its
+  // `pointerup`/`pointercancel` to whatever element is now underneath it,
+  // never to `stick`/`fire`. Without a window-level fallback that leaves
+  // `axesValue`/`firePointerId` frozen at their last reading forever (a
+  // stuck throttle with no way to stop, escapable only by leaving the
+  // screen). Both handlers already guard on `pointerId`, so when capture
+  // DOES work this is just a harmless duplicate delivery, not a double
+  // release.
+  window.addEventListener('pointerup', onStickRelease);
+  window.addEventListener('pointercancel', onStickRelease);
+  window.addEventListener('pointerup', onFireRelease);
+  window.addEventListener('pointercancel', onFireRelease);
+
   return {
     axes(): readonly number[] {
       return axesValue ?? [];
     },
     buttonsDown(): ReadonlySet<string> {
-      return firePointerId !== null ? new Set(['fire']) : NO_BUTTONS_DOWN;
+      return firePointerId !== null ? FIRE_DOWN : NO_BUTTONS_DOWN;
     },
     destroy(): void {
       stick.removeEventListener('pointerdown', onStickDown);
@@ -154,6 +172,10 @@ export function mountTouchControls(container: HTMLElement): TouchControls | null
       fire.removeEventListener('pointerdown', onFireDown);
       fire.removeEventListener('pointerup', onFireRelease);
       fire.removeEventListener('pointercancel', onFireRelease);
+      window.removeEventListener('pointerup', onStickRelease);
+      window.removeEventListener('pointercancel', onStickRelease);
+      window.removeEventListener('pointerup', onFireRelease);
+      window.removeEventListener('pointercancel', onFireRelease);
       root.remove();
     },
   };
