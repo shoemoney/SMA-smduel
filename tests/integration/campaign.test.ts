@@ -111,6 +111,7 @@ function makeCityRunState(overrides: Partial<CityRunState> = {}): CityRunState {
     sessionSeed: 'campaign-test-seed',
     openDb: () => Promise.reject(new Error('test: no save database in a headless campaign run')),
     rng: createRng('campaign-test-seed').stream('driver'),
+    search: '',
     rumorsHeardToday: new Map(),
     activeCourierJobs: [],
     fleet: { vehicles: [] },
