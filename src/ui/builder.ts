@@ -389,6 +389,20 @@ function summarizeViolations(violations: readonly BuildViolation[]): string {
 const DIGIT_RE = /^[0-9]$/;
 
 /**
+ * Attempts to confirm the build from `state` as-is: the ONE place
+ * `attemptConfirm` turns into a `BuilderKeyResult`, so Enter-on-confirm and a
+ * tap-on-confirm (`handleBuilderPointer` below) share this instead of each
+ * carrying its own copy that could drift out of sync.
+ */
+function runConfirm(state: BuilderState, context: BuilderContext): BuilderKeyResult {
+  const result = attemptConfirm(state, context);
+  if (result.ok) {
+    return { state: createBuilderState(), confirmed: result.confirmed };
+  }
+  return { state: { ...state, message: summarizeViolations(result.violations) }, confirmed: null };
+}
+
+/**
  * Maps one keyboard key (a `KeyboardEvent.key` string) to a state
  * transition. Pure — the same (state, key, context) triple always produces
  * the same result, so this is exercised directly by tests without any DOM.
@@ -403,11 +417,7 @@ export function handleKey(state: BuilderState, key: string, context: BuilderCont
   if (key === 'Enter') {
     const row = selectedRow(state);
     if (row === undefined || row.kind !== 'confirm') return { state, confirmed: null };
-    const result = attemptConfirm(state, context);
-    if (result.ok) {
-      return { state: createBuilderState(), confirmed: result.confirmed };
-    }
-    return { state: { ...state, message: summarizeViolations(result.violations) }, confirmed: null };
+    return runConfirm(state, context);
   }
 
   if (DIGIT_RE.test(key)) {
@@ -419,6 +429,44 @@ export function handleKey(state: BuilderState, key: string, context: BuilderCont
   }
 
   return { state, confirmed: null };
+}
+
+/**
+ * The player tapped row `index`. A non-confirm row just gets selected (same
+ * as an arrow key landing on it); the confirm row routes through the SAME
+ * `runConfirm` an Enter keypress uses, so a tap and a keypress can never
+ * disagree about whether a given build is legal.
+ */
+export function handleBuilderPointer(state: BuilderState, index: number, context: BuilderContext): BuilderKeyResult {
+  const rows = computeRows(state);
+  const row = rows[index];
+  if (row === undefined) return { state, confirmed: null };
+  const selected = clampSelected({ ...state, selectedIndex: index, editBuffer: null });
+  if (row.kind !== 'confirm') return { state: selected, confirmed: null };
+  return runConfirm(selected, context);
+}
+
+/**
+ * The player tapped a cycle (-/+) button for row `index`. Selects that row
+ * (mirroring what a tap on the row itself would do) and applies the SAME
+ * `applyCycle` transition ArrowLeft/ArrowRight already use, so there is one
+ * definition of "what changing this row's value means" for keyboard and
+ * touch alike.
+ */
+export function handleBuilderCycle(state: BuilderState, index: number, dir: -1 | 1): BuilderState {
+  const selected = clampSelected({ ...state, selectedIndex: index });
+  return clampSelected(applyCycle(selected, dir));
+}
+
+/**
+ * Sets the car name directly from a real `<input>`'s value (the touch path —
+ * see `mountBuilder`'s name-row rendering for why a real input is needed at
+ * all). Deliberately does NOT clamp or truncate: `computeViolations` already
+ * reports `NAME_TOO_LONG` for an over-length name, and silently truncating
+ * here would hide that state from the player instead of surfacing it.
+ */
+export function handleBuilderName(state: BuilderState, name: string): BuilderState {
+  return { ...state, name, editBuffer: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -573,11 +621,24 @@ function statRow(list: HTMLElement, label: string, value: string, invalid: boole
   list.appendChild(row);
 }
 
-function buildBuilderDom(state: BuilderState, context: BuilderContext): HTMLElement {
-  const root = document.createElement('div');
-  root.className = 'sm-builder';
+/** Row kinds `applyCycle` (above) actually has a case for — everything but the free-text name row and the terminal confirm row. */
+function rowHasCycle(kind: BuilderRow['kind']): boolean {
+  return kind !== 'name' && kind !== 'confirm';
+}
 
-  // --- left pane -----------------------------------------------------------
+interface BuilderRowHandlers {
+  readonly onRowActivate: (index: number) => void;
+  readonly onRowCycle: (index: number, dir: -1 | 1) => void;
+  readonly onNameInput: (value: string) => void;
+}
+
+/**
+ * Left pane: the row list plus the hint line. Rebuilt wholesale on every
+ * state change EXCEPT typing into the name input — see `mountBuilder`'s
+ * `refreshRightPane`, and the name-row `keydown` listener below, for why that
+ * one path is deliberately kept away from a full rebuild of this pane.
+ */
+function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLElement {
   const left = document.createElement('div');
   left.className = 'sm-builder__pane sm-builder__pane--left';
 
@@ -589,29 +650,92 @@ function buildBuilderDom(state: BuilderState, context: BuilderContext): HTMLElem
     li.className = `sm-builder__row sm-builder__row--${row.kind}`;
     if (row.kind === 'facing' || row.kind === 'ammo') li.classList.add('sm-builder__row--sub');
     if (index === state.selectedIndex) li.classList.add('sm-builder__row--selected');
+    // Per-row closures over `index`, not a delegated container listener and
+    // not `dataset`/`closest` lookups: the unit-test fake DOM harness (see
+    // tests/unit/builder.test.ts) implements neither.
+    li.setAttribute('role', 'button');
+    if (index === state.selectedIndex) li.setAttribute('aria-selected', 'true');
+    li.addEventListener('click', () => handlers.onRowActivate(index));
 
     const label = document.createElement('span');
     label.className = 'sm-builder__row-label';
     label.textContent = row.label;
     li.appendChild(label);
 
-    const value = document.createElement('span');
-    value.className = 'sm-builder__row-value';
-    value.textContent = row.valueLabel;
-    li.appendChild(value);
+    if (row.kind === 'name') {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'sm-builder__row-input';
+      input.maxLength = skillsConfig().driver.nameMaxLength;
+      input.value = state.name;
+      input.setAttribute('aria-label', 'Car name');
+      // A real, focusable input is the whole fix (see this file's header):
+      // it's what lets a phone's on-screen keyboard open at all. Its own
+      // `keydown` must not bubble up to the container's listener below —
+      // that listener calls `preventDefault()` on every key AND re-renders
+      // via `handleKey`, which would fight the input's native editing and,
+      // through `onKeyDown`'s full re-render, destroy and recreate this very
+      // input mid-keystroke (the focus/caret bug this task exists to avoid).
+      input.addEventListener('keydown', (ev) => ev.stopPropagation());
+      input.addEventListener('input', () => handlers.onNameInput(input.value));
+      li.appendChild(input);
+    } else {
+      const value = document.createElement('span');
+      value.className = 'sm-builder__row-value';
+      value.textContent = row.valueLabel;
+      li.appendChild(value);
+    }
+
+    if (rowHasCycle(row.kind)) {
+      const controls = document.createElement('span');
+      controls.className = 'sm-builder__row-controls';
+      const dec = document.createElement('button');
+      dec.type = 'button';
+      dec.className = 'sm-builder__row-cycle sm-builder__row-cycle--dec';
+      dec.setAttribute('aria-label', `${row.label} decrease`);
+      dec.addEventListener('click', (ev) => {
+        ev.stopPropagation(); // don't also let the row-select click above fire
+        handlers.onRowCycle(index, -1);
+      });
+      const inc = document.createElement('button');
+      inc.type = 'button';
+      inc.className = 'sm-builder__row-cycle sm-builder__row-cycle--inc';
+      inc.setAttribute('aria-label', `${row.label} increase`);
+      inc.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        handlers.onRowCycle(index, 1);
+      });
+      controls.appendChild(dec);
+      controls.appendChild(inc);
+      li.appendChild(controls);
+    }
 
     list.appendChild(li);
   });
   left.appendChild(list);
 
+  // Keyboard-only hint: a phone player has none of ↑↓←→/0-9/Enter, and there
+  // is no in-scope way to say so instead — every route (a new bare literal,
+  // routing through `t()`) needs a matching entry in either
+  // tests/unit/strings.test.ts's allowlist or rulesets/classic/strings.json,
+  // and this task owns neither file (see YOUR FILES in the task brief).
+  // `builder.css`'s `@media (pointer: coarse)` block hides this line
+  // entirely on a touch device instead of leaving it up and wrong.
   const hint = document.createElement('div');
   hint.className = 'sm-builder__hint';
   hint.textContent = '↑↓ select row · ←→ change · 0-9 type value · Enter confirm';
   left.appendChild(hint);
 
-  root.appendChild(left);
+  return left;
+}
 
-  // --- right pane ------------------------------------------------------------
+/**
+ * Right pane: derived stats, legality panel, message. Rebuilt on its own by
+ * `mountBuilder.refreshRightPane` while the player types a name, so this
+ * function must not assume it's being appended into a fresh root — it just
+ * returns the pane element and lets the caller decide where it goes.
+ */
+function buildRightPane(state: BuilderState, context: BuilderContext): HTMLElement {
   const right = document.createElement('div');
   right.className = 'sm-builder__pane sm-builder__pane--right';
 
@@ -660,8 +784,7 @@ function buildBuilderDom(state: BuilderState, context: BuilderContext): HTMLElem
     right.appendChild(message);
   }
 
-  root.appendChild(right);
-  return root;
+  return right;
 }
 
 /**
@@ -673,10 +796,36 @@ function buildBuilderDom(state: BuilderState, context: BuilderContext): HTMLElem
 export function mountBuilder(options: BuilderMountOptions): MountedBuilder {
   let state = createBuilderState();
   let context = options.context;
+  let rootEl: HTMLElement | null = null;
+  let rightPaneEl: HTMLElement | null = null;
 
-  function render(): void {
+  function fullRender(): void {
     options.container.innerHTML = '';
-    options.container.appendChild(buildBuilderDom(state, context));
+    const root = document.createElement('div');
+    root.className = 'sm-builder';
+    root.appendChild(buildLeftPane(state, { onRowActivate, onRowCycle, onNameInput }));
+    rightPaneEl = buildRightPane(state, context);
+    root.appendChild(rightPaneEl);
+    options.container.appendChild(root);
+    rootEl = root;
+  }
+
+  /**
+   * The name-input's `input` event path ONLY. Swaps the right pane (derived
+   * stats + legality, including the "car name is required" message) without
+   * touching the left pane at all — a full `fullRender()` here would destroy
+   * and recreate the very `<input>` the player is mid-keystroke in, losing
+   * focus and caret after one character (this is the regression the touch
+   * fix exists to close; see `buildLeftPane`'s name-row comment).
+   */
+  function refreshRightPane(): void {
+    if (rootEl === null || rightPaneEl === null) {
+      fullRender();
+      return;
+    }
+    const nextRight = buildRightPane(state, context);
+    rootEl.replaceChild(nextRight, rightPaneEl);
+    rightPaneEl = nextRight;
   }
 
   function onKeyDown(ev: KeyboardEvent): void {
@@ -695,25 +844,49 @@ export function mountBuilder(options: BuilderMountOptions): MountedBuilder {
       options.onBuilt(result.confirmed);
       return;
     }
-    render();
+    fullRender();
+  }
+
+  function onRowActivate(index: number): void {
+    const result = handleBuilderPointer(state, index, context);
+    state = result.state;
+    // Same "don't re-render over the host's own callback" discipline as
+    // onKeyDown above.
+    if (result.confirmed !== null) {
+      options.onBuilt(result.confirmed);
+      return;
+    }
+    fullRender();
+  }
+
+  function onRowCycle(index: number, dir: -1 | 1): void {
+    state = handleBuilderCycle(state, index, dir);
+    fullRender();
+  }
+
+  function onNameInput(value: string): void {
+    state = handleBuilderName(state, value);
+    refreshRightPane();
   }
 
   options.container.tabIndex = 0;
   options.container.classList.add('sm-builder-root');
   options.container.addEventListener('keydown', onKeyDown);
-  render();
+  fullRender();
   options.container.focus();
 
   return {
     setContext(nextContext: BuilderContext): void {
       context = nextContext;
-      render();
+      fullRender();
     },
     destroy(): void {
       options.container.removeEventListener('keydown', onKeyDown);
       options.container.innerHTML = '';
       options.container.classList.remove('sm-builder-root');
       options.container.removeAttribute('tabindex');
+      rootEl = null;
+      rightPaneEl = null;
     },
   };
 }
