@@ -42,8 +42,10 @@ describe('submitArcadeScore(): the two-request flow, fetch faked', () => {
     expect(scoresBody.runToken).toBe('abc-run-token');
   });
 
-  it('a non-ok request 1 surfaces an error and never fires request 2', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(500, { error: 'nope' }));
+  it('a non-ok request 1 surfaces an error and never fires request 2, even carrying a well-formed runToken', async () => {
+    // A well-formed runToken in the body, on a 500 status - isolates the
+    // ok-check itself from the separate "missing runToken" check below.
+    fetchMock.mockResolvedValueOnce(jsonResponse(500, { runToken: 'well-formed-but-status-500' }));
 
     const result = await submitArcadeScore(SUBMISSION);
 
