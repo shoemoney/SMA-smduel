@@ -350,11 +350,45 @@ describe('stepWalk', () => {
     expect(result.player.position.y).toBeCloseTo(0, 10);
   });
 
-  it('does not move while riding in a vehicle, even with a direction held', () => {
-    const player: CityPlayerState = { ...createCityPlayerState({ x: 1, y: 1 }), inVehicle: true };
+  it("drives at driving.json's city.vehicleSpeedMps while riding, faster than the same driver on foot", () => {
+    const onFoot = createCityPlayerState({ x: 0, y: 0 });
+    const riding: CityPlayerState = { ...onFoot, inVehicle: true };
     const layout = generateCityLayout(PROVIDENCE, SAVE_SEED_A);
-    const result = stepWalk({ player, layout, direction: 'N', dtSeconds: 5, clock: initialClock() });
+    const dt = 1;
+    const KNOWN_CITY_DRIVE_SPEED_MPS = 6.6; // driving.json's city.vehicleSpeedMps, copied here so this test does not compare the implementation to its own source (see the dedicated mock test below for sourcing proof)
+
+    const driven = stepWalk({ player: riding, layout, direction: 'E', dtSeconds: dt, clock: initialClock() });
+    expect(driven.player.position.x).toBeCloseTo(KNOWN_CITY_DRIVE_SPEED_MPS * dt, 10);
+    expect(driven.player.position.y).toBeCloseTo(0, 10);
+
+    // The point of getting in the car: it is not the same as walking. Pressing
+    // 'G' used to park the driver permanently instead, which made the control
+    // a trap with no purpose.
+    const walked = stepWalk({ player: onFoot, layout, direction: 'E', dtSeconds: dt, clock: initialClock() });
+    expect(driven.player.position.x).toBeGreaterThan(walked.player.position.x);
+  });
+
+  it('a car standing still is still standing still — no direction held moves nothing, riding or not', () => {
+    const riding: CityPlayerState = { ...createCityPlayerState({ x: 1, y: 1 }), inVehicle: true };
+    const layout = generateCityLayout(PROVIDENCE, SAVE_SEED_A);
+    const result = stepWalk({ player: riding, layout, direction: null, dtSeconds: 5, clock: initialClock() });
     expect(result.player.position).toEqual({ x: 1, y: 1 });
+    expect(result.trigger).toEqual({ kind: 'none' });
+  });
+
+  it('driving triggers a doorway the same way walking does — the car is not a trigger-proof bubble', () => {
+    const layout = generateCityLayout(PROVIDENCE, SAVE_SEED_A);
+    const doorway = layout.doorways[0];
+    if (doorway === undefined) throw new Error('test fixture: every city lists at least one facility');
+    const interactionRadiusM = drivingConfig().pedestrian.interactionRadiusM;
+
+    // Start well outside the doorway's radius, on the far side of it from the
+    // plaza centre, driving straight in.
+    const start = { x: doorway.position.x + interactionRadiusM * 3, y: doorway.position.y };
+    const riding: CityPlayerState = { ...createCityPlayerState(start), inVehicle: true };
+    const result = stepWalk({ player: riding, layout, direction: 'W', dtSeconds: 1, clock: initialClock() });
+
+    expect(result.trigger).toEqual({ kind: 'facility', facilityKind: doorway.facilityKind });
   });
 
   it('walking advances no day (economy.json timeCostDays.walkInCity is 0), across many steps and even across a NIGHT clock', () => {
