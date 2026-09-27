@@ -1,4 +1,4 @@
-# ShoeMoney AutoDuel
+# smduel
 
 **One car. One driver. Sixteen cities and a highway that wants you dead.**
 
@@ -6,7 +6,7 @@ A browser vehicular-combat RPG built for [ShoeMoney Arcade](https://arcade.shoem
 
 [Play the game](https://arcade.shoemoney.com/smduel/) · [Rules the JSON cannot hold](docs/SPEC.md) · [Build log](blog/2026-09-26-smduel.md) · [Asset pipeline notes](assets/ASSET-NOTES.md)
 
-![Actual ShoeMoney AutoDuel gameplay: a Division 5 arena match](assets/arcade/smduel-gameplay.png)
+![Actual smduel gameplay: a Division 5 arena match](assets/arcade/smduel-gameplay.png)
 
 ## Play
 
