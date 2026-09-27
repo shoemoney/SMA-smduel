@@ -1,7 +1,7 @@
 /**
- * The on-screen thumbstick + fire button for touch devices. Mounted per
- * driving screen (`@/app.ts`), never globally — a screen that tears itself
- * down must be able to take this with it.
+ * The on-screen thumbstick + fire button + fixed-hotkey command buttons for
+ * touch devices. Mounted per driving screen (`@/app.ts`), never globally — a
+ * screen that tears itself down must be able to take this with it.
  *
  * `mountTouchControls` returns `null` on anything but a genuinely coarse
  * pointer (`isCoarsePointer`), so a desktop mouse/trackpad session appends
@@ -14,15 +14,40 @@
  * zeros, and which would otherwise force a real layout pass just to know
  * where a thumb landed) — `pointermove` only ever needs the DELTA from that
  * recorded origin, never the element's absolute position on screen.
+ *
+ * Command buttons (`TouchCommandSpec`) are a DIFFERENT kind of control from
+ * the stick/fire: they cover `@/app.ts`'s fixed hotkeys (G/F/J/X), which
+ * are discrete edge-triggered actions, not part of `controls.json`'s
+ * rebindable, continuous action set. They are deliberately NOT folded into
+ * `RawInputState.touchButtonsDown`/`resolveInput` — a command fires its own
+ * `onPress` callback directly, exactly once per tap, the same as a screen's
+ * own `keydown` handler fires once per fixed-hotkey press. `resolveInput`
+ * stays exactly as pure and as unaware of them as it was before.
  */
 import { CONTROLS } from '@/ui/input';
-import { t } from '@/ui/strings';
+import { t, type StringId } from '@/ui/strings';
+
+export interface TouchCommandSpec {
+  readonly id: string;
+  /** strings.json key, resolved through `t()` — never a bare literal. */
+  readonly labelKey: string;
+  readonly onPress: () => void;
+  /** Defaults to true. A command that is only sometimes available starts false. */
+  readonly initiallyVisible?: boolean;
+}
+
+export interface TouchMountOptions {
+  readonly fire: boolean;
+  readonly commands?: readonly TouchCommandSpec[];
+}
 
 export interface TouchControls {
   /** This tick's stick reading, shaped for `RawInputState.touchAxes`. */
   axes(): readonly number[];
   /** Action ids whose on-screen button is held, for `RawInputState.touchButtonsDown`. */
   buttonsDown(): ReadonlySet<string>;
+  /** Show or hide one command button at runtime, for a control that is only valid in some situations. Cheap and idempotent — safe to call every frame. An unknown `id` is a no-op. */
+  setCommandVisible(id: string, visible: boolean): void;
   destroy(): void;
 }
 
@@ -66,8 +91,8 @@ function clampVectorLength(x: number, y: number): readonly [number, number] {
   return [x / length, y / length];
 }
 
-/** Mounts a thumbstick and a fire button into `container`, or returns `null` on a non-coarse pointer so a desktop browser is byte-for-byte unchanged. */
-export function mountTouchControls(container: HTMLElement): TouchControls | null {
+/** Mounts the thumbstick, an optional fire button, and any fixed-hotkey command buttons into `container`, or returns `null` on a non-coarse pointer so a desktop browser is byte-for-byte unchanged. */
+export function mountTouchControls(container: HTMLElement, options: TouchMountOptions): TouchControls | null {
   if (!isCoarsePointer()) return null;
 
   const root = document.createElement('div');
@@ -79,15 +104,7 @@ export function mountTouchControls(container: HTMLElement): TouchControls | null
   const knob = document.createElement('div');
   knob.className = 'sm-touch__stick-knob';
   stick.appendChild(knob);
-
-  const fire = document.createElement('button');
-  fire.type = 'button';
-  fire.className = 'sm-touch__fire';
-  fire.setAttribute('aria-label', t('ui.touch.fire'));
-
   root.appendChild(stick);
-  root.appendChild(fire);
-  container.appendChild(root);
 
   let stickPointerId: number | null = null;
   let origin: { x: number; y: number } | null = null;
@@ -122,12 +139,23 @@ export function mountTouchControls(container: HTMLElement): TouchControls | null
     resetKnob();
   }
 
+  stick.addEventListener('pointerdown', onStickDown);
+  stick.addEventListener('pointermove', onStickMove);
+  stick.addEventListener('pointerup', onStickRelease);
+  stick.addEventListener('pointercancel', onStickRelease);
+  window.addEventListener('pointerup', onStickRelease);
+  window.addEventListener('pointercancel', onStickRelease);
+
+  // --- fire (optional: a screen whose frame loop never reads `fire` — see
+  // `showCity` — passes `fire: false` rather than mount a button that's
+  // visible but inert). ---
+  let fire: HTMLButtonElement | null = null;
   let firePointerId: number | null = null;
 
   function onFireDown(ev: PointerEvent): void {
     if (firePointerId !== null) return;
     firePointerId = ev.pointerId;
-    capturePointer(fire, ev.pointerId);
+    if (fire !== null) capturePointer(fire, ev.pointerId);
   }
 
   function onFireRelease(ev: PointerEvent): void {
@@ -135,27 +163,59 @@ export function mountTouchControls(container: HTMLElement): TouchControls | null
     firePointerId = null;
   }
 
-  stick.addEventListener('pointerdown', onStickDown);
-  stick.addEventListener('pointermove', onStickMove);
-  stick.addEventListener('pointerup', onStickRelease);
-  stick.addEventListener('pointercancel', onStickRelease);
-  fire.addEventListener('pointerdown', onFireDown);
-  fire.addEventListener('pointerup', onFireRelease);
-  fire.addEventListener('pointercancel', onFireRelease);
+  if (options.fire) {
+    fire = document.createElement('button');
+    fire.type = 'button';
+    fire.className = 'sm-touch__fire';
+    fire.setAttribute('aria-label', t('ui.touch.fire'));
+    root.appendChild(fire);
 
-  // `capturePointer` swallows a missing/throwing `setPointerCapture` — a
-  // thumb that slides off the round pad before lifting then sends its
-  // `pointerup`/`pointercancel` to whatever element is now underneath it,
-  // never to `stick`/`fire`. Without a window-level fallback that leaves
-  // `axesValue`/`firePointerId` frozen at their last reading forever (a
-  // stuck throttle with no way to stop, escapable only by leaving the
-  // screen). Both handlers already guard on `pointerId`, so when capture
-  // DOES work this is just a harmless duplicate delivery, not a double
-  // release.
-  window.addEventListener('pointerup', onStickRelease);
-  window.addEventListener('pointercancel', onStickRelease);
-  window.addEventListener('pointerup', onFireRelease);
-  window.addEventListener('pointercancel', onFireRelease);
+    fire.addEventListener('pointerdown', onFireDown);
+    fire.addEventListener('pointerup', onFireRelease);
+    fire.addEventListener('pointercancel', onFireRelease);
+    // `capturePointer` swallows a missing/throwing `setPointerCapture` — a
+    // thumb that slides off the round pad before lifting then sends its
+    // `pointerup`/`pointercancel` to whatever element is now underneath it,
+    // never to `fire`. Without a window-level fallback that leaves
+    // `firePointerId` frozen at its last reading forever (a stuck throttle
+    // with no way to stop, escapable only by leaving the screen). Both
+    // handlers already guard on `pointerId`, so when capture DOES work
+    // this is just a harmless duplicate delivery, not a double release.
+    window.addEventListener('pointerup', onFireRelease);
+    window.addEventListener('pointercancel', onFireRelease);
+  }
+
+  // --- fixed-hotkey command buttons (G/F/J/X and friends): discrete,
+  // edge-triggered, never routed through `RawInputState` — see file header. ---
+  const commandButtons = new Map<string, HTMLButtonElement>();
+  const commandListeners = new Map<string, () => void>();
+  const commands = options.commands ?? [];
+
+  if (commands.length > 0) {
+    const commandsHost = document.createElement('div');
+    commandsHost.className = options.fire ? 'sm-touch__commands' : 'sm-touch__commands sm-touch__commands--no-fire';
+
+    for (const spec of commands) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sm-touch__cmd';
+      btn.dataset.touchCommand = spec.id;
+      const label = t(spec.labelKey as StringId);
+      btn.setAttribute('aria-label', label);
+      btn.textContent = label;
+      btn.hidden = spec.initiallyVisible === false;
+
+      const onClick = (): void => spec.onPress();
+      btn.addEventListener('click', onClick);
+      commandListeners.set(spec.id, onClick);
+      commandButtons.set(spec.id, btn);
+      commandsHost.appendChild(btn);
+    }
+
+    root.appendChild(commandsHost);
+  }
+
+  container.appendChild(root);
 
   return {
     axes(): readonly number[] {
@@ -164,18 +224,28 @@ export function mountTouchControls(container: HTMLElement): TouchControls | null
     buttonsDown(): ReadonlySet<string> {
       return firePointerId !== null ? FIRE_DOWN : NO_BUTTONS_DOWN;
     },
+    setCommandVisible(id: string, visible: boolean): void {
+      const btn = commandButtons.get(id);
+      if (btn === undefined) return;
+      btn.hidden = !visible;
+    },
     destroy(): void {
       stick.removeEventListener('pointerdown', onStickDown);
       stick.removeEventListener('pointermove', onStickMove);
       stick.removeEventListener('pointerup', onStickRelease);
       stick.removeEventListener('pointercancel', onStickRelease);
-      fire.removeEventListener('pointerdown', onFireDown);
-      fire.removeEventListener('pointerup', onFireRelease);
-      fire.removeEventListener('pointercancel', onFireRelease);
       window.removeEventListener('pointerup', onStickRelease);
       window.removeEventListener('pointercancel', onStickRelease);
-      window.removeEventListener('pointerup', onFireRelease);
-      window.removeEventListener('pointercancel', onFireRelease);
+      if (fire !== null) {
+        fire.removeEventListener('pointerdown', onFireDown);
+        fire.removeEventListener('pointerup', onFireRelease);
+        fire.removeEventListener('pointercancel', onFireRelease);
+        window.removeEventListener('pointerup', onFireRelease);
+        window.removeEventListener('pointercancel', onFireRelease);
+      }
+      for (const [id, onClick] of commandListeners) {
+        commandButtons.get(id)?.removeEventListener('click', onClick);
+      }
       root.remove();
     },
   };

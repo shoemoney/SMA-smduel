@@ -91,3 +91,53 @@
 .sm-touch__fire:active {
   background: var(--touch-accent);
 }
+
+/*
+ * Fixed-hotkey command buttons (G/F/J/X and friends — see src/ui/touch.ts's
+ * `TouchCommandSpec`). Stacked in a column on the RIGHT, above the fire
+ * button when one is mounted, so a thumb reaching for a command can never
+ * also land on the stick (bottom-left) or the fire button (bottom-right,
+ * same corner) at once. `column-reverse` keeps the FIRST spec in the array
+ * closest to the fire button (or the bottom edge, on a screen with no fire
+ * button) and stacks later ones upward, so `hidden`-toggling one command at
+ * runtime never shifts another command's position relative to the corner.
+ */
+.sm-touch__commands {
+  position: absolute;
+  right: max(24px, env(safe-area-inset-right, 0px));
+  bottom: calc(max(24px, env(safe-area-inset-bottom, 0px)) + 64px + 12px);
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.sm-touch__commands--no-fire {
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+}
+
+.sm-touch__cmd {
+  pointer-events: auto;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--touch-bg);
+  border: 1px solid var(--touch-border);
+  color: var(--touch-fg);
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.sm-touch__cmd:active {
+  background: var(--touch-accent);
+}
+
+.sm-touch__cmd[hidden] {
+  display: none;
+}
