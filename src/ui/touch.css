@@ -1,0 +1,70 @@
+/*
+ * Layout for the on-screen thumbstick + fire button (src/ui/touch.ts).
+ * Mounting is already gated in TypeScript (`isCoarsePointer()` returns
+ * `null` before any of this DOM exists on a non-coarse pointer), so nothing
+ * here is wrapped in a `(pointer: coarse)` media query — a mouse/trackpad
+ * session never gets far enough to load this rule set against real markup.
+ *
+ * Reuses hud.css's `--hud-*` tokens (defined at `:root`) so the touch layer
+ * reads as part of the same HUD system rather than a bolted-on control pad.
+ *
+ * NO REGRESSION TEST GUARDS THE LAYOUT HERE, same measured limitation as
+ * menu.css's own header: happy-dom computes no layout, so
+ * `getBoundingClientRect()` always answers zero and this file's actual
+ * on-screen sizing/positioning is verified by opening the game on a phone.
+ */
+
+.sm-touch {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sm-touch__stick,
+.sm-touch__fire {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sm-touch__stick {
+  left: max(24px, env(safe-area-inset-left, 0px));
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  width: calc(var(--sm-touch-radius) * 2);
+  height: calc(var(--sm-touch-radius) * 2);
+  border-radius: 50%;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+}
+
+.sm-touch__stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44%;
+  height: 44%;
+  margin-left: -22%;
+  margin-top: -22%;
+  border-radius: 50%;
+  background: var(--hud-accent);
+  opacity: 0.85;
+}
+
+.sm-touch__fire {
+  right: max(24px, env(safe-area-inset-right, 0px));
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  border-radius: 50%;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-accent);
+  color: var(--hud-fg);
+}
+
+.sm-touch__fire:active {
+  background: var(--hud-accent);
+}
