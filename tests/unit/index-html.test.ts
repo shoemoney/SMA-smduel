@@ -37,16 +37,30 @@ describe('index.html — share metadata', () => {
     expect(twitterImage).toBe('https://arcade.shoemoney.com/brand/smduel-gameplay.png');
   });
 
-  it('has no relative or root-relative og:image/twitter:image value', () => {
+  it('every image meta tag carries an absolute https URL, never a relative or root-relative path', () => {
     // A root-relative `/assets/...` 404s under the live /smduel/ subpath,
     // and a `./`-relative path is never rewritten by vite in a meta tag
     // (vite only rewrites link[href]/img[src]/video/source/use[href]), so
-    // either shape would silently ship a broken share card. Catch the
-    // whole class rather than just today's exact URL.
-    const imageValues = [metaContent(INDEX_HTML, 'property="og:image"'), metaContent(INDEX_HTML, 'name="twitter:image"')];
-    for (const value of imageValues) {
-      expect(value).toBeDefined();
-      expect(value?.startsWith('https://arcade.shoemoney.com/')).toBe(true);
+    // either shape would silently ship a broken share card. This scans
+    // every <meta> tag whose name/property mentions "image" instead of
+    // pinning just og:image and twitter:image, so a new or renamed image
+    // meta tag is covered without touching this test. The at-least-two
+    // assertion guards against the scan itself silently matching nothing,
+    // which would otherwise make the whole check vacuous.
+    const metaTags = INDEX_HTML.match(/<meta\b[^>]*>/g) ?? [];
+    const imageUrlTags = metaTags
+      .map((tag) => {
+        const attr = tag.match(/(?:name|property)="([^"]*image[^"]*)"/i);
+        const content = tag.match(/content="([^"]*)"/);
+        return attr && content ? { attr: attr[1], value: content[1] } : undefined;
+      })
+      .filter((tag): tag is { attr: string; value: string } => tag !== undefined)
+      // og:image:width/height/alt describe the image, they are not URLs.
+      .filter((tag) => !/:(width|height|alt)$/i.test(tag.attr));
+
+    expect(imageUrlTags.length).toBeGreaterThanOrEqual(2);
+    for (const tag of imageUrlTags) {
+      expect(tag.value.startsWith('https://')).toBe(true);
     }
   });
 
