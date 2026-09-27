@@ -6,8 +6,16 @@
       "height": 2048
     }
   ],
-  "configFingerprint": "364fb39e43b7609f",
-  "standalone": {},
+  "configFingerprint": "db426ee06fa8d5ca",
+  "standalone": {
+    "ui-title-art": {
+      "file": "ui-title-art.png",
+      "w": 1344,
+      "h": 768,
+      "kind": "ui",
+      "bytes": 1769082
+    }
+  },
   "frames": {
     "tile-arena-wall": {
       "atlas": 0,

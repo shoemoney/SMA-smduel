@@ -1412,3 +1412,135 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
     expect(document.querySelector('.sm-touch')).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Title screen: the standalone title art is actually wired in
+// ---------------------------------------------------------------------------
+
+describe('DOM screens: the title screen draws its standalone art', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    vi.restoreAllMocks();
+  });
+
+  it('references assets/ui-title-art.png, the extracted standalone frame, never atlas-0.png', async () => {
+    await bootFresh(root);
+    const titleScreen = requireOne('.sm-screen--title');
+    const style = titleScreen.getAttribute('style') ?? '';
+
+    expect(style).toContain('ui-title-art');
+    expect(style).not.toContain('atlas-0');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Title screen: a won campaign shown, never invented
+// ---------------------------------------------------------------------------
+
+describe('DOM screens: the title screen shows a won campaign', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    vi.restoreAllMocks();
+  });
+
+  const TITLE_TEST_DESIGN: VehicleDesign = {
+    name: 'Title Won Rig',
+    bodyId: 'subcompact',
+    chassisId: 'standard',
+    suspensionId: 'light',
+    plantId: 'small',
+    tireId: 'standard',
+    armor: { FRONT: 0, REAR: 0, LEFT: 0, RIGHT: 0, UNDERBODY: 0 },
+    weapons: [],
+  };
+
+  function evenSkillSplit(): Record<SkillName, number> {
+    const cfg = skillsConfig();
+    const base = Math.floor(cfg.startingSkillPool / cfg.skills.length);
+    const remainder = cfg.startingSkillPool - base * cfg.skills.length;
+    const skills = {} as Record<SkillName, number>;
+    cfg.skills.forEach((name, index) => {
+      skills[name] = base + (index === cfg.skills.length - 1 ? remainder : 0);
+    });
+    return skills;
+  }
+
+  /** Persists a real save (through `@/app`'s own real `persistArenaSession`, never a hand-stuffed IndexedDB record) with `quests` set verbatim, then boots the real app against it and returns the rendered Title `.sm-screen--title`. */
+  async function bootTitleWithQuests(quests: readonly QuestState[]): Promise<Element> {
+    const driverResult = createDriver('TitleTest', evenSkillSplit());
+    if (!driverResult.ok) throw new Error(`test fixture: expected a legal skill split, got "${driverResult.reason}"`);
+    const driver: DriverState = { ...driverResult.driver, cityId: skillsConfig().startingLocation };
+    const vehicle = vehicleStateFromDesign(TITLE_TEST_DESIGN, 'veh-title-test-1', PLAYER_ID);
+
+    const openDb = () => openSaveDatabase();
+    await persistArenaSession({
+      openDb,
+      driver,
+      vehicle,
+      clock: initialClock(),
+      location: driver.cityId,
+      quests,
+      sessionSeed: 'screens-title-won-seed',
+      world: null,
+    });
+
+    installRafStub();
+    simNowMs = 0;
+    const { boot } = await import('@/app');
+    await boot(root, { search: '', randomSeed: () => 'unused-fresh-session-seed', openDb });
+
+    return requireOne('.sm-screen--title');
+  }
+
+  it('shows the "Campaign won" line for a save whose victory quest is delivered', async () => {
+    const victoryQuest = questDefs().find(isVictoryQuest);
+    if (victoryQuest === undefined) throw new Error('test fixture: quests.json defines no onDeliver.victory quest');
+
+    const titleScreen = await bootTitleWithQuests([
+      { id: victoryQuest.id, stage: victoryQuest.clueChain.length, completed: true, flags: { victory: true } },
+    ]);
+
+    expect(titleScreen.textContent).toContain(t('ui.title.campaignWon'));
+  });
+
+  it('shows no "Campaign won" line for a save with no completed victory quest', async () => {
+    const nonVictoryQuest = questDefs().find((q) => !isVictoryQuest(q));
+    if (nonVictoryQuest === undefined) throw new Error('test fixture: quests.json defines no non-victory quest');
+
+    const titleScreen = await bootTitleWithQuests([{ id: nonVictoryQuest.id, stage: 1, completed: true, flags: {} }]);
+
+    expect(titleScreen.textContent).not.toContain(t('ui.title.campaignWon'));
+  });
+
+  it('shows no "Campaign won" line for a fresh save with no quest history at all', async () => {
+    const titleScreen = await bootTitleWithQuests([]);
+
+    expect(titleScreen.textContent).not.toContain(t('ui.title.campaignWon'));
+  });
+});

@@ -116,6 +116,7 @@ import { CURRENT_SCHEMA_VERSION } from '@/persist/migrate';
 import { openSaveDatabase, save, load, type LoadResult, type SaveGame, type QuestState } from '@/persist/save';
 import {
   deliverQuest,
+  hasWonVictory,
   questCargoId,
   questDefs,
   buildVictorySummary,
@@ -552,9 +553,30 @@ function weaponTouchCommands(selection: WeaponSelection, vehicle: VehicleState):
 // Screen 1: Title
 // ---------------------------------------------------------------------------
 
-function showTitle(root: HTMLElement, titleOptions: { onNewDriver: () => void; onContinue?: () => void }): void {
+function showTitle(
+  root: HTMLElement,
+  titleOptions: { onNewDriver: () => void; onContinue?: () => void; hasWonVictory?: boolean },
+): void {
   const container = el('div', 'sm-screen sm-screen--title');
-  container.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+  // Full-screen title art as a CSS background on the screen container, never
+  // a render/** WebGPU draw: this screen has no game world to render yet, so
+  // paying for a GPU pass here would be pure overhead. The gradient overlay
+  // keeps the menu's light text readable over the art at both phone and
+  // desktop widths; it is a background, so it never intercepts a click or
+  // tap — menuHost keeps getting every pointer and key event it always did.
+  // `ui-title-art.png` loads relative to the page (same `new URL(...,
+  // import.meta.url)` pattern the atlas image already uses below), so it
+  // resolves correctly under vite's `base: './'` at the /smduel/ subpath.
+  const titleArtUrl = new URL('../assets/ui-title-art.png', import.meta.url).href;
+  container.style.cssText =
+    'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
+    `background-image:linear-gradient(rgba(5,7,10,0.55),rgba(5,7,10,0.82)),url("${titleArtUrl}");` +
+    'background-size:cover;background-position:center;';
+  if (titleOptions.hasWonVictory === true) {
+    const wonLine = el('div', undefined, t('ui.title.campaignWon'));
+    wonLine.style.cssText = 'color:#4fd6c4;font-weight:600;font-family:system-ui,sans-serif;';
+    container.appendChild(wonLine);
+  }
   const menuHost = el('div');
   menuHost.style.cssText = 'width:min(420px,90vw);';
   container.appendChild(menuHost);
@@ -4120,7 +4142,9 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
     const existing = await loadExistingSave();
     showTitle(root, {
       onNewDriver: () => startNewSession(),
-      ...(existing !== null ? { onContinue: () => resumeSession(existing) } : {}),
+      ...(existing !== null
+        ? { onContinue: () => resumeSession(existing), hasWonVictory: hasWonVictory(existing.game.quests) }
+        : {}),
     });
   }
 

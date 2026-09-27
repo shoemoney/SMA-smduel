@@ -1130,17 +1130,35 @@ describe('the REAL shipped manifest parses through the REAL runtime loader', () 
 describe('unused full-screen art is not packed at all', () => {
   const ASSETS = fileURLToPath(new URL('../../assets/', import.meta.url));
 
-  it('ui-hud-frame and ui-title-art are marked skip and absent from the packed manifest', () => {
+  it('ui-hud-frame stays marked skip and absent from the packed manifest and standalone list (still unreferenced in src/)', () => {
     const meta = JSON.parse(readFileSync(resolve(ASSETS, 'sprite-meta.json'), 'utf8')) as {
       frames: Record<string, { skip?: boolean }>;
     };
     const manifest = JSON.parse(readFileSync(resolve(ASSETS, 'atlas.json'), 'utf8')) as {
       frames: Record<string, unknown>;
+      standalone: Record<string, unknown>;
     };
-    for (const name of ['ui-hud-frame', 'ui-title-art']) {
-      expect({ name, skipped: meta.frames[name]?.skip === true }).toEqual({ name, skipped: true });
-      expect({ name, packed: name in manifest.frames }).toEqual({ name, packed: false });
-    }
+    expect(meta.frames['ui-hud-frame']?.skip).toBe(true);
+    expect('ui-hud-frame' in manifest.frames).toBe(false);
+    expect('ui-hud-frame' in manifest.standalone).toBe(false);
+  });
+
+  // ui-title-art is drawn on the title screen (showTitle, src/app.ts) as of
+  // this suite, so it is no longer "unused" — it is extracted as its OWN
+  // standalone file instead (see tools/atlas-sizes.json's extractStandalone),
+  // never packed into atlas-0.png. tests/integration/screens.test.ts covers
+  // the title screen actually drawing it.
+  it('ui-title-art is no longer skipped, is extracted standalone, and never packed into the sheet', () => {
+    const meta = JSON.parse(readFileSync(resolve(ASSETS, 'sprite-meta.json'), 'utf8')) as {
+      frames: Record<string, { skip?: boolean }>;
+    };
+    const manifest = JSON.parse(readFileSync(resolve(ASSETS, 'atlas.json'), 'utf8')) as {
+      frames: Record<string, unknown>;
+      standalone: Record<string, { file: string; w: number; h: number }>;
+    };
+    expect(meta.frames['ui-title-art']?.skip).not.toBe(true);
+    expect('ui-title-art' in manifest.frames).toBe(false);
+    expect(manifest.standalone['ui-title-art']?.file).toBe('ui-title-art.png');
   });
 
   it('a frame the renderer never references must not be occupying the sheet', () => {
