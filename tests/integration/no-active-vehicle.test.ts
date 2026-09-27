@@ -43,6 +43,7 @@ import {
   arenaExitVehicle,
   arenaPlayerVehicle,
   buildingContextFrom,
+  vehicleParkedAtGate,
   vehicleStateFromDesign,
   type CityRunState,
 } from '@/app';
@@ -282,5 +283,37 @@ describe("amateur-night, the broke driver's on-ramp, is reachable again", () => 
 
     const wreck = { ...own, destroyed: true };
     expect(arenaExitVehicle(own, wreck, 'division-5')).toBe(wreck);
+  });
+});
+
+describe('crossing a city boundary parks the car at the gate', () => {
+  const GATE = { x: -1.5, y: 10.5 };
+
+  it('normalizes position and heading, and leaves everything else about the car alone', () => {
+    // A car somewhere out on the plaza mid-drive, pointing wherever the driver
+    // was last headed.
+    const wandered: VehicleState = { ...makeVehicle('veh-wandered'), position: { x: 4, y: -7 }, headingRad: 2.5 };
+    const parked = vehicleParkedAtGate(wandered, GATE);
+
+    // City and road coordinates are different spaces, so the road's
+    // `startPosition`/`routeHeadingRad` and the arena's initial player seat must
+    // not depend on where in the plaza the driver stopped.
+    expect(parked?.position).toEqual(GATE);
+    expect(parked?.headingRad).toBe(0);
+    expect(parked?.id).toBe('veh-wandered');
+    expect(parked?.armorDP).toEqual(wandered.armorDP);
+    expect(parked?.cargo).toEqual(wandered.cargo);
+    expect(parked?.design).toEqual(wandered.design);
+  });
+
+  it('copies the gate rather than aliasing it, so a later move cannot write back through the car', () => {
+    const gate = { x: 1, y: 2 };
+    const parked = vehicleParkedAtGate(makeVehicle(), gate);
+    expect(parked?.position).not.toBe(gate);
+    expect(parked?.position).toEqual(gate);
+  });
+
+  it('has nothing to park for a carless driver', () => {
+    expect(vehicleParkedAtGate(null, GATE)).toBeNull();
   });
 });

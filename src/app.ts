@@ -2736,6 +2736,24 @@ function showArenaEvent(
 // Screen 5: City
 // ---------------------------------------------------------------------------
 
+/**
+ * The car as any screen boundary into or out of a city should see it: parked at
+ * that city's gate, heading 0.
+ *
+ * City and road coordinates are different spaces (`@/sim/road` is a 1D
+ * route-progress model), so a position from either is meaningless in the other.
+ * `showCity` normalizes on the way IN for that reason, and has to do the same on
+ * the way OUT now that driving the plaza moves the car for real: the road reads
+ * the departing car's position and heading as its own `startPosition`/
+ * `routeHeadingRad`, and `createArenaWorld` seats the player wherever the car
+ * says it is. Without this, both would depend on where in the plaza the driver
+ * happened to stop, which is exactly the coupling the project's determinism
+ * invariant rules out.
+ */
+export function vehicleParkedAtGate(vehicle: VehicleState | null, gate: Vec2): VehicleState | null {
+  return vehicle === null ? null : { ...vehicle, position: { ...gate }, headingRad: 0 };
+}
+
 interface CityRenderResources {
   readonly pipeline: GPURenderPipeline;
   readonly cameraBuffer: GPUBuffer;
@@ -2981,15 +2999,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   lastSessionSeed = state.sessionSeed;
 
   const layout: CityLayout = generateCityLayout(state.cityId, state.sessionSeed);
-  // Road and city coordinates are different spaces (see `@/sim/road`'s own
-  // 1D route-progress model) - entering a city (fresh build, road arrival,
-  // or returning from the constructor/an arena match) always parks the car
-  // at THIS city's gate, never at whatever position it happened to hold in
-  // the screen the player was just on.
-  let runState: CityRunState = {
-    ...state,
-    vehicle: state.vehicle === null ? null : { ...state.vehicle, position: { ...layout.gate.position }, headingRad: 0 },
-  };
+  let runState: CityRunState = { ...state, vehicle: vehicleParkedAtGate(state.vehicle, layout.gate.position) };
   let player: CityPlayerState = createCityPlayerState({ ...layout.gate.position });
   let paused = false;
 
@@ -3098,7 +3108,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
         );
       },
       onEnterArena: (result: ArenaEntryResult) => {
-        const entered = arenaPlayerVehicle(runState.vehicle, result.matchState.eventId);
+        const entered = arenaPlayerVehicle(vehicleParkedAtGate(runState.vehicle, layout.gate.position), result.matchState.eventId);
         // `eligibilityFor` already refused every own-sourced event to a
         // carless driver, and every house-sourced one hands back a loaner, so
         // this is unreachable — and a refusal beats an assertion either way.
@@ -3146,7 +3156,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
         }
         const routeId = id.slice('route-'.length);
         const found = neighbors.find((n) => n.route.id === routeId);
-        const vehicle = runState.vehicle;
+        const vehicle = vehicleParkedAtGate(runState.vehicle, layout.gate.position);
         if (found === undefined || vehicle === null) {
           closePanel();
           return;
