@@ -134,7 +134,32 @@ async function bootFresh(root: HTMLElement): Promise<Element> {
   return requireOne('.sm-menu');
 }
 
-async function bootToCity(root: HTMLElement): Promise<void> {
+/**
+ * Mounts `count` weapons on the Constructor screen, on consecutive slots,
+ * purely with the arrow keys a player has. Each `ArrowRight` on a weapon row
+ * advances that slot through `weaponChoiceIds()` and CLAMPS at the last entry
+ * (`@/ui/builder`'s `cycleWeaponChoice` uses `Math.min`, not a wrap), so a
+ * deliberately-overshooting press count lands on whatever weapons.json's LAST
+ * weapon happens to be without this test naming it or counting entries. That
+ * matters twice over: the cheapest-per-mount weapon is what keeps two mounts
+ * inside a fresh driver's starting cash (`computeBuild`'s `OVER_BUDGET` would
+ * otherwise refuse the build and `Enter` on confirm would silently do
+ * nothing), and `firstAllowedFacing` gives every mount a legal facing, so no
+ * facing row needs touching either.
+ *
+ * Mounting one slot expands its row into three (weapon/facing/ammo), which is
+ * why the step to the next slot's weapon row is exactly 3 `ArrowDown`s.
+ */
+function mountWeaponsInConstructor(constructorScreen: Element, count: number): void {
+  const WEAPON_SLOT_0_ROW = 11; // name, 5 components, 5 armor facings — see `@/ui/builder`'s computeRows
+  for (let i = 0; i < WEAPON_SLOT_0_ROW; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
+  for (let slot = 0; slot < count; slot++) {
+    if (slot > 0) for (let i = 0; i < 3; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
+    for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowRight' });
+  }
+}
+
+async function bootToCity(root: HTMLElement, options: { readonly weaponMounts?: number } = {}): Promise<void> {
   // --- Title: digit '1' activates the first eligible action. With no save
   // to resume (openDb always rejects above), that's 'new-driver'. ---
   const titleMenu = await bootFresh(root);
@@ -159,6 +184,7 @@ async function bootToCity(root: HTMLElement): Promise<void> {
   // player's Enter key does there. ---
   const constructorScreen = requireOne('.sm-screen--constructor');
   for (const ch of 'TestRig') dispatchKey(constructorScreen, { key: ch });
+  if (options.weaponMounts !== undefined) mountWeaponsInConstructor(constructorScreen, options.weaponMounts);
   for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
   dispatchKey(constructorScreen, { key: 'Enter' });
 
@@ -169,6 +195,68 @@ async function bootToCity(root: HTMLElement): Promise<void> {
   await flushMicrotasks();
 
   requireOne('.sm-screen--city');
+}
+
+/**
+ * Walks the on-foot player from the city through the real gate trigger and
+ * takes the first offered route, landing on the Road screen. Every step is a
+ * dispatched key on a real `showCity` frame; nothing calls a private screen
+ * function.
+ *
+ * The player spawns exactly ON the gate (`showCity`'s own
+ * `layout.gate.position`), so the FIRST leg must walk AWAY from it —
+ * the trigger is edge-triggered, and starting already inside the interaction
+ * radius never fires. "Away" is the direction the real `@/app`'s own
+ * `cityDirectionFromVector` classifies the vector from the gate toward the
+ * map centre, so the walk never runs into `stepWalk`'s `clampToCityWalls`
+ * (moving toward the centre only shrinks the distance from it, never
+ * re-triggers a wall clamp). The return leg retraces that exact line back
+ * outward at the same speed, so it is guaranteed to cross back inside the
+ * gate's radius while heading toward it.
+ */
+async function walkThroughGateToRoad(): Promise<void> {
+  const cityId = skillsConfig().startingLocation;
+  const layout = generateCityLayout(cityId, TEST_SEED);
+  const gate = layout.gate.position;
+
+  const inwardKeys: KeyboardEventInit[] = [];
+  if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
+  else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
+  if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
+  else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+  expect(inwardKeys.length).toBeGreaterThan(0);
+
+  const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
+    if (k.code === 'KeyD') return { key: 'a', code: 'KeyA' };
+    if (k.code === 'KeyA') return { key: 'd', code: 'KeyD' };
+    if (k.code === 'KeyW') return { key: 's', code: 'KeyS' };
+    return { key: 'w', code: 'KeyW' };
+  });
+
+  const STEPS_PER_LEG = 15;
+
+  for (const k of inwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+  for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+  for (const k of inwardKeys) dispatchKeyUp(window, k);
+
+  // Still walking: no gate/facility trigger fires from moving inward, away
+  // from every trigger circle on the ring.
+  expect(document.querySelector('.sm-menu')).toBeNull();
+
+  for (const k of outwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+  for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+  for (const k of outwardKeys) dispatchKeyUp(window, k);
+
+  // The gate trigger fired: `openGatePrompt()` paused the city loop and
+  // mounted a real route-choice menu.
+  const routeMenu = requireOne('.sm-menu');
+  dispatchKey(routeMenu, { key: '1' });
+
+  // showRoad's own initRenderer() microtask, same as showCity's.
+  await flushMicrotasks();
+  await flushMicrotasks();
+
+  requireOne('.sm-screen--road');
 }
 
 describe('DOM screens: the two fixed hotkeys a removed `if` cannot fake passing', () => {
@@ -227,60 +315,7 @@ describe('DOM screens: the two fixed hotkeys a removed `if` cannot fake passing'
   it('pressing "x" on the road screen attempts a wreck search', async () => {
     await bootToCity(root);
 
-    // --- Walk the on-foot player through the real gate trigger: the
-    // player spawns exactly ON the gate (`showCity`'s own
-    // `layout.gate.position`), so the FIRST step must walk away from it
-    // (edge-triggered — starting inside the interaction radius never
-    // fires) before walking back triggers it. "Away" is picked as the
-    // real `@/app`'s own `cityDirectionFromVector` would classify the
-    // vector pointing from the gate toward the map centre, so the walk
-    // never runs into `stepWalk`'s `clampToCityWalls` (moving toward the
-    // centre only ever shrinks the distance from it, never re-triggers a
-    // wall clamp) — the return leg then retraces the exact same line back
-    // outward, at the exact same speed, and is guaranteed to cross back
-    // within the gate's interaction radius while heading toward it. ---
-    const cityId = skillsConfig().startingLocation;
-    const layout = generateCityLayout(cityId, TEST_SEED);
-    const gate = layout.gate.position;
-
-    const inwardKeys: KeyboardEventInit[] = [];
-    if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
-    else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
-    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
-    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
-    expect(inwardKeys.length).toBeGreaterThan(0);
-
-    const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
-      if (k.code === 'KeyD') return { key: 'a', code: 'KeyA' };
-      if (k.code === 'KeyA') return { key: 'd', code: 'KeyD' };
-      if (k.code === 'KeyW') return { key: 's', code: 'KeyS' };
-      return { key: 'w', code: 'KeyW' };
-    });
-
-    const STEPS_PER_LEG = 15;
-
-    for (const k of inwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
-    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
-    for (const k of inwardKeys) dispatchKeyUp(window, k);
-
-    // Still walking (no gate/facility trigger from moving inward, away
-    // from every trigger circle on the ring).
-    expect(document.querySelector('.sm-menu')).toBeNull();
-
-    for (const k of outwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
-    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
-    for (const k of outwardKeys) dispatchKeyUp(window, k);
-
-    // The gate trigger fired: `openGatePrompt()` paused the city loop and
-    // mounted a real route-choice menu.
-    const routeMenu = requireOne('.sm-menu');
-    dispatchKey(routeMenu, { key: '1' });
-
-    // showRoad's own initRenderer() microtask, same as showCity's.
-    await flushMicrotasks();
-    await flushMicrotasks();
-
-    requireOne('.sm-screen--road');
+    await walkThroughGateToRoad();
 
     // `trySearchWreck()`'s `nearbySearchableWreck()` unconditionally calls
     // `wreckSearchRangeM()` (-> `drivingConfig()`) before it ever looks at
@@ -1187,5 +1222,193 @@ describe('DOM screens: road touch wreck-search command visibility', () => {
     // own 'x' test makes the same call: "reaching an actual
     // defeated-opponent wreck is a full combat encounter, out of scope").
     // Stating that plainly here rather than faking a passing assertion.
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Direct weapon select — the slot that actually FIRES
+//
+// `resolveInput` resolved the player's own 1-0 binding into a `weaponSlot`
+// and all three driving screens then threw that field away, overwriting it
+// with their own `activeWeaponIndex`, which only the cycle action ever wrote.
+// So direct select did nothing and only Q/E worked, with the suite fully
+// green: every weapon-slot test in the repo drove either `resolveInput` (which
+// resolved the digit correctly) or a sim system (which honoured whatever slot
+// it was handed), and nothing checked the ONE line in between where the two
+// were wired together.
+//
+// These tests therefore assert on the `FireCommand` the real weapons system
+// builds, not on `resolveInput`'s return value and not on the HUD. That
+// command's `weaponSlotIndex` IS the slot that fires. They reach it by driving
+// the real Road screen (`showRoad`'s own frame loop builds its `InputFrame`
+// off the same shared `makeWeaponSelection` the two arena screens sample from)
+// in a real car, carrying real mounts the real Constructor put on it.
+//
+// happy-dom computes no layout, so nothing here asserts geometry: that the
+// touch button meets its 44px minimum target and sits clear of the fire
+// button is CSS (`.sm-touch__cmd`, shared with the existing G/F/J/X commands)
+// and is NOT proven by this file.
+// ---------------------------------------------------------------------------
+
+/**
+ * The mounts the PLAYER's car actually fired from, in call order, over
+ * whatever frames have been stepped since the spy was last cleared. Filtered
+ * by `ownerId` because `makeArenaWeaponsSystem` walks every vehicle in the
+ * world, so an engaged road contact fires through the same `fire()` too.
+ */
+function playerFiredSlots(calls: readonly { readonly weaponSlotIndex: number; readonly vehicle: { readonly ownerId: string } }[]): number[] {
+  return calls.filter((cmd) => cmd.vehicle.ownerId === PLAYER_ID).map((cmd) => cmd.weaponSlotIndex);
+}
+
+describe('DOM screens: the weapon slot a player selects is the slot that fires', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    originalMatchMedia = window.matchMedia;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Boots to a Road screen in a car with `mounts` real weapon mounts, holds
+   * the fire action down, and returns a reader for the mounts the player fires
+   * from. `makeArenaWeaponsSystem` calls `fire()` for the active mount on
+   * every tick fire is held and does so BEFORE any range, ammo or cooldown
+   * check (`validateFire` runs inside `fire`), so the command it builds
+   * reports the slot the input frame asked for whether or not the shot lands —
+   * which is exactly the fact under test, and needs no opponent in range.
+   */
+  async function driveRoadHoldingFire(mounts: number): Promise<{ firedSlots: () => number[]; clear: () => void }> {
+    await bootToCity(root, { weaponMounts: mounts });
+    await walkThroughGateToRoad();
+
+    const combat = await import('@/sim/combat');
+    const fireSpy = vi.spyOn(combat, 'fire');
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', code: 'KeyJ', bubbles: true }));
+
+    return {
+      firedSlots: () => playerFiredSlots(fireSpy.mock.calls.map(([cmd]) => cmd)),
+      clear: () => fireSpy.mockClear(),
+    };
+  }
+
+  function press(code: string, key: string): void {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key, code, bubbles: true }));
+  }
+
+  function release(code: string, key: string): void {
+    window.dispatchEvent(new KeyboardEvent('keyup', { key, code, bubbles: true }));
+  }
+
+  it('pressing "2" makes mount 2 the mount that actually fires, not mount 1', async () => {
+    const fired = await driveRoadHoldingFire(2);
+
+    fired.clear();
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([0]);
+
+    fired.clear();
+    press('Digit2', '2');
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([1]);
+  });
+
+  it('cycling with "e" reads and writes the same one slot direct select does, and neither overrides the other', async () => {
+    const fired = await driveRoadHoldingFire(2);
+
+    fired.clear();
+    press('KeyE', 'e');
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([1]);
+    release('KeyE', 'e');
+
+    // Direct select takes it straight back, so cycling did not leave a
+    // separate slot of its own behind.
+    fired.clear();
+    press('Digit1', '1');
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([0]);
+
+    // '1' is STILL held here. A cycle on this same tick must advance off the
+    // 0 that direct select wrote, and must not be undone by the held digit
+    // re-asserting itself: one slot, two edge-triggered writers, no race.
+    fired.clear();
+    press('KeyE', 'e');
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([1]);
+
+    // And the still-held '1' does not claw it back on any later tick either.
+    fired.clear();
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([1]);
+  });
+
+  it('selecting a mount the car does not have is refused outright, leaving the previous mount firing', async () => {
+    const fired = await driveRoadHoldingFire(2);
+
+    press('Digit2', '2');
+    stepFrame();
+    // Released before reaching for '5': `directWeaponSlot` reports the FIRST
+    // held digit in 1..9,0 order, so a still-held '2' would win and this would
+    // prove nothing.
+    release('Digit2', '2');
+
+    fired.clear();
+    press('Digit5', '5');
+    stepFrame();
+    // Not slot 4 (no such mount) and NOT clamped back to slot 0 — the
+    // selection is simply refused and mount 2 keeps firing.
+    expect(fired.firedSlots()).toEqual([1]);
+  });
+
+  it('the on-screen weapon button changes the mount that fires, so a phone player can switch off a dry magazine', async () => {
+    stubPointerCoarse(true);
+    const fired = await driveRoadHoldingFire(2);
+
+    const button = requireOne('button[data-touch-command="cycleWeapon"]');
+    expect({
+      label: button.getAttribute('aria-label'),
+      text: button.textContent,
+      hidden: (button as HTMLButtonElement).hidden,
+    }).toEqual({ label: t('ui.touch.cycleWeapon'), text: t('ui.touch.cycleWeapon'), hidden: false });
+
+    fired.clear();
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([0]);
+
+    fired.clear();
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    stepFrame();
+    expect(fired.firedSlots()).toEqual([1]);
+  });
+
+  it('hides the weapon button on a car with one mount, where there is nothing to switch to', async () => {
+    stubPointerCoarse(true);
+    await driveRoadHoldingFire(1);
+
+    const button = requireOne('button[data-touch-command="cycleWeapon"]');
+    expect((button as HTMLButtonElement).hidden).toBe(true);
+  });
+
+  it('mounts no weapon button at all on a non-coarse pointer', async () => {
+    stubPointerCoarse(false);
+    await driveRoadHoldingFire(2);
+
+    expect(document.querySelector('[data-touch-command="cycleWeapon"]')).toBeNull();
+    expect(document.querySelector('.sm-touch')).toBeNull();
   });
 });

@@ -131,6 +131,7 @@ import {
   bindingsForPreset,
   cyclePressed,
   defaultBindings,
+  directWeaponSlot,
   rebind,
   resolveInput,
   type AllBindings,
@@ -153,7 +154,7 @@ import { leaveAction, LEAVE_ACTION_ID, mountBuildingPanel, type RumorId } from '
 import { buildCityInstances, type CityVehicleView, type CityViewSnapshot } from '@/ui/city-view';
 import { mountMenu, type MenuAction, type MenuHeaderInfo } from '@/ui/menu';
 import { cityName, t } from '@/ui/strings';
-import { isCoarsePointer, mountTouchControls, type TouchControls } from '@/ui/touch';
+import { isCoarsePointer, mountTouchControls, type TouchCommandSpec, type TouchControls } from '@/ui/touch';
 import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
 
 import { initGpu, type GpuContext } from '@/render/gpu';
@@ -438,17 +439,113 @@ function rawInputFrom(codesDown: ReadonlySet<string>, touch: TouchControls | nul
   };
 }
 
-/** Edge-triggered weapon-cycle helper shared by every driving screen: `@/ui/input`'s `cyclePressed` reports raw HELD state, so this tracks the previous tick's held state itself and only fires `onCycle` on press, exactly once per press, never once per tick held. */
-function makeCycleWeaponEdge(onCycle: (delta: 1 | -1) => void): (raw: RawInputState) => void {
+/** The live active-mount selection every driving screen samples from. `active()` is `null` only when the car has no mounts at all. */
+interface WeaponSelection {
+  /** Reads one tick's raw device state and applies whatever mount change it asks for. Call once per sampled tick, before reading `active()`. */
+  update(raw: RawInputState): void;
+  /** The mount that will actually fire, guaranteed to index an existing mount whenever it is non-null. */
+  active(): number | null;
+  /** Applies a cycle from a source that isn't a bound key or button — the on-screen touch control, which is a tap, not a held action. */
+  cycleOnce(delta: 1 | -1): void;
+}
+
+/**
+ * The ONE piece of active-mount state a driving screen has, and the only
+ * thing allowed to write it. Both ways a player changes mount go through
+ * here: cycling (`cycleWeaponNext`/`cycleWeaponPrev`) and 1-0 direct select.
+ * Both are edge-triggered off `@/ui/input`'s deliberately memoryless
+ * readings, so neither can overwrite the other on a tick where both are
+ * held — a screen that re-read the held digit every frame instead would pin
+ * the slot there and make cycling look broken.
+ *
+ * Out-of-range selection is REFUSED, never clamped. A player who reaches for
+ * mount 5 on a four-mount car keeps the mount they already had, rather than
+ * being silently moved to mount 1 and firing a weapon they did not ask for.
+ * That refusal plus `cycle`'s modulo is what makes a non-null `active()`
+ * always a real mount index: the invariant is enforced at both writes, so no
+ * reader needs a defensive clamp (and `VehicleState.weapons` never shrinks —
+ * a destroyed or spent mount stays in the array, see `WeaponState.spent`).
+ *
+ * Selecting a DESTROYED or spent mount is deliberately allowed: cycling
+ * already steps onto one and the two must agree, `@/sim/combat`'s
+ * `validateFire` refuses the shot with a reason the HUD shows, and a mount
+ * that is merely cooling down becomes fireable again a tick later.
+ */
+function makeWeaponSelection(weaponCount: () => number): WeaponSelection {
+  let activeIndex: number | null = weaponCount() > 0 ? 0 : null;
   let prevNext = false;
   let prevPrev = false;
-  return (raw) => {
-    const { next, prev } = cyclePressed(raw, currentControlPreset, currentControlBindings);
-    if (next && !prevNext) onCycle(1);
-    if (prev && !prevPrev) onCycle(-1);
-    prevNext = next;
-    prevPrev = prev;
+  let prevDirect: number | null = null;
+
+  function cycle(delta: 1 | -1): void {
+    const count = weaponCount();
+    if (count === 0) {
+      activeIndex = null;
+      return;
+    }
+    activeIndex = ((((activeIndex ?? 0) + delta) % count) + count) % count;
+  }
+
+  return {
+    update(raw) {
+      const { next, prev } = cyclePressed(raw, currentControlPreset, currentControlBindings);
+      if (next && !prevNext) cycle(1);
+      if (prev && !prevPrev) cycle(-1);
+      prevNext = next;
+      prevPrev = prev;
+
+      const direct = directWeaponSlot(raw, currentControlPreset, currentControlBindings);
+      if (direct !== null && direct !== prevDirect && direct < weaponCount()) activeIndex = direct;
+      prevDirect = direct;
+    },
+    active: () => activeIndex,
+    cycleOnce: cycle,
   };
+}
+
+/**
+ * `InputFrame.weaponSlot` for a screen whose car has no mounts at all.
+ * `@/sim/ai`'s own decisions already use -1 for exactly this, and every
+ * weapons system reads `weapons[slot]` and returns on `undefined`, so this
+ * is the same no-op 0 was — except it can no longer be mistaken for a real
+ * mount index by anything that reads the frame later.
+ */
+const NO_WEAPON_SLOT = -1;
+
+/**
+ * The on-screen mount-switch control, for the screens where a weapon can
+ * actually fire — every caller of `mountTouchControls({ fire: true, ... })`,
+ * and no others. A phone has no 1-0 row and no Q/E, so without this a touch
+ * player is locked to whichever mount they started on: they cannot switch off
+ * a dry magazine, which is the one tactic amateur night is balanced around
+ * (see `tests/integration/no-active-vehicle.test.ts` on why the loaner
+ * carries four mounts rather than one fat one).
+ *
+ * A `TouchCommandSpec` rather than a new kind of control, because switching
+ * mount is a discrete tap exactly like the existing G/F/J/X commands, and so
+ * inherits their 44px minimum target, `aria-label` and corner stacking for
+ * free. It cycles FORWARD only: a reverse button would crowd the same corner
+ * to save at most two taps on a four-mount car.
+ *
+ * It reports neither which mount is now active nor what that mount has left,
+ * because the HUD's weapons panel is already on screen saying exactly that,
+ * keyed by the same 1-based mount number (`@/ui/hud`'s `buildWeaponRow`: slot
+ * number, ammo/capacity, `aria-current` on the active row). A second, smaller
+ * copy could only drift from it.
+ *
+ * Hidden on a car with fewer than two mounts, where there is nothing to switch
+ * between. Decided once rather than per frame, because `VehicleState.weapons`
+ * never shrinks — a destroyed mount stays in the array.
+ */
+function weaponTouchCommands(selection: WeaponSelection, vehicle: VehicleState): readonly TouchCommandSpec[] {
+  return [
+    {
+      id: 'cycleWeapon',
+      labelKey: 'ui.touch.cycleWeapon',
+      onPress: () => selection.cycleOnce(1),
+      initiallyVisible: vehicle.weapons.length > 1,
+    },
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -1633,25 +1730,14 @@ function showArena(
   // --- input --------------------------------------------------------------
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
-  const touch = mountTouchControls(container, { fire: true });
-  let activeWeaponIndex: number | null = playerVehicle.weapons.length > 0 ? 0 : null;
-  function cycleWeapon(delta: number): void {
-    const player = findPlayer(world);
-    const count = player?.weapons.length ?? 0;
-    if (count === 0) {
-      activeWeaponIndex = null;
-      return;
-    }
-    const base = activeWeaponIndex ?? 0;
-    activeWeaponIndex = (((base + delta) % count) + count) % count;
-  }
-  const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
+  const weaponSelection = makeWeaponSelection(() => findPlayer(world)?.weapons.length ?? 0);
+  const touch = mountTouchControls(container, { fire: true, commands: weaponTouchCommands(weaponSelection, playerVehicle) });
 
   function sampleInput(): InputFrame {
     const raw = rawInputFrom(codesDown, touch);
-    applyCycleEdge(raw);
+    weaponSelection.update(raw);
     const resolved = resolveInput(raw, currentControlPreset, currentControlBindings);
-    return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: activeWeaponIndex ?? 0 };
+    return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: weaponSelection.active() ?? NO_WEAPON_SLOT };
   }
 
   const loop = createGameLoop({ world, dtSeconds, systems, sampleInput });
@@ -1671,7 +1757,7 @@ function showArena(
     const accelMphPerSec = computeBuild(player.design).accelMphPerSec;
     const snapshot: HudSnapshot = {
       vehicle: player,
-      activeWeaponIndex,
+      activeWeaponIndex: weaponSelection.active(),
       accelMphPerSec,
       radar: { enabled: !isRadarDisabled(player.plantDP, plant.radarFailureThreshold), contacts: [] },
       driver: { naturalHealth: driverRef.current.naturalHealth, bodyArmor: driverRef.current.bodyArmor },
@@ -2507,25 +2593,14 @@ function showArenaEvent(
 
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
-  const touch = mountTouchControls(container, { fire: true });
-  let activeWeaponIndex: number | null = playerVehicle.weapons.length > 0 ? 0 : null;
-  function cycleWeapon(delta: number): void {
-    const player = findPlayer(world);
-    const count = player?.weapons.length ?? 0;
-    if (count === 0) {
-      activeWeaponIndex = null;
-      return;
-    }
-    const base = activeWeaponIndex ?? 0;
-    activeWeaponIndex = (((base + delta) % count) + count) % count;
-  }
-  const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
+  const weaponSelection = makeWeaponSelection(() => findPlayer(world)?.weapons.length ?? 0);
+  const touch = mountTouchControls(container, { fire: true, commands: weaponTouchCommands(weaponSelection, playerVehicle) });
 
   function sampleInput(): InputFrame {
     const raw = rawInputFrom(codesDown, touch);
-    applyCycleEdge(raw);
+    weaponSelection.update(raw);
     const resolved = resolveInput(raw, currentControlPreset, currentControlBindings);
-    return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: activeWeaponIndex ?? 0 };
+    return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: weaponSelection.active() ?? NO_WEAPON_SLOT };
   }
 
   const loop = createGameLoop({ world, dtSeconds, systems, sampleInput });
@@ -2544,7 +2619,7 @@ function showArenaEvent(
     const accelMphPerSec = computeBuild(player.design).accelMphPerSec;
     const snapshot: HudSnapshot = {
       vehicle: player,
-      activeWeaponIndex,
+      activeWeaponIndex: weaponSelection.active(),
       accelMphPerSec,
       radar: { enabled: !isRadarDisabled(player.plantDP, plant.radarFailureThreshold), contacts: [] },
       driver: { naturalHealth: driverRef.current.naturalHealth, bodyArmor: driverRef.current.bodyArmor },
@@ -3682,21 +3757,14 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   // --- input ------------------------------------------------------------
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
+  const weaponSelection = makeWeaponSelection(() => trip.vehicle.weapons.length);
   const touch = mountTouchControls(container, {
     fire: true,
-    commands: [{ id: 'searchWreck', labelKey: 'ui.touch.searchWreck', onPress: trySearchWreck, initiallyVisible: false }],
+    commands: [
+      { id: 'searchWreck', labelKey: 'ui.touch.searchWreck', onPress: trySearchWreck, initiallyVisible: false },
+      ...weaponTouchCommands(weaponSelection, trip.vehicle),
+    ],
   });
-  let activeWeaponIndex: number | null = trip.vehicle.weapons.length > 0 ? 0 : null;
-  function cycleWeapon(delta: number): void {
-    const count = trip.vehicle.weapons.length;
-    if (count === 0) {
-      activeWeaponIndex = null;
-      return;
-    }
-    const base = activeWeaponIndex ?? 0;
-    activeWeaponIndex = (((base + delta) % count) + count) % count;
-  }
-  const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
 
   let gpuCtx: GpuContext | undefined;
   let resources: RenderResources | undefined;
@@ -3882,13 +3950,13 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     lastTimeMs = nowMs;
 
     const raw = rawInputFrom(codesDown, touch);
-    applyCycleEdge(raw);
+    weaponSelection.update(raw);
     const resolvedInput = resolveInput(raw, currentControlPreset, currentControlBindings);
     const playerInput: InputFrame = {
       moveX: resolvedInput.moveX,
       moveY: resolvedInput.moveY,
       fire: resolvedInput.fire,
-      weaponSlot: activeWeaponIndex ?? 0,
+      weaponSlot: weaponSelection.active() ?? NO_WEAPON_SLOT,
     };
 
     const result = stepRoadTrip(trip, { stick: { x: playerInput.moveX, y: playerInput.moveY } }, dtSeconds, state.rng, drivingSkill, 'normal', contactDamageThisTick());

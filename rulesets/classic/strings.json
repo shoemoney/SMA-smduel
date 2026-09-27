@@ -59,6 +59,7 @@
     "ui.touch.fleet": "Fleet",
     "ui.touch.journal": "Journal",
     "ui.touch.searchWreck": "Search",
+    "ui.touch.cycleWeapon": "Weapon",
     "ui.confirm.buildVehicle": "Build this vehicle",
 
     "ui.title.appName": "smduel",
