@@ -354,7 +354,11 @@ describe('stepWalk', () => {
     const onFoot = createCityPlayerState({ x: 0, y: 0 });
     const riding: CityPlayerState = { ...onFoot, inVehicle: true };
     const layout = generateCityLayout(PROVIDENCE, SAVE_SEED_A);
-    const dt = 1;
+    // Half a second, not a full one: providence's plaza is the smallest a real
+    // layout produces (boundsRadiusM ~6m), and a full second at the driving
+    // speed would land outside it, so `clampToCityWalls` would answer 6.0 and
+    // this test would be measuring the wall rather than the speed.
+    const dt = 0.5;
     const KNOWN_CITY_DRIVE_SPEED_MPS = 6.6; // driving.json's city.vehicleSpeedMps, copied here so this test does not compare the implementation to its own source (see the dedicated mock test below for sourcing proof)
 
     const driven = stepWalk({ player: riding, layout, direction: 'E', dtSeconds: dt, clock: initialClock() });
@@ -455,6 +459,36 @@ describe('stepWalk', () => {
     const player = fresh.createCityPlayerState({ x: 0, y: 0 });
     const result = fresh.stepWalk({ player, layout, direction: 'E', dtSeconds: 1, clock: initialClock() });
     expect(result.player.position.x).toBeCloseTo(MOCK_SPEED_MPS, 10);
+    expect(result.player.position.x).not.toBeCloseTo(drivingConfig().pedestrian.speedMps, 5);
+    vi.doUnmock('@/data/rulesets');
+    vi.resetModules();
+  });
+
+  it("city driving speed is read from driving.json's city block at call time, not hardcoded and not the pedestrian value", async () => {
+    vi.resetModules();
+    // Same reasoning as the walking mock above: small enough that even with
+    // the mock in place the step stays inside providence's real ~6m wall, so
+    // the assertion measures the speed rather than `clampToCityWalls`.
+    const MOCK_CITY_DRIVE_SPEED_MPS = 5;
+    vi.doMock('@/data/rulesets', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('@/data/rulesets')>();
+      return {
+        ...actual,
+        drivingConfig: () => ({
+          ...actual.drivingConfig(),
+          city: { ...actual.drivingConfig().city, vehicleSpeedMps: MOCK_CITY_DRIVE_SPEED_MPS },
+        }),
+      };
+    });
+    const fresh = await import('@/sim/city');
+    const layout = fresh.generateCityLayout(PROVIDENCE, SAVE_SEED_A);
+    const riding: CityPlayerState = { ...fresh.createCityPlayerState({ x: 0, y: 0 }), inVehicle: true };
+    const result = fresh.stepWalk({ player: riding, layout, direction: 'E', dtSeconds: 1, clock: initialClock() });
+
+    expect(result.player.position.x).toBeCloseTo(MOCK_CITY_DRIVE_SPEED_MPS, 10);
+    expect(result.player.position.x).not.toBeCloseTo(drivingConfig().city.vehicleSpeedMps, 5);
+    // The mock left `pedestrian.speedMps` real, so a driving step that fell
+    // back to the walking value would land on it instead.
     expect(result.player.position.x).not.toBeCloseTo(drivingConfig().pedestrian.speedMps, 5);
     vi.doUnmock('@/data/rulesets');
     vi.resetModules();

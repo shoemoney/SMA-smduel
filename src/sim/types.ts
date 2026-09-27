@@ -452,6 +452,13 @@ export interface PedestrianConfig {
   interactionRadiusM: number;
 }
 
+/** Moving around a walled city on the `@/sim/city` plaza, as opposed to the highway. */
+export interface CityDrivingConfig {
+  _note?: string;
+  /** How fast the player's own car crosses the plaza while the driver is riding it (`stepWalk`). Its own value, not the car's road top speed: a plaza is tens of meters across. */
+  vehicleSpeedMps: number;
+}
+
 export interface DrivingConfig {
   $schemaVersion: number;
   _note?: string;
@@ -470,6 +477,7 @@ export interface DrivingConfig {
   arena: ArenaSpawnConfig;
   radar: RadarConfig;
   pedestrian: PedestrianConfig;
+  city: CityDrivingConfig;
 }
 
 // --- raw file shapes (one per JSON file) --------------------------------------

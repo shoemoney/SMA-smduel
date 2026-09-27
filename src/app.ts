@@ -3342,7 +3342,17 @@ function showCity(root: HTMLElement, state: CityRunState): void {
       const direction = cityDirectionFromVector({ x: resolved.moveX, y: resolved.moveY });
       const step = stepWalk({ player, layout, direction, dtSeconds, clock: runState.clock });
       player = step.player;
-      runState = { ...runState, clock: step.clock };
+      // Driving moves the CAR, so the car's own position has to follow.
+      // `@/ui/city-view` already draws the ridden car at the player's
+      // position/heading, but `runState.vehicle` is what the driver gets back
+      // out into, what the salvage yard sells and what the road trip departs
+      // with. Left behind it would snap back to wherever it was parked the
+      // instant they pressed 'G' again.
+      const driven =
+        player.inVehicle && runState.vehicle !== null
+          ? { ...runState.vehicle, position: player.position, headingRad: player.headingRad }
+          : runState.vehicle;
+      runState = { ...runState, clock: step.clock, vehicle: driven };
       if (step.trigger.kind !== 'none') handleTrigger(step.trigger);
     }
     updateStatus();

@@ -952,6 +952,18 @@ describe('DOM screens: city touch command buttons run the exact same code as the
   });
 
   /**
+   * `frame()` clamps dt to `max(0, ...)` and its `lastTimeMs` starts at a real
+   * `performance.now()`, so the first callback after a screen mounts sees a
+   * negative delta and advances the sim by zero. Burning it with no key held is
+   * a pure no-op (`stepWalk` returns untouched on a null direction), and it
+   * makes every later `stepFrame()` worth a full 250ms tick, which is what the
+   * distance arithmetic below assumes.
+   */
+  function warmUpFrame(): void {
+    stepFrame();
+  }
+
+  /**
    * Walks the player away from the gate and straight back, `steps` frames per
    * leg, returning whether the gate's route menu opened.
    *
@@ -971,6 +983,7 @@ describe('DOM screens: city touch command buttons run the exact same code as the
    * identical speed, landing back on the gate.
    */
   function walkOutAndBack(steps: number): boolean {
+    warmUpFrame();
     const cityId = skillsConfig().startingLocation;
     const layout = generateCityLayout(cityId, TEST_SEED);
     const gate = layout.gate.position;
@@ -1050,6 +1063,49 @@ describe('DOM screens: city touch command buttons run the exact same code as the
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', code: 'KeyG', bubbles: true }));
 
     expect(walkOutAndBack(STEPS_TOO_SHORT_TO_WALK)).toBe(false);
+  });
+
+  it('the car follows the driver, so getting out somewhere else and back in again works', async () => {
+    await bootToCity(root);
+
+    // Drive AWAY from the gate, get out there, then get back in. `toggleVehicle`
+    // gates re-entry on `isVehicleInRange` (3m), and this trip covers 6.6m, so
+    // this only succeeds if the car moved with the driver instead of staying
+    // parked on the gate. Driving back to the gate afterwards is the readout:
+    // on foot the same four frames cover 2.2m and never reach it.
+    warmUpFrame();
+    const STEPS = 4;
+    const cityId = skillsConfig().startingLocation;
+    const gate = generateCityLayout(cityId, TEST_SEED).gate.position;
+
+    const inwardKeys: KeyboardEventInit[] = [];
+    if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
+    else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
+    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
+    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
+      if (k.code === 'KeyD') return { key: 'a', code: 'KeyA' };
+      if (k.code === 'KeyA') return { key: 'd', code: 'KeyD' };
+      if (k.code === 'KeyW') return { key: 's', code: 'KeyS' };
+      return { key: 'w', code: 'KeyW' };
+    });
+    const pressG = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', code: 'KeyG', bubbles: true }));
+
+    pressG(); // in
+    for (const k of inwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS; i++) stepFrame();
+    for (const k of inwardKeys) dispatchKeyUp(window, k);
+    expect(document.querySelector('.sm-menu')).toBeNull(); // driving inward reaches no trigger circle
+
+    pressG(); // out, far from the gate
+    pressG(); // back in, which needs the car to be here too
+
+    for (const k of outwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS; i++) stepFrame();
+    for (const k of outwardKeys) dispatchKeyUp(window, k);
+
+    const menu = requireOne('.sm-menu');
+    expect(menu.textContent).toMatch(/danger/);
   });
 
 });
