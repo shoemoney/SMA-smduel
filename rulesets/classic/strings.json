@@ -124,6 +124,7 @@
     "ui.city.status": "{city} — Day {day}, {phase} — ${cash}\nWASD/arrows walk · G enter/exit car · walk into a building or the gate",
     "ui.city.statusTouch": "{city} — Day {day}, {phase} — ${cash}\nDrag the stick to walk · tap Car to enter/exit · walk into a building or the gate",
     "ui.city.routeOption": "{city} — {miles}mi, danger {danger}",
+    "ui.city.gateNoVehicle": "no car to drive out in — buy one at the assembly plant or retrieve one from the fleet",
 
     "ui.road.status": "En route to {city} — {miles}mi remaining — Day {day}, {phase} — WASD/arrows drive",
     "ui.road.statusTouch": "En route to {city} — {miles}mi remaining — Day {day}, {phase} — drag the stick to drive",

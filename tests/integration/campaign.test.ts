@@ -307,7 +307,10 @@ describe('campaign: the-boss-tape end to end (clue chain -> marked/clone/pursuit
     expect(delivery.result?.sandboxContinues).toBe(true);
     expect(delivery.result?.paidAmount).toBe(BOSS_TAPE.pay);
     expect(delivery.state.driver.cash).toBe(driverBefore.cash + BOSS_TAPE.pay);
-    expect(delivery.state.vehicle.cargo.some((item) => item.id === cargoId)).toBe(false); // cargo consumed
+    // The delivery keeps the driver in the same car they arrived in, so a null
+    // here would itself be the regression, not a shape to shrug past.
+    expect(delivery.state.vehicle).not.toBeNull();
+    expect(delivery.state.vehicle?.cargo.some((item) => item.id === cargoId)).toBe(false); // cargo consumed
     expect(wonVictory(delivery.state.quests)).toBe(true);
     expect(delivery.def?.id).toBe(BOSS_TAPE.id);
 

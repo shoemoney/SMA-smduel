@@ -28,6 +28,8 @@ import {
   computeArenaSpawnPositions,
   findBearingTarget,
   getArenaEvent,
+  houseKartDesign,
+  isHouseVehicleSalvageable,
   opponentDefeatedByReport,
   orientedRectsOverlap,
   recordOpponentDefeated,
@@ -36,6 +38,7 @@ import {
   selectArchetypeForEvent,
   vehicleOrientedRect,
   type ArenaEventDef,
+  type ArenaEventId,
   type ArenaExitMode,
   type ArenaMatchState,
   type ArenaOpponentArchetype,
@@ -1435,7 +1438,8 @@ function vehicleSpriteInstance(vehicle: VehicleState, atlasIndex: AtlasIndex): S
 export interface PersistSessionInput {
   readonly openDb: () => Promise<IDBDatabase>;
   readonly driver: DriverState;
-  readonly vehicle: VehicleState;
+  /** `null` for a driver who owns no car right now (`CityRunState.vehicle`'s own contract). `SaveGame.activeVehicleId` is optional for exactly this case, so the save simply carries no vehicles and no active id. */
+  readonly vehicle: VehicleState | null;
   readonly clock: Clock;
   readonly location: string;
   readonly quests: readonly QuestState[];
@@ -1465,7 +1469,10 @@ export interface PersistSessionInput {
  */
 export async function persistArenaSession(input: PersistSessionInput): Promise<void> {
   const seed = input.world !== null ? seedKeyToDisplaySeed(input.world.rngState.seedKey) : input.sessionSeed;
-  const vehicles: Record<string, VehicleState> = { [input.vehicle.id]: input.vehicle };
+  const vehicles: Record<string, VehicleState> = input.vehicle !== null ? { [input.vehicle.id]: input.vehicle } : {};
+  // `exactOptionalPropertyTypes` is on, so an absent `activeVehicleId` has to
+  // be an absent KEY, never `undefined` assigned to one.
+  const activeId = input.vehicle !== null ? { activeVehicleId: input.vehicle.id } : {};
   const game: SaveGame = {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     rulesetVersion: 'classic-1',
@@ -1474,7 +1481,7 @@ export async function persistArenaSession(input: PersistSessionInput): Promise<v
     phase: input.clock.phase,
     location: input.location,
     driver: input.driver,
-    activeVehicleId: input.vehicle.id,
+    ...activeId,
     vehicles,
     jobs: [],
     quests: input.quests,
@@ -1489,7 +1496,7 @@ export async function persistArenaSession(input: PersistSessionInput): Promise<v
       location: input.location,
       driver: input.driver,
       vehicles,
-      activeVehicleId: input.vehicle.id,
+      ...activeId,
     },
     controlPreset: currentControlPreset,
     controlBindings: currentControlBindings,
@@ -1838,7 +1845,24 @@ function showArena(
  */
 export interface CityRunState {
   readonly driver: DriverState;
-  readonly vehicle: VehicleState;
+  /**
+   * The car the driver is CURRENTLY in, or `null` when they own none — a
+   * driver who sold their last car at a salvage yard, or who walked out of a
+   * house-sourced arena event in a loaner that went back to the house
+   * (arenas.json's `houseVehicle.salvageable: false`). Nullable because the
+   * game genuinely reaches that state and two rules depend on it being
+   * representable: `@/ui/buildings/salvage`'s `sell-car` cannot otherwise
+   * stick (the sale used to be undone on the way out, paying again on the
+   * next visit), and `@/sim/arena`'s `eligibilityFor` opens amateur-night's
+   * `on-foot-under-threshold` branch by REFUSING any non-null vehicle, so a
+   * permanently non-null field made the broke driver's on-ramp unreachable.
+   *
+   * `@/persist/save`'s `SaveGame.activeVehicleId` has always been optional,
+   * so persistence already modeled this; only the in-memory run state did
+   * not. Every screen that genuinely needs a car refuses with a reason the
+   * player can read (see `openGatePrompt`), rather than asserting non-null.
+   */
+  readonly vehicle: VehicleState | null;
   readonly vehicleStored: boolean;
   readonly clock: Clock;
   readonly cityId: string;
@@ -1910,7 +1934,8 @@ export interface CityRunState {
  */
 export function cityRunStateFromSaveGame(
   game: SaveGame,
-  vehicle: VehicleState,
+  /** `null` resumes a driver who owns no car, the state `SaveGame.activeVehicleId`'s optionality has always described. They resume on foot, exactly where the save left them, rather than losing the run to a fresh session. */
+  vehicle: VehicleState | null,
   options: { readonly openDb: () => Promise<IDBDatabase>; readonly search: string; readonly randomSeed?: () => string },
 ): CityRunState {
   const savedSeed = seedKeyToDisplaySeed(game.rngState.seedKey);
@@ -1937,7 +1962,7 @@ export function cityRunStateFromSaveGame(
     search: options.search,
     rumorsHeardToday: new Map(),
     activeCourierJobs: [],
-    fleet: { vehicles: [{ vehicle, stored: false, cityId: game.location }] },
+    fleet: { vehicles: vehicle !== null ? [{ vehicle, stored: false, cityId: game.location }] : [] },
     routeHistory: new Map(),
     quests: game.quests,
     arenaRecord: { wins: 0, losses: 0 },
@@ -1960,7 +1985,10 @@ export function buildingContextFrom(state: CityRunState): BuildingContext {
     vehicle: state.vehicle,
     vehicleStored: state.vehicleStored,
     fleetSize: fleetVehicleCount(state.fleet),
-    existingCarNames: [state.vehicle.design.name, ...state.fleet.vehicles.map((entry) => entry.vehicle.design.name)],
+    existingCarNames: [
+      ...(state.vehicle !== null ? [state.vehicle.design.name] : []),
+      ...state.fleet.vehicles.map((entry) => entry.vehicle.design.name),
+    ],
     rng: state.rng,
     rumorsHeardToday: state.rumorsHeardToday,
     activeCourierJobs: state.activeCourierJobs,
@@ -2052,12 +2080,20 @@ export function attemptQuestDelivery(
   state: CityRunState,
   facilityKind: string,
 ): { readonly state: CityRunState; readonly result: QuestDeliverResult | null; readonly def: QuestDef | null } {
+  // A quest's payload rides in the active vehicle's `cargo` (see
+  // `applyQuestAcceptEffects`, which is equally a no-op with no vehicle to
+  // load it onto), so a driver with no car is carrying nothing to deliver.
+  // `deliverQuest` would answer CARGO_MISSING for every quest; asking it is
+  // pointless work, and it has no null vehicle to answer about anyway.
+  const vehicle = state.vehicle;
+  if (vehicle === null) return { state, result: null, def: null };
+
   for (const def of questDefs()) {
     if (def.destination.cityId !== state.cityId || def.destination.facility !== facilityKind) continue;
     const existing = state.quests.find((q) => q.id === def.id);
     if (existing === undefined || existing.completed || existing.stage < def.clueChain.length) continue;
 
-    const result = deliverQuest(def, state.quests, state.driver, state.vehicle, state.cityId, facilityKind, state.clock, Number.POSITIVE_INFINITY);
+    const result = deliverQuest(def, state.quests, state.driver, vehicle, state.cityId, facilityKind, state.clock, Number.POSITIVE_INFINITY);
     if (result.outcome !== 'DELIVERED' && result.outcome !== 'LATE') continue; // WRONG_LOCATION/CARGO_MISSING/ALREADY_DELIVERED: nothing to apply
     return {
       state: { ...state, driver: result.driver, vehicle: result.vehicle, quests: result.quests },
@@ -2160,8 +2196,12 @@ export function reconcileFleetWithVehicle(fleet: Fleet, vehicle: VehicleState, v
  * having already paid out the sale price for a car still sitting in the
  * fleet.
  */
-export function fleetAfterBuildingVisit(fleet: Fleet, previousVehicleId: string, ctx: BuildingContext): Fleet {
+export function fleetAfterBuildingVisit(fleet: Fleet, previousVehicleId: string | null, ctx: BuildingContext): Fleet {
   if (ctx.vehicle === null) {
+    // `null` previousVehicleId: the driver walked in with no car at all, so
+    // there is no roster entry a null `ctx.vehicle` could be reporting the
+    // loss of. Nothing to remove.
+    if (previousVehicleId === null) return fleet;
     const removed = removeVehicle(fleet, previousVehicleId);
     return removed.ok ? removed.fleet : fleet;
   }
@@ -2170,23 +2210,28 @@ export function fleetAfterBuildingVisit(fleet: Fleet, previousVehicleId: string,
 
 /**
  * Applies a `BuildingContext` a panel handed back on exit onto `state` -
- * every field a building can actually change, nothing else. `ctx.vehicle`
- * turns up null only from the salvage yard's own 'sell-car' action
- * (`@/ui/buildings/salvage.ts`) — `CityRunState.vehicle` can never itself be
- * null (every later screen reads it directly), so it falls back to the
- * PRE-sale `state.vehicle` purely to keep that shape; `fleetAfterBuildingVisit`
- * above is what actually keeps the sold car out of `fleet` regardless.
+ * every field a building can actually change, nothing else.
+ *
+ * Paired with `buildingContextFrom` above this is the whole round trip, and
+ * both halves are exported so a test can drive it without booting a screen.
+ *
+ * `ctx.vehicle` is taken verbatim, null included. The salvage yard's own
+ * 'sell-car' hands back `vehicle: null` to mean "this car is GONE", and
+ * `CityRunState.vehicle` is nullable precisely so that survives the exit.
+ * This used to read `ctx.vehicle ?? state.vehicle`, which treated that
+ * deliberate null as "no value supplied" and restored the pre-sale car — the
+ * money printer (sell, keep cash, keep car, sell again) reported from the
+ * live site, and the reason amateur-night could never be entered.
  */
 export function applyBuildingContext(state: CityRunState, ctx: BuildingContext): CityRunState {
-  const vehicle = ctx.vehicle ?? state.vehicle;
   return {
     ...state,
     driver: ctx.driver,
     clock: ctx.clock,
     cityId: ctx.cityId,
-    vehicle,
+    vehicle: ctx.vehicle,
     vehicleStored: ctx.vehicleStored,
-    fleet: fleetAfterBuildingVisit(state.fleet, state.vehicle.id, ctx),
+    fleet: fleetAfterBuildingVisit(state.fleet, state.vehicle?.id ?? null, ctx),
     rumorsHeardToday: ctx.rumorsHeardToday,
     activeCourierJobs: ctx.activeCourierJobs,
     routeHistory: ctx.routeHistory,
@@ -2351,6 +2396,47 @@ export function showArcadeScoreSubmit(
 // the real `recordOpponentDefeated`, so `resolveArenaExit` can genuinely
 // resolve VICTORY once the whole roster is down and the player drives out
 // under their own power, not just ESCAPE.
+/**
+ * Which car the driver actually fights in.
+ *
+ * A `house`-sourced event is entered ON FOOT (`@/sim/arena`'s
+ * `eligibilityFor` refuses any non-null vehicle for amateur-night's
+ * `on-foot-under-threshold` branch) and the house lends its own kart:
+ * arenas.json's `houseVehicle`, whose `totalCount: 6` note already accounts
+ * for it as "5 amateur-night opponents + the player's own loaner". That makes
+ * it a symmetric match in identical cars, which is the point of the event.
+ * `spawnArenaOpponents` deals the opponents from the same `houseKartDesign`,
+ * so both sides come off one ruleset row rather than two.
+ *
+ * `own`-sourced events use the active vehicle, which the same eligibility
+ * check has already refused the entry without. `null` back from here means
+ * the caller should not enter, never that it should assert.
+ */
+export function arenaPlayerVehicle(active: VehicleState | null, eventId: ArenaEventId): VehicleState | null {
+  if (rosterFor(eventId).vehicleSource !== 'house') return active;
+  return vehicleStateFromDesign(houseKartDesign(), `veh-${PLAYER_ID}-loaner`, PLAYER_ID);
+}
+
+/**
+ * The other half of `arenaPlayerVehicle`: which car the driver walks OUT of
+ * an event with.
+ *
+ * arenas.json's `houseVehicle.salvageable` is false, noted there as "House
+ * karts are never salvageable, win or lose", so a loaner goes back to the
+ * house whatever happened to it and the driver leaves with the car they
+ * arrived in — for amateur-night, none. `own`-sourced events carry the
+ * fought-in car back out, wreck included (`reconcileFleetWithVehicle`'s
+ * `destroyed` branch is what drops it from the roster).
+ *
+ * Read off the ruleset rather than hardcoded, so flipping `salvageable` to
+ * true in arenas.json is all it takes to let a driver keep the kart they won
+ * in.
+ */
+export function arenaExitVehicle(activeBeforeEntry: VehicleState | null, foughtIn: VehicleState, eventId: ArenaEventId): VehicleState | null {
+  const loaned = rosterFor(eventId).vehicleSource === 'house' && !isHouseVehicleSalvageable();
+  return loaned ? activeBeforeEntry : foughtIn;
+}
+
 function showArenaEvent(
   root: HTMLElement,
   chargedDriver: DriverState,
@@ -2588,7 +2674,7 @@ function showArenaEvent(
     const exitMode: ArenaExitMode = player?.destroyed === true ? 'ON_FOOT' : 'UNDER_POWER';
     const resolution: ArenaResolution = resolveArenaExit(matchStateRef.current, driverRef.current, exitMode);
     const nextClock = advanceDays(world.clock, resolution.daysConsumed);
-    const nextVehicle = player ?? playerVehicle;
+    const nextVehicle: VehicleState | null = arenaExitVehicle(cityState.vehicle, player ?? playerVehicle, matchState.eventId);
     const nextArenaRecord: ArenaRecord = {
       wins: cityState.arenaRecord.wins + (resolution.outcome === 'VICTORY' ? 1 : 0),
       losses: cityState.arenaRecord.losses + (resolution.outcome === 'FORFEIT' ? 1 : 0),
@@ -2616,7 +2702,7 @@ function showArenaEvent(
       driver: resolution.driver,
       vehicle: nextVehicle,
       clock: nextClock,
-      fleet: reconcileFleetWithVehicle(cityState.fleet, nextVehicle, false, cityState.cityId),
+      fleet: nextVehicle === null ? cityState.fleet : reconcileFleetWithVehicle(cityState.fleet, nextVehicle, false, cityState.cityId),
       arenaRecord: nextArenaRecord,
     };
 
@@ -2799,7 +2885,10 @@ function showFleet(root: HTMLElement, state: CityRunState, onExit: (nextState: C
   // touch mid-drive (arena damage, road combat, cargo picked up from a
   // wreck), so this is the one moment that live state is folded back in
   // before anything here reads or switches off of it.
-  let runState: CityRunState = { ...state, fleet: reconcileFleetWithVehicle(state.fleet, state.vehicle, false, state.cityId) };
+  // A carless driver has no live state to fold in, only stored cars to
+  // retrieve, so the roster is already current.
+  let runState: CityRunState =
+    state.vehicle === null ? state : { ...state, fleet: reconcileFleetWithVehicle(state.fleet, state.vehicle, false, state.cityId) };
 
   function actionsFor(): MenuAction[] {
     const actions: MenuAction[] = runState.fleet.vehicles.map((entry) => ({
@@ -2899,18 +2988,18 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   // the screen the player was just on.
   let runState: CityRunState = {
     ...state,
-    vehicle: { ...state.vehicle, position: { ...layout.gate.position }, headingRad: 0 },
+    vehicle: state.vehicle === null ? null : { ...state.vehicle, position: { ...layout.gate.position }, headingRad: 0 },
   };
   let player: CityPlayerState = createCityPlayerState({ ...layout.gate.position });
   let paused = false;
 
   function citySnapshot(): CityViewSnapshot {
-    const vehicleView: CityVehicleView = {
-      position: runState.vehicle.position,
-      headingRad: runState.vehicle.headingRad,
-      bodyId: runState.vehicle.design.bodyId,
-    };
-    return { layout, player, vehicle: runState.vehicleStored ? null : vehicleView };
+    const vehicle = runState.vehicle;
+    const vehicleView: CityVehicleView | null =
+      vehicle === null || runState.vehicleStored
+        ? null
+        : { position: vehicle.position, headingRad: vehicle.headingRad, bodyId: vehicle.design.bodyId };
+    return { layout, player, vehicle: vehicleView };
   }
 
   function updateStatus(): void {
@@ -2984,12 +3073,15 @@ function showCity(root: HTMLElement, state: CityRunState): void {
           runState.driver,
           (chargedDriver, confirmed) => {
             // A fresh build becomes the new active car; whatever was active
-            // before (there always is one — the driver walked in here
-            // driving it) is garaged in THIS city instead of discarded, the
-            // same "additional car" flow `@/ui/buildings/assembly`'s own
-            // fleet-cap gate (`ctx.fleetSize < maxFleetSize`) exists for.
+            // before is garaged in THIS city instead of discarded, the same
+            // "additional car" flow `@/ui/buildings/assembly`'s own fleet-cap
+            // gate (`ctx.fleetSize < maxFleetSize`) exists for. A carless
+            // driver buying their way back in has nothing to garage, and this
+            // is the one path that gets them a car again.
+            const outgoing = runState.vehicle;
             const newVehicle = vehicleStateFromConfirmedBuild(confirmed, PLAYER_ID, `veh-${PLAYER_ID}-${runState.fleet.vehicles.length}`);
-            const fleetWithOldGaraged = reconcileFleetWithVehicle(runState.fleet, runState.vehicle, true, runState.cityId);
+            const fleetWithOldGaraged =
+              outgoing === null ? runState.fleet : reconcileFleetWithVehicle(runState.fleet, outgoing, true, runState.cityId);
             const fleetResult = fleetAddVehicle(fleetWithOldGaraged, { vehicle: newVehicle, stored: false, cityId: runState.cityId });
             runState = {
               ...runState,
@@ -3001,14 +3093,19 @@ function showCity(root: HTMLElement, state: CityRunState): void {
             showCity(root, runState);
           },
           () => showCity(root, runState),
-          [runState.vehicle.design.name],
+          runState.vehicle === null ? [] : [runState.vehicle.design.name],
           fleetVehicleCount(runState.fleet),
         );
       },
       onEnterArena: (result: ArenaEntryResult) => {
+        const entered = arenaPlayerVehicle(runState.vehicle, result.matchState.eventId);
+        // `eligibilityFor` already refused every own-sourced event to a
+        // carless driver, and every house-sourced one hands back a loaner, so
+        // this is unreachable — and a refusal beats an assertion either way.
+        if (entered === null) return;
         mounted?.destroy();
         stop();
-        showArenaEvent(root, result.driver, runState.vehicle, result.matchState, runState.clock, runState, (nextState) => {
+        showArenaEvent(root, result.driver, entered, result.matchState, runState.clock, runState, (nextState) => {
           runState = nextState;
           showCity(root, runState);
         });
@@ -3024,10 +3121,16 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     }
     const card = openPanel();
     const neighbors = cityRouteNeighbors(runState.cityId);
+    // No car, no road. Shown as a refusal the player can READ on every route
+    // row, the same shape `@/ui/buildings/arena`'s ineligible rows use, rather
+    // than a silent dead menu — and `@/ui/menu`'s `handleMenuKey` never
+    // dispatches ACTIVATE for an ineligible row, so it is also the gate.
+    const carless = runState.vehicle === null;
     const actions: MenuAction[] = neighbors.map((n) => ({
       id: `route-${n.route.id}`,
       label: t('ui.city.routeOption', { city: cityName(n.neighborCityId), miles: n.route.lengthMiles, danger: n.route.danger }),
-      eligible: true,
+      eligible: !carless,
+      ...(carless ? { reason: t('ui.city.gateNoVehicle') } : {}),
     }));
     actions.push(leaveAction());
 
@@ -3043,7 +3146,8 @@ function showCity(root: HTMLElement, state: CityRunState): void {
         }
         const routeId = id.slice('route-'.length);
         const found = neighbors.find((n) => n.route.id === routeId);
-        if (found === undefined) {
+        const vehicle = runState.vehicle;
+        if (found === undefined || vehicle === null) {
           closePanel();
           return;
         }
@@ -3052,7 +3156,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
         const resolved: ResolvedRoute = resolveRoute(runState.cityId, found.neighborCityId);
         const history = runState.routeHistory.get(resolved.route.id) ?? FRESH_ROUTE_HISTORY;
         const pursuitLevel = pursuitLevelFromQuestState(runState.quests);
-        const trip = beginRoadTripWithEncounters(resolved, runState.vehicle, runState.clock, runState.sessionSeed, history, pursuitLevel);
+        const trip = beginRoadTripWithEncounters(resolved, vehicle, runState.clock, runState.sessionSeed, history, pursuitLevel);
         showRoad(root, runState, trip, (nextState) => showCity(root, nextState));
       },
       onBack: () => {
@@ -3080,7 +3184,9 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   const codesDown = new Set<string>();
   function doToggleVehicle(): void {
     if (paused) return;
-    const toggled = toggleVehicle(player, runState.vehicle.position);
+    const vehicle = runState.vehicle;
+    if (vehicle === null) return; // nothing to get into
+    const toggled = toggleVehicle(player, vehicle.position);
     if (toggled.ok) player = toggled.player;
   }
   function onKeyDown(ev: KeyboardEvent): void {
@@ -3875,14 +3981,16 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
       restoreControls(existing.game.controlPreset, existing.game.controlBindings);
     }
     const vehicleId = existing.game.activeVehicleId ?? Object.keys(existing.game.vehicles)[0];
-    const vehicle = vehicleId !== undefined ? existing.game.vehicles[vehicleId] : undefined;
-    if (vehicle === undefined) {
-      // Nothing resumable at all (no active vehicle on file) - a fresh
-      // session is the only option, same as if no save existed.
-      startNewSession();
-      return;
-    }
+    const vehicle = (vehicleId !== undefined ? existing.game.vehicles[vehicleId] : undefined) ?? null;
     if (existing.game.world !== null) {
+      if (vehicle === null) {
+        // A live arena `World` is a simulation the player's own car is IN.
+        // Without one there is nothing to resume into, so a fresh session is
+        // the only option, same as if no save existed. The city branch below
+        // has no such requirement and resumes a carless driver on foot.
+        startNewSession();
+        return;
+      }
       // Routed through `resolveResumeSessionSeed` (not just read off the save
       // directly) so the resume path honors the same documented priority
       // order as a new session - in practice this always resolves to the

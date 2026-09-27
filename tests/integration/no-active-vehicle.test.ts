@@ -40,10 +40,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   PLAYER_ID,
   applyBuildingContext,
+  arenaExitVehicle,
+  arenaPlayerVehicle,
   buildingContextFrom,
   vehicleStateFromDesign,
   type CityRunState,
 } from '@/app';
+import { houseKartDesign, houseVehicleDef, isHouseVehicleSalvageable } from '@/sim/arena';
 import { economy, skillsConfig } from '@/data/rulesets';
 import { initialClock } from '@/sim/calendar';
 import { createDriver } from '@/sim/driver';
@@ -237,5 +240,47 @@ describe("amateur-night, the broke driver's on-ramp, is reachable again", () => 
     expect(rowById(rows, 'enter-practice')?.eligible).toBe(false);
     expect(rowById(rows, 'enter-division-5')?.eligible).toBe(false);
     expect(rowById(rows, 'enter-unlimited')?.eligible).toBe(false);
+  });
+
+  it('the house lends a real Arena Kart to a carless entrant, built from arenas.json rather than invented', () => {
+    const loaner = arenaPlayerVehicle(null, 'amateur-night');
+    const house = houseVehicleDef();
+    if (loaner === null) throw new Error('a house-sourced event must always produce a loaner');
+
+    // Compared against the ruleset row, never a literal, so retuning the kart
+    // in arenas.json cannot silently leave the player in a different car from
+    // the one `spawnArenaOpponents` deals the opposition.
+    expect(loaner.design).toEqual(houseKartDesign());
+    expect(loaner.design.weapons.map((w) => ({ weaponId: w.weaponId, facing: w.facing, ammo: w.ammo }))).toEqual(
+      house.weapons.map((w) => ({ weaponId: w.weaponId, facing: w.facing, ammo: w.ammo })),
+    );
+    expect(loaner.destroyed).toBe(false);
+    expect(loaner.ownerId).toBe(PLAYER_ID);
+  });
+
+  it('an own-vehicle event fights in the driver\'s own car, and offers no loaner when they have none', () => {
+    const own = makeVehicle('veh-own');
+    expect(arenaPlayerVehicle(own, 'division-5')).toBe(own);
+    expect(arenaPlayerVehicle(null, 'division-5')).toBeNull();
+  });
+
+  it('a non-salvageable loaner goes back to the house on the way out, win or lose — the driver leaves as carless as they arrived', () => {
+    const loaner = arenaPlayerVehicle(null, 'amateur-night');
+    if (loaner === null) throw new Error('a house-sourced event must always produce a loaner');
+
+    // arenas.json: houseVehicle.salvageable is false ("House karts are never
+    // salvageable, win or lose"). Asserted here so a ruleset flip is a test
+    // change, not a silent gameplay change.
+    expect(isHouseVehicleSalvageable()).toBe(false);
+    expect(arenaExitVehicle(null, loaner, 'amateur-night')).toBeNull();
+    expect(arenaExitVehicle(null, { ...loaner, destroyed: true }, 'amateur-night')).toBeNull();
+  });
+
+  it('an own-vehicle event hands the fought-in car back, wreck and all', () => {
+    const own = makeVehicle('veh-own');
+    expect(arenaExitVehicle(own, own, 'division-5')).toBe(own);
+
+    const wreck = { ...own, destroyed: true };
+    expect(arenaExitVehicle(own, wreck, 'division-5')).toBe(wreck);
   });
 });
