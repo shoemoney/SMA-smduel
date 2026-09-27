@@ -102,7 +102,8 @@ function requireOne(selector: string): Element {
 
 const TEST_SEED = 'screens-test-seed-1';
 
-async function bootToCity(root: HTMLElement): Promise<void> {
+/** Boots the real app to the Title screen and returns its rendered `.sm-menu`, with no key/click dispatched against it yet — the shared preamble `bootToCity` (key-driven) and the tap tests below (click-driven) both build on. */
+async function bootFresh(root: HTMLElement): Promise<Element> {
   const { boot } = await import('@/app');
 
   installRafStub();
@@ -115,9 +116,13 @@ async function bootToCity(root: HTMLElement): Promise<void> {
   });
   await bootPromise;
 
+  return requireOne('.sm-menu');
+}
+
+async function bootToCity(root: HTMLElement): Promise<void> {
   // --- Title: digit '1' activates the first eligible action. With no save
   // to resume (openDb always rejects above), that's 'new-driver'. ---
-  const titleMenu = requireOne('.sm-menu');
+  const titleMenu = await bootFresh(root);
   dispatchKey(titleMenu, { key: '1' });
 
   // --- Driver creation: the form's own defaults (name "Driver", an even
@@ -777,5 +782,142 @@ describe('DOM screens: the arcade score submit screen', () => {
 
     const labels = Array.from(requireOne('.sm-menu').querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
     expect(labels).toContain(t('ui.arena.scoreSubmit.statusAccepted', { rank: 7 }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Touch: tapping a real rendered menu row, and the on-screen stick/fire
+// button's presence following pointer coarseness
+// ---------------------------------------------------------------------------
+
+describe('DOM screens: tapping a real rendered menu row with a click', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  function click(el: Element): void {
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  }
+
+  it('a click on an eligible row activates it, exactly like the digit key does', async () => {
+    const titleMenu = await bootFresh(root);
+    // Title's actions with no save to resume: ['new-driver', 'controls'] — row 0 is 'new-driver'.
+    const newDriverRow = titleMenu.querySelectorAll('li')[0];
+    if (newDriverRow === undefined) throw new Error('test: expected a "new-driver" row on the title menu');
+
+    expect(document.querySelector('.sm-screen--driver')).toBeNull();
+    click(newDriverRow);
+    expect(document.querySelector('.sm-screen--driver')).not.toBeNull();
+  });
+
+  it('a click on an ineligible row does not activate it', () => {
+    // The arcade score-submit screen's submit row goes ineligible the
+    // instant a submit is in flight (`eligible: status.kind !== 'submitting'
+    // && status.kind !== 'accepted'` in `@/app.ts`), and a SECOND activation
+    // while ineligible would be a real, observable bug — a duplicate network
+    // call — not a silent no-op, which is what makes this scenario a genuine
+    // detector of the eligibility check rather than just the click wiring
+    // (already covered by the "eligible row" test above).
+    const calls: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown) => {
+        calls.push(input);
+        return new Promise<Response>(() => {
+          /* never resolves — keeps status stuck at 'submitting', so the row stays ineligible for the whole test */
+        });
+      }),
+    );
+
+    const header: MenuHeaderInfo = { cash: 1_000, dayIndex: 1, phase: 'MORNING' as DayPhase, cityName: 'Test City' };
+    const payload: ArcadeScorePayload = { score: 100, wave: 1, kills: 1, headshots: 0, duration: 30 };
+    showArcadeScoreSubmit(root, header, 'Tester', payload, () => {});
+
+    // The submit row is always second-to-last (skip is always last), whether
+    // or not a status row has been inserted ahead of it yet — re-queried
+    // fresh each time since `.sm-menu` is rebuilt wholesale on every
+    // `setActions()` re-render.
+    function submitRow(): Element {
+      const rows = requireOne('.sm-menu').querySelectorAll('li');
+      const row = rows[rows.length - 2];
+      if (row === undefined) throw new Error('test: expected a submit row on the arcade submit menu');
+      return row;
+    }
+
+    click(submitRow()); // idle -> submitting: a real fetch call
+    expect(calls).toHaveLength(1);
+
+    click(submitRow()); // now ineligible (status.kind === 'submitting') — must NOT call fetch again
+    expect(calls).toHaveLength(1);
+  });
+});
+
+describe('DOM screens: on-screen touch controls follow pointer coarseness', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    originalMatchMedia = window.matchMedia;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    // Restored explicitly (not just via vi.restoreAllMocks(), since this is
+    // a plain reassignment, not a vi.spyOn) — a coarse-pointer stub leaking
+    // into the rest of this 800+-line file would silently mount a phantom
+    // stick/fire button under every other test's driving screen.
+    window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
+  });
+
+  function stubPointerCoarse(matches: boolean): void {
+    window.matchMedia = ((query: string) =>
+      ({
+        matches,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+  }
+
+  it('touch UI is absent on a driving screen when the pointer is not coarse', async () => {
+    stubPointerCoarse(false);
+    await bootToCity(root);
+    expect(document.querySelector('.sm-touch')).toBeNull();
+  });
+
+  it('touch UI is present on a driving screen when matchMedia reports a coarse pointer', async () => {
+    stubPointerCoarse(true);
+    await bootToCity(root);
+    expect(document.querySelector('.sm-touch')).not.toBeNull();
+    expect(document.querySelector('.sm-touch__stick')).not.toBeNull();
+    expect(document.querySelector('.sm-touch__fire')).not.toBeNull();
   });
 });
