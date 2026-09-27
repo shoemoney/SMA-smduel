@@ -36,6 +36,10 @@
     "colliderRadiusM": 0.4,
     "interactionRadiusM": 3.0
   },
+  "city": {
+    "_note": "Driving the plaza, not the highway: a walled city is tens of meters across, so this is its own value rather than the car's road top speed. Three times pedestrian.speedMps, roughly 15mph, which crosses the widest generated plaza in a couple of seconds without outrunning the interaction radius (one frame at the 0.25s dt clamp covers 1.65m against a 3.0m trigger circle, so a doorway can never be tunneled through).",
+    "vehicleSpeedMps": 6.6
+  },
   "arena": {
     "spawnRingRadiusM": 45,
     "minSpawnSeparationM": 12

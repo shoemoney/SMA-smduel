@@ -497,6 +497,7 @@ export const drivingSchema: SchemaObject = obj(
       colliderRadiusM: NON_NEG_NUM,
       interactionRadiusM: NON_NEG_NUM,
     }),
+    city: obj({ _note: STR, vehicleSpeedMps: NON_NEG_NUM }),
   },
   [
     '$schemaVersion',
@@ -514,6 +515,7 @@ export const drivingSchema: SchemaObject = obj(
     'collision',
     'radar',
     'pedestrian',
+    'city',
   ],
 );
 

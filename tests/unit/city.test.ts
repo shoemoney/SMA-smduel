@@ -350,11 +350,49 @@ describe('stepWalk', () => {
     expect(result.player.position.y).toBeCloseTo(0, 10);
   });
 
-  it('does not move while riding in a vehicle, even with a direction held', () => {
-    const player: CityPlayerState = { ...createCityPlayerState({ x: 1, y: 1 }), inVehicle: true };
+  it("drives at driving.json's city.vehicleSpeedMps while riding, faster than the same driver on foot", () => {
+    const onFoot = createCityPlayerState({ x: 0, y: 0 });
+    const riding: CityPlayerState = { ...onFoot, inVehicle: true };
     const layout = generateCityLayout(PROVIDENCE, SAVE_SEED_A);
-    const result = stepWalk({ player, layout, direction: 'N', dtSeconds: 5, clock: initialClock() });
+    // Half a second, not a full one: providence's plaza is the smallest a real
+    // layout produces (boundsRadiusM ~6m), and a full second at the driving
+    // speed would land outside it, so `clampToCityWalls` would answer 6.0 and
+    // this test would be measuring the wall rather than the speed.
+    const dt = 0.5;
+    const KNOWN_CITY_DRIVE_SPEED_MPS = 6.6; // driving.json's city.vehicleSpeedMps, copied here so this test does not compare the implementation to its own source (see the dedicated mock test below for sourcing proof)
+
+    const driven = stepWalk({ player: riding, layout, direction: 'E', dtSeconds: dt, clock: initialClock() });
+    expect(driven.player.position.x).toBeCloseTo(KNOWN_CITY_DRIVE_SPEED_MPS * dt, 10);
+    expect(driven.player.position.y).toBeCloseTo(0, 10);
+
+    // The point of getting in the car: it is not the same as walking. Pressing
+    // 'G' used to park the driver permanently instead, which made the control
+    // a trap with no purpose.
+    const walked = stepWalk({ player: onFoot, layout, direction: 'E', dtSeconds: dt, clock: initialClock() });
+    expect(driven.player.position.x).toBeGreaterThan(walked.player.position.x);
+  });
+
+  it('a car standing still is still standing still — no direction held moves nothing, riding or not', () => {
+    const riding: CityPlayerState = { ...createCityPlayerState({ x: 1, y: 1 }), inVehicle: true };
+    const layout = generateCityLayout(PROVIDENCE, SAVE_SEED_A);
+    const result = stepWalk({ player: riding, layout, direction: null, dtSeconds: 5, clock: initialClock() });
     expect(result.player.position).toEqual({ x: 1, y: 1 });
+    expect(result.trigger).toEqual({ kind: 'none' });
+  });
+
+  it('driving triggers a doorway the same way walking does — the car is not a trigger-proof bubble', () => {
+    const layout = generateCityLayout(PROVIDENCE, SAVE_SEED_A);
+    const doorway = layout.doorways[0];
+    if (doorway === undefined) throw new Error('test fixture: every city lists at least one facility');
+    const interactionRadiusM = drivingConfig().pedestrian.interactionRadiusM;
+
+    // Start well outside the doorway's radius, on the far side of it from the
+    // plaza centre, driving straight in.
+    const start = { x: doorway.position.x + interactionRadiusM * 3, y: doorway.position.y };
+    const riding: CityPlayerState = { ...createCityPlayerState(start), inVehicle: true };
+    const result = stepWalk({ player: riding, layout, direction: 'W', dtSeconds: 1, clock: initialClock() });
+
+    expect(result.trigger).toEqual({ kind: 'facility', facilityKind: doorway.facilityKind });
   });
 
   it('walking advances no day (economy.json timeCostDays.walkInCity is 0), across many steps and even across a NIGHT clock', () => {
@@ -421,6 +459,36 @@ describe('stepWalk', () => {
     const player = fresh.createCityPlayerState({ x: 0, y: 0 });
     const result = fresh.stepWalk({ player, layout, direction: 'E', dtSeconds: 1, clock: initialClock() });
     expect(result.player.position.x).toBeCloseTo(MOCK_SPEED_MPS, 10);
+    expect(result.player.position.x).not.toBeCloseTo(drivingConfig().pedestrian.speedMps, 5);
+    vi.doUnmock('@/data/rulesets');
+    vi.resetModules();
+  });
+
+  it("city driving speed is read from driving.json's city block at call time, not hardcoded and not the pedestrian value", async () => {
+    vi.resetModules();
+    // Same reasoning as the walking mock above: small enough that even with
+    // the mock in place the step stays inside providence's real ~6m wall, so
+    // the assertion measures the speed rather than `clampToCityWalls`.
+    const MOCK_CITY_DRIVE_SPEED_MPS = 5;
+    vi.doMock('@/data/rulesets', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('@/data/rulesets')>();
+      return {
+        ...actual,
+        drivingConfig: () => ({
+          ...actual.drivingConfig(),
+          city: { ...actual.drivingConfig().city, vehicleSpeedMps: MOCK_CITY_DRIVE_SPEED_MPS },
+        }),
+      };
+    });
+    const fresh = await import('@/sim/city');
+    const layout = fresh.generateCityLayout(PROVIDENCE, SAVE_SEED_A);
+    const riding: CityPlayerState = { ...fresh.createCityPlayerState({ x: 0, y: 0 }), inVehicle: true };
+    const result = fresh.stepWalk({ player: riding, layout, direction: 'E', dtSeconds: 1, clock: initialClock() });
+
+    expect(result.player.position.x).toBeCloseTo(MOCK_CITY_DRIVE_SPEED_MPS, 10);
+    expect(result.player.position.x).not.toBeCloseTo(drivingConfig().city.vehicleSpeedMps, 5);
+    // The mock left `pedestrian.speedMps` real, so a driving step that fell
+    // back to the walking value would land on it instead.
     expect(result.player.position.x).not.toBeCloseTo(drivingConfig().pedestrian.speedMps, 5);
     vi.doUnmock('@/data/rulesets');
     vi.resetModules();

@@ -43,7 +43,7 @@ produce identical state hashes every 60 ticks, across Chromium, Firefox, and Web
 |---|---|---|---|
 | Title | menu | frozen | continue, load driver, create driver |
 | Driver creation | form | frozen | valid name + exactly 50 points allocated |
-| City | 8-way walk | **no time passes** | building, gate, vehicle, status |
+| City | 8-way walk, or drive the parked car at `driving.city.vehicleSpeedMps` | **no time passes** | building, gate, vehicle, status |
 | Building | numbered menu | per transaction | city, or overnight |
 | Constructor | row nav | 1 day on purchase | cancel, or confirm a legal build |
 | Highway | real-time | advances per road interval | gate, death, abandonment |

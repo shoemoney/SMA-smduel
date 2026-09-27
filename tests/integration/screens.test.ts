@@ -951,25 +951,39 @@ describe('DOM screens: city touch command buttons run the exact same code as the
     vi.restoreAllMocks();
   });
 
-  it('tapping the "Car" command enters the vehicle exactly like pressing "g" does — the same walk that reaches the gate trigger when on foot goes nowhere and never opens the route menu', async () => {
-    await bootToCity(root);
+  /**
+   * `frame()` clamps dt to `max(0, ...)` and its `lastTimeMs` starts at a real
+   * `performance.now()`, so the first callback after a screen mounts sees a
+   * negative delta and advances the sim by zero. Burning it with no key held is
+   * a pure no-op (`stepWalk` returns untouched on a null direction), and it
+   * makes every later `stepFrame()` worth a full 250ms tick, which is what the
+   * distance arithmetic below assumes.
+   */
+  function warmUpFrame(): void {
+    stepFrame();
+  }
 
-    // Player and vehicle both spawn exactly on the gate (`showCity`'s own
-    // `layout.gate.position` — see `createCityPlayerState`), so entering
-    // the car is trivially within `isVehicleInRange` at t=0; no walking to
-    // the car first is needed.
-    const carBtn = requireOne('[data-touch-command="enterExitCar"]');
-    carBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-
-    // Identical walk-away-then-walk-back sequence this file's own 'x' test
-    // uses to reach the gate trigger (`checkCityTrigger` is edge-triggered
-    // — starting already inside the interaction radius never fires it).
-    // `stepWalk` no-ops ALL movement while `player.inVehicle` is true
-    // (`@/sim/city`'s own file header) — if the tap above toggled the SAME
-    // `player.inVehicle` the 'g' key does, this walk cycle moves nowhere,
-    // never crosses back into the gate's radius, and `.sm-menu` never
-    // mounts. Contrast this file's own 'x' test, whose IDENTICAL key
-    // sequence — with no car toggle first — DOES open `.sm-menu`.
+  /**
+   * Walks the player away from the gate and straight back, `steps` frames per
+   * leg, returning whether the gate's route menu opened.
+   *
+   * `checkCityTrigger` is edge-triggered: a step that starts already inside
+   * the gate's `interactionRadiusM` never fires it. The player spawns exactly
+   * ON the gate, so the outbound leg has to actually LEAVE that radius for the
+   * return leg to cross back in. How far `steps` frames carry them is
+   * therefore the whole observable, and it is the only thing that differs
+   * between walking and driving. `stepFrame`'s 250ms is `frame()`'s own dt
+   * clamp, so each frame is one full real tick.
+   *
+   * "Away" is the direction `cityDirectionFromVector` classifies the
+   * gate-toward-centre vector as, the same construction this file's 'x' test
+   * uses: moving toward the centre only shrinks the distance from it, so the
+   * walk never hits `clampToCityWalls` and never grazes another trigger circle
+   * on the ring. The return leg retraces the identical line outward at the
+   * identical speed, landing back on the gate.
+   */
+  function walkOutAndBack(steps: number): boolean {
+    warmUpFrame();
     const cityId = skillsConfig().startingLocation;
     const layout = generateCityLayout(cityId, TEST_SEED);
     const gate = layout.gate.position;
@@ -988,18 +1002,112 @@ describe('DOM screens: city touch command buttons run the exact same code as the
       return { key: 'w', code: 'KeyW' };
     });
 
-    const STEPS_PER_LEG = 15;
-
     for (const k of inwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
-    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (let i = 0; i < steps; i++) stepFrame();
     for (const k of inwardKeys) dispatchKeyUp(window, k);
 
     for (const k of outwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
-    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (let i = 0; i < steps; i++) stepFrame();
     for (const k of outwardKeys) dispatchKeyUp(window, k);
 
-    expect(document.querySelector('.sm-menu')).toBeNull();
+    const menu = document.querySelector('.sm-menu');
+    if (menu === null) return false;
+    // The gate's own menu, not some facility's: `ui.city.routeOption` is the
+    // only label carrying a danger rating.
+    expect(menu.textContent).toMatch(/danger/);
+    return true;
+  }
+
+  /**
+   * Short enough that a walking player never leaves the gate's interaction
+   * radius, and a driving one comfortably does. That gap is what makes every
+   * test below a real discriminator rather than a tautology: at
+   * `pedestrian.speedMps` 2.2 over 3 x 250ms frames the player covers 1.65m
+   * against a 3.0m radius, and at `city.vehicleSpeedMps` 6.6 they cover
+   * 4.95m. Both figures are independently derived from driving.json here, not
+   * read back out of `drivingConfig()` (the same convention
+   * `tests/unit/city.test.ts` uses for the walking speed).
+   */
+  const STEPS_TOO_SHORT_TO_WALK = 3;
+
+  it('a walk that short never leaves the gate radius, so no menu opens - the control that makes the two tests below mean something', async () => {
+    await bootToCity(root);
+    expect(walkOutAndBack(STEPS_TOO_SHORT_TO_WALK)).toBe(false);
   });
+
+  it('pressing "g" puts the driver in the car, and the same short trip now covers the ground and reaches the gate', async () => {
+    await bootToCity(root);
+
+    // Player and vehicle both spawn exactly on the gate (`showCity`'s own
+    // `layout.gate.position` - see `createCityPlayerState`), so entering the
+    // car is trivially within `isVehicleInRange` at t=0; no walking to the car
+    // first is needed.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', code: 'KeyG', bubbles: true }));
+
+    expect(walkOutAndBack(STEPS_TOO_SHORT_TO_WALK)).toBe(true);
+  });
+
+  it('tapping the "Car" command does exactly what pressing "g" does - same short trip, same gate', async () => {
+    await bootToCity(root);
+
+    const carBtn = requireOne('[data-touch-command="enterExitCar"]');
+    carBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(walkOutAndBack(STEPS_TOO_SHORT_TO_WALK)).toBe(true);
+  });
+
+  it('pressing "g" twice puts the driver back on foot, and the short trip falls short again', async () => {
+    await bootToCity(root);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', code: 'KeyG', bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', code: 'KeyG', bubbles: true }));
+
+    expect(walkOutAndBack(STEPS_TOO_SHORT_TO_WALK)).toBe(false);
+  });
+
+  it('the car follows the driver, so getting out somewhere else and back in again works', async () => {
+    await bootToCity(root);
+
+    // Drive AWAY from the gate, get out there, then get back in. `toggleVehicle`
+    // gates re-entry on `isVehicleInRange` (3m), and this trip covers 6.6m, so
+    // this only succeeds if the car moved with the driver instead of staying
+    // parked on the gate. Driving back to the gate afterwards is the readout:
+    // on foot the same four frames cover 2.2m and never reach it.
+    warmUpFrame();
+    const STEPS = 4;
+    const cityId = skillsConfig().startingLocation;
+    const gate = generateCityLayout(cityId, TEST_SEED).gate.position;
+
+    const inwardKeys: KeyboardEventInit[] = [];
+    if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
+    else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
+    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
+    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
+      if (k.code === 'KeyD') return { key: 'a', code: 'KeyA' };
+      if (k.code === 'KeyA') return { key: 'd', code: 'KeyD' };
+      if (k.code === 'KeyW') return { key: 's', code: 'KeyS' };
+      return { key: 'w', code: 'KeyW' };
+    });
+    const pressG = () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', code: 'KeyG', bubbles: true }));
+
+    pressG(); // in
+    for (const k of inwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS; i++) stepFrame();
+    for (const k of inwardKeys) dispatchKeyUp(window, k);
+    expect(document.querySelector('.sm-menu')).toBeNull(); // driving inward reaches no trigger circle
+
+    pressG(); // out, far from the gate
+    pressG(); // back in, which needs the car to be here too
+
+    for (const k of outwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS; i++) stepFrame();
+    for (const k of outwardKeys) dispatchKeyUp(window, k);
+
+    const menu = requireOne('.sm-menu');
+    expect(menu.textContent).toMatch(/danger/);
+  });
+
 });
 
 describe('DOM screens: road touch wreck-search command visibility', () => {

@@ -1,14 +1,14 @@
 /**
- * CITY subsystem: the walkable town map a driver explores on foot (or in a
- * parked car) between road trips — doorways into every facility a city
- * lists in cities.json, plus a gate onto the road, arranged around an open
- * plaza with no blocking geometry.
+ * CITY subsystem: the town map a driver explores between road trips, on foot
+ * or at the wheel — doorways into every facility a city lists in cities.json,
+ * plus a gate onto the road, arranged around an open plaza with no blocking
+ * geometry.
  *
  * Layout generation is a pure function of (cityId, save seed): the same
  * pair always produces the identical set of doorway/gate positions, and a
  * different seed reshuffles which facility sits where. Every tunable number
- * (walking speed, the doorway/vehicle interaction radius, the walk-in-city
- * time cost, which facility kinds never close) comes from the validated
+ * (walking and city-driving speed, the doorway/vehicle interaction radius,
+ * the walk-in-city time cost, which facility kinds never close) comes from the validated
  * ruleset loader (`@/data/rulesets`, `@/sim/calendar`) — nothing
  * gameplay-relevant is a literal here. No `Math.random()` / `Date.now()`:
  * layout randomness runs entirely through the seeded `Rng` from
@@ -269,10 +269,10 @@ function clampToCityWalls(position: Vec2, boundsRadiusM: number): Vec2 {
 }
 
 /**
- * One tick of on-foot movement: no input (or currently riding in a car —
- * see `toggleVehicle`) leaves position and the clock untouched and reports
- * no trigger. Otherwise moves `drivingConfig().pedestrian.speedMps * dt`
- * meters along one of the eight compass directions, clamped to
+ * One tick of movement around the plaza, on foot or at the wheel: no input
+ * leaves position and the clock untouched and reports no trigger. Otherwise
+ * moves `speedMps * dt` meters along one of the eight compass directions,
+ * clamped to
  * `layout.boundsRadiusM` from the plaza centre so the player can never walk
  * off the ground `buildCityInstances` actually renders (SPEC's "fixed graph
  * of WALLED cities" — the wall sits at the ring the doorways and gate are
@@ -281,16 +281,28 @@ function clampToCityWalls(position: Vec2, boundsRadiusM: number): Vec2 {
  * 0 — read from the ruleset rather than assumed free, so a ruleset change
  * is honored), and reports whether that step entered a doorway or the
  * gate.
+ *
+ * `player.inVehicle` (set by `toggleVehicle`) picks the SPEED and nothing
+ * else: driving.json's `city.vehicleSpeedMps` at the wheel,
+ * `pedestrian.speedMps` on foot. Everything else about the step is
+ * deliberately identical. The eight compass directions (SPEC's "City: 8-way
+ * walk"), the city wall, the clock cost and the doorway/gate triggers all
+ * apply to a car exactly as they do to a pedestrian, so driving is a faster
+ * way across the same plaza rather than a second movement model. This used to
+ * no-op ALL movement while riding, which made 'G' a trap: it parked the
+ * driver until they pressed it again, and nothing else in the codebase read
+ * the flag.
  */
 export function stepWalk(params: WalkStepParams): WalkStepResult {
   const { player, layout, direction, dtSeconds, clock } = params;
 
-  if (direction === null || player.inVehicle) {
+  if (direction === null) {
     return { player, clock, trigger: { kind: 'none' } };
   }
 
   const unit = DIRECTION_UNIT_VECTORS[direction];
-  const speedMps = drivingConfig().pedestrian.speedMps;
+  const cfg = drivingConfig();
+  const speedMps = player.inVehicle ? cfg.city.vehicleSpeedMps : cfg.pedestrian.speedMps;
   const distance = speedMps * dtSeconds;
   const rawNextPosition: Vec2 = {
     x: player.position.x + unit.x * distance,

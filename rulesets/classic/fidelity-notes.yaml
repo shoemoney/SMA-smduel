@@ -1616,6 +1616,12 @@ entries:
     source: "harness-specified: all driving coefficients are Reconstruction"
     confidence: 0.5
     note: "Driving physics coefficient, tunable: coastDragMphPerSec"
+  - id: "driving.city.vehicleSpeedMps"
+    value: 6.6
+    status: Reconstruction
+    source: "driving.json - authored for this recreation"
+    confidence: 0.3
+    note: "How fast the player's own car crosses a walled city's plaza while the driver rides it (@/sim/city's stepWalk). Three times pedestrian.speedMps, roughly 15mph: fast enough that driving beats walking across a plaza tens of meters wide, slow enough that one frame at the 0.25s dt clamp covers 1.65m against pedestrian.interactionRadiusM 3.0, so a doorway trigger can never be tunneled through. No source table prices city driving; the original's city is a single walk speed."
   - id: "driving.collision.armorLossPoints"
     value: 1
     status: Reconstruction
