@@ -17,7 +17,10 @@
 #
 # Generated programmatically from rulesets/classic/*.json by the integrator pass — 704 entries,
 # plus 6 entries added by audit (arenas.houseVehicle.totalCount/salvageable and the four
-# quests.quests.the-boss-tape.onAccept/onDeliver flags the integrator's pass missed) — 710 entries.
+# quests.quests.the-boss-tape.onAccept/onDeliver flags the integrator's pass missed) — 710 entries,
+# plus 9 entries for arenas.loanerVehicle (the player's amateur-night loaner, split out of
+# houseVehicle so the house can provision a newcomer's car separately from the karts it fields
+# against them) — 719 entries.
 
 entries:
   - id: "arenas._reconstruction.escapePrestigePenalty"
@@ -266,6 +269,60 @@ entries:
     source: "arenas.json houseVehicle block"
     confidence: 0.6
     note: "House karts are never salvageable, win or lose (per houseVehicle _note)"
+  - id: "arenas.loanerVehicle.armor.FRONT"
+    value: 24
+    status: Reconstruction
+    source: "arenas.json loanerVehicle block"
+    confidence: 0.3
+    note: "Loaner armor, FRONT. No 1985 provenance; tuned to a measured win rate (see loanerVehicle _note)"
+  - id: "arenas.loanerVehicle.armor.REAR"
+    value: 24
+    status: Reconstruction
+    source: "arenas.json loanerVehicle block"
+    confidence: 0.3
+    note: "Loaner armor, REAR. No 1985 provenance; tuned to a measured win rate (see loanerVehicle _note)"
+  - id: "arenas.loanerVehicle.armor.LEFT"
+    value: 24
+    status: Reconstruction
+    source: "arenas.json loanerVehicle block"
+    confidence: 0.3
+    note: "Loaner armor, LEFT. No 1985 provenance; tuned to a measured win rate (see loanerVehicle _note)"
+  - id: "arenas.loanerVehicle.armor.RIGHT"
+    value: 24
+    status: Reconstruction
+    source: "arenas.json loanerVehicle block"
+    confidence: 0.3
+    note: "Loaner armor, RIGHT. No 1985 provenance; tuned to a measured win rate (see loanerVehicle _note)"
+  - id: "arenas.loanerVehicle.armor.UNDERBODY"
+    value: 24
+    status: Reconstruction
+    source: "arenas.json loanerVehicle block"
+    confidence: 0.3
+    note: "Loaner armor, UNDERBODY. No 1985 provenance; tuned to a measured win rate (see loanerVehicle _note)"
+  - id: "arenas.loanerVehicle.weapons.0.ammo"
+    value: 20
+    status: Reconstruction
+    source: "arenas.json loanerVehicle block"
+    confidence: 0.3
+    note: "Loaner mount 1 of 4, at the machine gun's own ammoCapacity. Four mounts is how an 80-round allowance stays inside that per-mount cap"
+  - id: "arenas.loanerVehicle.weapons.1.ammo"
+    value: 20
+    status: Reconstruction
+    source: "arenas.json loanerVehicle block"
+    confidence: 0.3
+    note: "Loaner mount 2 of 4, at the machine gun's own ammoCapacity. Four mounts is how an 80-round allowance stays inside that per-mount cap"
+  - id: "arenas.loanerVehicle.weapons.2.ammo"
+    value: 20
+    status: Reconstruction
+    source: "arenas.json loanerVehicle block"
+    confidence: 0.3
+    note: "Loaner mount 3 of 4, at the machine gun's own ammoCapacity. Four mounts is how an 80-round allowance stays inside that per-mount cap"
+  - id: "arenas.loanerVehicle.weapons.3.ammo"
+    value: 20
+    status: Reconstruction
+    source: "arenas.json loanerVehicle block"
+    confidence: 0.3
+    note: "Loaner mount 4 of 4, at the machine gun's own ammoCapacity. Four mounts is how an 80-round allowance stays inside that per-mount cap"
   - id: "bodies.compact.armorCostPerPoint"
     value: 13
     status: Exact

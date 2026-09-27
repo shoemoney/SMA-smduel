@@ -72,6 +72,7 @@ import {
   allArenaArchetypes,
   arenaEligibleArchetypes,
   houseKartDesign,
+  houseLoanerDesign,
   isCombatCapableArchetype,
   recordOpponentDefeated,
   selectArchetypeByValue,
@@ -93,6 +94,15 @@ import encountersJsonRaw from '@rulesets/classic/encounters.json';
 const AMATEUR_NIGHT_EVENT_ID = 'amateur-night' as const;
 /** See the file header: found by sweeping the real production pipeline for a seed where the real combat RNG lets the player survive to a real victory. */
 const AMATEUR_NIGHT_SEED = 'sweep-seed-504';
+/**
+ * A seed the competent bot WINS on, for the fixed-seed victory gate below.
+ * `AMATEUR_NIGHT_SEED` is not one: the competent bot clears the roster on
+ * 86 of 150 seeds in this family (57.3%, measured at the loaner's shipped
+ * provisioning), so a named winner is needed rather than assuming any seed
+ * does. The aggregate rate is gated separately, so this constant proves the
+ * victory PATH and cannot by itself make an unwinnable event look winnable.
+ */
+const AMATEUR_NIGHT_VICTORY_SEED = 'sweep-seed-500';
 const MAX_TICKS = 3000;
 
 function testPlayerSkills(): Record<SkillName, number> {
@@ -108,6 +118,9 @@ function makeTestDriver(): DriverState {
   if (!result.ok) throw new Error(`test fixture: expected a legal skill split, got "${result.reason}"`);
   return result.driver;
 }
+
+/** How the scripted player manages its magazines. See `samplePlayerInput`. */
+type PlayerPolicy = 'naive' | 'competent';
 
 interface AmateurNightMatch {
   readonly world: World;
@@ -125,7 +138,7 @@ interface AmateurNightMatch {
  * into a headless `createGameLoop` — no DOM, but not a re-implementation
  * either.
  */
-function beginAmateurNightMatch(seed: string): AmateurNightMatch {
+function beginAmateurNightMatch(seed: string, policy: PlayerPolicy = 'naive'): AmateurNightMatch {
   const driver0 = makeTestDriver();
   // amateur-night is entered on foot (`eligibility.kind ===
   // 'on-foot-under-threshold'`) — no player-owned vehicle to check, so the
@@ -134,7 +147,11 @@ function beginAmateurNightMatch(seed: string): AmateurNightMatch {
   const matchResult = beginArenaMatch(driver0, null, AMATEUR_NIGHT_EVENT_ID);
   if (!matchResult.ok) throw new Error(`test fixture: expected amateur-night to be enterable, got "${matchResult.reason}"`);
 
-  const playerVehicle: VehicleState = vehicleStateFromDesign(houseKartDesign(), 'veh-player', PLAYER_ID);
+  // The REAL loaner `arenaPlayerVehicle` hands a carless entrant, not the
+  // opponents' kart. Those were one row until amateur-night proved unplayable
+  // that way; building the player from `houseKartDesign` here would test a car
+  // production no longer issues.
+  const playerVehicle: VehicleState = vehicleStateFromDesign(houseLoanerDesign(), 'veh-player', PLAYER_ID);
   const world = createArenaWorld(seed, playerVehicle);
   const event = getArenaEvent(AMATEUR_NIGHT_EVENT_ID);
   const opponents = spawnArenaOpponents(world, event);
@@ -186,7 +203,15 @@ function beginAmateurNightMatch(seed: string): AmateurNightMatch {
     if (target === undefined) return { moveX: 0, moveY: 0, fire: false, weaponSlot: 0 };
     const bearingRad = Math.atan2(target.position.y - player.position.y, target.position.x - player.position.x);
     const { moveX, moveY } = computeAlignmentInput(bearingRad, 'FRONT');
-    return { moveX, moveY, fire: true, weaponSlot: 0 };
+    // The difference between the two bots is ammunition discipline and nothing
+    // else. `naive` pulls mount 0 until the match ends, so it stops being able
+    // to hurt anyone the moment that magazine is dry; `competent` switches to a
+    // loaded mount, which is the real `cycleWeapon` control a player has on the
+    // arena screen. Amateur-night costs more rounds than any one mount holds,
+    // so that single habit is what separates a win from an escape.
+    const weaponSlot =
+      policy === 'naive' ? 0 : Math.max(0, player.weapons.findIndex((w) => !w.destroyed && w.ammo > 0));
+    return { moveX, moveY, fire: true, weaponSlot };
   }
 
   const dtSeconds = dtSecondsFromTickRate(drivingConfig().tickRateHz);
@@ -298,14 +323,15 @@ describe('arena-event opponents: real spawn, real decideAI, real fire pipeline',
 
   // KNOWN BALANCE STATE, asserted so it cannot change silently.
   //
-  // The reference bot currently LOSES amateur-night. That is recorded here as a
-  // fact rather than left as a red test, because the bot is deliberately naive
-  // (close and fire, no evasion) and its loss is not by itself evidence the event
-  // is unwinnable by a human. If a tuning change ever makes the bot win, this
-  // test fails and the balance shift gets looked at on purpose instead of being
-  // absorbed unnoticed.
-  it('KNOWN: the naive reference bot does not yet clear a 5-on-1 amateur night', () => {
-    const match = beginAmateurNightMatch(AMATEUR_NIGHT_SEED);
+  // The naive bot LOSES amateur-night, and it is supposed to. It differs from the
+  // competent bot below by one habit: it pulls mount 0 until that magazine is dry
+  // and then keeps pulling it, so past 20 rounds it cannot hurt anyone. Clearing
+  // the roster costs more rounds than one mount holds, which is exactly why the
+  // loaner carries four. A careless entrant losing is the intended shape of the
+  // on-ramp; if this ever flips to a win, the loaner has been over-provisioned
+  // and the pair of tests stops discriminating, so look at it on purpose.
+  it('KNOWN: a bot that never switches magazines does not clear a 5-on-1 amateur night', () => {
+    const match = beginAmateurNightMatch(AMATEUR_NIGHT_SEED, 'naive');
     let swept = false;
     for (let tick = 0; tick < MAX_TICKS; tick++) {
       match.loop.sampleInput();
@@ -316,6 +342,125 @@ describe('arena-event opponents: real spawn, real decideAI, real fire pipeline',
     }
     expect({ swept, note: 'if this flips to true, amateur-night balance changed — review it' })
       .toEqual({ swept: false, note: 'if this flips to true, amateur-night balance changed — review it' });
+  });
+
+  // THE GATE THAT WOULD HAVE CAUGHT THE ORIGINAL BUG.
+  //
+  // Amateur-night shipped unwinnable. The loaner was the opponents' own row, so
+  // one player faced five cars that all prefer the player as a target: the
+  // player died around tick 152 on every seed, and clearing the roster cost
+  // about 59 rounds against a 20-round magazine, so VICTORY was unreachable at
+  // any skill level on any seed. Nothing in the suite asserted a player could
+  // ever win, only that the pipeline COULD record a win once handed a full
+  // sweep. This drives the real production loaner through the real systems and
+  // requires an actual sweep.
+  it('a competent player CLEARS the roster and resolves a real VICTORY', () => {
+    const event = getArenaEvent(AMATEUR_NIGHT_EVENT_ID);
+    const match = beginAmateurNightMatch(AMATEUR_NIGHT_VICTORY_SEED, 'competent');
+    const driverBefore = match.driverRef.current;
+
+    let swept = false;
+    for (let tick = 0; tick < MAX_TICKS; tick++) {
+      match.loop.sampleInput();
+      match.loop.step();
+      if (allOpponentsDefeated(match.matchStateRef.current)) { swept = true; break; }
+      const p = findPlayer(match.world);
+      if (p === undefined || p.destroyed) break;
+    }
+
+    const player = findPlayer(match.world);
+    expect({ swept, playerDestroyed: player?.destroyed }).toEqual({ swept: true, playerDestroyed: false });
+    expect(match.matchStateRef.current.opponentsDefeated).toBe(match.matchStateRef.current.opponentsTotal);
+
+    // Driven out under its own power, off a roster cleared by real shots, so
+    // this is the genuine VICTORY branch rather than the hand-advanced one.
+    const resolution = resolveArenaExit(match.matchStateRef.current, match.driverRef.current, 'UNDER_POWER');
+    expect(resolution.outcome).toBe('VICTORY');
+    expect(resolution.cashAwarded).toBe(event.cashReward);
+    expect(resolution.driver.cash).toBe(driverBefore.cash + event.cashReward);
+  });
+
+  // THE BALANCE GATE, and the one that does not rest on a chosen seed.
+  //
+  // A single winning seed proves the victory path exists; it cannot tell you
+  // whether the event is winnable in general, which is precisely the hole the
+  // original bug hid in. This runs a seed SET and gates the rate from both
+  // sides: unwinnable fails it, and so does a walkover. The band is wide on
+  // purpose, because the shipped tuning sits near the middle of it (57.3%
+  // measured over 150 seeds) and a retune should have room to move without
+  // a red suite, while 0% or 100% must never pass.
+  it('amateur-night is winnable at a real rate, and never a walkover', () => {
+    const SEEDS = 40;
+    let competentWins = 0;
+    let naiveWins = 0;
+
+    for (let i = 0; i < SEEDS; i++) {
+      const seed = `sweep-seed-${500 + i}`;
+      for (const policy of ['competent', 'naive'] as const) {
+        const match = beginAmateurNightMatch(seed, policy);
+        for (let tick = 0; tick < MAX_TICKS; tick++) {
+          match.loop.sampleInput();
+          match.loop.step();
+          if (allOpponentsDefeated(match.matchStateRef.current)) break;
+          const p = findPlayer(match.world);
+          if (p === undefined || p.destroyed) break;
+        }
+        const player = findPlayer(match.world);
+        const won = allOpponentsDefeated(match.matchStateRef.current) && player?.destroyed === false;
+        if (won && policy === 'competent') competentWins += 1;
+        if (won && policy === 'naive') naiveWins += 1;
+      }
+    }
+
+    // Winnable: the whole point of the fix. Before it this was 0 at every seed.
+    expect({ winnable: competentWins > 0, competentWins }).toEqual({ winnable: true, competentWins });
+    expect(competentWins).toBeGreaterThanOrEqual(Math.round(SEEDS * 0.3));
+    // Not a walkover: an on-ramp the player cannot lose teaches nothing either.
+    expect(competentWins).toBeLessThanOrEqual(Math.round(SEEDS * 0.85));
+    // And the careless entrant still loses, so the two are really different.
+    expect({ naiveWins }).toEqual({ naiveWins: 0 });
+  });
+
+  // An on-ramp won in four seconds teaches nothing. Measured on the victory
+  // seed, where the sweep lands at a median of tick 744 (about 12 seconds), so
+  // a five-second floor is a real bound rather than a restatement of the median.
+  it('a win takes a fight, not a blink', () => {
+    const match = beginAmateurNightMatch(AMATEUR_NIGHT_VICTORY_SEED, 'competent');
+    const fiveSeconds = Math.round(drivingConfig().tickRateHz * 5);
+
+    for (let tick = 0; tick < MAX_TICKS; tick++) {
+      match.loop.sampleInput();
+      match.loop.step();
+      if (allOpponentsDefeated(match.matchStateRef.current)) break;
+      const p = findPlayer(match.world);
+      if (p === undefined || p.destroyed) break;
+    }
+
+    const wonAtTick = match.world.tick;
+    expect(allOpponentsDefeated(match.matchStateRef.current)).toBe(true);
+    expect({ wonAtTick, tookAFight: wonAtTick > fiveSeconds }).toEqual({ wonAtTick, tookAFight: true });
+  });
+
+  // SURVIVABILITY, the other half of the fix and separable from winnability:
+  // the loaner needs armor it can afford to lose, not just magazines. Three
+  // seconds is chosen against the measured failure it replaces — the old loaner
+  // died at a median of tick 152, about 2.5 seconds — so this assertion is one
+  // the shipped-broken build could not have passed. Run on the HARD seed, the
+  // one the competent bot does not even win, so it bounds the bad case.
+  it('the loaner is still alive three seconds in, past the tick the old one died on', () => {
+    const match = beginAmateurNightMatch(AMATEUR_NIGHT_SEED, 'competent');
+    const threeSeconds = Math.round(drivingConfig().tickRateHz * 3);
+    for (let tick = 0; tick < threeSeconds; tick++) {
+      match.loop.sampleInput();
+      match.loop.step();
+    }
+    const player = findPlayer(match.world);
+    expect(player).toBeDefined();
+    if (player === undefined) throw new Error('unreachable');
+    expect({ destroyed: player.destroyed, driverAlive: match.driverRef.current.naturalHealth > 0 }).toEqual({
+      destroyed: false,
+      driverAlive: true,
+    });
   });
 
   // The victory test asserts `player.destroyed === false`, which a verifier proved

@@ -15,7 +15,24 @@
     ],
     "totalCount": 6,
     "salvageable": false,
-    "_note": "Lightly armored, light-chassis/improved-suspension subcompact with one FRONT machine gun. 6 total = 5 amateur-night opponents + the player's own loaner. House karts are never salvageable, win or lose."
+    "_note": "Lightly armored, light-chassis/improved-suspension subcompact with one FRONT machine gun. 6 total = 5 amateur-night opponents + the player's own loaner, which is provisioned separately (see loanerVehicle) rather than being a sixth car off this row. House karts are never salvageable, win or lose."
+  },
+  "loanerVehicle": {
+    "id": "arena-loaner",
+    "name": "House Loaner",
+    "bodyId": "compact",
+    "chassisId": "heavy",
+    "suspensionId": "improved",
+    "plantId": "medium",
+    "tireId": "standard",
+    "armor": { "FRONT": 24, "REAR": 24, "LEFT": 24, "RIGHT": 24, "UNDERBODY": 24 },
+    "weapons": [
+      { "weaponId": "machinegun", "facing": "FRONT", "ammo": 20 },
+      { "weaponId": "machinegun", "facing": "FRONT", "ammo": 20 },
+      { "weaponId": "machinegun", "facing": "FRONT", "ammo": 20 },
+      { "weaponId": "machinegun", "facing": "FRONT", "ammo": 20 }
+    ],
+    "_note": "The car the house lends a newcomer for amateur-night, provisioned MORE generously than the five arena karts it fields against them - the house wants a debut, not an execution. Deliberately NOT the houseVehicle row: amateur-night is one player against five simultaneous cars that all prefer the player as a target, so identical provisioning is a firing squad (measured: a stock kart dies around tick 152 and clearing the roster costs ~59 rounds against a 20-round magazine). Every number here is this recreation's own balance decision with no 1985 provenance, tuned to a measured win rate - see fidelity-notes.yaml. FOUR separate FRONT mounts, not one big magazine, because weapons.json caps a machine gun mount at ammoCapacity 20 and @/sim/construct rejects any mount over it; four mounts is how an 80-round allowance is expressed without breaking that cap."
   },
   "events": [
     {

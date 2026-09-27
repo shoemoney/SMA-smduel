@@ -82,6 +82,27 @@ export interface ArenaHouseVehicle {
   salvageable: boolean;
 }
 
+/**
+ * The car the house LENDS the player for a house-sourced event, as distinct
+ * from the karts it fields against them (`ArenaHouseVehicle`).
+ *
+ * No `totalCount`/`salvageable` of its own: the loaner is still house stock,
+ * so `isHouseVehicleSalvageable` (and through it `arenaExitVehicle`) keeps
+ * governing whether the player walks out with it, from the one boolean that
+ * already exists.
+ */
+export interface ArenaLoanerVehicle {
+  id: string;
+  name: string;
+  bodyId: string;
+  chassisId: string;
+  suspensionId: string;
+  plantId: string;
+  tireId: string;
+  armor: Record<Facing, number>;
+  weapons: MountedWeapon[];
+}
+
 export interface ArenaReconstruction {
   escapePrestigePenalty: number;
   victorySkillGain: { driving: number; marksmanship: number };
@@ -91,6 +112,7 @@ interface ArenasFile {
   $schemaVersion: number;
   _note?: string;
   houseVehicle: ArenaHouseVehicle;
+  loanerVehicle: ArenaLoanerVehicle;
   events: ArenaEventDef[];
   _reconstruction: ArenaReconstruction;
 }
@@ -133,6 +155,24 @@ const houseVehicleSchema: SchemaObject = {
     _note: { type: 'string' },
   },
   required: ['id', 'name', 'bodyId', 'chassisId', 'suspensionId', 'plantId', 'tireId', 'armor', 'weapons', 'totalCount', 'salvageable'],
+  additionalProperties: false,
+};
+
+const loanerVehicleSchema: SchemaObject = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    name: { type: 'string' },
+    bodyId: { type: 'string' },
+    chassisId: { type: 'string' },
+    suspensionId: { type: 'string' },
+    plantId: { type: 'string' },
+    tireId: { type: 'string' },
+    armor: armorSchema,
+    weapons: { type: 'array', items: mountedWeaponSchema },
+    _note: { type: 'string' },
+  },
+  required: ['id', 'name', 'bodyId', 'chassisId', 'suspensionId', 'plantId', 'tireId', 'armor', 'weapons'],
   additionalProperties: false,
 };
 
@@ -203,6 +243,7 @@ const arenasSchema: SchemaObject = {
     $schemaVersion: { type: 'number' },
     _note: { type: 'string' },
     houseVehicle: houseVehicleSchema,
+    loanerVehicle: loanerVehicleSchema,
     events: { type: 'array', items: eventSchema },
     _reconstruction: {
       type: 'object',
@@ -220,7 +261,7 @@ const arenasSchema: SchemaObject = {
       additionalProperties: false,
     },
   },
-  required: ['$schemaVersion', 'houseVehicle', 'events', '_reconstruction'],
+  required: ['$schemaVersion', 'houseVehicle', 'loanerVehicle', 'events', '_reconstruction'],
   additionalProperties: false,
 };
 
@@ -281,6 +322,37 @@ export function houseKartDesign(): VehicleDesign {
     tireId: hv.tireId,
     armor: { ...hv.armor },
     weapons: hv.weapons.map((w) => ({ ...w })),
+  };
+}
+
+export function loanerVehicleDef(): ArenaLoanerVehicle {
+  return ARENAS.loanerVehicle;
+}
+
+/**
+ * Builds the car the house LENDS the player as a real VehicleDesign.
+ *
+ * Separate from `houseKartDesign` on purpose, and the asymmetry is the whole
+ * point rather than an oversight. A house-sourced event puts ONE player
+ * against `opponentCount` cars that all prefer the player as a target, so
+ * provisioning both sides off one row is not a fair fight, it is a firing
+ * squad: five identical karts killed a stock loaner around tick 152 on every
+ * seed measured, and clearing the roster costs roughly 59 rounds against a
+ * 20-round magazine, so VICTORY was unreachable at any skill level. The
+ * opponents' row is untouched (arenas.json marks amateur-night's opponent
+ * count and kart count manual-exact); the loaner is what gives.
+ */
+export function houseLoanerDesign(): VehicleDesign {
+  const lv = ARENAS.loanerVehicle;
+  return {
+    name: lv.name,
+    bodyId: lv.bodyId,
+    chassisId: lv.chassisId,
+    suspensionId: lv.suspensionId,
+    plantId: lv.plantId,
+    tireId: lv.tireId,
+    armor: { ...lv.armor },
+    weapons: lv.weapons.map((w) => ({ ...w })),
   };
 }
 
