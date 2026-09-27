@@ -1,88 +1,96 @@
 {
   "generatedBy": "sprite-audit",
-  "note": "keyColor is SAMPLED per image, never assume #FF00FF. rotationOffsetDeg makes the vehicle nose point UP (-Y) at rotation 0. tile-* and ui-hud-frame/ui-title-art are full-bleed art: not keyed, keyColor null, rotationOffsetDeg not applicable (0).",
+  "note": "keyColor is SAMPLED per image, never assume #FF00FF. rotationOffsetDeg is added to the vehicle's simulation heading (0 rad == world +X, sim/driving.ts) to get the sprite's render rotation, so it must rotate the ART so the art's nose lands on local +X: nose art drawn pointing at local +Y (top of frame) needs 270, local -Y (bottom) needs 90, local -X (left) needs 180, local +X (right) needs 0. See assets/ASSET-NOTES.md section 2. tile-* and ui-hud-frame/ui-title-art are full-bleed art: not keyed, keyColor null, rotationOffsetDeg not applicable (0).",
   "frames": {
     "car-compact": {
       "kind": "car",
       "keyed": true,
       "keyColor": "#F4308E",
       "keyColorDeviation": 3,
-      "rotationOffsetDeg": 0,
+      "rotationOffsetDeg": 270,
       "view": "orthographic",
-      "readability": "good"
+      "readability": "good",
+      "note": "nose UP (armored front vision-slit + hood taper to a front tow hook are at the top of the frame, exhaust-shaped tail lamps and cargo door hardware are at the bottom) - verified against assets/raw/car-compact.png 2026-09-27"
     },
     "car-kart": {
       "kind": "car",
       "keyed": true,
       "keyColor": "#F702A1",
       "keyColorDeviation": 4,
-      "rotationOffsetDeg": 180,
+      "rotationOffsetDeg": 90,
       "view": "orthographic",
-      "readability": "good"
+      "readability": "good",
+      "note": "nose DOWN (wide rear slicks and seatback at the top, narrower front wheels and the front nose cone at the bottom) - verified against assets/raw/car-kart.png 2026-09-27"
     },
     "car-luxury": {
       "kind": "car",
       "keyed": true,
       "keyColor": "#F80581",
       "keyColorDeviation": 3,
-      "rotationOffsetDeg": 180,
+      "rotationOffsetDeg": 90,
       "view": "orthographic",
-      "readability": "good"
+      "readability": "good",
+      "note": "nose DOWN (pointed supercar prow with splitter vents and a badge is at the bottom, gun-turret deck lid is at the top) - verified against assets/raw/car-luxury.png 2026-09-27"
     },
     "car-midsized": {
       "kind": "car",
       "keyed": true,
       "keyColor": "#F10364",
       "keyColorDeviation": 3,
-      "rotationOffsetDeg": 180,
+      "rotationOffsetDeg": 90,
       "view": "orthographic",
-      "readability": "good"
+      "readability": "good",
+      "note": "nose DOWN (twin-wiper windshield + hood run to the bottom edge, rear hatch glass and trunk vents are at the top) - verified against assets/raw/car-midsized.png 2026-09-27"
     },
     "car-pickup": {
       "kind": "car",
       "keyed": true,
       "keyColor": "#F90D7D",
       "keyColorDeviation": 3,
-      "rotationOffsetDeg": 0,
+      "rotationOffsetDeg": 270,
       "view": "orthographic",
-      "readability": "good"
+      "readability": "good",
+      "note": "nose UP (cab/windshield at the top, open bed and tailgate at the bottom) - verified against assets/raw/car-pickup.png 2026-09-27"
     },
     "car-stationwagon": {
       "kind": "car",
       "keyed": true,
       "keyColor": "#F51A69",
       "keyColorDeviation": 2,
-      "rotationOffsetDeg": 90,
+      "rotationOffsetDeg": 180,
       "view": "orthographic",
-      "readability": "fair"
+      "readability": "fair",
+      "note": "landscape frame, nose LEFT (windshield + wiper + wing mirror on the left edge, plain roof and a spare/jerry-can mount on the right edge) - verified against assets/raw/car-stationwagon.png 2026-09-27"
     },
     "car-subcompact": {
       "kind": "car",
       "keyed": true,
       "keyColor": "#E2344F",
       "keyColorDeviation": 3,
-      "rotationOffsetDeg": 180,
+      "rotationOffsetDeg": 90,
       "view": "orthographic",
-      "readability": "good"
+      "readability": "good",
+      "note": "nose DOWN (grille + bumper + wipers at the bottom, roof gun mount at the top) - verified against assets/raw/car-subcompact.png 2026-09-27"
     },
     "car-van": {
       "kind": "car",
       "keyed": true,
       "keyColor": "#F7237A",
       "keyColorDeviation": 2,
-      "rotationOffsetDeg": 180,
+      "rotationOffsetDeg": 90,
       "view": "orthographic",
-      "readability": "good"
+      "readability": "good",
+      "note": "nose DOWN (windshield with wipers + headlights at the bottom, roof vents at the top) - verified against assets/raw/car-van.png 2026-09-27"
     },
     "cycle-topdown": {
       "kind": "cycle",
       "keyed": true,
       "keyColor": "#E52881",
       "keyColorDeviation": 59,
-      "rotationOffsetDeg": 0,
+      "rotationOffsetDeg": 270,
       "view": "orthographic",
       "readability": "good",
-      "note": "REGENERATED on flux-dev - was a front elevation, now true overhead, nose UP"
+      "note": "REGENERATED on flux-dev - was a front elevation, now true overhead, nose UP (headlight/handlebars at the top, rear fender at the bottom) - verified against assets/raw/cycle-topdown.png 2026-09-27"
     },
     "wreck-burning": {
       "kind": "wreck",

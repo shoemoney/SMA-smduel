@@ -1028,11 +1028,13 @@ export function resolveShouldKey(name, kind, meta) {
 }
 
 /**
- * Resolves a frame's `rotationOffsetDeg` (degrees to rotate the sprite so
- * its nose points up at world rotation 0 — assets/ASSET-NOTES.md section 2).
- * Absent is a genuine "no offset" (0), which is what sprite-meta.json
- * itself declares for tile/ui frames; anything present but not a finite
- * number is a data error and throws rather than silently becoming 0.
+ * Resolves a frame's `rotationOffsetDeg` (degrees added to a vehicle's
+ * simulation heading, where 0 rad == world +X, to get the sprite's render
+ * rotation — see src/render/atlas.ts's `AtlasFrameEntry.rotationOffsetDeg`
+ * doc and assets/ASSET-NOTES.md section 2). Absent is a genuine "no offset"
+ * (0), which is what sprite-meta.json itself declares for tile/ui frames;
+ * anything present but not a finite number is a data error and throws
+ * rather than silently becoming 0.
  */
 export function resolveRotationOffsetDeg(name, meta) {
   if (!meta || meta.rotationOffsetDeg === undefined) return 0;

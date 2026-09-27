@@ -605,7 +605,7 @@
       "srcW": 181,
       "srcH": 181,
       "kind": "car",
-      "rotationOffsetDeg": 180
+      "rotationOffsetDeg": 90
     },
     "decal-oil-slick": {
       "atlas": 0,
@@ -644,7 +644,7 @@
       "srcW": 170,
       "srcH": 170,
       "kind": "car",
-      "rotationOffsetDeg": 180
+      "rotationOffsetDeg": 90
     },
     "car-midsized": {
       "atlas": 0,
@@ -657,7 +657,7 @@
       "srcW": 129,
       "srcH": 129,
       "kind": "car",
-      "rotationOffsetDeg": 180
+      "rotationOffsetDeg": 90
     },
     "wreck-burning": {
       "atlas": 0,
@@ -683,7 +683,7 @@
       "srcW": 137,
       "srcH": 137,
       "kind": "car",
-      "rotationOffsetDeg": 180
+      "rotationOffsetDeg": 90
     },
     "car-luxury": {
       "atlas": 0,
@@ -696,7 +696,7 @@
       "srcW": 135,
       "srcH": 135,
       "kind": "car",
-      "rotationOffsetDeg": 180
+      "rotationOffsetDeg": 90
     },
     "cycle-topdown": {
       "atlas": 0,
@@ -709,7 +709,7 @@
       "srcW": 124,
       "srcH": 124,
       "kind": "cycle",
-      "rotationOffsetDeg": 0
+      "rotationOffsetDeg": 270
     },
     "prop-citywall": {
       "atlas": 0,
@@ -748,7 +748,7 @@
       "srcW": 158,
       "srcH": 158,
       "kind": "car",
-      "rotationOffsetDeg": 0
+      "rotationOffsetDeg": 270
     },
     "car-pickup": {
       "atlas": 0,
@@ -761,7 +761,7 @@
       "srcW": 131,
       "srcH": 131,
       "kind": "car",
-      "rotationOffsetDeg": 0
+      "rotationOffsetDeg": 270
     },
     "decal-tire-marks": {
       "atlas": 0,
@@ -865,7 +865,7 @@
       "srcW": 136,
       "srcH": 136,
       "kind": "car",
-      "rotationOffsetDeg": 90
+      "rotationOffsetDeg": 180
     },
     "prop-concrete-barrier": {
       "atlas": 0,
