@@ -114,13 +114,16 @@ describe('trafficPassRangeM: multiplier sourced from driving.json, not a hardcod
 // arena bounds fails rather than silently restoring the bug.
 // ---------------------------------------------------------------------------
 // KNOWN COVERAGE LIMIT, stated rather than implied. These pin roadBounds' own
-// BEHAVIOUR. They do NOT prove `showRoad` passes it to makeArenaAISystem —
+// BEHAVIOUR, not that `showRoad` actually passes it to `makeArenaAISystem` —
 // reverting that call site to the 3-arg form (the fixed arena floor) still
-// leaves this file green. Catching that needs a DOM screen test that reaches the
-// road with a spawned opponent far from the origin, which the happy-dom harness
-// in tests/integration/screens.test.ts can reach but at real cost. Until that
-// exists, the road wiring is grep-verified, not test-verified. Do not read these
-// three passing tests as proof the bug cannot come back.
+// leaves this file green. That wiring is now covered separately, by
+// tests/integration/road-bounds-wiring.test.ts: a DOM test that drives the
+// real Road screen with a real spawned hostile opponent thousands of metres
+// from the origin and spies on the real, unmocked `decideAI` to prove the
+// `ctx.world.bounds` it receives is centred on the player's own live
+// position, not the origin. Do not read these three passing tests alone as
+// proof the bug cannot come back — that file is what actually holds the
+// line on the call site.
 describe('road AI bounds follow the player, unlike the arena floor', () => {
   it('roadBounds is centred on the point it is given, not on the world origin', () => {
     const far = { x: 5_000, y: -3_200 };
