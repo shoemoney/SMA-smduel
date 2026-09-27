@@ -239,17 +239,21 @@ function upsertQuestState(quests: readonly QuestState[], next: QuestState): read
   return quests.map((quest, i) => (i === index ? next : quest));
 }
 
-// `hasWonVictory` (a "has this save already won" query over `QuestState.flags`)
-// used to live here with zero callers: a victory delivery is recognized
-// entirely off `deliverQuest`'s own fresh `QuestDeliverResult.victory`, read
-// once at the exact call site (see `@/app`'s `openFacility`), never by
-// re-scanning saved quest flags for a past win. `noUnusedLocals` refuses an
-// unexported function nothing in this module calls either, so there was no
-// "module-private" middle ground to leave it in - removed rather than kept
-// as dead weight with an invented caller. Bring it back, exported, the
-// moment a real caller needs to ask that question (a title-screen "already
-// won" state, a journal entry) - `quests.some((q) => q.completed &&
-// q.flags.victory === true)` is the one-line shape it was.
+/**
+ * Has this save EVER won - true when `quests` (a save's persisted
+ * `QuestState` ledger) records any completed quest with `flags.victory`
+ * set. `deliverQuest` stamps that flag off `isVictoryQuest` (itself keyed
+ * off `onDeliver.victory`, never a hardcoded quest id) at the moment of
+ * delivery, so re-scanning the ledger here is still data-driven - it reads
+ * the flag `deliverQuest` already derived from quests.json, rather than
+ * re-deriving victory from a quest id a second time. The one caller today
+ * is the title screen's "campaign won" line (see `@/app`'s `showTitle`);
+ * this used to have zero production callers and left the module entirely
+ * (see git history) until that screen needed to ask the question.
+ */
+export function hasWonVictory(quests: readonly QuestState[]): boolean {
+  return quests.some((quest) => quest.completed && quest.flags.victory === true);
+}
 
 // ---------------------------------------------------------------------------
 // Delivery

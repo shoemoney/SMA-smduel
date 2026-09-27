@@ -40,7 +40,7 @@ import { FRESH_ROUTE_HISTORY } from '@/sim/encounters';
 import { pursuitLevelFromQuestState, rollRestAssassinationAttempt } from '@/sim/pursuit';
 import { resolveRoute } from '@/sim/road';
 import type { DriverState, SkillName, VehicleDesign, VehicleState } from '@/sim/types';
-import { questCargoId, questDefs } from '@/sim/victory';
+import { hasWonVictory, questCargoId, questDefs } from '@/sim/victory';
 import { skillsConfig, economy } from '@/data/rulesets';
 import { createRng } from '@/util/rng';
 import { STORE_GENERATIONS, STORE_POINTER, load, openSaveDatabase, type QuestState } from '@/persist/save';
@@ -128,11 +128,6 @@ function parseHop(raw: string): { readonly facility: string; readonly cityId: st
   const facility = raw.slice(0, sep);
   const cityId = raw.slice(sep + 1);
   return { facility, cityId };
-}
-
-/** Mirrors `@/sim/victory`'s (module-private) `hasWonVictory` — kept in the test fixture rather than exported, since nothing in the shipped game reads it either (see victory.ts's own doc comment on why it stays private). */
-function wonVictory(quests: readonly QuestState[]): boolean {
-  return quests.some((quest) => quest.completed && quest.flags.victory === true);
 }
 
 const BOSS_TAPE = questDef('the-boss-tape');
@@ -287,7 +282,7 @@ describe('campaign: the-boss-tape end to end (clue chain -> marked/clone/pursuit
       quests: acceptedQuests,
     });
 
-    expect(wonVictory(preDeliveryState.quests)).toBe(false);
+    expect(hasWonVictory(preDeliveryState.quests)).toBe(false);
 
     // Accepted, at the right city/facility, but the cargo isn't aboard
     // (lost, sold, whatever) — `attemptQuestDelivery` must decline
@@ -296,7 +291,7 @@ describe('campaign: the-boss-tape end to end (clue chain -> marked/clone/pursuit
     const withoutCargo = attemptQuestDelivery({ ...preDeliveryState, vehicle: makeVehicle({ cargo: [] }) }, BOSS_TAPE.destination.facility);
     expect(withoutCargo.result).toBeNull();
     expect(withoutCargo.def).toBeNull();
-    expect(wonVictory(withoutCargo.state.quests)).toBe(false);
+    expect(hasWonVictory(withoutCargo.state.quests)).toBe(false);
 
     // The exact function `openFacility` calls on every facility entry.
     const delivery = attemptQuestDelivery(preDeliveryState, BOSS_TAPE.destination.facility); // "federal"
@@ -311,7 +306,7 @@ describe('campaign: the-boss-tape end to end (clue chain -> marked/clone/pursuit
     // here would itself be the regression, not a shape to shrug past.
     expect(delivery.state.vehicle).not.toBeNull();
     expect(delivery.state.vehicle?.cargo.some((item) => item.id === cargoId)).toBe(false); // cargo consumed
-    expect(wonVictory(delivery.state.quests)).toBe(true);
+    expect(hasWonVictory(delivery.state.quests)).toBe(true);
     expect(delivery.def?.id).toBe(BOSS_TAPE.id);
 
     // --- Sandbox survives: `attemptQuestDelivery` only ever replaces

@@ -6,6 +6,7 @@ import {
   buildVictorySummary,
   deliverQuest,
   findQuestState,
+  hasWonVictory,
   isVictoryQuest,
   questById,
   questCargoId,
@@ -20,7 +21,6 @@ import {
   load,
   openSaveDatabase,
   save,
-  type QuestState,
   type SaveGame,
 } from '@/persist/save';
 import { CURRENT_SCHEMA_VERSION } from '@/persist/migrate';
@@ -42,11 +42,6 @@ const TRANSPLANT_QUEST = questById('transplant-run');
 const NO_DEADLINE = Number.POSITIVE_INFINITY;
 
 const DAY_63_CLOCK: Clock = { dayIndex: 63, phase: 'DAY' };
-
-/** Mirrors `@/sim/victory`'s removed (zero-production-caller) `hasWonVictory` - kept here only for this file's own assertions, never re-exported (see victory.ts's own doc comment on why it left). */
-function wonVictory(quests: readonly QuestState[]): boolean {
-  return quests.some((quest) => quest.completed && quest.flags.victory === true);
-}
 
 function makeDriver(overrides: Partial<DriverState> = {}): DriverState {
   return {
@@ -174,6 +169,27 @@ describe('the-boss-tape is quests.json\'s own victory condition', () => {
 });
 
 // ---------------------------------------------------------------------------
+// hasWonVictory: a pure query over the persisted QuestState ledger, keyed
+// off the same flags.victory deliverQuest stamps from isVictoryQuest -
+// never a hardcoded quest id.
+// ---------------------------------------------------------------------------
+
+describe('hasWonVictory', () => {
+  it('is true for a ledger where the victory quest is completed', () => {
+    expect(hasWonVictory([{ id: FINAL_QUEST.id, stage: 5, completed: true, flags: { victory: true } }])).toBe(true);
+  });
+
+  it('is false with no completed quests at all', () => {
+    expect(hasWonVictory([])).toBe(false);
+    expect(hasWonVictory([{ id: FINAL_QUEST.id, stage: 5, completed: false, flags: { victory: false } }])).toBe(false);
+  });
+
+  it('is false for a non-victory quest completed - completion alone is not a win', () => {
+    expect(hasWonVictory([{ id: DECOY_QUEST.id, stage: 1, completed: true, flags: { victory: false } }])).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Delivery: pays the quest's own pay, sets victory
 // ---------------------------------------------------------------------------
 
@@ -232,7 +248,7 @@ describe('deliverQuest: delivering the final payload', () => {
     expect(result.victory).toBe(true);
     const state = findQuestState(result.quests, FINAL_QUEST.id);
     expect(state).toEqual({ id: FINAL_QUEST.id, stage: 0, completed: true, flags: { victory: true } });
-    expect(wonVictory(result.quests)).toBe(true);
+    expect(hasWonVictory(result.quests)).toBe(true);
   });
 
   it('sandboxContinues reads the quest\'s OWN onDeliver.sandboxContinues, proven both true and false', () => {
@@ -283,7 +299,7 @@ describe('deliverQuest: delivering the final payload', () => {
 
     expect(result.outcome).toBe('DELIVERED');
     expect(result.victory).toBe(false);
-    expect(wonVictory(result.quests)).toBe(false);
+    expect(hasWonVictory(result.quests)).toBe(false);
   });
 
   it('refuses at the wrong CITY, unchanged and no victory', () => {
@@ -565,7 +581,7 @@ describe('the victory flag persists through save/load', () => {
     const loaded = await load(db, { mode: 'safe' });
 
     expect(loaded.game.quests).toEqual(delivery.quests);
-    expect(wonVictory(loaded.game.quests)).toBe(true);
+    expect(hasWonVictory(loaded.game.quests)).toBe(true);
     expect(loaded.game.driver.cash).toBe(delivery.driver.cash);
     expect(loaded.game).toEqual(game);
   });

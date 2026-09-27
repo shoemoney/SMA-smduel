@@ -66,6 +66,7 @@
     "ui.title.newDriver": "New Driver",
     "ui.title.continue": "Continue",
     "ui.title.controls": "Controls",
+    "ui.title.campaignWon": "Campaign won",
 
     "ui.controls.presetRow": "Preset: {preset} (change)",
     "ui.controls.actionRow": "{action}: {binding}",
