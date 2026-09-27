@@ -54,6 +54,11 @@
     "ui.builder.legalityTitle": "Legality",
     "ui.builder.noViolations": "No violations — ready to build.",
     "ui.menu.actionUnavailable": "{label} is not available right now",
+    "ui.touch.fire": "Fire",
+    "ui.touch.enterExitCar": "Car",
+    "ui.touch.fleet": "Fleet",
+    "ui.touch.journal": "Journal",
+    "ui.touch.searchWreck": "Search",
     "ui.confirm.buildVehicle": "Build this vehicle",
 
     "ui.title.appName": "smduel",
@@ -113,10 +118,15 @@
     "ui.arena.scoreSubmit.errorScoreRefused": "the score was rejected (status {status})",
     "ui.arena.scoreSubmit.errorNotAccepted": "the score was not accepted",
 
-    "ui.city.status": "{city} — Day {day} {phase} — ${cash}\nWASD/arrows walk · G enter/exit car · walk into a building or the gate",
+    "ui.phase.DAY": "daytime",
+    "ui.phase.NIGHT": "night",
+
+    "ui.city.status": "{city} — Day {day}, {phase} — ${cash}\nWASD/arrows walk · G enter/exit car · walk into a building or the gate",
+    "ui.city.statusTouch": "{city} — Day {day}, {phase} — ${cash}\nDrag the stick to walk · tap Car to enter/exit · walk into a building or the gate",
     "ui.city.routeOption": "{city} — {miles}mi, danger {danger}",
 
-    "ui.road.status": "En route to {city} — {miles}mi remaining — Day {day} {phase} — WASD/arrows drive",
+    "ui.road.status": "En route to {city} — {miles}mi remaining — Day {day}, {phase} — WASD/arrows drive",
+    "ui.road.statusTouch": "En route to {city} — {miles}mi remaining — Day {day}, {phase} — drag the stick to drive",
 
     "ui.weapon.outOfAmmo": "{weapon} is out of ammo",
     "ui.weapon.fired": "{weapon} fired",

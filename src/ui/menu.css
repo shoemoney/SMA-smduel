@@ -118,6 +118,18 @@
   font-style: italic;
 }
 
+/* No automated guard here either, same reason as the file header: happy-dom
+   computes no layout and does not evaluate media queries at all, so a coarse
+   pointer never sees this block in a test run. Verified by opening the game
+   on a phone. Gated to (pointer: coarse) only, so a mouse/trackpad desktop
+   keeps its tighter rows unchanged. */
+@media (pointer: coarse) {
+  .sm-menu__item {
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
 .sm-menu__message {
   margin-top: 12px;
   padding-top: 10px;

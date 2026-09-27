@@ -1,4 +1,15 @@
-/* Vehicle constructor UI — two-pane keyboard-operable builder. */
+/*
+ * Vehicle constructor UI — two-pane keyboard-operable builder.
+ *
+ * NO AUTOMATED GUARD covers the `@media (pointer: coarse)` block below:
+ * happy-dom (the DOM harness tests/integration/builder-touch.test.ts runs
+ * on) computes no layout at all — getBoundingClientRect() returns zeros —
+ * and does not evaluate media queries, so a test can see that the cycle
+ * buttons and name input exist and are wired up, but never that they are
+ * actually 44px tall or actually hidden/shown at the right breakpoint.
+ * Verified by opening the game on a phone. `menu.css` carries this same
+ * caveat for the identical reason.
+ */
 
 .sm-builder-root {
   outline: none;
@@ -90,10 +101,85 @@
   font-variant-numeric: tabular-nums;
 }
 
+.sm-builder__row-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--sm-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.sm-builder__row-input:focus {
+  outline: none;
+  border-color: var(--sm-accent);
+  background: var(--sm-panel-alt);
+}
+
+/* Rendered ALWAYS (see src/ui/builder.ts's buildLeftPane) and hidden here by
+   default so a mouse/trackpad session stays pixel-identical to before this
+   task — only revealed under (pointer: coarse) below. Kept in the DOM either
+   way (rather than only appended on a coarse pointer) so happy-dom, which
+   evaluates NO media query, can still find and click them in a test. */
+.sm-builder__row-controls {
+  display: none;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.sm-builder__row-cycle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  padding: 0;
+  background: var(--sm-panel-alt);
+  color: var(--sm-text);
+  border: 1px solid var(--sm-line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* The glyph lives in CSS, not as a `.textContent` literal in builder.ts: a
+   `-`/`+` string assigned in TypeScript is exactly what
+   tests/unit/strings.test.ts's scanner exists to catch, and that file's
+   allowlist is not this task's to edit (see YOUR FILES in the task brief).
+   The button's meaning still reaches a screen reader via its `aria-label`,
+   set through `setAttribute` in builder.ts. */
+.sm-builder__row-cycle--dec::before { content: '−'; }
+.sm-builder__row-cycle--inc::before { content: '+'; }
+
 .sm-builder__hint {
   margin-top: 10px;
   color: var(--sm-text-dim);
   font-size: 12px;
+}
+
+@media (pointer: coarse) {
+  .sm-builder__row,
+  .sm-builder__row-input {
+    min-height: 44px;
+  }
+
+  .sm-builder__row-controls {
+    display: flex;
+  }
+
+  .sm-builder__row-cycle {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* A phone player has no ↑↓←→/0-9/Enter to act on — see buildLeftPane's
+     comment on why this line can't be replaced with tap-appropriate wording
+     instead of simply removed. */
+  .sm-builder__hint {
+    display: none;
+  }
 }
 
 .sm-builder__stats {

@@ -25,7 +25,12 @@
  *
  * Every key/button default lives in `rulesets/classic/controls.json`,
  * AJV-validated by `@/data/schema`'s `validateControls` — nothing
- * gameplay-numeric (including the gamepad deadzone) is a literal here.
+ * gameplay-numeric (including the gamepad deadzone, the touch deadzone
+ * and the on-screen stick's travel radius) is a literal here. The
+ * on-screen stick's own action map (`TOUCH_AXIS_ACTIONS` below) IS fixed
+ * in code, not data: an on-screen stick has no physical button to
+ * reassign, so its geometry is its binding and there is nothing to
+ * rebind.
  */
 import { validateControls, type ActionBindingDefaults, type ControlsConfig, type GamepadAxisBinding } from '@/data/schema';
 import type { InputFrame } from '@/sim/loop';
@@ -67,10 +72,21 @@ export interface RawInputState {
   gamepadButtonsDown: ReadonlySet<number>;
   /** Standard Gamepad axis readings, index-aligned (0 = left stick X, 1 = left stick Y, ...). Empty when no gamepad is connected. */
   gamepadAxes: readonly number[];
+  /** On-screen thumbstick readings, index-aligned and using the SAME convention as `gamepadAxes` above so there is one analog-axis convention in this module: 0 = X (right positive), 1 = Y (screen-DOWN positive). Empty when no touch UI is mounted. */
+  touchAxes: readonly number[];
+  /** Action ids whose on-screen button is currently held. Unlike every other channel these are action ids, not device indices, because an on-screen button is LABELLED with what it does — there is no device-level number to map from, and nothing to rebind. */
+  touchButtonsDown: ReadonlySet<string>;
 }
 
 export function emptyRawInputState(): RawInputState {
-  return { keysDown: new Set(), mouseButtonsDown: new Set(), gamepadButtonsDown: new Set(), gamepadAxes: [] };
+  return {
+    keysDown: new Set(),
+    mouseButtonsDown: new Set(),
+    gamepadButtonsDown: new Set(),
+    gamepadAxes: [],
+    touchAxes: [],
+    touchButtonsDown: new Set(),
+  };
 }
 
 /** One preset's full action-id -> binding map. */
@@ -138,28 +154,50 @@ export function rebind(bindings: AllBindings, preset: PresetName, actionId: stri
 // Resolution
 // ---------------------------------------------------------------------------
 
-/** This one axis binding's contribution toward its action, in `[0, 1]`: 0 below the deadzone, otherwise the axis's own magnitude (clamped to 1) — NOT collapsed to a boolean. That magnitude is what carries the Classic single-stick contract's "speed as a fraction of top speed" (file header) all the way through to `@/sim/driving`, which reads it via `stick` length; collapsing it here would make every gamepad axis a 3-state (0/+1/-1) digital input no matter how far it's actually pushed. */
-function axisContribution(raw: RawInputState, axis: GamepadAxisBinding, axisThreshold: number): number {
-  const value = raw.gamepadAxes[axis.index] ?? 0;
+/** This one axis binding's contribution toward its action, in `[0, 1]`: 0 below the deadzone, otherwise the axis's own magnitude (clamped to 1) — NOT collapsed to a boolean. That magnitude is what carries the Classic single-stick contract's "speed as a fraction of top speed" (file header) all the way through to `@/sim/driving`, which reads it via `stick` length; collapsing it here would make every gamepad axis a 3-state (0/+1/-1) digital input no matter how far it's actually pushed. Takes the axis array explicitly (rather than reading `raw.gamepadAxes` itself) so the same function scores both `gamepadAxes` and `touchAxes` against their own threshold. */
+function axisContribution(axes: readonly number[], axis: GamepadAxisBinding, axisThreshold: number): number {
+  const value = axes[axis.index] ?? 0;
   if (axis.sign > 0) {
     return value >= axisThreshold ? Math.min(value, 1) : 0;
   }
   return value <= -axisThreshold ? Math.min(-value, 1) : 0;
 }
 
-/** How strongly `binding` is being held this tick, in `[0, 1]`. Digital devices (keyboard/mouse/gamepad buttons) are all-or-nothing — pressed contributes exactly 1, matching keyboard's inherent lack of magnitude. A gamepad axis contributes its own analog magnitude via `axisContribution`; when a binding lists more than one axis, the strongest wins. */
-function actionStrength(raw: RawInputState, binding: ActionBindingDefaults | undefined, axisThreshold: number): number {
-  if (binding === undefined) return 0;
-  for (const code of binding.keyboard) if (raw.keysDown.has(code)) return 1;
-  for (const button of binding.mouse) if (raw.mouseButtonsDown.has(button)) return 1;
-  for (const button of binding.gamepadButtons) if (raw.gamepadButtonsDown.has(button)) return 1;
+/**
+ * Which drive action each half of the on-screen stick feeds. Fixed, unlike
+ * every map in `controls.json`, because an on-screen stick is not rebindable:
+ * its geometry IS its binding, there is no physical button to reassign. Same
+ * shape and same sign convention as classic's gamepad left-stick bindings, so
+ * `axisContribution` above reads both channels with one rule.
+ */
+const TOUCH_AXIS_ACTIONS: readonly (readonly [actionId: string, axis: GamepadAxisBinding])[] = [
+  ['driveLeft', { index: 0, sign: -1 }],
+  ['driveRight', { index: 0, sign: 1 }],
+  ['driveUp', { index: 1, sign: -1 }],
+  ['driveDown', { index: 1, sign: 1 }],
+];
+
+/** How strongly `binding` is being held this tick, in `[0, 1]`. Digital devices (keyboard/mouse/gamepad buttons, and an on-screen button naming `actionId` directly) are all-or-nothing — pressed contributes exactly 1, matching keyboard's inherent lack of magnitude. A gamepad axis contributes its own analog magnitude via `axisContribution`, and the on-screen stick's half matching `actionId` (per `TOUCH_AXIS_ACTIONS`) is folded in the SAME way against its own `CONTROLS.touch.axisDeadzone`; when more than one analog source applies, the strongest wins — MAX, never a sum, so a held key plus a pushed stick never exceeds 1. */
+function actionStrength(raw: RawInputState, actionId: string, binding: ActionBindingDefaults | undefined, axisThreshold: number): number {
+  if (raw.touchButtonsDown.has(actionId)) return 1;
+  if (binding !== undefined) {
+    for (const code of binding.keyboard) if (raw.keysDown.has(code)) return 1;
+    for (const button of binding.mouse) if (raw.mouseButtonsDown.has(button)) return 1;
+    for (const button of binding.gamepadButtons) if (raw.gamepadButtonsDown.has(button)) return 1;
+  }
   let strongest = 0;
-  for (const axis of binding.gamepadAxes) strongest = Math.max(strongest, axisContribution(raw, axis, axisThreshold));
+  if (binding !== undefined) {
+    for (const axis of binding.gamepadAxes) strongest = Math.max(strongest, axisContribution(raw.gamepadAxes, axis, axisThreshold));
+  }
+  for (const [touchActionId, axis] of TOUCH_AXIS_ACTIONS) {
+    if (touchActionId !== actionId) continue;
+    strongest = Math.max(strongest, axisContribution(raw.touchAxes, axis, CONTROLS.touch.axisDeadzone));
+  }
   return strongest;
 }
 
-function isActionActive(raw: RawInputState, binding: ActionBindingDefaults | undefined, axisThreshold: number): boolean {
-  return actionStrength(raw, binding, axisThreshold) > 0;
+function isActionActive(raw: RawInputState, actionId: string, binding: ActionBindingDefaults | undefined, axisThreshold: number): boolean {
+  return actionStrength(raw, actionId, binding, axisThreshold) > 0;
 }
 
 const DIRECT_SELECT_ORDER: readonly [actionId: string, slot: number][] = [
@@ -188,7 +226,7 @@ const DIRECT_SELECT_ORDER: readonly [actionId: string, slot: number][] = [
  */
 function resolveDirectWeaponSlot(raw: RawInputState, bindings: PresetBindings, axisThreshold: number): number | null {
   for (const [actionId, slot] of DIRECT_SELECT_ORDER) {
-    if (isActionActive(raw, bindings[actionId], axisThreshold)) return slot;
+    if (isActionActive(raw, actionId, bindings[actionId], axisThreshold)) return slot;
   }
   return null;
 }
@@ -198,8 +236,8 @@ export function cyclePressed(raw: RawInputState, preset: PresetName, bindings: A
   const presetBindings = bindingsForPreset(bindings, preset);
   const axisThreshold = CONTROLS.gamepadAxisThreshold;
   return {
-    next: isActionActive(raw, presetBindings['cycleWeaponNext'], axisThreshold),
-    prev: isActionActive(raw, presetBindings['cycleWeaponPrev'], axisThreshold),
+    next: isActionActive(raw, 'cycleWeaponNext', presetBindings['cycleWeaponNext'], axisThreshold),
+    prev: isActionActive(raw, 'cycleWeaponPrev', presetBindings['cycleWeaponPrev'], axisThreshold),
   };
 }
 
@@ -223,8 +261,8 @@ export function cyclePressed(raw: RawInputState, preset: PresetName, bindings: A
 export function resolveInput(rawState: RawInputState, preset: PresetName, bindings: AllBindings): InputFrame {
   const presetBindings = bindingsForPreset(bindings, preset);
   const axisThreshold = CONTROLS.gamepadAxisThreshold;
-  const active = (actionId: string): boolean => isActionActive(rawState, presetBindings[actionId], axisThreshold);
-  const strength = (actionId: string): number => actionStrength(rawState, presetBindings[actionId], axisThreshold);
+  const active = (actionId: string): boolean => isActionActive(rawState, actionId, presetBindings[actionId], axisThreshold);
+  const strength = (actionId: string): number => actionStrength(rawState, actionId, presetBindings[actionId], axisThreshold);
 
   const up = strength('driveUp');
   const down = strength('driveDown');

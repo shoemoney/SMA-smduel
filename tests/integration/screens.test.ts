@@ -92,6 +92,21 @@ function requireOne(selector: string): Element {
   return el;
 }
 
+/** Stubs `window.matchMedia('(pointer: coarse)')` so `@/ui/touch`'s `isCoarsePointer()` reads `matches` — shared by every describe block below that needs the on-screen touch overlay mounted (or deliberately not). Callers restore `window.matchMedia` themselves in their own `afterEach` (see this file's own touch-coarseness block for why: a leaked stub would silently mount a phantom stick/fire/command UI under every OTHER test's driving screen). */
+function stubPointerCoarse(matches: boolean): void {
+  window.matchMedia = ((query: string) =>
+    ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList) as typeof window.matchMedia;
+}
+
 // ---------------------------------------------------------------------------
 // Boot helper: real Title -> Driver Creation -> Constructor -> City, purely
 // through dispatched DOM events (no internal screen function called
@@ -102,7 +117,8 @@ function requireOne(selector: string): Element {
 
 const TEST_SEED = 'screens-test-seed-1';
 
-async function bootToCity(root: HTMLElement): Promise<void> {
+/** Boots the real app to the Title screen and returns its rendered `.sm-menu`, with no key/click dispatched against it yet — the shared preamble `bootToCity` (key-driven) and the tap tests below (click-driven) both build on. */
+async function bootFresh(root: HTMLElement): Promise<Element> {
   const { boot } = await import('@/app');
 
   installRafStub();
@@ -115,9 +131,13 @@ async function bootToCity(root: HTMLElement): Promise<void> {
   });
   await bootPromise;
 
+  return requireOne('.sm-menu');
+}
+
+async function bootToCity(root: HTMLElement): Promise<void> {
   // --- Title: digit '1' activates the first eligible action. With no save
   // to resume (openDb always rejects above), that's 'new-driver'. ---
-  const titleMenu = requireOne('.sm-menu');
+  const titleMenu = await bootFresh(root);
   dispatchKey(titleMenu, { key: '1' });
 
   // --- Driver creation: the form's own defaults (name "Driver", an even
@@ -777,5 +797,287 @@ describe('DOM screens: the arcade score submit screen', () => {
 
     const labels = Array.from(requireOne('.sm-menu').querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
     expect(labels).toContain(t('ui.arena.scoreSubmit.statusAccepted', { rank: 7 }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Touch: tapping a real rendered menu row, and the on-screen stick/fire
+// button's presence following pointer coarseness
+// ---------------------------------------------------------------------------
+
+describe('DOM screens: tapping a real rendered menu row with a click', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  function click(el: Element): void {
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  }
+
+  it('a click on an eligible row activates it, exactly like the digit key does', async () => {
+    const titleMenu = await bootFresh(root);
+    // Title's actions with no save to resume: ['new-driver', 'controls'] — row 0 is 'new-driver'.
+    const newDriverRow = titleMenu.querySelectorAll('li')[0];
+    if (newDriverRow === undefined) throw new Error('test: expected a "new-driver" row on the title menu');
+
+    expect(document.querySelector('.sm-screen--driver')).toBeNull();
+    click(newDriverRow);
+    expect(document.querySelector('.sm-screen--driver')).not.toBeNull();
+  });
+
+  it('a click on an ineligible row does not activate it', () => {
+    // The arcade score-submit screen's submit row goes ineligible the
+    // instant a submit is in flight (`eligible: status.kind !== 'submitting'
+    // && status.kind !== 'accepted'` in `@/app.ts`), and a SECOND activation
+    // while ineligible would be a real, observable bug — a duplicate network
+    // call — not a silent no-op, which is what makes this scenario a genuine
+    // detector of the eligibility check rather than just the click wiring
+    // (already covered by the "eligible row" test above).
+    const calls: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown) => {
+        calls.push(input);
+        return new Promise<Response>(() => {
+          /* never resolves — keeps status stuck at 'submitting', so the row stays ineligible for the whole test */
+        });
+      }),
+    );
+
+    const header: MenuHeaderInfo = { cash: 1_000, dayIndex: 1, phase: 'MORNING' as DayPhase, cityName: 'Test City' };
+    const payload: ArcadeScorePayload = { score: 100, wave: 1, kills: 1, headshots: 0, duration: 30 };
+    showArcadeScoreSubmit(root, header, 'Tester', payload, () => {});
+
+    // The submit row is always second-to-last (skip is always last), whether
+    // or not a status row has been inserted ahead of it yet — re-queried
+    // fresh each time since `.sm-menu` is rebuilt wholesale on every
+    // `setActions()` re-render.
+    function submitRow(): Element {
+      const rows = requireOne('.sm-menu').querySelectorAll('li');
+      const row = rows[rows.length - 2];
+      if (row === undefined) throw new Error('test: expected a submit row on the arcade submit menu');
+      return row;
+    }
+
+    click(submitRow()); // idle -> submitting: a real fetch call
+    expect(calls).toHaveLength(1);
+
+    click(submitRow()); // now ineligible (status.kind === 'submitting') — must NOT call fetch again
+    expect(calls).toHaveLength(1);
+  });
+});
+
+describe('DOM screens: on-screen touch controls follow pointer coarseness', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    originalMatchMedia = window.matchMedia;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    // Restored explicitly (not just via vi.restoreAllMocks(), since this is
+    // a plain reassignment, not a vi.spyOn) — a coarse-pointer stub leaking
+    // into the rest of this 800+-line file would silently mount a phantom
+    // stick/fire button under every other test's driving screen.
+    window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
+  });
+
+  it('touch UI is absent on a driving screen when the pointer is not coarse', async () => {
+    stubPointerCoarse(false);
+    await bootToCity(root);
+    expect(document.querySelector('.sm-touch')).toBeNull();
+  });
+
+  it('touch UI is present on a driving screen when matchMedia reports a coarse pointer, with the fire button withheld on the city screen (its frame loop never reads `resolved.fire`)', async () => {
+    stubPointerCoarse(true);
+    await bootToCity(root);
+    expect(document.querySelector('.sm-touch')).not.toBeNull();
+    expect(document.querySelector('.sm-touch__stick')).not.toBeNull();
+    // `showCity` passes `fire: false` — a fire button here would be visible
+    // but permanently inert, since the city frame loop only ever reads
+    // `resolved.moveX`/`moveY`. The fixed-hotkey command buttons (G/F/J)
+    // mount instead; see the "city screen touch commands" describe block.
+    expect(document.querySelector('.sm-touch__fire')).toBeNull();
+    expect(document.querySelector('[data-touch-command="enterExitCar"]')).not.toBeNull();
+  });
+});
+
+describe('DOM screens: city touch command buttons run the exact same code as their fixed hotkey', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    originalMatchMedia = window.matchMedia;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+    stubPointerCoarse(true);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
+  });
+
+  it('tapping the "Car" command enters the vehicle exactly like pressing "g" does — the same walk that reaches the gate trigger when on foot goes nowhere and never opens the route menu', async () => {
+    await bootToCity(root);
+
+    // Player and vehicle both spawn exactly on the gate (`showCity`'s own
+    // `layout.gate.position` — see `createCityPlayerState`), so entering
+    // the car is trivially within `isVehicleInRange` at t=0; no walking to
+    // the car first is needed.
+    const carBtn = requireOne('[data-touch-command="enterExitCar"]');
+    carBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    // Identical walk-away-then-walk-back sequence this file's own 'x' test
+    // uses to reach the gate trigger (`checkCityTrigger` is edge-triggered
+    // — starting already inside the interaction radius never fires it).
+    // `stepWalk` no-ops ALL movement while `player.inVehicle` is true
+    // (`@/sim/city`'s own file header) — if the tap above toggled the SAME
+    // `player.inVehicle` the 'g' key does, this walk cycle moves nowhere,
+    // never crosses back into the gate's radius, and `.sm-menu` never
+    // mounts. Contrast this file's own 'x' test, whose IDENTICAL key
+    // sequence — with no car toggle first — DOES open `.sm-menu`.
+    const cityId = skillsConfig().startingLocation;
+    const layout = generateCityLayout(cityId, TEST_SEED);
+    const gate = layout.gate.position;
+
+    const inwardKeys: KeyboardEventInit[] = [];
+    if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
+    else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
+    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
+    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    expect(inwardKeys.length).toBeGreaterThan(0);
+
+    const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
+      if (k.code === 'KeyD') return { key: 'a', code: 'KeyA' };
+      if (k.code === 'KeyA') return { key: 'd', code: 'KeyD' };
+      if (k.code === 'KeyW') return { key: 's', code: 'KeyS' };
+      return { key: 'w', code: 'KeyW' };
+    });
+
+    const STEPS_PER_LEG = 15;
+
+    for (const k of inwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (const k of inwardKeys) dispatchKeyUp(window, k);
+
+    for (const k of outwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (const k of outwardKeys) dispatchKeyUp(window, k);
+
+    expect(document.querySelector('.sm-menu')).toBeNull();
+  });
+});
+
+describe('DOM screens: road touch wreck-search command visibility', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+  let originalMatchMedia: typeof window.matchMedia;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    originalMatchMedia = window.matchMedia;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+    stubPointerCoarse(true);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+    window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
+  });
+
+  it('the wreck-search command mounts hidden on a fresh road trip, with no wreck in reach yet', async () => {
+    await bootToCity(root);
+
+    const cityId = skillsConfig().startingLocation;
+    const layout = generateCityLayout(cityId, TEST_SEED);
+    const gate = layout.gate.position;
+
+    const inwardKeys: KeyboardEventInit[] = [];
+    if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
+    else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
+    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
+    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    expect(inwardKeys.length).toBeGreaterThan(0);
+
+    const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
+      if (k.code === 'KeyD') return { key: 'a', code: 'KeyA' };
+      if (k.code === 'KeyA') return { key: 'd', code: 'KeyD' };
+      if (k.code === 'KeyW') return { key: 's', code: 'KeyS' };
+      return { key: 'w', code: 'KeyW' };
+    });
+
+    const STEPS_PER_LEG = 15;
+
+    for (const k of inwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (const k of inwardKeys) dispatchKeyUp(window, k);
+
+    for (const k of outwardKeys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
+    for (let i = 0; i < STEPS_PER_LEG; i++) stepFrame();
+    for (const k of outwardKeys) dispatchKeyUp(window, k);
+
+    const routeMenu = requireOne('.sm-menu');
+    dispatchKey(routeMenu, { key: '1' });
+
+    await flushMicrotasks();
+    await flushMicrotasks();
+    requireOne('.sm-screen--road');
+
+    // Asserted BEFORE any `frame()` tick runs (the stubbed
+    // `requestAnimationFrame` only captures its callback here, see this
+    // file's own `installRafStub`) — this is `mountTouchControls`'s own
+    // `initiallyVisible: false` at mount time, not the ongoing per-frame
+    // `setCommandVisible('searchWreck', ...)` gate in `frame()`, which
+    // would mask the mount-time flag by re-hiding it anyway on its very
+    // first tick (a fresh trip's `wrecks` is always empty).
+    const wreckBtn = requireOne('[data-touch-command="searchWreck"]') as HTMLButtonElement;
+    expect(wreckBtn.hidden).toBe(true);
+
+    // The OTHER half of this requirement — the button un-hiding once a
+    // wreck is actually in reach — is not practical to prove from this
+    // harness: a fresh trip's `wrecks` array is always empty (this file's
+    // own 'x' test makes the same call: "reaching an actual
+    // defeated-opponent wreck is a full combat encounter, out of scope").
+    // Stating that plainly here rather than faking a passing assertion.
   });
 });

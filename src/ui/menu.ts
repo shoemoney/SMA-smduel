@@ -73,6 +73,16 @@ function activate(state: MenuState, index: number): MenuKeyResult {
   return { state: { ...state, selectedIndex: index, message: null }, outcome: { kind: 'ACTIVATE', id: action.id } };
 }
 
+/**
+ * The player pointed at row `index` (a tap or a click). Routes through the
+ * SAME `activate` as a digit key, so an ineligible row answers a tap with the
+ * identical refusal message it answers a digit with — there is no second
+ * eligibility rule to drift out of sync.
+ */
+export function handleMenuPointer(state: MenuState, index: number): MenuKeyResult {
+  return activate(state, index);
+}
+
 const DIGIT_RE = /^[0-9]$/;
 
 /**
@@ -132,7 +142,7 @@ export interface MountedMenu {
   destroy(): void;
 }
 
-function buildMenuDom(state: MenuState, header: MenuHeaderInfo): HTMLElement {
+function buildMenuDom(state: MenuState, header: MenuHeaderInfo, onRowActivate: (index: number) => void): HTMLElement {
   const root = document.createElement('div');
   root.className = 'sm-menu';
 
@@ -148,6 +158,14 @@ function buildMenuDom(state: MenuState, header: MenuHeaderInfo): HTMLElement {
     item.className = 'sm-menu__item';
     if (index === state.selectedIndex) item.classList.add('sm-menu__item--selected');
     if (!action.eligible) item.classList.add('sm-menu__item--ineligible');
+    // Not `tabindex` on the row: `mountMenu` focuses the CONTAINER, which owns
+    // keydown, so a tab-stopped row could take a stray Enter while a
+    // different row is `state.selectedIndex` — the exact divergence a tap
+    // must not introduce.
+    item.setAttribute('role', 'button');
+    if (index === state.selectedIndex) item.setAttribute('aria-selected', 'true');
+    if (!action.eligible) item.setAttribute('aria-disabled', 'true');
+    item.addEventListener('click', () => onRowActivate(index));
 
     // Only the first 10 rows are reachable by a single digit key at all
     // (1-9, then 0 for the 10th): handleMenuKey below maps digit d to index
@@ -196,7 +214,7 @@ export function mountMenu(options: MenuMountOptions): MountedMenu {
 
   function render(): void {
     options.container.innerHTML = '';
-    options.container.appendChild(buildMenuDom(state, header));
+    options.container.appendChild(buildMenuDom(state, header, onRowActivate));
   }
 
   function onKeyDown(ev: KeyboardEvent): void {
@@ -206,6 +224,22 @@ export function mountMenu(options: MenuMountOptions): MountedMenu {
     // ACTIVATE/BACK hand control back to the host (run the action, navigate
     // away) — it owns `options.container` from here, so we must not
     // re-render over whatever screen it just put there.
+    if (result.outcome.kind === 'ACTIVATE') {
+      options.onActivate(result.outcome.id);
+      return;
+    }
+    if (result.outcome.kind === 'BACK') {
+      options.onBack();
+      return;
+    }
+    render();
+  }
+
+  function onRowActivate(index: number): void {
+    const result = handleMenuPointer(state, index);
+    state = result.state;
+    // Same "don't re-render over the host's own callback" discipline as
+    // onKeyDown above.
     if (result.outcome.kind === 'ACTIVATE') {
       options.onActivate(result.outcome.id);
       return;

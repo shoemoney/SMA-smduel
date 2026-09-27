@@ -16,6 +16,7 @@
 import '@/ui/builder.css';
 import '@/ui/menu.css';
 import '@/ui/hud.css';
+import '@/ui/touch.css';
 
 import { citiesConfig, drivingConfig, economy, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
 import { validateRulesets } from '@/data/schema';
@@ -103,7 +104,7 @@ import {
   type Fleet,
   type FleetVehicle,
 } from '@/sim/fleet';
-import type { DriverState, RouteDef, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
+import type { DayPhase, DriverState, RouteDef, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
 import { FACINGS } from '@/sim/types';
 import { createWorld, type World } from '@/sim/world';
 import { createRng, type Rng } from '@/util/rng';
@@ -149,6 +150,7 @@ import { leaveAction, LEAVE_ACTION_ID, mountBuildingPanel, type RumorId } from '
 import { buildCityInstances, type CityVehicleView, type CityViewSnapshot } from '@/ui/city-view';
 import { mountMenu, type MenuAction, type MenuHeaderInfo } from '@/ui/menu';
 import { cityName, t } from '@/ui/strings';
+import { isCoarsePointer, mountTouchControls, type TouchControls } from '@/ui/touch';
 import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
 
 import { initGpu, type GpuContext } from '@/render/gpu';
@@ -420,8 +422,17 @@ function attachCodeTracking(codesDown: Set<string>): { detach(): void } {
   };
 }
 
-function rawInputFrom(codesDown: ReadonlySet<string>): RawInputState {
-  return { keysDown: codesDown, mouseButtonsDown: new Set(), gamepadButtonsDown: new Set(), gamepadAxes: [] };
+const NO_TOUCH_BUTTONS: ReadonlySet<string> = new Set();
+
+function rawInputFrom(codesDown: ReadonlySet<string>, touch: TouchControls | null): RawInputState {
+  return {
+    keysDown: codesDown,
+    mouseButtonsDown: new Set(),
+    gamepadButtonsDown: new Set(),
+    gamepadAxes: [],
+    touchAxes: touch?.axes() ?? [],
+    touchButtonsDown: touch?.buttonsDown() ?? NO_TOUCH_BUTTONS,
+  };
 }
 
 /** Edge-triggered weapon-cycle helper shared by every driving screen: `@/ui/input`'s `cyclePressed` reports raw HELD state, so this tracks the previous tick's held state itself and only fires `onCycle` on press, exactly once per press, never once per tick held. */
@@ -1564,7 +1575,7 @@ function showArena(
   hudHost.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
   const status = el('div');
   status.style.cssText =
-    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;';
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
   const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
@@ -1615,6 +1626,7 @@ function showArena(
   // --- input --------------------------------------------------------------
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
+  const touch = mountTouchControls(container, { fire: true });
   let activeWeaponIndex: number | null = playerVehicle.weapons.length > 0 ? 0 : null;
   function cycleWeapon(delta: number): void {
     const player = findPlayer(world);
@@ -1629,7 +1641,7 @@ function showArena(
   const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
 
   function sampleInput(): InputFrame {
-    const raw = rawInputFrom(codesDown);
+    const raw = rawInputFrom(codesDown, touch);
     applyCycleEdge(raw);
     const resolved = resolveInput(raw, currentControlPreset, currentControlBindings);
     return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: activeWeaponIndex ?? 0 };
@@ -1781,6 +1793,7 @@ function showArena(
     stopped = true;
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
+    touch?.destroy();
     gpuCtx?.destroy();
   }
 
@@ -2348,7 +2361,7 @@ function showArenaEvent(
   hudHost.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
   const status = el('div');
   status.style.cssText =
-    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;';
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
   const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
@@ -2394,6 +2407,7 @@ function showArenaEvent(
 
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
+  const touch = mountTouchControls(container, { fire: true });
   let activeWeaponIndex: number | null = playerVehicle.weapons.length > 0 ? 0 : null;
   function cycleWeapon(delta: number): void {
     const player = findPlayer(world);
@@ -2408,7 +2422,7 @@ function showArenaEvent(
   const applyCycleEdge = makeCycleWeaponEdge(cycleWeapon);
 
   function sampleInput(): InputFrame {
-    const raw = rawInputFrom(codesDown);
+    const raw = rawInputFrom(codesDown, touch);
     applyCycleEdge(raw);
     const resolved = resolveInput(raw, currentControlPreset, currentControlBindings);
     return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: activeWeaponIndex ?? 0 };
@@ -2556,6 +2570,7 @@ function showArenaEvent(
     stopped = true;
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
+    touch?.destroy();
     gpuCtx?.destroy();
   }
 
@@ -2828,6 +2843,13 @@ function showFleet(root: HTMLElement, state: CityRunState, onExit: (nextState: C
 }
 
 /**
+ * `DayPhase` -> its strings.json label key, `satisfies Record<DayPhase, string>`
+ * so an added `DayPhase` member is a compile error here, not a silently
+ * unlabeled phase. Shared by `showCity`/`showRoad`'s own status lines.
+ */
+const PHASE_LABEL_KEY = { DAY: 'ui.phase.DAY', NIGHT: 'ui.phase.NIGHT' } as const satisfies Record<DayPhase, string>;
+
+/**
  * The walkable town: doorways into every facility, a gate onto the road,
  * and the player's own parked/ridden car - `@/sim/city` + `@/ui/city-view`
  * do all the real work here, this function only wires them to real
@@ -2843,7 +2865,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
   const status = el('div');
   status.style.cssText =
-    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;white-space:pre;';
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;white-space:pre-wrap;overflow-wrap:break-word;';
   const deviceNotice = el('div');
   deviceNotice.style.cssText =
     'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ff6b6b;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
@@ -2884,10 +2906,10 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   }
 
   function updateStatus(): void {
-    status.textContent = t('ui.city.status', {
+    status.textContent = t(isCoarsePointer() ? 'ui.city.statusTouch' : 'ui.city.status', {
       city: cityName(runState.cityId),
       day: runState.clock.dayIndex,
-      phase: runState.clock.phase,
+      phase: t(PHASE_LABEL_KEY[runState.clock.phase]),
       cash: runState.driver.cash,
     });
   }
@@ -3042,24 +3064,39 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   // hotkeys, not part of controls.json's rebindable action set (that table
   // only covers drive/fire/weapon-select, see `@/ui/input`'s file header) -
   // driving itself below goes through `resolveInput` so it honors the live
-  // control preset/rebinding.
+  // control preset/rebinding. Each fixed hotkey's `!paused` guard lives
+  // INSIDE its own function (`doToggleVehicle`/`openFleetScreen`/
+  // `openJournalScreen`) rather than at each call site, so the touch
+  // command buttons below can call the exact same functions the keyboard
+  // handler does without re-deriving (and risking drifting from) the guard.
   const codesDown = new Set<string>();
+  function doToggleVehicle(): void {
+    if (paused) return;
+    const toggled = toggleVehicle(player, runState.vehicle.position);
+    if (toggled.ok) player = toggled.player;
+  }
   function onKeyDown(ev: KeyboardEvent): void {
     codesDown.add(ev.code);
-    if ((ev.key === 'g' || ev.key === 'G') && !paused) {
-      const toggled = toggleVehicle(player, runState.vehicle.position);
-      if (toggled.ok) player = toggled.player;
-    }
-    if ((ev.key === 'f' || ev.key === 'F') && !paused) openFleetScreen();
-    if ((ev.key === 'j' || ev.key === 'J') && !paused) openJournalScreen();
+    if (ev.key === 'g' || ev.key === 'G') doToggleVehicle();
+    if (ev.key === 'f' || ev.key === 'F') openFleetScreen();
+    if (ev.key === 'j' || ev.key === 'J') openJournalScreen();
   }
   function onKeyUp(ev: KeyboardEvent): void {
     codesDown.delete(ev.code);
   }
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
+  const touch = mountTouchControls(container, {
+    fire: false,
+    commands: [
+      { id: 'enterExitCar', labelKey: 'ui.touch.enterExitCar', onPress: doToggleVehicle },
+      { id: 'fleet', labelKey: 'ui.touch.fleet', onPress: openFleetScreen },
+      { id: 'journal', labelKey: 'ui.touch.journal', onPress: openJournalScreen },
+    ],
+  });
 
   function openFleetScreen(): void {
+    if (paused) return;
     stop();
     showFleet(root, runState, (nextState) => {
       runState = nextState;
@@ -3078,6 +3115,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   }
 
   function openJournalScreen(): void {
+    if (paused) return;
     const card = openPanel();
     const mounted = mountBuildingPanel({
       container: card,
@@ -3186,7 +3224,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     const dtSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
     if (!paused) {
-      const resolved = resolveInput(rawInputFrom(codesDown), currentControlPreset, currentControlBindings);
+      const resolved = resolveInput(rawInputFrom(codesDown, touch), currentControlPreset, currentControlBindings);
       const direction = cityDirectionFromVector({ x: resolved.moveX, y: resolved.moveY });
       const step = stepWalk({ player, layout, direction, dtSeconds, clock: runState.clock });
       player = step.player;
@@ -3203,6 +3241,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     window.cancelAnimationFrame(rafHandle);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
+    touch?.destroy();
     gpuCtx?.destroy();
   }
 
@@ -3330,7 +3369,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
   const status = el('div');
   status.style.cssText =
-    'position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
   const notice = el('div');
   notice.style.cssText =
     'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ffd166;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;max-width:80vw;';
@@ -3503,6 +3542,10 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   // --- input ------------------------------------------------------------
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
+  const touch = mountTouchControls(container, {
+    fire: true,
+    commands: [{ id: 'searchWreck', labelKey: 'ui.touch.searchWreck', onPress: trySearchWreck, initiallyVisible: false }],
+  });
   let activeWeaponIndex: number | null = trip.vehicle.weapons.length > 0 ? 0 : null;
   function cycleWeapon(delta: number): void {
     const count = trip.vehicle.weapons.length;
@@ -3602,6 +3645,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
     window.removeEventListener('keydown', onSearchKey);
+    touch?.destroy();
     gpuCtx?.destroy();
   }
 
@@ -3697,7 +3741,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     const dtSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
 
-    const raw = rawInputFrom(codesDown);
+    const raw = rawInputFrom(codesDown, touch);
     applyCycleEdge(raw);
     const resolvedInput = resolveInput(raw, currentControlPreset, currentControlBindings);
     const playerInput: InputFrame = {
@@ -3718,13 +3762,15 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     }
 
     const remainingMiles = Math.max(0, Math.round(trip.resolved.route.lengthMiles - trip.progressMiles));
-    status.textContent = t('ui.road.status', {
+    status.textContent = t(isCoarsePointer() ? 'ui.road.statusTouch' : 'ui.road.status', {
       city: cityName(trip.resolved.destinationCityId),
       miles: remainingMiles,
       day: trip.clock.dayIndex,
-      phase: trip.clock.phase,
+      phase: t(PHASE_LABEL_KEY[trip.clock.phase]),
     });
-    if (nearbySearchableWreck() !== undefined) logNotice(t('ui.road.wreckHint'));
+    const wreckNearby = nearbySearchableWreck() !== undefined;
+    if (wreckNearby) logNotice(t('ui.road.wreckHint'));
+    touch?.setCommandVisible('searchWreck', wreckNearby);
     renderFrame();
     if (result.arrived) {
       finish();
