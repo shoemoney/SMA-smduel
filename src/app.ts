@@ -19,6 +19,8 @@ import '@/ui/hud.css';
 
 import { citiesConfig, drivingConfig, economy, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
 import { validateRulesets } from '@/data/schema';
+import { arcadeScoringEnabled, submitArcadeScore, type ArcadeSubmitFailure } from '@/arcade/client';
+import { buildArcadePayload, shouldSubmitArcadeScore, type ArcadeScorePayload } from '@/arcade/score';
 import {
   beginArenaMatch,
   circleIntersectsOrientedRect,
@@ -145,7 +147,7 @@ import { mountBuilder, type BuilderConfirmedBuild } from '@/ui/builder';
 import { mountFacility, type ArenaEntryResult, type BuildingContext, type MountedFacility } from '@/ui/buildings';
 import { leaveAction, LEAVE_ACTION_ID, mountBuildingPanel, type RumorId } from '@/ui/buildings/shared';
 import { buildCityInstances, type CityVehicleView, type CityViewSnapshot } from '@/ui/city-view';
-import { mountMenu, type MenuAction } from '@/ui/menu';
+import { mountMenu, type MenuAction, type MenuHeaderInfo } from '@/ui/menu';
 import { cityName, t } from '@/ui/strings';
 import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
 
@@ -1231,7 +1233,7 @@ export function makeArenaDamageSystem(
         const entry = requireOpponent(opponents, target.id);
         opponents.set(target.id, { ...entry, driver: resolved.target.driver });
         if (defeated) {
-          matchStateRef.current = recordOpponentDefeated(matchStateRef.current);
+          matchStateRef.current = recordOpponentDefeated(matchStateRef.current, resolved.report.driverDefeated);
           const remainingCount = matchStateRef.current.opponentsTotal - matchStateRef.current.opponentsDefeated;
           log('info', t('ui.arena.opponentDefeated', { remaining: String(remainingCount) }));
         }
@@ -1831,6 +1833,8 @@ export interface CityRunState {
   readonly openDb: () => Promise<IDBDatabase>;
   /** One seeded stream for the whole session's non-arena, non-road draws (courier offers, casino, mechanic lessons, illicit-sale consequences) plus road-trip encounter rolls - advances as it's drawn from, same convention `@/sim/world`'s `rngState` uses. */
   readonly rng: Rng;
+  /** `BootOptions.search`, threaded down so the arena exit handler can read `?arcade=1` (`@/arcade/client`'s `arcadeScoringEnabled`) without a new module-level global. */
+  readonly search: string;
   readonly rumorsHeardToday: ReadonlyMap<string, RumorId>;
   readonly activeCourierJobs: readonly AcceptedJob[];
   /**
@@ -1917,6 +1921,7 @@ export function cityRunStateFromSaveGame(
     sessionSeed,
     openDb: options.openDb,
     rng,
+    search: options.search,
     rumorsHeardToday: new Map(),
     activeCourierJobs: [],
     fleet: { vehicles: [{ vehicle, stored: false, cityId: game.location }] },
@@ -2178,6 +2183,143 @@ function applyBuildingContext(state: CityRunState, ctx: BuildingContext): CityRu
 // (`@/ui/buildings/arena`) already ran the real `beginArenaMatch` before
 // this screen ever mounts, so eligibility and the entry fee are exactly as
 // real as the boot-time path.
+/** Distinguishes the two eligible rows from the read-only summary/status rows above them. */
+const ARCADE_SUBMIT_ACTION_ID = 'arcade-submit-score';
+
+/**
+ * Wording for an `ArcadeSubmitFailure`, resolved HERE rather than in
+ * `@/arcade/client`, so every player-visible sentence still lives in
+ * strings.json (see `@/ui/strings`'s header on why that seam exists). A
+ * `score-refused` carries the arcade server's OWN rejection reason when it
+ * sent one; that text is the server's to word, not this table's, so it is
+ * passed through as a parameter instead of being restated here.
+ */
+function arcadeFailureText(failure: ArcadeSubmitFailure): string {
+  switch (failure.kind) {
+    case 'unreachable':
+      return t('ui.arena.scoreSubmit.errorUnreachable');
+    case 'run-refused':
+      return t('ui.arena.scoreSubmit.errorRunRefused', { status: failure.status });
+    case 'no-token':
+      return t('ui.arena.scoreSubmit.errorNoToken');
+    case 'score-refused':
+      return failure.serverMessage ?? t('ui.arena.scoreSubmit.errorScoreRefused', { status: failure.status });
+    case 'not-accepted':
+      return t('ui.arena.scoreSubmit.errorNotAccepted');
+  }
+}
+
+/**
+ * Arcade leaderboard submit screen — shown instead of calling `onComplete`
+ * straight away when a real run just won AND arcade scoring is switched on
+ * (see `showArenaEvent`'s exit handler below for the gate). Same screen
+ * shape as `showVictory` above: read-only summary rows plus real action
+ * rows, `mountMenu` driving a `menuHost` div.
+ *
+ * The name `<input>` is a SIBLING of `menuHost`, never inside it —
+ * `mountMenu`'s own `render()` does `container.innerHTML = ''` on every
+ * re-render (`setActions` included, which this screen calls on every status
+ * change), and an input living inside that container would have whatever
+ * the player typed wiped out from under them. `mountMenu` also only listens
+ * for keydown on its OWN container, so typing in the sibling input never
+ * reaches the menu's arrow-key/digit-key reducer either — both are the
+ * point, not a bug to "fix" by nesting the input into menuHost.
+ *
+ * Exported purely as a test seam: reaching this screen through a REAL arena
+ * victory means beating a real AI roster in real combat — exactly what
+ * `tests/integration/arena-victory.test.ts` drives headlessly, at the
+ * exported-system level, because there is no reasonable way to fight that
+ * fight through dispatched `KeyboardEvent`s. `tests/integration/
+ * screens.test.ts`'s DOM harness has never driven the arena at all for the
+ * same reason, so mounting this screen directly with a real `DriverState`-
+ * derived name and a real `ArcadeScorePayload` is the only way that suite
+ * can exercise its actual rendering and decline behavior.
+ */
+export function showArcadeScoreSubmit(
+  root: HTMLElement,
+  header: MenuHeaderInfo,
+  driverName: string,
+  payload: ArcadeScorePayload,
+  onContinue: () => void,
+): void {
+  const container = el('div', 'sm-screen sm-screen--arcade-submit');
+  container.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+
+  const panel = el('div');
+  panel.style.cssText = 'width:min(420px,90vw);max-height:90vh;overflow:auto;';
+  container.appendChild(panel);
+
+  const nameField = document.createElement('input');
+  nameField.type = 'text';
+  nameField.value = driverName;
+  nameField.setAttribute('aria-label', t('ui.arena.scoreSubmit.nameLabel'));
+  nameField.style.cssText = 'display:block;width:100%;box-sizing:border-box;margin:0 0 8px;padding:6px;';
+  panel.appendChild(nameField);
+
+  const menuHost = el('div');
+  panel.appendChild(menuHost);
+  clearAndAppend(root, container);
+
+  type SubmitStatus =
+    | { readonly kind: 'idle' }
+    | { readonly kind: 'submitting' }
+    | { readonly kind: 'accepted'; readonly rank: number | null }
+    | { readonly kind: 'failed'; readonly error: string };
+  let status: SubmitStatus = { kind: 'idle' };
+
+  function actionsFor(): MenuAction[] {
+    const rows: MenuAction[] = [
+      { id: 'arcade-score', label: t('ui.arena.scoreSubmit.score', { score: payload.score }), eligible: false },
+      { id: 'arcade-wave', label: t('ui.arena.scoreSubmit.wave', { wave: payload.wave }), eligible: false },
+      { id: 'arcade-kills', label: t('ui.arena.scoreSubmit.kills', { kills: payload.kills }), eligible: false },
+      { id: 'arcade-headshots', label: t('ui.arena.scoreSubmit.headshots', { headshots: payload.headshots }), eligible: false },
+      { id: 'arcade-duration', label: t('ui.arena.scoreSubmit.duration', { duration: payload.duration }), eligible: false },
+    ];
+    if (status.kind === 'submitting') {
+      rows.push({ id: 'arcade-status', label: t('ui.arena.scoreSubmit.statusSubmitting'), eligible: false });
+    } else if (status.kind === 'accepted') {
+      rows.push({
+        id: 'arcade-status',
+        label: t('ui.arena.scoreSubmit.statusAccepted', { rank: status.rank !== null ? status.rank : '—' }),
+        eligible: false,
+      });
+    } else if (status.kind === 'failed') {
+      rows.push({ id: 'arcade-status', label: t('ui.arena.scoreSubmit.statusFailed', { error: status.error }), eligible: false });
+    }
+    rows.push({
+      id: ARCADE_SUBMIT_ACTION_ID,
+      label: t('ui.arena.scoreSubmit.submit'),
+      eligible: status.kind !== 'submitting' && status.kind !== 'accepted',
+    });
+    rows.push({ id: LEAVE_ACTION_ID, label: t('ui.arena.scoreSubmit.skip'), eligible: true });
+    return rows;
+  }
+
+  const mounted = mountMenu({
+    container: menuHost,
+    header,
+    actions: actionsFor(),
+    onActivate: (id) => {
+      if (id === LEAVE_ACTION_ID) {
+        mounted.destroy();
+        onContinue();
+        return;
+      }
+      if (id !== ARCADE_SUBMIT_ACTION_ID) return;
+      status = { kind: 'submitting' };
+      mounted.setActions(actionsFor());
+      void submitArcadeScore({ name: nameField.value, ...payload }).then((result) => {
+        status = result.ok ? { kind: 'accepted', rank: result.rank } : { kind: 'failed', error: arcadeFailureText(result.failure) };
+        mounted.setActions(actionsFor());
+      });
+    },
+    onBack: () => {
+      mounted.destroy();
+      onContinue();
+    },
+  });
+}
+
 //
 // Real opponents: `spawnArenaOpponents` deals event's roster onto the spawn
 // ring at match start, `makeArenaAISystem` drives every one of them with the
@@ -2446,14 +2588,33 @@ function showArenaEvent(
       sessionSeed: cityState.sessionSeed,
       world: null,
     });
-    onComplete({
+    const nextCityState: CityRunState = {
       ...cityState,
       driver: resolution.driver,
       vehicle: nextVehicle,
       clock: nextClock,
       fleet: reconcileFleetWithVehicle(cityState.fleet, nextVehicle, false, cityState.cityId),
       arenaRecord: nextArenaRecord,
-    });
+    };
+
+    // The submit screen is a detour, never a second path: everything above
+    // this point (persistArenaSession, the clock advance, the fleet
+    // reconcile, nextArenaRecord) already happened exactly once either way,
+    // and `nextCityState` is computed exactly once either way too — the
+    // gate below only decides whether the player sees a screen first.
+    const arcadeEnv = { hostname: window.location.hostname, search: cityState.search };
+    if (arcadeScoringEnabled(arcadeEnv) && shouldSubmitArcadeScore(resolution.outcome, matchStateRef.current)) {
+      const payload = buildArcadePayload(matchStateRef.current, world.tick, dtSeconds);
+      const header: MenuHeaderInfo = {
+        cash: nextCityState.driver.cash,
+        dayIndex: nextCityState.clock.dayIndex,
+        phase: nextCityState.clock.phase,
+        cityName: cityName(nextCityState.cityId),
+      };
+      showArcadeScoreSubmit(root, header, resolution.driver.name, payload, () => onComplete(nextCityState));
+      return;
+    }
+    onComplete(nextCityState);
   });
 
   void initRenderer().finally(() => {
@@ -3634,6 +3795,7 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
               sessionSeed,
               openDb,
               rng: createRng(sessionSeed).stream('driver'),
+              search,
               rumorsHeardToday: new Map(),
               activeCourierJobs: [],
               fleet: { vehicles: [{ vehicle, stored: false, cityId: chargedDriver.cityId }] },

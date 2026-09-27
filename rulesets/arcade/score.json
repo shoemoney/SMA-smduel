@@ -1,0 +1,10 @@
+{
+  "$schemaVersion": 1,
+  "_note": "Arcade leaderboard scoring weights. These live under rulesets/arcade/, NOT rulesets/classic/, because tests/unit/fidelity-coverage.test.ts walks every number in every rulesets/classic/*.json demanding a fidelity-notes.yaml provenance row (Exact / Observed / Reconstruction) tracing it to the 1985 original. A leaderboard weight has no such provenance to claim - it is an arcade.shoemoney.com-era invention, not a reconstruction of anything - so putting it under classic/ would force a fabricated row onto that ledger.",
+  "killPoints": 100,
+  "driverKillPoints": 150,
+  "opponentScaling": 0.5,
+  "parSecondsPerOpponent": 45,
+  "speedPoints": 5,
+  "maxScore": 1000000000
+}

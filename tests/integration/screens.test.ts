@@ -30,15 +30,17 @@ import 'fake-indexeddb/auto';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { currentSessionSeed, PLAYER_ID, persistArenaSession, vehicleStateFromDesign } from '@/app';
+import { currentSessionSeed, PLAYER_ID, persistArenaSession, showArcadeScoreSubmit, vehicleStateFromDesign } from '@/app';
 import { initialClock } from '@/sim/calendar';
 import { drivingConfig, economy, skillsConfig } from '@/data/rulesets';
 import { createDriver } from '@/sim/driver';
 import { generateCityLayout, type CityLayout } from '@/sim/city';
-import type { DriverState, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
+import type { DayPhase, DriverState, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
 import { isVictoryQuest, questCargoId, questDefs } from '@/sim/victory';
 import { openSaveDatabase, type QuestState } from '@/persist/save';
 import { t } from '@/ui/strings';
+import type { MenuHeaderInfo } from '@/ui/menu';
+import type { ArcadeScorePayload } from '@/arcade/score';
 
 // ---------------------------------------------------------------------------
 // requestAnimationFrame stub: capture, never auto-run
@@ -651,5 +653,129 @@ describe('DOM screens: winning the campaign and pressing "Continue" keeps the sa
     const probeLabels = Array.from(probeMenu.querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
     expect(probeLabels.some((label) => label !== null && label.includes(prestigeProbeQuest.title))).toBe(true);
     dispatchKey(probeMenu, { key: 'Escape' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Arcade score submit screen
+//
+// Reaching this screen through a REAL qualifying victory means beating a
+// real AI roster in real combat — exactly what `tests/integration/
+// arena-victory.test.ts` drives headlessly, at the exported-system level,
+// because there is no reasonable way to fight that fight through dispatched
+// `KeyboardEvent`s (this file has never driven the arena at all, for the
+// same reason). `@/app` exports `showArcadeScoreSubmit` as a narrow mount
+// seam (the same convention as its existing `persistArenaSession`/
+// `vehicleStateFromDesign`/`PLAYER_ID` test exports) so this suite can mount
+// the REAL screen with a real `DriverState`-derived name and a real
+// `ArcadeScorePayload`, and exercise its actual rendering and decline
+// behavior. The gate that gets the player to this screen in the first place
+// (`arcadeScoringEnabled(...) && shouldSubmitArcadeScore(...)`) is proven
+// separately, at the unit level, in tests/unit/arcade-score.test.ts and
+// tests/unit/arcade-client.test.ts — this test does not re-prove the
+// wiring, only the screen those two predicates gate.
+// ---------------------------------------------------------------------------
+
+describe('DOM screens: the arcade score submit screen', () => {
+  let root: HTMLElement;
+
+  beforeEach(() => {
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("shows the run's real numbers and the driver's name, and declining continues with no score-API call ever issued", () => {
+    const calledUrls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown) => {
+        calledUrls.push(String(input));
+        return Promise.resolve(new Response('{}', { status: 200 }));
+      }),
+    );
+
+    const payload: ArcadeScorePayload = { score: 1500, wave: 3, kills: 3, headshots: 1, duration: 60 };
+    const header: MenuHeaderInfo = { cash: 5_000, dayIndex: 12, phase: 'MORNING' as DayPhase, cityName: 'Watertown' };
+    let continued = false;
+
+    showArcadeScoreSubmit(root, header, 'Test Driver', payload, () => {
+      continued = true;
+    });
+
+    requireOne('.sm-screen--arcade-submit');
+    const menu = requireOne('.sm-menu');
+    const labels = Array.from(menu.querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
+    expect(labels).toContain(t('ui.arena.scoreSubmit.score', { score: payload.score }));
+    expect(labels).toContain(t('ui.arena.scoreSubmit.wave', { wave: payload.wave }));
+    expect(labels).toContain(t('ui.arena.scoreSubmit.kills', { kills: payload.kills }));
+    expect(labels).toContain(t('ui.arena.scoreSubmit.headshots', { headshots: payload.headshots }));
+    expect(labels).toContain(t('ui.arena.scoreSubmit.duration', { duration: payload.duration }));
+
+    // Name field: a SIBLING of the menu (never inside it), defaulted to the
+    // driver's name, and editable — proving it survives the menu's own
+    // setActions()-triggered re-renders is what makes the sibling placement
+    // matter, not just that it starts with the right value.
+    const nameInput = requireOne('.sm-screen--arcade-submit input') as HTMLInputElement;
+    expect(nameInput.value).toBe('Test Driver');
+    expect(menu.contains(nameInput)).toBe(false);
+    nameInput.value = 'Edited Name';
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(nameInput.value).toBe('Edited Name');
+
+    // Decline: same "Escape backs out" convention every other menu in this
+    // file uses (`onBack`) — runs the SAME continuation a real accepted/
+    // failed submit would, and never touches the score API.
+    dispatchKey(menu, { key: 'Escape' });
+
+    expect(continued).toBe(true);
+    expect(calledUrls.some((url) => url.includes('/api/games/smduel/'))).toBe(false);
+  });
+
+  it('submitting sends the name the player actually typed, and the sibling input survives the menu re-render that submitting triggers', async () => {
+    const bodies: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown, init: unknown) => {
+        const url = String(input);
+        bodies.push(String((init as { body?: unknown } | undefined)?.body ?? ''));
+        const payload = url.endsWith('/runs') ? { runToken: 'run-token-from-request-1' } : { accepted: true, rank: 7 };
+        return Promise.resolve(new Response(JSON.stringify(payload), { status: 201, headers: { 'Content-Type': 'application/json' } }));
+      }),
+    );
+
+    const payload: ArcadeScorePayload = { score: 7050, wave: 8, kills: 8, headshots: 3, duration: 200 };
+    const header: MenuHeaderInfo = { cash: 9_500, dayIndex: 30, phase: 'MORNING' as DayPhase, cityName: 'Watertown' };
+
+    showArcadeScoreSubmit(root, header, 'Default Name', payload, () => {});
+
+    const nameInput = requireOne('.sm-screen--arcade-submit input') as HTMLInputElement;
+    nameInput.value = 'Typed By Player';
+
+    dispatchKey(requireOne('.sm-menu'), { key: 'Enter' });
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    // The name that reached the scores request is the EDITED one. A screen
+    // that read `driverName` instead of the live input would send
+    // "Default Name" here and this is the only assertion that catches it.
+    const scoresBody = JSON.parse(bodies[1] ?? '{}') as { name?: string; runToken?: string; score?: number };
+    expect(scoresBody.name).toBe('Typed By Player');
+    expect(scoresBody.runToken).toBe('run-token-from-request-1');
+    expect(scoresBody.score).toBe(payload.score);
+
+    // Submitting calls `setActions`, which makes `mountMenu` clear and rebuild
+    // its container. The input is a sibling, so it is still in the document
+    // with the typed value intact — nesting it inside `menuHost` would have
+    // destroyed it at exactly this point.
+    const afterRender = requireOne('.sm-screen--arcade-submit input') as HTMLInputElement;
+    expect(afterRender.value).toBe('Typed By Player');
+
+    const labels = Array.from(requireOne('.sm-menu').querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
+    expect(labels).toContain(t('ui.arena.scoreSubmit.statusAccepted', { rank: 7 }));
   });
 });
