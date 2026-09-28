@@ -749,6 +749,7 @@ export const controlsSchema: SchemaObject = obj({
   _note: STR,
   gamepadAxisThreshold: { type: 'number', minimum: 0, maximum: 1 },
   cityDirectionDeadzone: { type: 'number', minimum: 0, maximum: 1 },
+  arenaOutcomeDelayMs: { type: 'integer', minimum: 0 },
   touch: obj({
     axisDeadzone: { type: 'number', minimum: 0, maximum: 1 },
     stickRadiusPx: { type: 'integer', minimum: 1 },
@@ -778,6 +779,7 @@ export interface ControlsConfig {
   _note?: string;
   gamepadAxisThreshold: number;
   cityDirectionDeadzone: number;
+  arenaOutcomeDelayMs: number;
   touch: { axisDeadzone: number; stickRadiusPx: number };
   presets: string[];
   actions: string[];

@@ -91,6 +91,7 @@
     "ui.driverCreation.pointsRemaining": "Points remaining: {count}",
 
     "ui.arena.exitToTitle": "Exit to Title",
+    "ui.arena.leaveArena": "Leave Arena",
     "ui.arena.cannotEnterPractice": "Cannot enter practice: {reason}",
     "ui.arena.webgpuUnavailable": "WebGPU unavailable ({reason}) — simulation running, rendering disabled.",
     "ui.arena.practiceHint": "Practice arena — WASD/arrows drive, Space/J fire, Q/E cycle weapon. Seed: {seed}",
