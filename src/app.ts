@@ -23,6 +23,7 @@ import { validateRulesets } from '@/data/schema';
 import { arcadeScoringEnabled, submitArcadeScore, type ArcadeSubmitFailure } from '@/arcade/client';
 import { buildArcadePayload, shouldSubmitArcadeScore, type ArcadeScorePayload } from '@/arcade/score';
 import {
+  allOpponentsDefeated,
   beginArenaMatch,
   circleIntersectsOrientedRect,
   computeArenaSpawnPositions,
@@ -70,7 +71,7 @@ import {
 } from '@/sim/city';
 import type { AcceptedJob } from '@/sim/courier';
 import { subtractVec, vecLength } from '@/sim/damage';
-import { createDriver, getSkill } from '@/sim/driver';
+import { createDriver, getSkill, isDead } from '@/sim/driver';
 import { applyCollision, stepDriving, stopAtObstacle, isRadarDisabled, type DriveInput } from '@/sim/driving';
 import {
   createGameLoop,
@@ -2584,7 +2585,7 @@ function showArenaEvent(
   const status = el('div');
   status.style.cssText =
     'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
-  const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
+  const exitBtn = el('button', undefined, t('ui.arena.leaveArena'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
   const retryBtn = el('button');
@@ -2767,28 +2768,57 @@ function showArenaEvent(
   let rafHandle = 0;
   let lastTimeMs = performance.now();
   let stopped = false;
-  function frame(nowMs: number): void {
-    if (stopped) return;
-    const deltaSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
-    lastTimeMs = nowMs;
-    loop.advance(deltaSeconds);
-    renderFrame();
-    renderHudFrame();
-    rafHandle = window.requestAnimationFrame(frame);
+
+  /**
+   * The match's own lifecycle, as a state machine rather than a boolean:
+   * `'running'` while the fight is live, `'ending'` for the brief beat after
+   * a terminal condition first fires (see `terminalExitMode` below) so the
+   * player sees the last kill or their own death before the outcome screen
+   * cuts in, then `'ended'` for good once `endMatch` has actually run. Only
+   * the `'running'` branch below is allowed to start that beat, and only the
+   * `'ending'` branch is allowed to call `endMatch` — once `matchPhase` is
+   * `'ended'` no branch in `frame()` ever reads or acts on it again, so a
+   * terminal condition that keeps being true on every following frame (the
+   * common case: the player stays dead, the roster stays cleared) cannot
+   * retrigger `endMatch` a second time. This is what makes "exactly once"
+   * structural rather than a flag this code has to remember to check.
+   */
+  type ArenaMatchPhase = { kind: 'running' } | { kind: 'ending'; exitMode: ArenaExitMode; resolveAtMs: number } | { kind: 'ended' };
+  let matchPhase: ArenaMatchPhase = { kind: 'running' };
+
+  /** The player's own vehicle destroyed, or their driver's natural health run out — either one means there is nobody left in this fight who can still drive out under their own power. */
+  function playerDefeated(): boolean {
+    const player = findPlayer(world);
+    return player?.destroyed === true || isDead(driverRef.current);
   }
 
-  function stop(): void {
-    stopped = true;
-    window.cancelAnimationFrame(rafHandle);
-    inputTracking.detach();
-    touch?.destroy();
-    gpuCtx?.destroy();
+  /**
+   * The match's own terminal condition, or `null` while it's still live.
+   * A defeated player always wins the race against a cleared roster (mirrors
+   * `resolveArenaExit`'s own ON_FOOT-checked-first order, so this never
+   * disagrees with what resolving the match would decide). Victory requires
+   * `opponentsTotal > 0`: `allOpponentsDefeated` reads 0 >= 0 as vacuously
+   * true for the zero-opponent `practice` event (see that function's own
+   * doc comment), and practice is a free-roam range with nobody to defeat,
+   * not a match with a roster to clear — without this guard a practice
+   * session would auto-end itself the instant it started.
+   */
+  function terminalExitMode(): ArenaExitMode | null {
+    if (playerDefeated()) return 'ON_FOOT';
+    const state = matchStateRef.current;
+    if (state.opponentsTotal > 0 && allOpponentsDefeated(state)) return 'UNDER_POWER';
+    return null;
   }
 
-  exitBtn.addEventListener('click', () => {
+  /**
+   * The one and only path that resolves how this match ends — the exit
+   * button and the terminal check above both funnel into this, so the
+   * arena record, persistence and score-submit logic can never drift
+   * between a manual exit and an automatic one.
+   */
+  function endMatch(exitMode: ArenaExitMode): void {
     stop();
     const player = findPlayer(world);
-    const exitMode: ArenaExitMode = player?.destroyed === true ? 'ON_FOOT' : 'UNDER_POWER';
     const resolution: ArenaResolution = resolveArenaExit(matchStateRef.current, driverRef.current, exitMode);
     const nextClock = advanceDays(world.clock, resolution.daysConsumed);
     const nextVehicle: VehicleState | null = arenaExitVehicle(cityState.vehicle, player ?? playerVehicle, matchState.eventId);
@@ -2841,6 +2871,41 @@ function showArenaEvent(
       return;
     }
     onComplete(nextCityState);
+  }
+
+  function frame(nowMs: number): void {
+    if (stopped) return;
+    const deltaSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
+    lastTimeMs = nowMs;
+    loop.advance(deltaSeconds);
+    renderFrame();
+    renderHudFrame();
+
+    if (matchPhase.kind === 'running') {
+      const exitMode = terminalExitMode();
+      if (exitMode !== null) matchPhase = { kind: 'ending', exitMode, resolveAtMs: nowMs + CONTROLS.arenaOutcomeDelayMs };
+    } else if (matchPhase.kind === 'ending' && nowMs >= matchPhase.resolveAtMs) {
+      const exitMode = matchPhase.exitMode;
+      matchPhase = { kind: 'ended' };
+      endMatch(exitMode);
+      return; // endMatch() already called stop(); no next frame to schedule.
+    }
+
+    rafHandle = window.requestAnimationFrame(frame);
+  }
+
+  function stop(): void {
+    stopped = true;
+    window.cancelAnimationFrame(rafHandle);
+    inputTracking.detach();
+    touch?.destroy();
+    gpuCtx?.destroy();
+  }
+
+  exitBtn.addEventListener('click', () => {
+    if (matchPhase.kind === 'ended') return;
+    matchPhase = { kind: 'ended' };
+    endMatch(playerDefeated() ? 'ON_FOOT' : 'UNDER_POWER');
   });
 
   void initRenderer().finally(() => {
