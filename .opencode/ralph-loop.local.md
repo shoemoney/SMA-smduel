@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 56
+iteration: 57
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (56 of 82 vision models):
+Reviewers asked (57 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2066,6 +2066,52 @@ TOOLING - the review harness got audited by its own failure this round:
      - radar: THIRTY-FOURTH report, and its remedy again asks for "distinct
        concentric rings for range and crosshairs for North/South" — the rings
        and crosshair iteration 2 added.
+
+57. openai/gpt-4.1-mini -> ZERO REAL. Nothing changed. All five in classes the
+     log has measured, and two of them would have been fixes to shipped work:
+     - "The city status text and controls are clustered tightly in the top centre
+       with small font and minimal spacing ... separate them into distinct UI
+       zones." FALSE, and the crop settles it: they are TWO separate pills, each
+       with its own background and a real gap between them, which is iteration
+       22's split (one run-on element carrying a mode label, three control hints
+       and a seed hash, truncated mid-string). The suggested move — "relocate the
+       control instructions to a dedicated lower corner" — has nowhere to go: the
+       bottom corners are already the car strip (bottom-left) and the facility
+       legend (bottom-right), and the hint is a 7s FADE (iteration 18) that is
+       gone for the rest of the session, so any capture that shows it is showing
+       the first seconds of a run. Checked the hierarchy too, in case the review
+       was reaching for weight rather than position: the hint is `#9fb0c2` at
+       12px against the status line's `#d7e0ea` at 13px — already dimmer AND a
+       step smaller, which is the correct relationship for a transient reminder
+       under a permanent one;
+     - "The armor and underbody indicators use small boxes and minimal text ...
+       use larger colored bars or segmented gauges." THE PRISTINE CASE, and the
+       eleventh-plus report of it: on a capture every facing genuinely is
+       unfitted, so the rows render the loud dashed chip from iteration 21 and
+       there is no armour bar on screen at all — bars are fitted-only (iteration
+       25) because there is no fraction to scale. This reviewer is asking for
+       iteration 25's feature on a car that has nothing fitted, and the armours
+       it can see are chips, not boxes. Iteration 54 thickened the real bars to
+       6px/5px in the very round before this one, which this frame already
+       contains;
+     - "The white tagline lacks contrast against the sunset ... add a subtle dark
+       drop shadow or semi-opaque background panel." Measured at 9.00:1 in
+       iteration 44 WITH the two-layer shadow iteration 15 added, and the scrim
+       behind it is a deliberate band (iteration 27) that is darkest exactly
+       where the lockup sits. The remedy is a description of the shipped design;
+     - radar: THIRTY-FIFTH report, and the fix is again the rotating sweep and
+       bright contacts — iteration 2's work, plus the fabricated contacts declined
+       twelve times;
+     - "The constructor list is very densely packed with small font and no clear
+       hierarchy or grouping ... introduce collapsible sections." The density
+       class, and its own remedy is the one refused every time: the rows are
+       addressed by INDEX (the hint tells the player to type 0-9), so a
+       collapsible section hides rows the player is expected to address
+       positionally. Iteration 17 added the section edge, iteration 23 raised the
+       weight, iteration 48 added the requirement rails.
+     NO CODE CHANGED. Nine zeros in twenty-two reviews, and the two findings in
+     this round that WOULD have shipped fixes to already-correct work are the
+     clearest sign yet that the useful remaining work is not in the frame.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
