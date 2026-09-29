@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 51
+iteration: 52
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (51 of 82 vision models):
+Reviewers asked (52 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1673,6 +1673,77 @@ TOOLING - the review harness got audited by its own failure this round:
      you would open to do that confidently described an architecture that had
      been gone for many iterations. Stale docs do not fail a build, and this
      review is the second in a row to propose work in this exact area.
+
+52. openai/gpt-5.1-codex-mini -> 1 REAL (small, and the same signal the entrance
+     markers gave twice), 4 FALSE or inapplicable:
+     - "The colored arrows have no on-screen labels ... the tiny corner legend is
+       too small to quickly associate icons with actions. Enlarge it, add hover
+       tooltips on each icon."
+       HALF REAL, and the half that survives is the size, on exactly the
+       reasoning that has already fired twice in this log for this element.
+       Iterations 19 and 20 both enlarged the entrance markers because a
+       reviewer who had ALREADY seen the enlargement still could not find them,
+       and the rule that came out of it — believe the NUMBER, not the report —
+       applies here without modification: this reviewer is looking at the legend
+       added in iteration 39, eleven reviews ago, and still calls it too small.
+       Checked the contrast first rather than assuming: the legend's #9fb0c2 on
+       its 0.78-alpha panel measures 7.23:1 over average city ground (6.68:1
+       over the brightest plausible ground), which clears AAA. Iteration 13's
+       speedometer fix was a real 4.61:1, so this is not that case and the
+       colour was left alone — this is a legibility nudge, not a contrast fix.
+       What WAS wrong, and it is a better find than the size: the legend's 11px
+       was HARDCODED. Every other piece of UI in the game reads a token off the
+       scale (10px panel titles / 11px secondary / 12px hints, reasons, stats /
+       13px HUD body / 15px menus and prose), and this one element — built as a
+       bare inline cssText block, which is why it had no stylesheet to be held
+       to — sat a step below where its role puts it. A KEY is a stats line, not
+       a secondary label. It now reads `var(--ui-text-sm)` and its swatch goes
+       9px -> 10px, which also means the one element teaching the city's colour
+       language can no longer drift off the scale again.
+       One step, deliberately. The markers were DOUBLED because they were being
+       lost against the ground; this is already legible, so doubling it would be
+       an over-correction dressed as responsiveness;
+     - "Add hover tooltips on each icon." INAPPLICABLE, and worth naming as a
+       category rather than a mistake: this is a WebGPU canvas. The city map, the
+       markers and the car are all drawn into a single <canvas> and there is no
+       DOM element to hover and no hit-testing to attach a tooltip to. The
+       remedy the review asks for cannot be built without a UI the game does not
+       have. The legend is the DOM-side answer to the same need, and it exists;
+     - "The 'Reduced flash' / 'Reduced shake' toggles are always visible,
+       crowding the HUD with debug information ... remove them or move them into
+       a collapsible menu." FALSE on the "debug" framing, and the second report
+       of this class after iteration 39 recorded the same thing. These are
+       labelled accessibility controls, not a debug readout — the test the loop
+       already applied to the title's phantom session header is whether the
+       state they describe exists, and reduced-flash and reduced-shake are real
+       settings a real player may need mid-run. The suggested fix is also the
+       exact trade iteration 39 declined: hiding them behind a menu means a
+       player who needs reduced shake has to find a menu mid-combat, which is
+       the access the on-screen placement exists to guarantee. They sit in a
+       corner, in a panel, and they are not crowding anything — the frame shows
+       them clear of the radar, the speedometer and the centre;
+     - "Increase the bar's thickness to at least 4px." FALSE, and the first
+       time a reviewer has asked for LESS than the element already is. The
+       rendered bar including both borders is 8px, measured by scanning a column
+       through it in iteration 29 (dark track y=46..50, borders at 45 and 51).
+       "At least 4px" is half the shipped value, and "add a darker outline or
+       background track" describes a track that is already near-black with a
+       border. The teal-to-blue fill on that track measures about 9:1, and the
+       zero-fill state it is reading is the honest report of zero miles driven;
+     - "The constructor rows are tightly packed with no separators ... struggle
+       to see which row is selected ... highlight the active row with a
+       contrasting fill." FALSE, and this one was worth measuring because "you
+       cannot see the selection" is the exact shape of the iteration-32 bug,
+       where a rule looked correct and rendered nothing. Traced it rather than
+       reading the CSS: the selected row uses `var(--ui-accent-wash)`, which IS
+       declared (tokens.css:160, rgba(95,208,189,0.14)) — so unlike iteration 32
+       this declaration is not silently invalid. Measured the real frame: the
+       selected row's interior luma is 61.2 against 37.6-39.6 for unselected
+       rows, a ~22-point separation plus a full accent border. It is the most
+       visible row on the screen. The separators are also not missing — there is
+       a section rule above Weapon 1 (iteration 17) and the unmet-requirement
+       rails (iteration 48) — and this reviewer's own screenshot shows the Name
+       field with its placeholder, which is iteration 30's work.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

@@ -1,0 +1,75 @@
+{
+  "model": "openai/gpt-5.1-codex-mini",
+  "modelLabel": "openai/gpt-5.1-codex-mini",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:42:50.529Z",
+  "usage": {
+    "prompt_tokens": 5999,
+    "completion_tokens": 4513,
+    "total_tokens": 10512,
+    "cost": 0.01052575,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.01052575,
+      "upstream_inference_prompt_cost": 0.00149975,
+      "upstream_inference_completions_cost": 0.009026
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3776,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Weak title screen menu affordance",
+      "where": "Title screen, bottom‑left menu panel",
+      "problem": "The 'New Driver' / 'Controls' list uses a thin border, tiny text, and no clear button styling, so it reads like debug output rather than interactive menu options.",
+      "why": "Players may not instantly recognize how to start or navigate the menu, harming first‑impression and discoverability.",
+      "fix": "Redesign the menu as prominent buttons (e.g. larger padded rectangles with solid background and hover/focus states), increase text size and item spacing, and move it closer to the center or a conventional menu area."
+    },
+    {
+      "title": "Visible debug toggles",
+      "where": "Arena, Road, and City screens, bottom‑right corner",
+      "problem": "The unstyled 'Reduced flash: off' and 'Reduced shake: off' toggles are always visible, crowding the HUD with debug information.",
+      "why": "It breaks immersion and signals an unfinished debug build, distracting players from core gameplay elements.",
+      "fix": "Remove these toggles from the live HUD or relocate them into a collapsible 'Options' or 'Accessibility' menu that players can open when needed."
+    },
+    {
+      "title": "Low-contrast route progress bar",
+      "where": "Road and City screens, top‑center status bar",
+      "problem": "The thin white progress bar on a muted background track blends into the environment and is hard to see at a glance.",
+      "why": "Players lose quick feedback on journey progress, making it difficult to plan stops or gauge remaining distance.",
+      "fix": "Increase the bar’s thickness to at least 4px, use a high‑contrast fill color or gradient for the traveled portion, and add a darker outline or background track behind it."
+    },
+    {
+      "title": "Unlabeled city map markers",
+      "where": "City screen, colored arrows and building icons around the car",
+      "problem": "Colored arrows above buildings have no on‑screen labels or hover tooltips, and the tiny corner legend is too small to quickly associate icons with actions.",
+      "why": "Players cannot easily interpret which buildings correspond to fights, jobs, repairs, or shops, hindering navigation and decision‑making.",
+      "fix": "Enlarge and reposition the legend adjacent to the map, add inline text labels or hover tooltips on each icon, and ensure arrow shapes/colors match the legend exactly."
+    },
+    {
+      "title": "Dense constructor UI & subtle inputs",
+      "where": "Constructor screen, left panel listing parts and weapons",
+      "problem": "Rows of parts and weapon slots are tightly packed with no separators, and the 'Name' input uses only a thin outline, making fields hard to find and edit.",
+      "why": "Players struggle to scan groupings, see which row is selected, and notice editable fields, slowing down the vehicle‑building process.",
+      "fix": "Introduce clear section headers ('Name', 'Chassis/Suspension/Plant', 'Weapons'), increase vertical spacing between rows, insert visual dividers between groups, apply a filled background to the input field, and highlight the active row with a contrasting fill."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Weak title screen menu affordance\",\n    \"where\": \"Title screen, bottom‑left menu panel\",\n    \"problem\": \"The 'New Driver' / 'Controls' list uses a thin border, tiny text, and no clear button styling, so it reads like debug output rather than interactive menu options.\",\n    \"why\": \"Players may not instantly recognize how to start or navigate the menu, harming first‑impression and discoverability.\",\n    \"fix\": \"Redesign the menu as prominent buttons (e.g. larger padded rectangles with solid background and hover/focus states), increase text size and item spacing, and move it closer to the center or a conventional menu area.\"\n  },\n  {\n    \"title\": \"Visible debug toggles\",\n    \"where\": \"Arena, Road, and City screens, bottom‑right corner\",\n    \"problem\": \"The unstyled 'Reduced flash: off' and 'Reduced shake: off' toggles are always visible, crowding the HUD with debug information.\",\n    \"why\": \"It breaks immersion and signals an unfinished debug build, distracting players from core gameplay elements.\",\n    \"fix\": \"Remove these toggles from the live HUD or relocate them into a collapsible 'Options' or 'Accessibility' menu that players can open when needed.\"\n  },\n  {\n    \"title\": \"Low-contrast route progress bar\",\n    \"where\": \"Road and City screens, top‑center status bar\",\n    \"problem\": \"The thin white progress bar on a muted background track blends into the environment and is hard to see at a glance.\",\n    \"why\": \"Players lose quick feedback on journey progress, making it difficult to plan stops or gauge remaining distance.\",\n    \"fix\": \"Increase the bar’s thickness to at least 4px, use a high‑contrast fill color or gradient for the traveled portion, and add a darker outline or background track behind it.\"\n  },\n  {\n    \"title\": \"Unlabeled city map markers\",\n    \"where\": \"City screen, colored arrows and building icons around the car\",\n    \"problem\": \"Colored arrows above buildings have no on‑screen labels or hover tooltips, and the tiny corner legend is too small to quickly associate icons with actions.\",\n    \"why\": \"Players cannot easily interpret which buildings correspond to fights, jobs, repairs, or shops, hindering navigation and decision‑making.\",\n    \"fix\": \"Enlarge and reposition the legend adjacent to the map, add inline text labels or hover tooltips on each icon, and ensure arrow shapes/colors match the legend exactly.\"\n  },\n  {\n    \"title\": \"Dense constructor UI & subtle inputs\",\n    \"where\": \"Constructor screen, left panel listing parts and weapons\",\n    \"problem\": \"Rows of parts and weapon slots are tightly packed with no separators, and the 'Name' input uses only a thin outline, making fields hard to find and edit.\",\n    \"why\": \"Players struggle to scan groupings, see which row is selected, and notice editable fields, slowing down the vehicle‑building process.\",\n    \"fix\": \"Introduce clear section headers ('Name', 'Chassis/Suspension/Plant', 'Weapons'), increase vertical spacing between rows, insert visual dividers between groups, apply a filled background to the input field, and highlight the active row with a contrasting fill.\"\n  }\n]"
+}

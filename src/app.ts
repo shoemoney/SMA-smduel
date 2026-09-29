@@ -4087,8 +4087,19 @@ function showCity(root: HTMLElement, state: CityRunState): void {
    * instances in a buffer that is exactly full.
    */
   const legend = el('div');
+  // Size and colour are on the token scale rather than hardcoded, which they
+  // were: 11px was the "secondary labels" step, chosen by eye when the legend
+  // was added in iteration 39, and it stayed a one-off for eleven reviews
+  // because nothing else on this screen shares a stylesheet. The legend is a KEY
+  // - the only thing that tells the player what four saturated marker colours
+  // mean - so it reads as the `stats` step, not a secondary label. A review
+  // that had already seen the legend and still called it too small to associate
+  // is the same signal the entrance markers gave twice, where the answer was the
+  // number and not the report. One step, deliberately: the colours already
+  // measure 7.23:1 on this panel, so this is a legibility nudge and not a fix
+  // for a contrast failure.
   legend.style.cssText =
-    'position:absolute;bottom:10px;right:10px;display:flex;gap:10px;align-items:center;color:#9fb0c2;font-family:system-ui,sans-serif;font-size:11px;background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-radius:6px;padding:5px 9px;pointer-events:none;';
+    'position:absolute;bottom:10px;right:10px;display:flex;gap:10px;align-items:center;color:#9fb0c2;font-family:system-ui,sans-serif;font-size:var(--ui-text-sm);background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-radius:6px;padding:5px 9px;pointer-events:none;';
   for (const [label, tint] of [
     [t('ui.city.legendFight'), facilityMarkerTint('arena')],
     [t('ui.city.legendBuild'), facilityMarkerTint('garage')],
@@ -4100,7 +4111,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     const swatch = el('span');
     // The swatch is the marker art's own hue, so the key and the map cannot
     // drift apart: both read `facilityMarkerTint`.
-    swatch.style.cssText = `width:9px;height:9px;border-radius:2px;background:rgb(${Math.round(Math.min(1, tint.r) * 200)},${Math.round(Math.min(1, tint.g) * 200)},${Math.round(Math.min(1, tint.b) * 200)});`;
+    swatch.style.cssText = `width:10px;height:10px;border-radius:2px;background:rgb(${Math.round(Math.min(1, tint.r) * 200)},${Math.round(Math.min(1, tint.g) * 200)},${Math.round(Math.min(1, tint.b) * 200)});`;
     const text = el('span');
     text.textContent = label;
     key.appendChild(swatch);
