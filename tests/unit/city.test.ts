@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { citiesConfig, drivingConfig, economy } from '@/data/rulesets';
 import { UnknownRulesetIdError } from '@/data/rulesets';
 import { groundQuad } from '@/render/ground';
-import { facilityMarkerTint } from '@/ui/city-view';
+import { cityLayer1InstanceCount, facilityMarkerTint } from '@/ui/city-view';
 import { advanceDays, closeOutDay, formatDate, initialClock, type Clock } from '@/sim/calendar';
 import {
   CITY_DIRECTIONS,
@@ -862,13 +862,14 @@ describe('buildCityInstances', () => {
     expect(groundQuadInstance?.uvRepeatMetres).toBeGreaterThan(0);
 
     // Layer 1 is buildings, and it is a MIX: shadow+building pairs for the
-    // facilities, the gate and the decorative infill, but also bare doormarkers,
-    // which have no shadow. So the count is not a simple multiple and strict
-    // index pairing does not hold. The invariant that actually matters is that
-    // every shadow is IMMEDIATELY followed by its own caster — otherwise
-    // painter's-algorithm order puts the building on top of its shadow and the
-    // contact shadow silently disappears, which is exactly the bug the shadow
-    // work was for.
+    // facilities, the gate and the decorative infill, and shadow+marker pairs
+    // for the doormarkers, which now carry a ground shadow of their own so they
+    // sit ON the map instead of floating over it. So the count is not a simple
+    // multiple and strict index pairing does not hold. The invariant that
+    // actually matters is that every shadow is IMMEDIATELY followed by its own
+    // caster — otherwise painter's-algorithm order puts the building on top of
+    // its shadow and the contact shadow silently disappears, which is exactly
+    // the bug the shadow work was for.
     const layer1 = instances.filter((i) => i.layer === 1);
     let shadows = 0;
     for (let i = 0; i < layer1.length; i++) {
@@ -893,6 +894,38 @@ describe('buildCityInstances', () => {
 
     // One walking player, no vehicle in this snapshot.
     expect(byLayer.get(2)).toBe(1);
+  });
+
+  it('emits exactly as many layer-1 instances as cityLayer1InstanceCount claims', () => {
+    // THE GUARD FOR THE CLASS, not for the doormarker shadow.
+    //
+    // The layer-1 storage buffer is allocated from `cityLayer1InstanceCount`
+    // and `writeInstanceBuffer` does not bounds-check, so an emitter that grows
+    // without the count growing is not a partial render — it is a WebGPU
+    // validation error that blanks the whole city screen. That failure has been
+    // caught TWICE at runtime and never in a test: the exit beacon (iteration 8)
+    // and the doormarker shadows (iteration 19).
+    //
+    // Iteration 19 is the one worth reading twice, because the bug was not
+    // caught by fixing it — it was misdiagnosed. Ten extra marker shadows
+    // overshot the buffer, and the conclusion drawn was that the shadows had to
+    // go because "growing a GPU buffer budget to fit a nice-to-have shadow is
+    // the wrong trade". There is no fixed budget to grow: the count is derived,
+    // and the correct response to an overshoot is to move the count, which is
+    // the entire purpose of the function. The shadows were removed to satisfy a
+    // constraint that did not exist, and a real improvement was reverted on the
+    // strength of a misreading. A test that compares emitted to claimed makes
+    // that misdiagnosis impossible: it cannot tell you a shadow is unaffordable
+    // when the price is one integer in the same file.
+    for (const cityId of [PROVIDENCE, NEWYORK]) {
+      const layout = generateCityLayout(cityId, SAVE_SEED_A);
+      const instances = buildCityInstances(
+        { layout, player: createCityPlayerState({ ...layout.gate.position }), vehicle: null },
+        fixtureAtlasIndex(),
+      );
+      const emitted = instances.filter((i) => i.layer === 1).length;
+      expect(emitted, `layer-1 count drifted for ${cityId}`).toBe(cityLayer1InstanceCount(layout));
+    }
   });
 
   it('renders both a parked vehicle and the on-foot player when the vehicle is present but not occupied', () => {

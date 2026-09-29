@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 52
+iteration: 53
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (52 of 82 vision models):
+Reviewers asked (53 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1744,6 +1744,105 @@ TOOLING - the review harness got audited by its own failure this round:
        a section rule above Weapon 1 (iteration 17) and the unmet-requirement
        rails (iteration 48) — and this reviewer's own screenshot shows the Name
        field with its placeholder, which is iteration 30's work.
+
+53. google/gemini-3.1-pro-preview -> 1 REAL, and it reopened a decision this
+     loop got wrong thirty-four iterations ago. 4 FALSE, three of them the
+     static-frame classes:
+     - "The navigation chevrons are flat, 2D vectors layered directly over gritty
+       3D structures without any grounding visual elements ... they appear
+       completely disconnected from the world space (like graphical glitches),
+       making it difficult to judge exactly which physical building they are
+       anchored to. Add a dark, soft drop-shadow on the ground directly beneath
+       each chevron."
+       TRUE, and the sharpest description of the marker problem in the log,
+       because it is the first one to name the AXIS rather than the number.
+       Nine reviews have now said something about these markers and they split
+       cleanly into two unrelated complaints: "too small / lost against the
+       ground" (iterations 19, 20, 26) and "too loud / a field of roadwork
+       signs" (iterations 33, 47). Both were answered on the SIZE axis, twice
+       each, and neither could fix this one, because size and anchoring are
+       orthogonal. A bigger flat chevron is MORE disconnected, not less. This is
+       also the same objection iteration 11 raised about the waypoint beacon —
+       a thing that reads as an overlay rather than as part of the world.
+       So the markers now carry a ground shadow, soft (0.9) and moderate (0.5)
+       rather than a building's 0.3/0.62: a building is a solid mass casting a
+       tight contact shadow, while the marker is flat signage lying ON the
+       ground and wants a diffuse pool. City luma and spread are unchanged
+       (93.16/63.14 against 93.17/63.99), so the anchoring cost the frame none
+       of its measured range — which matters, because the complaint in
+       iteration 47 was that the markers were too loud.
+
+       AND THIS REOPENS ITERATION 19, which was decided wrong.
+       Iteration 19 added these same shadows, overshot the buffer, and concluded:
+       "growing a GPU buffer budget to fit a nice-to-have shadow is the wrong
+       trade, so the shadow is what goes." There is no fixed budget to grow.
+       `95/95` appears in this codebase ONLY inside comments — the capacity is
+       derived by `cityLayer1InstanceCount`, and `buildCityRenderResources`
+       allocates the buffer from it. The contract was never "no shadows", it was
+       "move the count with them", which is the entire purpose of that function
+       and what its own comment instructs. The overshoot was a failure to update
+       a count, and it was read as a POLICY about shadows instead.
+       The difference between then and now is that a shadow was a nice-to-have
+       and a review has now made it the actual ask — but the decision was wrong
+       then and would have been wrong for any reason. A real improvement was
+       reverted for thirty-four iterations on the strength of a misreading, and
+       the only thing that unblocked it was a reviewer describing the symptom
+       correctly instead of the loop re-deriving the cause correctly.
+
+       THE GUARD FOR THE CLASS, since I was about to hand-edit a count again:
+       nothing in the test suite compared emitted instances to the claimed count.
+       The only check was the runtime `writeInstanceBuffer` bounds test, which
+       does not degrade gracefully — an overshoot is a WebGPU validation error
+       that renders the whole city screen BLANK. That has now caught two real
+       bugs at runtime (the invisible beacon in iteration 8, these shadows in
+       iteration 19) and never in a test. There is now a test comparing
+       emitted-to-claimed across both city sizes, and it is PROVEN to fire: it
+       was written, then the count was deliberately walked back from 4 to 3 and
+       it failed with "layer-1 count drifted for providence: expected 60 to be
+       59", and restoring the count made it pass. Writing the test is not the
+       same as knowing it works, and this loop has been bitten by that
+       difference before.
+     - "The radar is a flat dark circle with a single center triangle, lacking
+       range rings, sweep lines, or any grid markers." THIRTY-SECOND report, from
+       a model in the Gemini family that has now produced it eleven times
+       (iterations 1, 5, 7, 11, 12, 15, 16, 17, 18, 22, 23, 24, 25, 26, 27, 28,
+       29, 30, 33, 34, 35, 36, 38, 40, 41, 43, 44, 45, 46, 47, 48, 49, 50, 51,
+       52, 53 — and its own suggested fix is again the fabricated contacts
+       declined eleven times);
+     - "The progress bar is a 1-pixel thin white line ... lacking an opaque
+       container ... increase thickness." FALSE, and now the THIRD consecutive
+       review to ask for less than the element already is: 4px here, 4px last
+       round, and it renders 8px including borders (measured by column scan in
+       iteration 29). The "opaque container" also exists — it is the status pill,
+       raised to 0.86 alpha and 13.20:1 in iteration 24 for exactly the
+       moving-texture-behind-it problem this describes;
+     - "The speedometer dial has only dark grey tick marks, no needle or active
+       fill ... add a needle that sweeps as speed changes." FALSE, and checked in
+       the code rather than the frame because this is the exact class of claim
+       that hides a wiring bug (iteration 41's rule: trace the chain, don't read
+       one line). `hud.ts` sets `--hud-speed-frac` from
+       `mph / maxTopSpeedMph` and `hud.css` consumes it as a conic-gradient
+       value wedge running clockwise from 12 o'clock, over 4 major and 24 minor
+       ticks, with a track, a border and a hub. The instrument is complete and
+       driven. It reads as empty for the same reason the progress bar does: the
+       capture is a vehicle AT REST, so the wedge is legitimately 0 degrees.
+       Third instance of the static-frame class after iteration 22's empty bar
+       and iteration 46's "0 mph means broken";
+     - "The constructor stat labels are far-left while values are far-right,
+       creating a massive gap of empty dark space ... risks reading the wrong
+       row." The gap is REAL and I measured it, and both of the offered remedies
+       are worse. The right-aligned value column is deliberate: it is what makes
+       the block scannable as a table, and iteration 27 recorded the alignment
+       as load-bearing for the 0-9 typing model, where every row's value has to
+       sit in the same column. "Tighter columns" abandons that. "Dotted leader
+       lines" is a print-table device that would push the block toward the
+       spreadsheet look iteration 17 explicitly moved away from when ten
+       "(empty)" rows were described as "a debug console or spreadsheet". The
+       width itself is the screen's grid (`minmax(240px, 1fr)` of a 2.3fr
+       two-pane layout), not a stats-specific choice, so capping it would just
+       move the empty space. Recorded as a design observation rather than
+       changed — the same category as the preview "make it a picture" asks, and
+       the first reviewer to frame the stats block's alignment at all.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

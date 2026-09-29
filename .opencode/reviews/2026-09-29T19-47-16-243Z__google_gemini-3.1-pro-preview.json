@@ -1,0 +1,75 @@
+{
+  "model": "google/gemini-3.1-pro-preview",
+  "modelLabel": "google/gemini-3.1-pro-preview",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:47:16.243Z",
+  "usage": {
+    "prompt_tokens": 5843,
+    "completion_tokens": 3501,
+    "total_tokens": 9344,
+    "cost": 0.053698,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.053698,
+      "upstream_inference_prompt_cost": 0.011686,
+      "upstream_inference_completions_cost": 0.042012
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2833,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Static Radar Graphic",
+      "where": "Arena and Road screens, bottom left panel",
+      "problem": "The radar display is a flat dark circle with a single center triangle, lacking range rings, sweep lines, or any grid markers.",
+      "why": "It reads as an unfinished placeholder rather than an active instrument, giving the player no frame of reference for scale or scanning.",
+      "fix": "Add faint, concentric distance rings and a translucent sweeping radar wedge to establish it as an active UI display."
+    },
+    {
+      "title": "Low-Contrast Navigation Bar",
+      "where": "Road screen, top center",
+      "problem": "The journey progress indicator is a 1-pixel thin white line sitting on a dark, thin track, lacking an opaque container against the busy background.",
+      "why": "The extreme lack of visual weight and contrast makes it impossible to track progress peripherally while focusing on driving.",
+      "fix": "Increase the vertical thickness of the progress bar track, place it inside an opaque UI panel, and use a bright accent color (like the title's teal) for the fill."
+    },
+    {
+      "title": "Floating POI Chevrons",
+      "where": "City screen, scattered over buildings",
+      "problem": "The brightly colored navigation chevrons are flat, 2D vectors layered directly over gritty 3D structures without any grounding visual elements.",
+      "why": "They appear completely disconnected from the world space (like graphical glitches), making it difficult to judge exactly which physical building they are anchored to.",
+      "fix": "Add a dark, soft drop-shadow on the ground directly beneath each chevron and a faint vertical tether line connecting the icon down to its specific target."
+    },
+    {
+      "title": "Disconnected Stat Alignment",
+      "where": "Constructor screen, top right stats panel",
+      "problem": "The labels (COST, WEIGHT, etc.) are far left-aligned while their values are far right-aligned, creating a massive gap of empty dark space between them.",
+      "why": "This extreme separation breaks the Law of Proximity, forcing the player's eye to physically track across a void, which slows down readability and risks reading the wrong row.",
+      "fix": "Move the values much closer to their labels using a tighter column layout, or visually bridge the gap with a dotted leader line."
+    },
+    {
+      "title": "Unreadable Speedometer Dial",
+      "where": "Arena and Road screens, bottom center panel",
+      "problem": "The radial dial graphic above the speed text consists only of dark grey tick marks on a dark blue background, with no needle or active fill.",
+      "why": "It provides zero visual feedback of acceleration at a glance, forcing the player to read the small text digits instead of relying on peripheral gauge movement.",
+      "fix": "Add a brightly colored needle or an illuminated radial fill bar (like a tachometer) that dynamically sweeps across the ticks as speed changes."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Static Radar Graphic\",\n    \"where\": \"Arena and Road screens, bottom left panel\",\n    \"problem\": \"The radar display is a flat dark circle with a single center triangle, lacking range rings, sweep lines, or any grid markers.\",\n    \"why\": \"It reads as an unfinished placeholder rather than an active instrument, giving the player no frame of reference for scale or scanning.\",\n    \"fix\": \"Add faint, concentric distance rings and a translucent sweeping radar wedge to establish it as an active UI display.\"\n  },\n  {\n    \"title\": \"Low-Contrast Navigation Bar\",\n    \"where\": \"Road screen, top center\",\n    \"problem\": \"The journey progress indicator is a 1-pixel thin white line sitting on a dark, thin track, lacking an opaque container against the busy background.\",\n    \"why\": \"The extreme lack of visual weight and contrast makes it impossible to track progress peripherally while focusing on driving.\",\n    \"fix\": \"Increase the vertical thickness of the progress bar track, place it inside an opaque UI panel, and use a bright accent color (like the title's teal) for the fill.\"\n  },\n  {\n    \"title\": \"Floating POI Chevrons\",\n    \"where\": \"City screen, scattered over buildings\",\n    \"problem\": \"The brightly colored navigation chevrons are flat, 2D vectors layered directly over gritty 3D structures without any grounding visual elements.\",\n    \"why\": \"They appear completely disconnected from the world space (like graphical glitches), making it difficult to judge exactly which physical building they are anchored to.\",\n    \"fix\": \"Add a dark, soft drop-shadow on the ground directly beneath each chevron and a faint vertical tether line connecting the icon down to its specific target.\"\n  },\n  {\n    \"title\": \"Disconnected Stat Alignment\",\n    \"where\": \"Constructor screen, top right stats panel\",\n    \"problem\": \"The labels (COST, WEIGHT, etc.) are far left-aligned while their values are far right-aligned, creating a massive gap of empty dark space between them.\",\n    \"why\": \"This extreme separation breaks the Law of Proximity, forcing the player's eye to physically track across a void, which slows down readability and risks reading the wrong row.\",\n    \"fix\": \"Move the values much closer to their labels using a tighter column layout, or visually bridge the gap with a dotted leader line.\"\n  },\n  {\n    \"title\": \"Unreadable Speedometer Dial\",\n    \"where\": \"Arena and Road screens, bottom center panel\",\n    \"problem\": \"The radial dial graphic above the speed text consists only of dark grey tick marks on a dark blue background, with no needle or active fill.\",\n    \"why\": \"It provides zero visual feedback of acceleration at a glance, forcing the player to read the small text digits instead of relying on peripheral gauge movement.\",\n    \"fix\": \"Add a brightly colored needle or an illuminated radial fill bar (like a tachometer) that dynamically sweeps across the ticks as speed changes.\"\n  }\n]"
+}

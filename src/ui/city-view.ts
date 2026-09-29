@@ -226,6 +226,16 @@ const SHADOW_OFFSET_M: Vec2 = { x: 1.0, y: -0.9 };
  */
 const BUILDING_SHADOW_SOFTNESS = 0.3;
 const BUILDING_SHADOW_OPACITY = 0.62;
+
+/**
+ * The entrance marker's ground shadow, deliberately softer and lighter than a
+ * building's contact shadow (0.3 / 0.62). A building is a solid mass sitting on
+ * the ground and casts a tight dark contact; the marker is flat signage lying on
+ * the ground, so it wants a diffuse pool that darkens what it stands on rather
+ * than reading as a second object beside it.
+ */
+const DOORMARKER_SHADOW_SOFTNESS = 0.9;
+const DOORMARKER_SHADOW_OPACITY = 0.5;
 const VEHICLE_SHADOW_SOFTNESS = 0.7;
 const VEHICLE_SHADOW_OPACITY = 0.5;
 
@@ -798,14 +808,40 @@ function doormarkerInstances(layout: CityLayout, atlasIndex: AtlasIndex): Sprite
   const frame = atlasIndex.frame(DOORMARKER_FRAME);
   const radiusM = layout.boundsRadiusM - (layout.tileSizeM / 2 + DOORMARKER_SIZE_M.y / 2);
   const out: SpriteInstanceInput[] = [];
-  // No contact shadow on the markers, even though every building has one and
-  // the same reasoning would apply. The city's instance buffer is EXACTLY full
-  // at 95/95, so ten extra marker shadows pushed it to 105 and `writeInstanceBuffer`
-  // rejected the write — which renders the whole city screen BLANK rather than
-  // dropping the overflow. The enlargement above is the reviewer's actual ask and
-  // costs nothing; growing a GPU buffer budget to fit a nice-to-have shadow is
-  // the wrong trade, so the shadow is what goes.
+  // The marker carries a ground shadow (below) and its own functional tint, so
+  // it is drawn shadow-then-marker, in that order, within LAYER_BUILDING.
   for (const doorway of layout.doorways) {
+    // Ground shadow beneath the marker, so the chevron is ANCHORED to the
+    // building it belongs to instead of floating over the map as a UI overlay.
+    //
+    // A review named this precisely: the markers are "flat, 2D vectors layered
+    // directly over gritty 3D structures without any grounding visual
+    // elements ... they appear completely disconnected from the world space
+    // (like graphical glitches), making it difficult to judge exactly which
+    // physical building they are anchored to". That is the same objection
+    // iteration 11 raised about the waypoint beacon — a thing that reads as an
+    // overlay rather than as part of the scene — and it is the one complaint
+    // about the markers that enlarging them twice could never answer, because
+    // size and anchoring are different axes.
+    //
+    // ITERATION 19 TURNED THIS DOWN, and that decision was wrong. It added
+    // these same shadows, overshot the buffer, and concluded "growing a GPU
+    // buffer budget to fit a nice-to-have shadow is the wrong trade". But there
+    // is no fixed 95 anywhere: `cityLayer1InstanceCount` derives the capacity
+    // and `buildCityRenderResources` allocates from it, so the contract was
+    // never "no shadows" — it was "move the count with them", which is what
+    // that function exists for and what its own comment says to do. The
+    // overshoot was a failure to update the count, and it was read as a policy
+    // about shadows instead. At the time the shadow was a nice-to-have; a
+    // review has now made it the actual ask.
+    //
+    // Soft and moderate rather than the buildings' 0.3/0.62: a building is a
+    // solid mass casting a contact shadow, while the marker is flat signage
+    // sitting on the ground, so it wants a diffuse pool that darkens the
+    // ground it stands on without reading as a second object.
+    out.push(
+      shadowInstance(frame, polar(radiusM, angleOf(doorway.position)), 0, DOORMARKER_SIZE_M, DOORMARKER_SHADOW_SOFTNESS, DOORMARKER_SHADOW_OPACITY, LAYER_BUILDING),
+    );
     // Tinted by what the facility IS FOR, which is the one colour distinction
     // in this scene that is information rather than decoration.
     //
@@ -817,9 +853,10 @@ function doormarkerInstances(layout: CityLayout, atlasIndex: AtlasIndex): Sprite
     // arena)". The ten facility kinds are grouped by what they are FOR, so a
     // player can read the plaza - can I fix this car, can I buy a gun, is that a
     // fight - without driving up to each door. It lands on the entrance MARKER,
-    // so the building sprites themselves stay in one palette, and it adds NO
-    // instances, which matters because the city actor buffer is exactly full at
-    // 95/95 (see `cityInstanceCount`).
+    // so the building sprites themselves stay in one palette. The tint costs no
+    // instances; the marker's ground shadow adds one per doorway, which
+    // `cityLayer1InstanceCount` accounts for (see that function for why the
+    // count is the contract rather than a fixed budget).
     out.push(
       spriteInstance(
         frame,
@@ -970,7 +1007,9 @@ export function buildCityInstances(snapshot: CityViewSnapshot, atlasIndex: Atlas
  */
 export function cityLayer1InstanceCount(layout: CityLayout): number {
   // furniture: 1 instance each. fillers: 2 each (shadow + building).
-  // doorways: 2 each (shadow + building) + 1 doormarker. gate: 2 (shadow + building).
+  // doorways: 3 each (shadow + building + doormarker) + 1 doormarker shadow,
+  //           now that the marker is anchored to the ground.
+  // gate: 2 (shadow + building).
   // The `+ 2` is the gate pair; the `+ 1` is the exit beacon, which rides on
   // this layer.
   //
@@ -984,7 +1023,7 @@ export function cityLayer1InstanceCount(layout: CityLayout): number {
   return (
     furniturePlacements(layout).length +
     fillerPlacements(layout).length * 2 +
-    layout.doorways.length * 3 +
+    layout.doorways.length * 4 +
     2 + // gate shadow + gate
     1 // exit beacon
   );
