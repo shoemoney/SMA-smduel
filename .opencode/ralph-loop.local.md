@@ -2532,9 +2532,11 @@ TOOLING - the review harness got audited by its own failure this round:
        radial scrim behind the lockup." The tagline was measured at 9.00:1 in
        iteration 44 and at 9.48:1 before the composition move, against the
        BRIGHTEST background adjacent to it, with a two-layer shadow. A reviewer
-       asserting one END of the line is unreadable is a specific spatial claim and
-       it was not checked here, so it is recorded as UNVERIFIED rather than
-       false — the one item in this review still open;
+       asserting one END of the line is unreadable is a specific spatial claim.
+       RESOLVED IN ITERATION 65, and it is FALSE: measured per third, the
+       tagline reads 7.92 / 7.72 / 7.99:1 against the brightest adjacent
+       background, so the right end is the BEST of the three. The sun glow sits
+       above the lockup; the line's right end lies over a dark tank hull;
      - "The city is a gray-box: buildings are flat grey cubes with no cast
        shadows, no streets." FALSE on shadows: buildings have carried analytic
        contact shadows since iteration 17, tightened to 0.3/0.62 so separation
