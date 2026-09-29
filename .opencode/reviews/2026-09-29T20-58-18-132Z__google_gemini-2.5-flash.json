@@ -1,0 +1,75 @@
+{
+  "model": "google/gemini-2.5-flash",
+  "modelLabel": "google/gemini-2.5-flash",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T20:58:18.133Z",
+  "usage": {
+    "prompt_tokens": 1673,
+    "completion_tokens": 1162,
+    "total_tokens": 2835,
+    "cost": 0.0034069,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0034069,
+      "upstream_inference_prompt_cost": 0.0005019,
+      "upstream_inference_completions_cost": 0.002905
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Unfinished UI style",
+      "where": "All screens, UI elements like buttons, panels, text fields, and gauges.",
+      "problem": "The UI elements use a very basic, flat, single-color design (mostly dark teal/grey with white text) lacking any distinct style, visual hierarchy, or visual feedback for interactive elements. This is most obvious in the 'Arcade' button on the title screen, the 'WEAPONS' panel, and the radar.",
+      "why": "The current UI looks like placeholder art or a programmer's interface, rather than a polished game element. It detracts from the game's atmosphere, makes the game feel unpolished, and provides poor feedback for player interaction, especially for active states or selected items.",
+      "fix": "Implement a consistent UI art style. For example, add subtle gradients, borders, shadows, or textures to panels. Introduce highlight states (e.g., a brighter color, a glow, an outline) for selected menu items and interactive elements. Ensure active buttons have a clear visual difference."
+    },
+    {
+      "title": "Radar lacks clarity and function",
+      "where": "Arena and Road screens, bottom-left radar.",
+      "problem": "The radar is a static-looking green circle on a black background, with concentric rings and a single line. There's no visible 'sweep' animation, no contacts, and no clear indication of what the green line represents (player facing, 'north' direction).",
+      "why": "The radar currently looks like a static image or a broken instrument. It doesn't convey active information or suggest dynamic scanning, which undermines its purpose as a functional game element. Players will ignore it or assume it's not working.",
+      "fix": "Add a visual 'sweep' animation to the radar. Introduce placeholder contact points (e.g., small dots, blips) for testing visibility and movement. Ensure the 'orientations: north-up' text is visually connected to an indicator on the radar itself, or remove the text if the line indicates player facing."
+    },
+    {
+      "title": "City map legibility issues",
+      "where": "City screen, central area with buildings and markers.",
+      "problem": "The city map is a monochromatic grey, textured ground plane with uniformly colored buildings. The interactive elements (building markers, jobs, enemies) are small, simple arrows or boxes with limited color differentiation, making it hard to quickly distinguish between different types of objectives or points of interest.",
+      "why": "The lack of visual contrast and distinct iconography for map elements makes the city feel visually boring and difficult to parse quickly. Players will struggle to identify critical locations or tasks at a glance, leading to frustration and slower navigation.",
+      "fix": "Introduce more visual variety to the city map. Use distinct colors, shapes, or icons for different building types (e.g., job givers, shops, arenas). Increase the size or add outlines to interactive markers to make them more prominent against the background. Consider adding roads or pathways to visually break up the grey terrain."
+    },
+    {
+      "title": "Vehicle constructor UI clutter",
+      "where": "Vehicle Constructor screen, left-side parts list.",
+      "problem": "The left-side panel lists all vehicle parts and ten 'Weapon' slots in a single, long, undifferentiated column. The current weapon slots are all (empty) and extend quite far down the screen, pushing other potentially important elements out of immediate view.",
+      "why": "The lengthy, unbroken list of components, especially the ten empty weapon slots, creates visual clutter and requires excessive scrolling or scanning to find specific categories. It gives the impression of a complex system before the player has even started, and the empty slots feel like an overwhelming commitment or simply wasted space initially.",
+      "fix": "Organize the component list into logical, collapsable categories (e.g., 'Chassis', 'Power', 'Armor', 'Weapons'). Group weapon slots (e.g., 2-3 visible, with a 'show more' option). Use visual separators or subtle background changes between categories to improve readability. Only show a reasonable number of empty weapon slots based on the current body, or dynamically add them as weapons are fitted."
+    },
+    {
+      "title": "HUD text readability in motion",
+      "where": "Arena and Road screens, the '0 mph' speedometer/info panel.",
+      "problem": "The speedometer displays '0 mph' in a relatively thin font and small size against a dark background. Other text like 'TIER 2/3' is even smaller. The circular gauge for '100%' is also quite small.",
+      "why": "Important real-time information like speed and status needs to be immediately legible, even during fast-paced combat or driving. The current text size and font weight are too subtle and would be difficult to read at a glance, especially when the player's attention is on the action.",
+      "fix": "Increase the font size and potentially the weight (boldness) of critical numbers like 'mph'. Consider a slightly brighter or more contrasting color for the speed readout. Make the circular gauge more prominent or use a simpler bar indicator for clarity at a smaller size. Prioritize critical info over less important details in terms of size and visual weight within the panel."
+    }
+  ],
+  "parseError": null,
+  "raw": "```json\n[\n  {\n    \"title\": \"Unfinished UI style\",\n    \"where\": \"All screens, UI elements like buttons, panels, text fields, and gauges.\",\n    \"problem\": \"The UI elements use a very basic, flat, single-color design (mostly dark teal/grey with white text) lacking any distinct style, visual hierarchy, or visual feedback for interactive elements. This is most obvious in the 'Arcade' button on the title screen, the 'WEAPONS' panel, and the radar.\",\n    \"why\": \"The current UI looks like placeholder art or a programmer's interface, rather than a polished game element. It detracts from the game's atmosphere, makes the game feel unpolished, and provides poor feedback for player interaction, especially for active states or selected items.\",\n    \"fix\": \"Implement a consistent UI art style. For example, add subtle gradients, borders, shadows, or textures to panels. Introduce highlight states (e.g., a brighter color, a glow, an outline) for selected menu items and interactive elements. Ensure active buttons have a clear visual difference.\"\n  },\n  {\n    \"title\": \"Radar lacks clarity and function\",\n    \"where\": \"Arena and Road screens, bottom-left radar.\",\n    \"problem\": \"The radar is a static-looking green circle on a black background, with concentric rings and a single line. There's no visible 'sweep' animation, no contacts, and no clear indication of what the green line represents (player facing, 'north' direction).\",\n    \"why\": \"The radar currently looks like a static image or a broken instrument. It doesn't convey active information or suggest dynamic scanning, which undermines its purpose as a functional game element. Players will ignore it or assume it's not working.\",\n    \"fix\": \"Add a visual 'sweep' animation to the radar. Introduce placeholder contact points (e.g., small dots, blips) for testing visibility and movement. Ensure the 'orientations: north-up' text is visually connected to an indicator on the radar itself, or remove the text if the line indicates player facing.\"\n  },\n  {\n    \"title\": \"City map legibility issues\",\n    \"where\": \"City screen, central area with buildings and markers.\",\n    \"problem\": \"The city map is a monochromatic grey, textured ground plane with uniformly colored buildings. The interactive elements (building markers, jobs, enemies) are small, simple arrows or boxes with limited color differentiation, making it hard to quickly distinguish between different types of objectives or points of interest.\",\n    \"why\": \"The lack of visual contrast and distinct iconography for map elements makes the city feel visually boring and difficult to parse quickly. Players will struggle to identify critical locations or tasks at a glance, leading to frustration and slower navigation.\",\n    \"fix\": \"Introduce more visual variety to the city map. Use distinct colors, shapes, or icons for different building types (e.g., job givers, shops, arenas). Increase the size or add outlines to interactive markers to make them more prominent against the background. Consider adding roads or pathways to visually break up the grey terrain.\"\n  },\n  {\n    \"title\": \"Vehicle constructor UI clutter\",\n    \"where\": \"Vehicle Constructor screen, left-side parts list.\",\n    \"problem\": \"The left-side panel lists all vehicle parts and ten 'Weapon' slots in a single, long, undifferentiated column. The current weapon slots are all (empty) and extend quite far down the screen, pushing other potentially important elements out of immediate view.\",\n    \"why\": \"The lengthy, unbroken list of components, especially the ten empty weapon slots, creates visual clutter and requires excessive scrolling or scanning to find specific categories. It gives the impression of a complex system before the player has even started, and the empty slots feel like an overwhelming commitment or simply wasted space initially.\",\n    \"fix\": \"Organize the component list into logical, collapsable categories (e.g., 'Chassis', 'Power', 'Armor', 'Weapons'). Group weapon slots (e.g., 2-3 visible, with a 'show more' option). Use visual separators or subtle background changes between categories to improve readability. Only show a reasonable number of empty weapon slots based on the current body, or dynamically add them as weapons are fitted.\"\n  },\n  {\n    \"title\": \"HUD text readability in motion\",\n    \"where\": \"Arena and Road screens, the '0 mph' speedometer/info panel.\",\n    \"problem\": \"The speedometer displays '0 mph' in a relatively thin font and small size against a dark background. Other text like 'TIER 2/3' is even smaller. The circular gauge for '100%' is also quite small.\",\n    \"why\": \"Important real-time information like speed and status needs to be immediately legible, even during fast-paced combat or driving. The current text size and font weight are too subtle and would be difficult to read at a glance, especially when the player's attention is on the action.\",\n    \"fix\": \"Increase the font size and potentially the weight (boldness) of critical numbers like 'mph'. Consider a slightly brighter or more contrasting color for the speed readout. Make the circular gauge more prominent or use a simpler bar indicator for clarity at a smaller size. Prioritize critical info over less important details in terms of size and visual weight within the panel.\"\n  }\n]\n```"
+}

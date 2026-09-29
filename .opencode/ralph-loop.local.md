@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 70
+iteration: 72
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (70 of 82 vision models):
+Reviewers asked (71 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -3043,6 +3043,89 @@ TOOLING - the review harness got audited by its own failure this round:
      cheapest correct response is exactly the one iteration 48 wrote down — check
      whether the review is looking at the shipped build before treating it as a
      description of the current one.
+
+71. qwen/qwen3.8-max-0902 -> ONE REAL FINDING, AND THE ROUND THAT FOUND IT ALSO
+     EXPOSED THE WORST HARNESS FAILURE IN THE LOG. Both are recorded here
+     because the second is what made the first trustworthy:
+     - **THE TOOLING FAILURE: THE TOOL REVIEWED STALE SCREENSHOTS AND SAID
+       NOTHING.** This review was run with `--shots .shots/iter70`, a directory
+       that DOES NOT EXIST — the newest capture was iter68. It completed
+       normally, cost $0.05, recorded the full screen list
+       (`['title','arena','road','city','constructor']`), and reported five
+       detailed findings with pixel coordinates as if it had seen the build.
+       Cause, and it is a genuinely nasty one:
+         `sips` EXITS 0 ON A MISSING FILE. It prints
+         "Warning: .shots/NOPE/arena.png not a valid file - skipping" to stdout
+         and returns success. So `await execFileAsync('sips', ...)` RESOLVED,
+         the caller's `catch` never fired, no "no capture" was logged, and the
+         `if (frames.length === 0) throw` guard never ran. The next line then
+         read the OUTPUT path — a FIXED per-screen name
+         (`.opencode/reviews/_small_arena.png`) that a PREVIOUS run had already
+         written. So the model was sent a set of resized captures from an
+         earlier iteration and reviewed them as the current build.
+       This is the same class of failure this log keeps hitting, in its purest
+       form: a healthy-looking signal standing in for a fact. The empty-body
+       parse failure (iteration 62) lost one review; a phantom "0 models asked"
+       (iteration 16) would have re-asked every model forever; this one does
+       neither, and is worse for it — it produces confident, detailed,
+       entirely unfounded findings that look exactly like real ones.
+       FIXED. `reviewSized` now stats the source itself before trusting sips,
+       throws on a missing capture, verifies the output exists, and writes to a
+       name keyed on the source path AND its mtime+size, so a new capture of the
+       same screen can never be served from a previous run's resize. PROVEN both
+       ways: a run against `.shots/NOPE` now prints five "MISSING capture" lines
+       and throws, while a real shots directory still resolves. The
+       `if (frames.length === 0) throw` guard that already existed now actually
+       works, because the thing it was guarding could never previously fail.
+     - **THE REAL FINDING, which the stale review described by accident.** "An
+       empty teal-outlined rounded rectangle cut off by the viewport edge and
+       overlapping the CONDITION panel header ... it renders as a broken widget."
+       I nearly dismissed that as the product of reviewing old art — and the
+       framing was still right: the widget is in the CURRENT build. Cropped the
+       real iter68 arena and it is there, an empty teal-bordered rectangle peeking
+       out from behind CONDITION at the top edge.
+       It is `src/app.ts:2542` — the arena's `exitBtn`, "Exit to Title", mounted
+       at `position:absolute; top:8px; right:8px`. And `.hud-panel--damage` (the
+       CONDITION panel) was ALSO at `top: var(--inset); right: var(--inset)`. The
+       HUD host paints after the button, so the panel covered it completely.
+       **The way out of an arena run has been invisible and unclickable.** What
+       survived on screen was the button's own teal border corner, which is
+       precisely why it read as a "broken widget" rather than as a hidden
+       control.
+       FIXED: the CONDITION panel is offset down 34px (the button is ~29px tall),
+       and the exit button is now plainly visible and clickable in the corner with
+       the panel sitting cleanly beneath it. The offset is scoped in effect,
+       because the arena and road are the only screens that mount this panel —
+       the city carries the car strip from iteration 28 instead. Side effect
+       recorded honestly: the road screen, which has no exit button (a road run
+       auto-advances to the city on arrival, so that appears to be deliberate),
+       now has a 34px gap above its CONDITION panel where nothing sits. A small
+       cosmetic imbalance traded for a working primary control, which is an easy
+       call.
+       WORTH NAMING, because it is the sharpest lesson in the log about what the
+       loop is actually for: seventy reviews had gone past this button. Not one
+       of them said "the exit control is missing", because a control hidden
+       BEHIND a panel is not an element any reviewer was looking for — it is
+       simply absent from every screen they were shown. The only reason it
+       surfaced at all is that a reviewer described the sliver of leftover border
+       as an unexplained artifact, and the loop's own rule ("a claim that recurs
+       from independent reviewers is evidence about MY CHECK") applied to a
+       single reviewer noticing a piece of visual noise nobody had explained.
+       The most valuable defect in sixty reviews was found by treating an
+       unexplained detail as a defect rather than as noise.
+     - The remaining four findings (title menu orphaned from the logo, a "collapsible
+       weapon list", city streets, roadside props) are the known classes:
+       iteration 43's composition measurement, the 0-9 index addressing, the
+       city street-network ART item, and the roadside-furniture candidate recorded
+       in iteration 60 and corrected in 61. Not re-argued here.
+     - Recorded against the review itself: it is a WEAK review on its merits.
+       Having been sent the wrong images, it still produced five plausible
+       findings — four of them wrong, and the fifth a real defect it described
+       accurately but attributed to a "broken widget" rather than to a covered
+       button. That is worth noting for how the pool is weighted: even a review
+       of stale screenshots can surface a real defect, and even a weak review can
+       be right once. But the correct response to the REVIEW is still to weight
+       it, while the correct response to the FINDING is to go and look.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

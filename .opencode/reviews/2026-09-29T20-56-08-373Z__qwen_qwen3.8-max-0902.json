@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3.8-max-0902",
+  "modelLabel": "qwen/qwen3.8-max-0902",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T20:56:08.374Z",
+  "usage": {
+    "prompt_tokens": 5417,
+    "completion_tokens": 7318,
+    "total_tokens": 12735,
+    "cost": 0.054742,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.054742,
+      "upstream_inference_prompt_cost": 0.010834,
+      "upstream_inference_completions_cost": 0.043908
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5900,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Title menu is a tiny corner box, orphaned from the logo",
+      "where": "Title screen, bottom-left: the two-row '1 New Driver / 2 Controls' panel (~360x110px in a 1420px-wide frame), pinned to the corner while the logo and tagline sit centered",
+      "problem": "The only interactive elements on the screen are a small default-styled slate list in the bottom-left corner, visually disconnected from the centered SMDUEL logo block; the selected row's teal fill is the only styling, row type is ~12px, and the panel's hard edges sit flush against the frame edge like a debug console leftover",
+      "why": "This is the first screen a player sees; the eye lands on the logo and gets no guided path to the entry point, so the game's front door reads as an overlay list rather than a menu, and the rows are unreadable at distance or on a laptop across the room",
+      "fix": "Center a menu column directly under the tagline: min 320px wide, 40px row height, 16-18px type, number keys right-aligned as hints, and a dimmed third row (version/credits) to balance the block; keep the key art but add a subtle radial darken behind the menu column so rows hold contrast"
+    },
+    {
+      "title": "Empty clipped focus ring and debug toggle chips left in the play HUD",
+      "where": "Arena: top-right corner, an empty teal-outlined rounded rectangle cut off by the viewport edge and overlapping the CONDITION panel header. Arena and road: bottom-right, two stacked monospace chips 'Reduced flash: off' / 'Reduced shake: off'",
+      "problem": "The teal rectangle contains no label or icon and is sliced by the screen edge, so it renders as a broken widget; the two bottom-right chips use console-style monospace text and stay on screen permanently during play",
+      "why": "An empty clipped control is the fastest way to make a build look unfinished, and players will read the missing button as a missing feature; the permanent accessibility toggles also add corner clutter to a HUD that already occupies all four corners",
+      "fix": "Delete or repair the clipped widget (if it is a menu/pause button, give it a glyph label and inset it 8px from the edge); move reduced-flash/reduced-shake into the options menu and surface a 2-second toast ('Shake reduced: ON') only at the moment the player toggles them in-run"
+    },
+    {
+      "title": "Constructor wastes half the screen and previews a glyph instead of the car",
+      "where": "Constructor: the bottom ~40% of both columns is empty black below the help line and legality panel; the right-hand 'SUBCOMPACT - TOP VIEW' pane shows a neon cyan rounded rectangle with two flat filled rects and dashed slots",
+      "problem": "Ten identical 'Weapon n (empty)' rows plus zeroed armor rows stack into the top half, leaving a huge dead zone underneath, while the preview shares no visual language with the orange pixel car actually driven in city, road and arena - it is an abstract outline, not the vehicle",
+      "why": "This screen is where players spend the most menu time; the void makes the screen look unpopulated and broken, and because armor facings and mount slots are not drawn on a recognizable car, players get zero spatial feedback for their choices before committing credits",
+      "fix": "Collapse the weapon list to fitted slots plus two empty rows with a '+8 hidden' footer; scale the preview to fill the right column and render the real top-down car sprite there, with mount points as colored sockets that highlight on row hover and armor facings tinted per side using the same colors as the in-run CONDITION panel"
+    },
+    {
+      "title": "City reads as a gray void with floating chevrons - no streets, no anchored markers",
+      "where": "City screen: the entire map inside the wall ring; saturated green/blue/orange/red chevrons hover beside small building sprites, and the player marker is a teal chevron on a black square above the car; the Fight/Build/Care/Jobs legend is 8px swatches in the far bottom-right",
+      "problem": "The ground is uniform desaturated cracked gray with no street lanes, sidewalks or district tinting, so buildings look like crates scattered on mud; POI chevrons float unanchored with no bases or labels, and the player marker uses the same chevron glyph family as the dozen POI icons",
+      "why": "Players cannot tell drivable routes from background texture, cannot name a service without cross-referencing a tiny corner legend, and cannot find themselves at a glance because their marker competes with identical-shaped icons - the core navigation loop of the open world fails on first load",
+      "fix": "Lay darker asphalt street lanes connecting buildings and the gate so routes read instantly; seat each chevron on a small category-colored pad with a one-letter tag (F/B/C/J); replace the player marker with a distinct rotating arrow plus pulsing ring; promote the legend to a compact strip under the top header bar"
+    },
+    {
+      "title": "Highway is three flat repeating bands with no roadside reference for speed",
+      "where": "Road screen: the full-width horizontal strip - gray noise shoulders, dark asphalt band, white edge lines and yellow center dashes - with nothing else in the frame, plus a 4px progress line with a single white tick under the header",
+      "problem": "Asphalt and shoulder are uniform tiling noise with no props, wrecks, guardrails, traffic, shadows or lane furniture, and the route progress bar is a hairline with no vehicle icon or endpoint markers, so nothing in the frame measures distance or motion",
+      "why": "Highway survival is a core fantasy of the game; with zero roadside objects there is no motion parallax, so 70 mph will feel identical to 0 mph, and the empty corridor reads as a placeholder test strip rather than a world the player is risking a car on",
+      "fix": "Scroll roadside content past the camera every ~50m (utility poles, guardrail segments, wreck silhouettes, tire stacks), add occasional slow traffic sprites in the far lane and rumble-strip texture on the shoulders; thicken the progress bar to 8px with a car icon at the current position and labeled dots at both endpoints"
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Title menu is a tiny corner box, orphaned from the logo\",\n    \"where\": \"Title screen, bottom-left: the two-row '1 New Driver / 2 Controls' panel (~360x110px in a 1420px-wide frame), pinned to the corner while the logo and tagline sit centered\",\n    \"problem\": \"The only interactive elements on the screen are a small default-styled slate list in the bottom-left corner, visually disconnected from the centered SMDUEL logo block; the selected row's teal fill is the only styling, row type is ~12px, and the panel's hard edges sit flush against the frame edge like a debug console leftover\",\n    \"why\": \"This is the first screen a player sees; the eye lands on the logo and gets no guided path to the entry point, so the game's front door reads as an overlay list rather than a menu, and the rows are unreadable at distance or on a laptop across the room\",\n    \"fix\": \"Center a menu column directly under the tagline: min 320px wide, 40px row height, 16-18px type, number keys right-aligned as hints, and a dimmed third row (version/credits) to balance the block; keep the key art but add a subtle radial darken behind the menu column so rows hold contrast\"\n  },\n  {\n    \"title\": \"Empty clipped focus ring and debug toggle chips left in the play HUD\",\n    \"where\": \"Arena: top-right corner, an empty teal-outlined rounded rectangle cut off by the viewport edge and overlapping the CONDITION panel header. Arena and road: bottom-right, two stacked monospace chips 'Reduced flash: off' / 'Reduced shake: off'\",\n    \"problem\": \"The teal rectangle contains no label or icon and is sliced by the screen edge, so it renders as a broken widget; the two bottom-right chips use console-style monospace text and stay on screen permanently during play\",\n    \"why\": \"An empty clipped control is the fastest way to make a build look unfinished, and players will read the missing button as a missing feature; the permanent accessibility toggles also add corner clutter to a HUD that already occupies all four corners\",\n    \"fix\": \"Delete or repair the clipped widget (if it is a menu/pause button, give it a glyph label and inset it 8px from the edge); move reduced-flash/reduced-shake into the options menu and surface a 2-second toast ('Shake reduced: ON') only at the moment the player toggles them in-run\"\n  },\n  {\n    \"title\": \"Constructor wastes half the screen and previews a glyph instead of the car\",\n    \"where\": \"Constructor: the bottom ~40% of both columns is empty black below the help line and legality panel; the right-hand 'SUBCOMPACT - TOP VIEW' pane shows a neon cyan rounded rectangle with two flat filled rects and dashed slots\",\n    \"problem\": \"Ten identical 'Weapon n (empty)' rows plus zeroed armor rows stack into the top half, leaving a huge dead zone underneath, while the preview shares no visual language with the orange pixel car actually driven in city, road and arena - it is an abstract outline, not the vehicle\",\n    \"why\": \"This screen is where players spend the most menu time; the void makes the screen look unpopulated and broken, and because armor facings and mount slots are not drawn on a recognizable car, players get zero spatial feedback for their choices before committing credits\",\n    \"fix\": \"Collapse the weapon list to fitted slots plus two empty rows with a '+8 hidden' footer; scale the preview to fill the right column and render the real top-down car sprite there, with mount points as colored sockets that highlight on row hover and armor facings tinted per side using the same colors as the in-run CONDITION panel\"\n  },\n  {\n    \"title\": \"City reads as a gray void with floating chevrons - no streets, no anchored markers\",\n    \"where\": \"City screen: the entire map inside the wall ring; saturated green/blue/orange/red chevrons hover beside small building sprites, and the player marker is a teal chevron on a black square above the car; the Fight/Build/Care/Jobs legend is 8px swatches in the far bottom-right\",\n    \"problem\": \"The ground is uniform desaturated cracked gray with no street lanes, sidewalks or district tinting, so buildings look like crates scattered on mud; POI chevrons float unanchored with no bases or labels, and the player marker uses the same chevron glyph family as the dozen POI icons\",\n    \"why\": \"Players cannot tell drivable routes from background texture, cannot name a service without cross-referencing a tiny corner legend, and cannot find themselves at a glance because their marker competes with identical-shaped icons - the core navigation loop of the open world fails on first load\",\n    \"fix\": \"Lay darker asphalt street lanes connecting buildings and the gate so routes read instantly; seat each chevron on a small category-colored pad with a one-letter tag (F/B/C/J); replace the player marker with a distinct rotating arrow plus pulsing ring; promote the legend to a compact strip under the top header bar\"\n  },\n  {\n    \"title\": \"Highway is three flat repeating bands with no roadside reference for speed\",\n    \"where\": \"Road screen: the full-width horizontal strip - gray noise shoulders, dark asphalt band, white edge lines and yellow center dashes - with nothing else in the frame, plus a 4px progress line with a single white tick under the header\",\n    \"problem\": \"Asphalt and shoulder are uniform tiling noise with no props, wrecks, guardrails, traffic, shadows or lane furniture, and the route progress bar is a hairline with no vehicle icon or endpoint markers, so nothing in the frame measures distance or motion\",\n    \"why\": \"Highway survival is a core fantasy of the game; with zero roadside objects there is no motion parallax, so 70 mph will feel identical to 0 mph, and the empty corridor reads as a placeholder test strip rather than a world the player is risking a car on\",\n    \"fix\": \"Scroll roadside content past the camera every ~50m (utility poles, guardrail segments, wreck silhouettes, tire stacks), add occasional slow traffic sprites in the far lane and rumble-strip texture on the shoulders; thicken the progress bar to 8px with a car icon at the current position and labeled dots at both endpoints\"\n  }\n]"
+}

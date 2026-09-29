@@ -126,8 +126,27 @@
   min-width: calc(132px * var(--hud-scale));
 }
 
+/* The CONDITION panel, offset DOWN to clear the exit button.
+ *
+ * `src/app.ts` mounts the arena's "Exit to title" and the road's "Leave arena"
+ * at `top: 8px; right: 8px`, and this panel was ALSO at `top: var(--inset);
+ * right: var(--inset)` — the same corner. The HUD host paints after the button,
+ * so the panel covered it completely: in the arena and road captures the only
+ * trace of the button was the top-right sliver of its teal border peeking out
+ * from behind this panel, which reads as a clipped empty widget rather than as
+ * a control.
+ *
+ * That is worse than a cosmetic overlap. "Exit" is the way out of a run, it was
+ * invisible, and it was unclickable — and seventy reviews had gone past it,
+ * because a button hidden BEHIND a panel is not an element any of them was
+ * looking for. The arena and road are the only screens that mount this panel
+ * (the city carries the car strip from iteration 28 instead), so offsetting it
+ * is scoped to exactly the two screens that need the corner.
+ *
+ * The button is ~29px tall at scale 1, so 34px clears it with a little air and
+ * keeps the panel's top edge aligned with the other panels' inset rhythm. */
 .hud-panel--damage {
-  top: var(--inset);
+  top: calc(var(--inset) + 34px);
   right: var(--inset);
 }
 

@@ -29,7 +29,7 @@
  *   node tools/review.mjs --list          # show the pool, marking what is asked
  *   node tools/review.mjs --pick          # a random eligible model not yet asked
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -141,10 +141,41 @@ if (arg('list', false) !== false) {
   process.exit(0);
 }
 
-/** Resizes a capture to review size so the model reads composition, not pixels. */
+/**
+ * Resizes a capture to review size so the model reads composition, not pixels.
+ *
+ * ## Why this checks the source itself
+ *
+ * `sips` EXITS 0 on a missing file — it prints "Warning: ... not a valid file -
+ * skipping" to stdout and returns success. So calling it and awaiting the result
+ * cannot detect a bad path: `execFileAsync` resolves, the caller's `catch` never
+ * fires, and the next line reads the OUTPUT path — which is a fixed name per
+ * screen (`.opencode/reviews/_small_arena.png`) that a previous run already
+ * wrote. The review then proceeds, records the current screen list, and reports
+ * whatever was captured several iterations ago as though it were the build in
+ * front of us.
+ *
+ * That is not hypothetical. A review run with `--shots .shots/iter70`, a
+ * directory that did not exist (the newest capture was iter68), completed
+ * normally, cost $0.05, and came back with the most alarming-sounding finding of
+ * the entire late loop: "an empty teal-outlined rounded rectangle cut off by the
+ * viewport edge ... renders as a broken widget". That widget was real art from
+ * an early build. Nothing in the saved record distinguished it from a current
+ * observation, which is the same class of failure this log keeps hitting — a
+ * healthy-looking signal standing in for a fact.
+ *
+ * So the existence check happens HERE, before sips is trusted with anything, and
+ * the output is written to a per-screen-per-source name so a stale file can
+ * never be read back as a fresh one.
+ */
 async function reviewSized(src) {
-  const out = resolve('.opencode/reviews', `_small_${basename(src)}`);
+  if (!existsSync(src)) throw new Error(`capture does not exist: ${src}`);
+  // Keyed on the source path AND its mtime+size, so a new capture of the same
+  // screen cannot be served from a previous run's resize.
+  const stamp = `${basename(src)}-${statSync(src).mtimeMs}-${statSync(src).size}`;
+  const out = resolve('.opencode/reviews', `_small_${stamp}.png`);
   await execFileAsync('sips', ['-Z', String(REVIEW_WIDTH), src, '--out', out]);
+  if (!existsSync(out)) throw new Error(`sips produced no output for ${src}`);
   return out;
 }
 
@@ -188,7 +219,7 @@ for (const screen of screens) {
     const b64 = await readFile(sized);
     frames.push({ screen, b64: b64.toString('base64') });
   } catch {
-    console.error(`review: no capture for "${screen}" in ${shotsDir} — skipping`);
+    console.error(`review: MISSING capture for "${screen}" (${file}) — skipping`);
   }
 }
 if (frames.length === 0) throw new Error(`review: none of [${screens}] exist in ${shotsDir}`);
