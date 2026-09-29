@@ -211,9 +211,39 @@
   background: color-mix(in srgb, var(--ui-accent) 30%, var(--ui-surface-2));
 }
 
+/* Selection is a FILL, and it is the same fill the title menu uses.
+ *
+ * Two problems, one cause. This rule used to be
+ *   background: var(--ui-accent-wash); border-color: var(--ui-accent);
+ * and `--ui-accent-wash` is rgba(95,208,189,0.14) — a 14% wash. A review read the
+ * constructor as having "no visual indication of focus or selection beyond the
+ * text color changing slightly ... apply a distinct background highlight", which
+ * is the same complaint that took seventeen iterations to resolve on the title
+ * menu (iteration 32), where a wash of that strength was rendering as nothing
+ * and the selection was carried entirely by an outline.
+ *
+ * The cascade bug is the part that was actually broken, and it was found by
+ * measuring rather than by looking. `.sm-builder__row--needs-input` declares
+ * `border-left: 3px solid var(--ui-warn)` — iteration 48's amber rail meaning
+ * "this still needs you". Both selectors are a single class, and this rule comes
+ * LATER in the file, so its blanket `border-color: var(--ui-accent)` won and
+ * recoloured the rail on every row that was both selected and unmet. Measured on
+ * the real frame: an unmet unselected row's rail is (242, 182, 50) amber, and the
+ * Name row — selected by default AND unmet — renders (124, 224, 207) accent. So
+ * the one rail the player sees first, on the row the eye lands on before they
+ * touch anything, was carrying the colour that means "selected" instead of the
+ * colour that means "unmet", and iteration 48's marker was invisible exactly
+ * where it mattered most.
+ *
+ * So the fix is the menu's: selection is a FILL and nothing else. The border
+ * declaration goes entirely, which hands the rail its own colour back, and the
+ * fill becomes the real left-to-right gradient rather than a 14% wash. */
 .sm-builder__row--selected {
-  background: var(--ui-accent-wash);
-  border-color: var(--ui-accent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ui-accent) 52%, var(--ui-surface-2)) 0%,
+    color-mix(in srgb, var(--ui-accent) 30%, var(--ui-surface-2)) 100%
+  );
 }
 
 .sm-builder__row-label {

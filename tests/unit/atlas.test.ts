@@ -1309,6 +1309,14 @@ describe('CSS custom properties: every var() reference must resolve to a declare
   // This test is the fix for the CLASS, not the instance: an undeclared token is
   // now a build failure instead of a silently transparent declaration.
   it('has no undeclared, unfallbacked token references', () => {
+    // Comments are stripped before both the declaration scan and the reference
+    // scan. A `var(--x)` quoted inside a comment is not a reference, and this
+    // file's own comment above quotes the exact declaration that caused the
+    // original bug — which failed the guard on the very first run. A check that
+    // fires on prose is a check that gets deleted, and this one is the guard for
+    // the worst silent failure in the project's history, so it has to be
+    // accurate rather than merely strict.
+    const stripCssComments = (text: string): string => text.replace(/\/\*[\s\S]*?\*\//g, '');
     const cssDir = fileURLToPath(new URL('../../src/', import.meta.url));
     const cssFiles = fs
       .readdirSync(cssDir, { recursive: true, withFileTypes: true })
@@ -1318,7 +1326,7 @@ describe('CSS custom properties: every var() reference must resolve to a declare
     const srcDir = fileURLToPath(new URL('../../src/', import.meta.url));
     const declared = new Set<string>();
     for (const file of cssFiles) {
-      for (const m of readFileSync(file, 'utf8').matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)) declared.add(m[1]!);
+      for (const m of stripCssComments(readFileSync(file, 'utf8')).matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)) declared.add(m[1]!);
     }
     // Custom properties set at RUNTIME count as declared. `--hud-radar-x/y` are
     // written into an element's inline style by hud.ts on every contact update, so
@@ -1338,7 +1346,7 @@ describe('CSS custom properties: every var() reference must resolve to a declare
 
     const unresolved: string[] = [];
     for (const file of cssFiles) {
-      for (const m of readFileSync(file, 'utf8').matchAll(/var\(\s*(--[a-zA-Z0-9-]+)\s*[,)]/g)) {
+      for (const m of stripCssComments(readFileSync(file, 'utf8')).matchAll(/var\(\s*(--[a-zA-Z0-9-]+)\s*[,)]/g)) {
         const name = m[1]!;
         if (declared.has(name)) continue;
         // A reference that supplies its own fallback is safe: `var(--x, red)`

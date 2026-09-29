@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 58
+iteration: 59
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (58 of 82 vision models):
+Reviewers asked (59 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2199,6 +2199,82 @@ TOOLING - the review harness got audited by its own failure this round:
        passes (iteration 18 moved the hint clear of the 44..52px progress-bar
        band; iteration 22 split the run-on and tucked the seed under WEAPONS,
        which this same round has now removed). Recorded as an observation.
+
+59. google/gemini-2.5-flash-lite -> 1 REAL, and chasing it uncovered a CASCADE BUG
+     that had been silently eating iteration 48's marker, 4 FALSE:
+     - "When hovering over or selecting a component in the list (e.g. 'Body',
+       'Chassis'), there's no visual indication of focus or selection beyond the
+       text color changing slightly ... apply a distinct background highlight."
+       TRUE, and the same defect iteration 32 spent a whole round fixing on the
+       title menu. `.sm-builder__row--selected` was
+       `background: var(--ui-accent-wash)` — and `--ui-accent-wash` is
+       rgba(95,208,189,**0.14**). A 14% wash with the signal carried by a 1px
+       border is precisely the state the menu was in for seventeen iterations,
+       where a review six times in a row said "only a thin neon outline" and six
+       times I measured a difference and called it false. The difference I was
+       measuring WAS the border.
+       The constructor row now uses the menu's fill: a real left-to-right
+       gradient, `color-mix(--ui-accent 52%, --ui-surface-2)` to 30%, with the
+       border declaration REMOVED so the fill is the selection cue. Measured on
+       the real frame, the selected row's separation over the row below it went
+       from +28.4 luma to +82.4.
+       AND THE REAL FIND WAS UNDERNEATH IT: removing the blanket
+       `border-color: var(--ui-accent)` was not cosmetic, it was a bug fix.
+       `.sm-builder__row--needs-input` declares `border-left: 3px solid
+       var(--ui-warn)` — iteration 48's amber rail meaning "this still needs
+       you". Both selectors are a single class and `--selected` comes LATER in
+       the file, so its blanket `border-color` WON and recoloured that rail on
+       every row that was both selected and unmet. Measured by scanning the rail
+       column: an unmet unselected row's rail is (240, 180, 50) amber, and the
+       Name row — selected by default AND unmet — was (94, 206, 187) accent. So
+       the amber rail was invisible on precisely the row the player's eye lands
+       on before touching anything, replaced by the colour that means "selected".
+       Iteration 48's marker was doing its job everywhere except the one place
+       it mattered most, and no screenshot could show it, because a teal rail on
+       a teal-selected row looks deliberate. Now the two signals coexist: teal
+       fill means selected, amber rail means unmet, and neither overwrites the
+       other. This is iteration 32's lesson arriving eight iterations late on a
+       different element — a rule that reads correctly in the stylesheet and
+       silently never applies, or silently applies to the wrong thing;
+     - "The 'SMDUEL' title is partially transparent and struggles to stand out;
+       the subtitle is even harder to read." FALSE, measured twice: the wordmark
+       band peaks at 250 against a 73.5 mean (iteration 35) and carries its own
+       shadow, and the tagline measures 9.00:1 against the brightest background
+       adjacent to it (iteration 44) behind the deliberate scrim band from
+       iteration 27. The wordmark is the most saturated thing on that screen,
+       which is what iteration 31 set out to achieve;
+     - radar: THIRTY-SIXTH report, remedy again the rotating sweep plus
+       fabricated contacts;
+     - "The city arrows are low contrast, particularly the green and orange
+       markers; increase saturation and brightness, add a white or black
+       outline." FALSE — the markers are at max saturation 1.0 and carry ground
+       shadows as of iteration 53. Worth noting that this is the FIFTH distinct
+       marker ask and the second independently to converge on "add an outline",
+       which is the pool converging on a solution rather than a problem. Still
+       not actioned, for the reason recorded since iteration 33: the markers are
+       being asked to be findable from a moving car AND sit inside a grimy
+       world, and an outline pushes them toward the loud end that iterations 33
+       and 47 both complained about;
+     - "The speedometer uses a dark grey primary speed number ... add a needle
+       that points to the current speed." FALSE, and the third claim on this
+       element to describe a state the code already provides: `--hud-speed-frac`
+       drives a conic-gradient value wedge over 4 major and 24 minor ticks
+       (verified in iteration 53), and the digital reads #e9eff6 at 10.25:1
+       (iteration 26) — the LIGHTEST thing in the frame, which iteration 26
+       recorded as a reviewer claiming black-on-dark for white-on-dark.
+
+     A PROCESS NOTE ON THE VERIFICATION, because it nearly went the other way
+     twice. The first confirmation attempt sampled pixel (13, 612) and read a
+     teal pixel, which looked like the cascade bug still present. It was not: at
+     y=612 the CONFIRM row's own teal BORDER lives, and my y-coordinates came
+     from a capture two iterations earlier whose layout has since moved. So the
+     "fix did not work" reading was an artefact of sampling the wrong element —
+     the same failure as iteration 50's wall measurement and iteration 54's
+     car-shadow check, and the third time in this log that a stale coordinate
+     produced a confident wrong answer. Scanning the whole rail column and
+     reporting every segment settled it in one pass. The rule is now paid for
+     three times over: locate the element by scanning for it, never by
+     remembering where it was.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
