@@ -83,7 +83,12 @@ async function fetchPool() {
       if (id.includes(':batch') || id.startsWith('~')) return false;
       // Image GENERATION models are not vision-language models; asking one to
       // critique a screenshot returns art, not an opinion.
-      if (/image-gen|tts|whisper|stable-diffusion|flux|sd3|dall|ideogram|recraft|-image$/.test(id)) return false;
+      // Image GENERATION models are not vision-language models: asking one to
+    // critique a screenshot returns art, not an opinion. The original pattern
+    // was `-image$`, which missed `gemini-3-pro-image-preview` because that id
+    // ends in `-preview` — so the substring match is on the whole id instead.
+    if (/image-gen|tts|whisper|stable-diffusion|flux|sd3|dall|ideogram|recraft|-image|image-|safety|guard|moderation|censor/i.test(id)) return false;
+    if (id.endsWith(':free')) return false;
       return /flash|mini|lite|glm|gemini-3|qwen3|step|seed|mimo|nemotron|granite/.test(id);
     })
     .map((m) => m.id)
@@ -117,7 +122,7 @@ Hard rules:
 - Do not invent problems that are not visible in these frames. If something looks fine, do not list it.
 - Prefer legibility, contrast, hierarchy, and feedback over decoration.
 
-Return ONLY a JSON array of exactly 5 objects with keys: title, where, problem, why, fix. No prose, no markdown fence.`;
+Return ONLY a JSON array of exactly 5 objects with keys: title, where, problem, why, fix. No prose, no markdown fence, no preamble, no explanation before or after the array. Start your reply with the character [.`;
 
 const model = String(arg('model', ''));
 if (model === '') throw new Error('review: --model is required (see --list)');
@@ -182,7 +187,7 @@ async function send(frames) {
     // DeepSeek's iteration-4 reply was cut off mid-string at 4000 tokens, which
     // made the whole review unparseable. 5 detailed findings plus a preamble is
     // a lot of text; 9000 leaves room for a model that thinks out loud.
-    max_tokens: 9000,
+    max_tokens: 16000,
   };
   return fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -246,6 +251,11 @@ await writeFile(
       screens: screensSent,
       at: new Date().toISOString(),
       usage: json.usage ?? null,
+      // Recorded because a review can come back with an EMPTY body and no
+      // error: `google/gemini-2.5-pro` returned nothing at all on the combat
+      // screenshots, and without the finish reason that is indistinguishable
+      // from a harness bug. It is `stop`/`length`/`content_filter`/etc.
+      finishReason: json.choices?.[0]?.finish_reason ?? null,
       findings,
       parseError,
       raw,

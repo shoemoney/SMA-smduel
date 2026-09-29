@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 14
+iteration: 15
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (14 of 82 vision models):
+Reviewers asked (15 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -99,6 +99,32 @@ every HUD panel - caught in a screenshot, reverted, redone as weight-only.
      despill to strong-cast opaque pixels (test updated to the new contract).
      Other findings: title-art palette mismatch, city street network, constructor
      row->diagram linking (all real, queued).
+
+15. qwen/qwen3.5-flash-02-23 -> 2 REAL, 1 the sharpest UX criticism in the loop:
+     - "The text 'CONFIRM' at the bottom left is styled identically to the
+       adjacent stat labels (dim white text). It lacks any button treatment
+       (border, background, highlight) and is easily mistaken for passive
+       information ... players may hesitate or quit because the primary
+       call-to-action is invisible." TRUE and the best of its kind: every other
+       row on that pane is a VALUE and CONFIRM is the only thing the player can
+       DO, yet it was rendered as another data row. It now carries the button
+       treatment with --ui-accent used nowhere else in the pane, so the single
+       saturated surface on the screen is the thing the screen exists to do.
+     - tagline "extremely thin font weight ... loses definition" (FIXED: weight
+       500 + tighter shadow. Size was fixed in iteration 12; WEIGHT is a
+       separate lever and was never touched.)
+     FALSE: "the player's vehicle sprite sits perfectly flat ... with no shadow
+     or contact occlusion" - the car has a directional shadow in the shader and
+     has had one since iteration 1. Radar: 8th false report.
+     TOOLING (2 real fixes the failure exposed):
+     - picked google/gemini-2.5-pro and got an EMPTY body with no error; the
+       tool recorded nothing that would explain it. finish_reason is now saved
+       so 'content_filter' is distinguishable from a harness bug.
+     - this model burned 9000 tokens on preamble and was cut off mid-JSON, twice.
+       max_tokens -> 16000 and the prompt now demands the reply START with "[".
+     - the model picker also returned google/gemini-3-pro-image-preview, an
+       image GENERATION model, because the exclusion pattern was `-image$` and
+       that id ends in -preview. The pattern now matches the substring anywhere.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

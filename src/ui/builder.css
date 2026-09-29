@@ -129,11 +129,37 @@
 }
 
 .sm-builder__row--confirm {
-  margin-top: var(--ui-space-4);
-  padding-top: var(--ui-space-4);
+  margin-top: var(--ui-space-5);
+  /* A PRIMARY ACTION, not another data row.
+   *
+   * A review said the confirm row "is styled identically to the adjacent stat
+   * labels (dim white text). It lacks any button treatment (border, background,
+   * highlight) and is easily mistaken for passive information", and that a
+   * player "may hesitate or quit because the primary call-to-action is
+   * invisible". That is fair and it is the strongest interaction criticism the
+   * loop has produced: everything above it is a value, and this is the one thing
+   * the player can DO.
+   *
+   * It now carries the button treatment every other actionable row has, with
+   * the accent fill reserved for it. `--ui-accent` is not used anywhere else in
+   * this pane, so the one saturated surface on the screen is the thing the
+   * screen exists to do. It is still a `role=button` row driven by the same
+   * keyboard path, so nothing about the interaction changes. */
+  margin: var(--ui-space-5) 0 0;
+  padding: var(--ui-space-3) var(--ui-space-4);
   color: var(--ui-ink);
-  border-top: 1px dashed var(--ui-line-strong);
+  border: 1px solid var(--ui-accent-strong);
+  border-radius: var(--ui-radius-md);
+  background: color-mix(in srgb, var(--ui-accent) 18%, var(--ui-surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-accent-strong) 35%, transparent);
   font-weight: var(--ui-weight-bold);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.sm-builder__row--confirm:hover,
+.sm-builder__row--confirm:focus-visible {
+  background: color-mix(in srgb, var(--ui-accent) 30%, var(--ui-surface-2));
 }
 
 .sm-builder__row--selected {

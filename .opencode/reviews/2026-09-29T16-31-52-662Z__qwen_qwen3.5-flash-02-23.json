@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3.5-flash-02-23",
+  "modelLabel": "qwen/qwen3.5-flash-02-23",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T16:31:52.663Z",
+  "usage": {
+    "prompt_tokens": 5404,
+    "completion_tokens": 5055,
+    "total_tokens": 10459,
+    "cost": 0.00166556,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00166556,
+      "upstream_inference_prompt_cost": 0.00035126,
+      "upstream_inference_completions_cost": 0.0013143
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4249,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Radar Signal Visibility",
+      "where": "Screens 2, 3 (Bottom Left)",
+      "problem": "The radar screen appears as a nearly solid dark circle. The scanning rotation line is incredibly faint, and there are no visible enemy 'blips' or grid markers, making it impossible to distinguish an active sensor from a broken one.",
+      "why": "In a combat RPG, situational awareness is core gameplay. A radar that reads as dead prevents players from tracking threats efficiently, turning a tactical tool into a confusing void.",
+      "fix": "Add a semi-transparent 'static noise' texture over the radar face to give it life, and render the rotation sweep as a high-contrast cyan line that leaves a fading trail."
+    },
+    {
+      "title": "Vehicle Grounding",
+      "where": "Screens 2, 3, 4 (Center Gameplay Area)",
+      "problem": "The player's vehicle sprite sits perfectly flat on the top-down texture plane with no shadow or contact occlusion. This causes the car to appear suspended in mid-air rather than driving on the asphalt.",
+      "why": "Lack of visual grounding breaks the illusion of physics and weight, making collision judgment difficult and reducing the immersive feel of driving a heavy machine.",
+      "fix": "Render a soft, dark ambient occlusion shadow directly beneath the car sprite, scaled to match the car's width, to visually sink the vehicle into the ground."
+    },
+    {
+      "title": "Buried Confirmation Action",
+      "where": "Screen 5 (Bottom Left)",
+      "problem": "The text 'CONFIRM' at the bottom left is styled identically to the adjacent stat labels (dim white text). It lacks any button treatment (border, background, highlight) and is easily mistaken for passive information.",
+      "why": "The inability to quickly identify the 'Save/Finish' action creates friction in the crafting loop. Players may hesitate or quit because the primary call-to-action is invisible.",
+      "fix": "Convert 'CONFIRM' into a distinct, full-width button spanning the bottom left corner, using a bright background color (e.g., bright cyan) and raised lettering to clearly separate it from the data list."
+    },
+    {
+      "title": "Toggle Switch Contrast",
+      "where": "Screens 2, 3 (Bottom Right)",
+      "problem": "The 'Reduced flash' and 'Reduced shake' buttons display status ('off') in low-visibility grey text on a black background. The visual difference between an active setting and an inactive one is negligible.",
+      "why": "Quality-of-life toggles need instant feedback. If players cannot see the state change immediately upon pressing the key, they will assume the feature is broken.",
+      "fix": "Implement a high-contrast state change: when 'ON', switch to bright text on a dark background; when 'OFF', use dimmer text. Alternatively, add a colored LED dot indicator next to the text."
+    },
+    {
+      "title": "Tagline Weight",
+      "where": "Screen 1 (Center Subtext)",
+      "problem": "The tagline 'One car. Sixteen cities...' uses an extremely thin font weight. Against the busy, dusty textures of the background art, the text loses definition and becomes hard to read instantly.",
+      "why": "The tagline establishes the game's tone and stakes. Weak typography undermines the gritty atmosphere and makes the interface feel unfinished or amateurish.",
+      "fix": "Increase the font weight of the tagline significantly and add a subtle outer glow or drop-shadow to create separation from the background, ensuring immediate legibility."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Radar Signal Visibility\",\n    \"where\": \"Screens 2, 3 (Bottom Left)\",\n    \"problem\": \"The radar screen appears as a nearly solid dark circle. The scanning rotation line is incredibly faint, and there are no visible enemy 'blips' or grid markers, making it impossible to distinguish an active sensor from a broken one.\",\n    \"why\": \"In a combat RPG, situational awareness is core gameplay. A radar that reads as dead prevents players from tracking threats efficiently, turning a tactical tool into a confusing void.\",\n    \"fix\": \"Add a semi-transparent 'static noise' texture over the radar face to give it life, and render the rotation sweep as a high-contrast cyan line that leaves a fading trail.\"\n  },\n  {\n    \"title\": \"Vehicle Grounding\",\n    \"where\": \"Screens 2, 3, 4 (Center Gameplay Area)\",\n    \"problem\": \"The player's vehicle sprite sits perfectly flat on the top-down texture plane with no shadow or contact occlusion. This causes the car to appear suspended in mid-air rather than driving on the asphalt.\",\n    \"why\": \"Lack of visual grounding breaks the illusion of physics and weight, making collision judgment difficult and reducing the immersive feel of driving a heavy machine.\",\n    \"fix\": \"Render a soft, dark ambient occlusion shadow directly beneath the car sprite, scaled to match the car's width, to visually sink the vehicle into the ground.\"\n  },\n  {\n    \"title\": \"Buried Confirmation Action\",\n    \"where\": \"Screen 5 (Bottom Left)\",\n    \"problem\": \"The text 'CONFIRM' at the bottom left is styled identically to the adjacent stat labels (dim white text). It lacks any button treatment (border, background, highlight) and is easily mistaken for passive information.\",\n    \"why\": \"The inability to quickly identify the 'Save/Finish' action creates friction in the crafting loop. Players may hesitate or quit because the primary call-to-action is invisible.\",\n    \"fix\": \"Convert 'CONFIRM' into a distinct, full-width button spanning the bottom left corner, using a bright background color (e.g., bright cyan) and raised lettering to clearly separate it from the data list.\"\n  },\n  {\n    \"title\": \"Toggle Switch Contrast\",\n    \"where\": \"Screens 2, 3 (Bottom Right)\",\n    \"problem\": \"The 'Reduced flash' and 'Reduced shake' buttons display status ('off') in low-visibility grey text on a black background. The visual difference between an active setting and an inactive one is negligible.\",\n    \"why\": \"Quality-of-life toggles need instant feedback. If players cannot see the state change immediately upon pressing the key, they will assume the feature is broken.\",\n    \"fix\": \"Implement a high-contrast state change: when 'ON', switch to bright text on a dark background; when 'OFF', use dimmer text. Alternatively, add a colored LED dot indicator next to the text.\"\n  },\n  {\n    \"title\": \"Tagline Weight\",\n    \"where\": \"Screen 1 (Center Subtext)\",\n    \"problem\": \"The tagline 'One car. Sixteen cities...' uses an extremely thin font weight. Against the busy, dusty textures of the background art, the text loses definition and becomes hard to read instantly.\",\n    \"why\": \"The tagline establishes the game's tone and stakes. Weak typography undermines the gritty atmosphere and makes the interface feel unfinished or amateurish.\",\n    \"fix\": \"Increase the font weight of the tagline significantly and add a subtle outer glow or drop-shadow to create separation from the background, ensuring immediate legibility.\"\n  }\n]"
+}
