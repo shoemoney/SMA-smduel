@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 60
+iteration: 61
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (60 of 82 vision models):
+Reviewers asked (61 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2325,7 +2325,10 @@ TOOLING - the review harness got audited by its own failure this round:
        or the iteration-54 one (a sprite claiming an interaction area it does not
        have). Nothing in the game currently provides a speed cue on the road
        except the lane dashes. Recorded as the strongest new gameplay-visual
-       candidate in the log.
+       candidate in the log — BUT SEE ITERATION 61, which corrects the traffic half
+       of this: passing opponent vehicles ARE built (`src/sim/road.ts` rolls the
+       contacts, `updateEngagement` spawns them). Only the fixed roadside furniture
+       is genuinely absent.
        Its second half is already satisfied and the reviewer inverted it: "lower
        asphalt luminance ~20% below the shoulder so the white edge lines read as
        an actual edge". Asphalt measures 81.5 against 101.5 for the verge — 20
@@ -2354,6 +2357,75 @@ TOOLING - the review harness got audited by its own failure this round:
      NO CODE CHANGED. The two new candidates are the product of this round: the
      first two proposals in a dozen that survive the "is this a lie about the
      simulation?" test that killed the rest.
+
+61. mistralai/ministral-8b-2512 -> ZERO REAL. Nothing changed. And this round
+     caught an error in MY OWN iteration-60 entry, which is the more useful
+     result:
+     - **CORRECTION TO ITERATION 60.** That entry recorded, as a strong new
+       candidate, that "nothing in the game currently provides a speed cue on the
+       road except the lane dashes", on the strength of this class of review
+       saying "there are no barriers, delineator posts, signs, traffic or debris
+       anywhere between the top and bottom of the frame". Checked it, and the
+       TRAFFIC half is false. `src/sim/road.ts` rolls the full set of contacts a
+       drive will encounter (`packSizeMin`/`packSizeMax` plus gaps, explicitly
+       documented as what stops radar contacts from clustering into a warning),
+       and `updateEngagement` in `src/app.ts` spawns a real opponent vehicle for
+       each one as `trip.progressMiles` approaches it, logging a pass-by. Passing
+       traffic is BUILT. It is simply sparse, and at t=0 on a seeded capture no
+       contact happens to be within the visible band — which is exactly the
+       static-frame trap again, and I walked straight into it by recording a
+       reviewer's negative as a fact about the game instead of checking it.
+       The correct statement is narrower and still worth having: the road has
+       sparse PASSING traffic but no fixed ROADSIDE FURNITURE, so there is no
+       repeating element at a known interval to read speed from when the frame
+       happens to be empty. Delineator posts remain a legitimate candidate for
+       that reason and not the other one;
+     - "The lane markers are static yellow lines with no feedback for lane
+       changes or drift ... add a green outline when centred and a red dashed
+       line when drifting beyond the lane boundary." INAPPLICABLE, and the code
+       settles it in one comment: the road "has no independent 2D map", and every
+       position — the player's and each contact's — is derived by offsetting along
+       the route's fixed heading axis by a scalar route-mile value. There is no
+       lateral axis, so there is nothing to drift from and nothing to be off-centre
+       relative to. The white edge lines at +/- ROAD_LANE_HALF_WIDTH_M are
+       boundary marks on a strip, not lane walls a player can cross. This is the
+       same structural fact that has declined the compass ask in iterations 41,
+       45, 51 and 55 — a second, redundant answer to a question the road does not
+       pose. A drift indicator would be a readout for a state the simulation
+       cannot be in, which is the trade declined in iteration 28 for the city's
+       condition panel;
+     - "The legality instructions are buried in a small, low-contrast text box
+       with no visual hierarchy ... highlight the 'Name' row in green." FALSE on
+       the frame: the LEGALITY panel is fully visible without scrolling at 900px,
+       and it is the most prominent block in the right pane — a bright teal
+       border, a heading, a bold prompt line and three legible steps (iteration 23
+       raised all three out of being quieter than the summary above them, and
+       measured 15.06:1 and 7.79:1).
+       The second half is the interesting one: "highlight the Name row" is
+       iteration 48's requirement rail, and iteration 59 fixed the cascade bug
+       that had been preventing it from showing on the selected row at all. So
+       the ask was already satisfied, and satisfied ONE ROUND AGO. The requested
+       GREEN is also deliberately not amber: iteration 48 chose amber because "a
+       red row reads as a failure the player caused", which is the exact thing
+       the pristine-build messaging exists to avoid;
+     - "The top-right HUD (day/time/money) overlaps with the bottom-left vehicle
+       status panel ... move the bottom-left panel to the top-left." There is no
+       top-right HUD on the city screen — the status pill is top-CENTRE, the
+       legend bottom-right, the car strip bottom-left, the Arcade button
+       top-left — and the proposed destination is occupied. This is iteration
+       45's class exactly: a plausible spatial problem described without looking,
+       and the cheapest possible check in the loop is one glance at the frame;
+     - "Green status bars and '0 mph' blend into the dark background ... use neon
+       yellow or magenta with a 1px white stroke." INVERTED, and the most
+       confident wrong colour recommendation in the log: '0 mph' is #e9eff6 at
+       10.25:1, the LIGHTEST thing in the frame (iteration 26), and every status
+       colour clears AAA (iteration 9). Recommending magenta for a driving HUD is
+       a genre reflex, not a reading;
+     - radar: THIRTY-SEVENTH report, and this one also asserts the radar is on
+       the CITY screen, which it is not — the second "element does not exist"
+       sighting after iteration 40's title-screen radar. Its remedy again asks
+       for contact blips "even if static", which is the fabricated-contacts fix
+       declined thirteen times.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

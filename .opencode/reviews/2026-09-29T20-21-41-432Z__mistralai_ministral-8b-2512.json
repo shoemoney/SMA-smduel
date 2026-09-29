@@ -1,0 +1,75 @@
+{
+  "model": "mistralai/ministral-8b-2512",
+  "modelLabel": "mistralai/ministral-8b-2512",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T20:21:41.433Z",
+  "usage": {
+    "prompt_tokens": 7209,
+    "completion_tokens": 752,
+    "total_tokens": 7961,
+    "cost": 0.00119415,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00119415,
+      "upstream_inference_prompt_cost": 0.00108135,
+      "upstream_inference_completions_cost": 0.0001128
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "FloatingRadarBlindSpot",
+      "where": "arena, road, city (bottom-left corner)",
+      "problem": "Radar display lacks visible sweep range or contact indicators—just a static green dot with crosshairs. No feedback on detected objects or distance.",
+      "why": "Players cannot intuitively gauge proximity to enemies or obstacles, reducing situational awareness and immersion in combat/navigation.",
+      "fix": "Add a faint radial gradient sweep (e.g., semi-transparent green arc) extending from the center to show max detection range, and small contact blips (even if static) around the dot to imply detection."
+    },
+    {
+      "title": "InconsistentHUDColorContrast",
+      "where": "arena, road, city (HUD elements like speedometer, status bars)",
+      "problem": "Green status bars (e.g., tires, armor) and text (e.g., '0 mph') blend into the dark/desaturated backgrounds, creating low contrast against adjacent elements.",
+      "why": "Critical info like speed or health is harder to parse quickly, especially during fast-paced gameplay or when glancing at the screen.",
+      "fix": "Use a high-contrast color (e.g., neon yellow or magenta) for numeric values and fill bars, with a subtle outline (e.g., 1px white stroke) to separate them from backgrounds."
+    },
+    {
+      "title": "CityUIOverlapAndClutter",
+      "where": "city (top-right HUD and bottom-left panel)",
+      "problem": "The top-right HUD (day/time/money) overlaps with the bottom-left vehicle status panel, and both compete visually with the map. Icons/text are too small for quick scanning.",
+      "why": "Players must prioritize which info to read, leading to missed critical updates (e.g., money earned) or confusion about vehicle state during city navigation.",
+      "fix": "Move the bottom-left panel to the top-left corner (mirroring the arcade button) and increase icon/text size by 30%. Use a semi-transparent overlay for the top HUD to reduce clutter."
+    },
+    {
+      "title": "ConstructorLegalityUIAmbiguity",
+      "where": "constructor (bottom-right legality text)",
+      "problem": "The legality instructions ('Name your car...') are buried in a small, low-contrast text box with no visual hierarchy—players may not notice until they’re stuck.",
+      "why": "New players fail to meet road-legality requirements (e.g., naming/arming the car) without clear, immediate feedback, causing frustration and game breaks.",
+      "fix": "Replace the text box with a bold, outlined callout (e.g., yellow border + red exclamation icon) that pulses slightly when the car is not road-legal, and highlight the 'Name' row in green."
+    },
+    {
+      "title": "RoadLaneFeedbackLack",
+      "where": "road (yellow lane markers)",
+      "problem": "Lane markers are static yellow lines with no visual feedback for lane changes or drift—players cannot confirm if they’re drifting or aligned with the lane.",
+      "why": "Lack of feedback increases stress during high-speed driving, as players cannot trust their positioning relative to the road, hurting immersion and control.",
+      "fix": "Add a faint green outline around the vehicle’s wheels when centered in a lane, and a red dashed line when drifting beyond the lane boundary (visible for 0.5s after drift)."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n    {\n        \"title\": \"FloatingRadarBlindSpot\",\n        \"where\": \"arena, road, city (bottom-left corner)\",\n        \"problem\": \"Radar display lacks visible sweep range or contact indicators—just a static green dot with crosshairs. No feedback on detected objects or distance.\",\n        \"why\": \"Players cannot intuitively gauge proximity to enemies or obstacles, reducing situational awareness and immersion in combat/navigation.\",\n        \"fix\": \"Add a faint radial gradient sweep (e.g., semi-transparent green arc) extending from the center to show max detection range, and small contact blips (even if static) around the dot to imply detection.\"\n    },\n    {\n        \"title\": \"InconsistentHUDColorContrast\",\n        \"where\": \"arena, road, city (HUD elements like speedometer, status bars)\",\n        \"problem\": \"Green status bars (e.g., tires, armor) and text (e.g., '0 mph') blend into the dark/desaturated backgrounds, creating low contrast against adjacent elements.\",\n        \"why\": \"Critical info like speed or health is harder to parse quickly, especially during fast-paced gameplay or when glancing at the screen.\",\n        \"fix\": \"Use a high-contrast color (e.g., neon yellow or magenta) for numeric values and fill bars, with a subtle outline (e.g., 1px white stroke) to separate them from backgrounds.\"\n    },\n    {\n        \"title\": \"CityUIOverlapAndClutter\",\n        \"where\": \"city (top-right HUD and bottom-left panel)\",\n        \"problem\": \"The top-right HUD (day/time/money) overlaps with the bottom-left vehicle status panel, and both compete visually with the map. Icons/text are too small for quick scanning.\",\n        \"why\": \"Players must prioritize which info to read, leading to missed critical updates (e.g., money earned) or confusion about vehicle state during city navigation.\",\n        \"fix\": \"Move the bottom-left panel to the top-left corner (mirroring the arcade button) and increase icon/text size by 30%. Use a semi-transparent overlay for the top HUD to reduce clutter.\"\n    },\n    {\n        \"title\": \"ConstructorLegalityUIAmbiguity\",\n        \"where\": \"constructor (bottom-right legality text)\",\n        \"problem\": \"The legality instructions ('Name your car...') are buried in a small, low-contrast text box with no visual hierarchy—players may not notice until they’re stuck.\",\n        \"why\": \"New players fail to meet road-legality requirements (e.g., naming/arming the car) without clear, immediate feedback, causing frustration and game breaks.\",\n        \"fix\": \"Replace the text box with a bold, outlined callout (e.g., yellow border + red exclamation icon) that pulses slightly when the car is not road-legal, and highlight the 'Name' row in green.\"\n    },\n    {\n        \"title\": \"RoadLaneFeedbackLack\",\n        \"where\": \"road (yellow lane markers)\",\n        \"problem\": \"Lane markers are static yellow lines with no visual feedback for lane changes or drift—players cannot confirm if they’re drifting or aligned with the lane.\",\n        \"why\": \"Lack of feedback increases stress during high-speed driving, as players cannot trust their positioning relative to the road, hurting immersion and control.\",\n        \"fix\": \"Add a faint green outline around the vehicle’s wheels when centered in a lane, and a red dashed line when drifting beyond the lane boundary (visible for 0.5s after drift).\"\n    }\n]"
+}
