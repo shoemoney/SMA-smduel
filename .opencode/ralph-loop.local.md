@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 23
+iteration: 24
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (23 of 82 vision models):
+Reviewers asked (24 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -381,6 +381,49 @@ TOOLING - the review harness got audited by its own failure this round:
        reports it in nearly every review, which is itself worth recording: the
        radar sweep, rings, crosshair and player marker have all been verified
        present at full resolution in 15 separate passes.
+
+24. qwen/qwen3.5-27b -> 1 HALF-TRUE (fixed), 4 FALSE, one of which measurement
+     directly contradicts:
+     - "The top-centre text uses white text against a semi-transparent black
+       background over the moving asphalt ... the transparency allows the road
+       noise to bleed into the text area." Half a measurement, and the honest half
+       is the part the review did not make. Composited against the measured road
+       luma of 93.5, the 0.7-alpha pill lands at rgb(35,38,42) and #d7e0ea on it
+       is 11.40:1 - already well past AA, so "insufficient contrast" is not
+       what was wrong. But 0.7 was chosen to let the scene show through, and on
+       this screen the scene under the pill is a MOVING HIGH-FREQUENCY asphalt
+       texture: a ratio computed on the average pixel says nothing about the
+       brightest aggregate that scrolls under the glyphs at speed. Pill to 0.86
+       (13.20:1), still visibly transparent. This is the same shape as iteration
+       9 and 23 - the claim is wrong, the perception is real, and the fix is the
+       smaller one the perception implies.
+     - "The arena floor ... looks identical to the Road and City textures ...
+       players cannot distinguish the practice arena from the open world."
+       MEASURED FALSE, and by a wide margin. Ground luma: arena 144, road 58,
+       city 101. Mean saturation: arena 0.030, road 0.058, city 0.068. Pairwise
+       difference of the ground region: arena-vs-road 87.9, arena-vs-city 42.9,
+       road-vs-city 49.8. The three floors are the three most different things
+       in the game, not the same thing. The arena is also the BRIGHTEST screen
+       in the game by 48 luma over the next, and its suggested fix (an industrial
+       grey or rust tint) would move it TOWARD the city it is being confused with.
+     - "The radar is a static dark circle with a faint green sweep" - 16th report
+       on the same element.
+     - "The vehicle preview is a flat glowing blue wireframe while the rest of
+       the game uses textured pixel art ... render the preview using the same
+       textured assets used in gameplay." FOURTH report of this class. Declined
+       again, and the reason is now worth stating once and for all: the
+       schematic exists to show ARMOUR ZONES - where on the chassis the points you
+       buy land - which is information the gameplay sprite physically cannot
+       carry, because it is a top-down car and armour placement is a build-time
+       abstraction. Replacing it with the sprite would delete the only thing the
+       constructor is uniquely for. Iteration 11 and 13 both independently
+       demanded the zone outline be visible, and it is.
+     - "Interactive buildings ... are small grey squares that blend into the
+       cracked pavement." This is the collage fix from iteration 16 again, from
+       the opposite direction: the review wants the buildings to stop being grey,
+       and iteration 16 spent an iteration making them grey ON PURPOSE so they
+       read as one environment instead of a collage. Markers were enlarged twice
+       (iterations 19 and 20) and are now the most saturated thing on the map.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
