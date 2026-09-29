@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 35
+iteration: 36
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (35 of 82 vision models):
+Reviewers asked (36 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -866,7 +866,54 @@ TOOLING - the review harness got audited by its own failure this round:
      and the pool contains models whose output should be weighted accordingly
      rather than actioned.
 
+36. xiaomi/mimo-v2.5 -> 1 REAL (an art finding no reviewer has stated this
+     bluntly, and it needs an asset task rather than code), 4 FALSE:
+     - "The title screen shows tanks, not cars ... the background artwork depicts
+       two military tanks with turret-mounted cannons facing each other, while all
+       gameplay screenshots show a small civilian-style car. The mismatch creates
+       immediate cognitive dissonance and may attract the wrong audience while
+       repelling the right one." TRUE, and it is the sharpest art-direction
+       criticism in the log because nobody had put it that plainly. Four reviews
+       have now described the title as "crushed" or "muddy" and every one of them
+       was treating the SYMPTOM (too dark) as the disease; the actual disease is
+       that the art is the wrong subject, and lightening a scrim was never going
+       to fix a tank in a car game. It survived 36 iterations partly because
+       iteration 27's scrim fix made the art look BETTER, which made it easier
+       to stop looking.
+       This is an ASSET task, not a code task: ui-title-art.png is a single
+       committed raster that has to be regenerated to show a welded-armour car
+       rather than a tank. Recorded as the top art item rather than faked with a
+       crop, a filter, or a caption that admits the mismatch.
+     - "The lane markings are separate short rectangles with gaps as wide as the
+       marks themselves, making them look like floating debris." FALSE on the
+       measurement, and precisely: the dash is ROAD_DASH_LENGTH_M 3.2 inside a
+       ROAD_DASH_PERIOD_M of 10, so the gap is 6.8m - 2.1x the mark, not 1x. The
+       perception of floating debris is worth keeping in mind, but the stated
+       cause is wrong. The second half of the ask is also already built: the
+       "faint white shoulder line along both road edges" is `decal-road-edge`,
+       which draws the two white lines bounding the road in every capture;
+     - "The city is a monochromatic wash with no value or hue contrast." SEVENTH
+       review of this class, and the suggested fix - "darken the ground 20-30%,
+       raise the buildings 10-15%" - is iteration 16 and 17 run backwards.
+       Measured ground luma is 102, buildings 119.4 and 110.3 (gaps of 17.2 and
+       7.9) on the city, 78 on the road and 125 in the arena;
+     - "The radar is a dark disc with faint crosshairs and a tiny triangle."
+       23rd report on the same element. The reviewer's own fix - "add a bright
+       rotating sweep arc, visible concentric range rings, a brighter player
+       arrow" - describes what iteration 2 added and every capture since has
+       shown;
+     - "The status panel has no scan path ... reduce it to two rows." A redesign
+       of something iterations 2, 21, 25 and 29 each changed deliberately: it is
+       a dashboard, it is grouped, and it now answers the same question the same
+       way for armour and tyres. A silhouette view is a plausible alternative
+       design, not a defect.
+     NO CODE CHANGED. The log's standing note is worth repeating here though:
+     a symptom that has been "fixed" several times without the disease being
+     named is a signal to stop fixing the symptom.
+
 DEFERRED (real, documented, not bugs):
+- TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
+  asset regeneration, not a CSS change, and it must not be faked with a filter.
 - City daylight grade (my 0.6 ground tint is why it reads dim), street network,
   title-menu composition, 10 empty weapon rows.
 
