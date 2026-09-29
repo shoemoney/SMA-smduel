@@ -140,10 +140,12 @@
     "ui.city.routeOption": "{city} — {miles}mi, danger {danger}",
     "ui.city.gateNoVehicle": "no car to drive out in — buy one at the assembly plant or retrieve one from the fleet",
 
-    "ui.road.status": "En route to {city} — {miles}mi remaining — Day {day}, {phase} — WASD/arrows drive",
+    "ui.road.status": "En route to {city} — {miles}mi remaining — Day {day}, {phase}",
+    "ui.road.driveHint": "WASD / arrows to drive",
+    "ui.road.driveHintTouch": "Drag the stick to drive",
     "ui.road.progressLabel": "Route progress",
     "ui.road.progressValue": "{percent}% complete, {miles} miles remaining",
-    "ui.road.statusTouch": "En route to {city} — {miles}mi remaining — Day {day}, {phase} — drag the stick to drive",
+    "ui.road.statusTouch": "En route to {city} — {miles}mi remaining — Day {day}, {phase}",
 
     "ui.weapon.outOfAmmo": "{weapon} is out of ammo",
     "ui.weapon.fired": "{weapon} fired",

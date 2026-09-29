@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { citiesConfig, drivingConfig, economy } from '@/data/rulesets';
 import { UnknownRulesetIdError } from '@/data/rulesets';
+import { groundQuad } from '@/render/ground';
 import { advanceDays, closeOutDay, formatDate, initialClock, type Clock } from '@/sim/calendar';
 import {
   CITY_DIRECTIONS,
@@ -971,5 +972,50 @@ describe('buildCityInstances', () => {
     expect(player?.sizeM).toEqual({ x: MOCK_RADIUS * 2, y: MOCK_RADIUS * 2 });
     vi.doUnmock('@/data/rulesets');
     vi.resetModules();
+  });
+});
+
+describe('groundQuad: strips, rotation, and the missing-extent guard', () => {
+  const atlasIndex = {
+    frame: (name: string) => ({ atlasIndex: 0, uv: { u0: 0, v0: 0, u1: 1, v1: 1 }, name }),
+  } as never;
+
+  it('throws when given neither halfExtentM nor halfExtent', () => {
+    // A quad sized from neither extent is 0x0 and draws nothing, which in a
+    // screenshot is indistinguishable from a mistyped frame name. `halfExtentM`
+    // had to become optional so a road strip can pass per-axis extents, so this
+    // case became reachable and needs to be a loud failure of its own.
+    expect(() =>
+      groundQuad(atlasIndex, { pool: 'road', center: { x: 0, y: 0 }, layer: 0, tileMetres: 34 }),
+    ).toThrow(/halfExtentM or halfExtent/);
+  });
+
+  it('builds a rotated strip whose world tiling is unaffected by the rotation', () => {
+    // The road is a long narrow band, so it cannot be a square quad. The strip
+    // is rotated to the route heading, which is only safe because the ground
+    // branch of sprite.wgsl derives UVs from fract(worldPos) rather than from
+    // the quad's own axes — so the tiling stays anchored to the world.
+    const quad = groundQuad(atlasIndex, {
+      pool: 'road',
+      center: { x: 10, y: 20 },
+      layer: 1,
+      tileMetres: 34,
+      detailScale: 8.5,
+      rotationRad: 1.2,
+      halfExtent: { x: 300, y: 6.6 },
+      tint: { r: 0.55, g: 0.57, b: 0.61, a: 1 },
+    });
+    expect(quad.sizeM).toEqual({ x: 600, y: 13.2 });
+    expect(quad.rotationRad).toBeCloseTo(1.2, 6);
+    // The tiling scale is the detail scale, NOT the quad's size: a strip is
+    // enormous along the route and the ground must not stretch with it.
+    expect(quad.uvRepeatMetres).toBe(34);
+    expect(quad.uvDetailScale).toBeCloseTo(8.5, 6);
+  });
+
+  it('still honours the scalar half-extent', () => {
+    const quad = groundQuad(atlasIndex, { pool: 'road', center: { x: 0, y: 0 }, layer: 0, tileMetres: 34, halfExtentM: 12 });
+    expect(quad.sizeM).toEqual({ x: 24, y: 24 });
+    expect(quad.rotationRad).toBe(0);
   });
 });

@@ -777,6 +777,20 @@
  * The car marker sits at the fill's edge because "how far along am I" is more
  * legible as a position than as a percentage.
  */
+/* The road's driving hint fades out once and never returns. It is a teaching
+ * aid, not status: a review said the objective banner "mixes permanent status
+ * with ... a long run-on control string" and asked for a transient hint that
+ * fades. The fill mode is `forwards` so it STAYS faded — without it the
+ * animation would finish and the element would snap back to full opacity,
+ * which is the classic scroll-driven-entrance bug this file already hit once.
+ * Sits at top:60px, clear of the progress bar's 44..52px band. */
+@keyframes sm-road-hint-fade {
+  0% { opacity: 0; }
+  8% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 .sm-road-progress {
   position: absolute;
   top: 44px;

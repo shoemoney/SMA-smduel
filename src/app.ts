@@ -2150,6 +2150,26 @@ const GROUND_TINTS: Readonly<Record<string, { r: number; g: number; b: number; a
   city: { r: 0.6, g: 0.63, b: 0.68, a: 1 },
 };
 
+/**
+ * The highway's own surface, laid over the verge as a second quad.
+ *
+ * A review said the paved road and the off-road terrain "use the exact same
+ * mottled grey pixel-noise texture and the same brightness", so "the only thing
+ * separating 'drivable' from 'not drivable' is two thin solid white lines",
+ * which costs the screen its core tension at speed. That was exactly what
+ * shipped: ONE untinted ground quad meant the road and the shoulder were
+ * literally the same material and the paint was doing all the work. Measured,
+ * the two were 5 luma apart out of 255.
+ *
+ * This is a separate constant rather than a `GROUND_TINTS.road` entry on
+ * purpose. The tints table is keyed by POOL, and the pool is shared by both
+ * quads, so a `road` entry there silently re-tinted the verge as well — which
+ * happened, produced a usable result, and was nothing like the intended
+ * relationship. Dark asphalt against PALE cracked ground is the honest read, and
+ * the verge should keep its own value.
+ */
+const ROAD_SURFACE_TINT = { r: 0.55, g: 0.57, b: 0.61, a: 1 } as const;
+
 function buildGroundQuad(atlasIndex: AtlasIndex, center: Vec2M, halfExtentM: number, pool: string): SpriteInstanceInput[] {
   const scale = GROUND_TILE_METRES[pool] ?? { tileMetres: 24, detailScale: 8.3 };
   return [
@@ -4554,9 +4574,46 @@ function radarContactsFromVehicles(
  * never slide or shimmer as the car moves.
  */
 const ROAD_LANE_HALF_WIDTH_M = 4.2;
+/** Verge tone left visible either side of the edge lines, so the paint sits inside a shoulder. */
+const ROAD_SHOULDER_M = 2.4;
 /** Metres of painted line per dash, and the metres of gap before the next. */
 const ROAD_DASH_LENGTH_M = 3.2;
 const ROAD_DASH_PERIOD_M = 10;
+
+/**
+ * The drivable surface itself, as a rotated strip laid over the verge.
+ *
+ * The strip runs the length of the visible area and is a little wider than the
+ * edge lines (which sit at +/- ROAD_LANE_HALF_WIDTH_M), so there is a shoulder
+ * of verge tone either side of the paint — the same relationship a real road has
+ * with its hard shoulder, and it gives the white lines something to sit inside
+ * rather than marking a boundary between two identical greys.
+ */
+function roadSurfaceQuad(
+  atlasIndex: AtlasIndex,
+  center: Vec2M,
+  routeHeadingRad: number,
+  visibleHalfExtentM: number,
+): SpriteInstanceInput {
+  const scale = GROUND_TILE_METRES['road']!;
+  return groundQuad(atlasIndex, {
+    pool: 'road',
+    center,
+    // Along the route it must cover the whole view however far the camera is
+    // pulled back; the diagonal bound is the safe half-extent for any rotation.
+    halfExtent: {
+      x: visibleHalfExtentM * 1.5 + ROAD_LANE_HALF_WIDTH_M * 2,
+      y: ROAD_LANE_HALF_WIDTH_M + ROAD_SHOULDER_M,
+    },
+    rotationRad: routeHeadingRad,
+    layer: 1,
+    tileMetres: scale.tileMetres,
+    // A finer grain than the verge, so the two read as different materials even
+    // before the tone difference lands.
+    detailScale: scale.detailScale * 0.62,
+    tint: ROAD_SURFACE_TINT,
+  });
+}
 
 function roadLaneInstances(
   atlasIndex: AtlasIndex,
@@ -4622,6 +4679,26 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   const status = el('div');
   status.style.cssText =
     'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
+  /**
+   * The driving hint, as its OWN element that fades out.
+   *
+   * A review said the objective banner "mixes permanent status with leaked dev
+   * data ... and a long run-on control string", and asked for "a persistent
+   * left-aligned status and a transient tutorial hint that fades out after a few
+   * seconds". It was a permanent part of a status line that also updates every
+   * single frame, so a control reminder the player has already learned sat in
+   * the middle of the objective forever.
+   *
+   * It cannot be a child of `status`, because that element's textContent is
+   * reassigned on every frame of the trip — the hint would be destroyed and
+   * rebuilt ~60 times a second and the fade would never run. As a sibling it
+   * fades once and is then simply gone, and `status` keeps carrying only what
+   * is actually true for the whole journey.
+   */
+  const driveHint = el('div');
+  driveHint.style.cssText =
+    'position:absolute;top:60px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.62);padding:3px 9px;border-radius:4px;text-align:center;pointer-events:none;animation:sm-road-hint-fade 7s ease-out forwards;';
+  driveHint.textContent = t(isCoarsePointer() ? 'ui.road.driveHintTouch' : 'ui.road.driveHint');
   const notice = el('div');
   notice.style.cssText =
     'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ffd166;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;max-width:80vw;';
@@ -4650,6 +4727,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   progress.appendChild(progressCar);
   container.appendChild(canvas);
   container.appendChild(status);
+  container.appendChild(driveHint);
   container.appendChild(progress);
   container.appendChild(notice);
   container.appendChild(retryBtn);
@@ -5090,6 +5168,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     // Lane markings, on the same layer as the ground so they paint onto it. They
     // are appended to the ground buffer rather than the sprite buffer because
     // they are part of the road surface, not things standing on it.
+    groundInstances.push(roadSurfaceQuad(atlas, trip.vehicle.position, trip.routeHeadingRad, half));
     groundInstances.push(...roadLaneInstances(atlas, trip.vehicle, trip.routeHeadingRad, half));
     writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances), TILE_INSTANCE_CAPACITY);
     writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);

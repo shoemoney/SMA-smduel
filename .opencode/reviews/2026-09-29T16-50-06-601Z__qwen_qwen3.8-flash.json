@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3.8-flash",
+  "modelLabel": "qwen/qwen3.8-flash",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T16:50:06.602Z",
+  "usage": {
+    "prompt_tokens": 5442,
+    "completion_tokens": 4222,
+    "total_tokens": 9664,
+    "cost": 0.00280064,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00280064,
+      "upstream_inference_prompt_cost": 0.0008163,
+      "upstream_inference_completions_cost": 0.00198434
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3005,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Highway is indistinguishable from the wasteland",
+      "where": "Road screen — the full-width horizontal band the car drives on, and the terrain above and below the two white edge lines",
+      "problem": "The paved road and the off-road ground use the exact same mottled grey pixel-noise texture and the same brightness. The only thing separating 'drivable' from 'not drivable' is two thin solid white lines and a dashed centre line, which disappear the moment you glance away.",
+      "why": "At speed the player cannot pre-read the lane or the shoulder, so the core 'stay on the road' tension is lost and the screen looks like an untextured placeholder rather than a highway.",
+      "fix": "Give the road its own material: a flatter, darker asphalt tone with faint aggregate speckle and subtle wheel-wear streaks, add a distinct gravel/verge band between each white line and the off-road, and desaturate + slightly darken the off-road terrain so the paved strip pops as a single readable shape."
+    },
+    {
+      "title": "Top status strip reads as a debug overlay",
+      "where": "Arena, road and city screens — the black pill at top-centre and the progress line directly under it on the road screen",
+      "problem": "The banner mixes permanent status with leaked dev data (the literal 'Seed a11ce5ee…' hash) and a long run-on control string, and its width changes per screen. On the road the progress bar below it is a near-black groove with a single tiny white tick at the far left, so it looks empty/broken rather than like 150mi-of-route progress.",
+      "why": "It breaks immersion, competes with the play area for attention, and gives the player no legible sense of how far along a journey they are.",
+      "fix": "Strip the seed hash and any internal identifiers. Split the line into a persistent left-aligned status (destination · distance · day) and a transient tutorial hint that fades out after a few seconds. Replace the progress bar with a filled track (teal fill on a dark groove) plus a small vehicle glyph and the numeric '150 mi' so progress is instantly readable."
+    },
+    {
+      "title": "Constructor is half empty rows and an overlapping confirm button",
+      "where": "Vehicle constructor — left column 'Weapon 1' through 'Weapon 10' block, and the 'CONFIRM' box at bottom-left",
+      "problem": "Ten weapon rows render as dead '(empty)' text filling the entire lower-left, and the 'CONFIRM / Build this vehicle' button label is partially hidden behind the '↑↓ select row…' help line. The right column below the schematic is a large void of empty dark space.",
+      "why": "A wall of empty rows plus clipped text is the single strongest 'unfinished' signal in the build, and the obscured primary action button makes the screen feel broken.",
+      "fix": "Show only as many weapon rows as the chassis actually has mount points (or collapse to one 'Weapons 0/7' header with a hint). Move the help line above the CONFIRM button or pad the button so its label never overlaps, and fill the right void with a live stat/preview callout (e.g. 'No weapons mounted — press Enter on a Weapon row') so the empty space reads as intentional."
+    },
+    {
+      "title": "Player car floats and is hard to track",
+      "where": "Arena, road and city screens — the orange vehicle sprite in the centre of the play area",
+      "problem": "The car has no ground shadow, so it looks pasted onto the busy mottled floor. It is also small relative to the screen, and its front vs rear is ambiguous (no clear headlight/bumper cue against the turret), while the saturated orange fights a high-frequency ground texture with no visual separation.",
+      "why": "Without a shadow or a heading cue the player loses instant orientation and tracking, and the lack of separation makes the focal object feel weightless and cheap.",
+      "fix": "Add a soft elliptical drop-shadow offset a few pixels under the car to plant it, tighten the camera or scale the sprite up ~25%, and bake a consistent heading cue (bright front bumper/headlight strip, darker rear). Optionally add a subtle vignette or desaturate the ground so the orange car is the unmistakable focal point."
+    },
+    {
+      "title": "City buildings don't read as enterable",
+      "where": "Open-world city — the small grey boxes scattered inside the ring wall and the yellow chevrons beside them",
+      "problem": "The buildings are flat grey boxes on flat grey cracked ground at the same brightness, so they merge into the terrain; the only clear structure is the segmented ring wall. The yellow chevrons marking doors/gates are tiny and static, and interior vs exterior ground are identical, so the city boundary and its interactables are invisible at a glance.",
+      "why": "The core loop is 'head into a building or the gate', but nothing visually signals which objects are enterable, so navigation and atmosphere both collapse.",
+      "fix": "Lift the buildings off the ground with a darker footprint plus a 1–2px top highlight, give enterable structures a doorway glow or interior floor tint, enlarge and pulse the chevron markers when in range, and tint the city-interior ground (paved/plaza) differently from the cracked exterior so the ring and its contents read instantly."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Highway is indistinguishable from the wasteland\",\n    \"where\": \"Road screen — the full-width horizontal band the car drives on, and the terrain above and below the two white edge lines\",\n    \"problem\": \"The paved road and the off-road ground use the exact same mottled grey pixel-noise texture and the same brightness. The only thing separating 'drivable' from 'not drivable' is two thin solid white lines and a dashed centre line, which disappear the moment you glance away.\",\n    \"why\": \"At speed the player cannot pre-read the lane or the shoulder, so the core 'stay on the road' tension is lost and the screen looks like an untextured placeholder rather than a highway.\",\n    \"fix\": \"Give the road its own material: a flatter, darker asphalt tone with faint aggregate speckle and subtle wheel-wear streaks, add a distinct gravel/verge band between each white line and the off-road, and desaturate + slightly darken the off-road terrain so the paved strip pops as a single readable shape.\"\n  },\n  {\n    \"title\": \"Top status strip reads as a debug overlay\",\n    \"where\": \"Arena, road and city screens — the black pill at top-centre and the progress line directly under it on the road screen\",\n    \"problem\": \"The banner mixes permanent status with leaked dev data (the literal 'Seed a11ce5ee…' hash) and a long run-on control string, and its width changes per screen. On the road the progress bar below it is a near-black groove with a single tiny white tick at the far left, so it looks empty/broken rather than like 150mi-of-route progress.\",\n    \"why\": \"It breaks immersion, competes with the play area for attention, and gives the player no legible sense of how far along a journey they are.\",\n    \"fix\": \"Strip the seed hash and any internal identifiers. Split the line into a persistent left-aligned status (destination · distance · day) and a transient tutorial hint that fades out after a few seconds. Replace the progress bar with a filled track (teal fill on a dark groove) plus a small vehicle glyph and the numeric '150 mi' so progress is instantly readable.\"\n  },\n  {\n    \"title\": \"Constructor is half empty rows and an overlapping confirm button\",\n    \"where\": \"Vehicle constructor — left column 'Weapon 1' through 'Weapon 10' block, and the 'CONFIRM' box at bottom-left\",\n    \"problem\": \"Ten weapon rows render as dead '(empty)' text filling the entire lower-left, and the 'CONFIRM / Build this vehicle' button label is partially hidden behind the '↑↓ select row…' help line. The right column below the schematic is a large void of empty dark space.\",\n    \"why\": \"A wall of empty rows plus clipped text is the single strongest 'unfinished' signal in the build, and the obscured primary action button makes the screen feel broken.\",\n    \"fix\": \"Show only as many weapon rows as the chassis actually has mount points (or collapse to one 'Weapons 0/7' header with a hint). Move the help line above the CONFIRM button or pad the button so its label never overlaps, and fill the right void with a live stat/preview callout (e.g. 'No weapons mounted — press Enter on a Weapon row') so the empty space reads as intentional.\"\n  },\n  {\n    \"title\": \"Player car floats and is hard to track\",\n    \"where\": \"Arena, road and city screens — the orange vehicle sprite in the centre of the play area\",\n    \"problem\": \"The car has no ground shadow, so it looks pasted onto the busy mottled floor. It is also small relative to the screen, and its front vs rear is ambiguous (no clear headlight/bumper cue against the turret), while the saturated orange fights a high-frequency ground texture with no visual separation.\",\n    \"why\": \"Without a shadow or a heading cue the player loses instant orientation and tracking, and the lack of separation makes the focal object feel weightless and cheap.\",\n    \"fix\": \"Add a soft elliptical drop-shadow offset a few pixels under the car to plant it, tighten the camera or scale the sprite up ~25%, and bake a consistent heading cue (bright front bumper/headlight strip, darker rear). Optionally add a subtle vignette or desaturate the ground so the orange car is the unmistakable focal point.\"\n  },\n  {\n    \"title\": \"City buildings don't read as enterable\",\n    \"where\": \"Open-world city — the small grey boxes scattered inside the ring wall and the yellow chevrons beside them\",\n    \"problem\": \"The buildings are flat grey boxes on flat grey cracked ground at the same brightness, so they merge into the terrain; the only clear structure is the segmented ring wall. The yellow chevrons marking doors/gates are tiny and static, and interior vs exterior ground are identical, so the city boundary and its interactables are invisible at a glance.\",\n    \"why\": \"The core loop is 'head into a building or the gate', but nothing visually signals which objects are enterable, so navigation and atmosphere both collapse.\",\n    \"fix\": \"Lift the buildings off the ground with a darker footprint plus a 1–2px top highlight, give enterable structures a doorway glow or interior floor tint, enlarge and pulse the chevron markers when in range, and tint the city-interior ground (paved/plaza) differently from the cracked exterior so the ring and its contents read instantly.\"\n  }\n]"
+}

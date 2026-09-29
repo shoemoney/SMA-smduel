@@ -141,8 +141,21 @@ export interface GroundQuadOptions {
   readonly pool: string;
   /** World-space centre of the quad. */
   readonly center: GroundVec2M;
-  /** Half-extent of the quad in metres. Must cover the whole visible area. */
-  readonly halfExtentM: number;
+  /**
+   * Half-extent of the quad in metres. Must cover the whole visible area.
+   *
+   * Square by default. Pass {@link halfExtent} for a strip — the highway is a
+   * long narrow band, and a square quad wide enough to be a road would be
+   * absurdly long as well as absurdly wide.
+   */
+  readonly halfExtentM?: number;
+  /**
+   * Per-axis half-extent, for a non-square quad. Overrides `halfExtentM` when
+   * present. Safe to rotate, because the ground branch of `sprite.wgsl` derives
+   * its UVs from `fract(worldPos)`, not from the quad's own axes — so tiling
+   * stays anchored to the world no matter how the quad is turned.
+   */
+  readonly halfExtent?: { readonly x: number; readonly y: number };
   readonly layer: number;
   /**
    * World size, in metres, that one tile of the frame should cover.
@@ -151,6 +164,8 @@ export interface GroundQuadOptions {
    * size. The quad is sized to the view; the tile is sized to look right.
    */
   readonly tileMetres: number;
+  /** Rotation of the quad in radians. Defaults to axis-aligned. */
+  readonly rotationRad?: number;
   /**
    * Second sampling scale, as a multiple of {@link tileMetres}. 0 disables the
    * detail blend. A non-integer value is the point — two scales sharing a
@@ -198,12 +213,23 @@ export interface GroundQuadOptions {
 export function groundQuad(atlasIndex: GroundAtlasLike, options: GroundQuadOptions): GroundInstanceLike {
   const pool = GROUND_POOLS[options.pool];
   if (pool === undefined) throw new RangeError(`groundQuad: unknown pool "${options.pool}"`);
+  // A quad sized from neither extent is 0x0 and renders nothing, which is
+  // indistinguishable from a mistyped frame name in a screenshot. `halfExtentM`
+  // became optional so a strip can pass per-axis extents instead, so the
+  // missing-either case now has to be its own loud failure.
+  if (options.halfExtent === undefined && options.halfExtentM === undefined) {
+    throw new RangeError('groundQuad: needs halfExtentM or halfExtent');
+  }
   const frame = atlasIndex.frame(pool[0]!.frame);
   return {
     atlasId: String(frame.atlasIndex),
     position: { x: options.center.x, y: options.center.y },
-    rotationRad: 0,
-    sizeM: { x: options.halfExtentM * 2, y: options.halfExtentM * 2 },
+    rotationRad: options.rotationRad ?? 0,
+    sizeM: {
+      // The guard above has already established that at least one is present.
+      x: (options.halfExtent?.x ?? options.halfExtentM ?? 0) * 2,
+      y: (options.halfExtent?.y ?? options.halfExtentM ?? 0) * 2,
+    },
     uvRect: frame.uv,
     tint: options.tint ?? { r: 1, g: 1, b: 1, a: 1 },
     layer: options.layer,

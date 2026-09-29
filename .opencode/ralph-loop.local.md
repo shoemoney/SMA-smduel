@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 17
+iteration: 18
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (17 of 82 vision models):
+Reviewers asked (18 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -184,6 +184,36 @@ TOOLING - the review harness got audited by its own failure this round:
      FALSE: radar low contrast (9th report on the same element); logo kerning
        (the wordmark is uniform tracking); preview disconnected from the car
        (the schematic is the vehicle - zones, wheels, dimensions all shown).
+
+18. qwen/qwen3.8-flash -> 2 REAL, both the biggest single-screen wins yet:
+     - "The paved road and the off-road ground use the EXACT SAME mottled grey
+       pixel-noise texture and the same brightness. The only thing separating
+       drivable from not-drivable is two thin solid white lines ... at speed the
+       player cannot pre-read the lane or the shoulder." TRUE, and measured: the
+       two were 5.4 luma apart out of 255, and 5 luma is not a material, it is
+       noise. Root cause was structural, not artistic - the road was ONE untinted
+       ground quad, so the highway and the verge were LITERALLY the same surface
+       and the paint was doing 100% of the work. groundQuad now takes a per-axis
+       half-extent and a rotation, so the drivable surface is a rotated strip laid
+       over the verge, with its own darker grade and a finer grain, plus a
+       shoulder of verge tone either side of the paint. Now 81.5 vs 101.5 - a 20
+       point gap, and in the honest direction (dark asphalt on pale ground).
+     - "The banner mixes permanent status with ... a long run-on control string"
+       and asks for "a transient tutorial hint that fades out". TRUE. 'WASD/
+       arrows drive' was welded into a status line that is reassigned EVERY FRAME,
+       so a control reminder the player learned in the first ten seconds sat in
+       the middle of the objective for the whole run. It is now its own element
+       that fades out once and stays gone (fill-mode forwards, or it would snap
+       back - the same trap the scroll-driven entrance animations hit).
+       It could NOT be a child of the status div: that element's textContent is
+       rewritten every frame, so the hint would be destroyed and rebuilt ~60x a
+       second and the fade would never run. Caught in a screenshot that it
+       overlapped the progress bar, and moved clear of its 44..52px band.
+     FALSE: "the car has no ground shadow" (3rd report; it has one, plainly
+       visible); radar contrast (10th on the same element); CONFIRM clipped by the
+       help line (both read cleanly at full res).
+     Recorded: buildings still do not read as ENTERABLE (chevrons are small and
+       static, interior ground matches exterior) - the next real city item.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
