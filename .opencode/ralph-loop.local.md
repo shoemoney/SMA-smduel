@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 41
+iteration: 42
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (41 of 82 vision models):
+Reviewers asked (42 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1136,6 +1136,45 @@ TOOLING - the review harness got audited by its own failure this round:
      selector matches the actual DOM ancestry, then check the token is declared.
      Iteration 32 proved that a rule can look perfect and render nothing, and
      "I read the CSS and it looked right" is exactly the check that missed it.
+
+42. minimax/minimax-01 -> ZERO REAL, and the weakest review of the pool along
+     with iteration 35's. No coordinates, no measurements, and every finding is
+     a genre observation that would apply to any game ever made: "add more
+     environmental details", "use colour coding and size differentiation",
+     "implement clearer navigation markers and a mini-map", "add visual and
+     auditory feedback". Nothing here names a specific element, a location, or a
+     measurable defect. Not actioned, and not worth enumerating claim by claim
+     the way the substantive reviews have been — there is nothing to check.
+     NO CODE CHANGED.
+
+     CLOSED A QUEUED ITEM WITH EVIDENCE. Iteration 20 recorded, as the honest
+     remainder of the preview class: "the remaining ask is tying it to the
+     player's colour, queued". Several reviews since have gestured at the same
+     thing — the schematic does not resemble the car you will drive. I checked
+     whether that gap is real, and it is not:
+
+       buildVehiclePreviewParts reads getBody(state.bodyId) and takes
+       colliderLengthM / colliderWidthM — the SAME numbers driving.json and the
+       simulation use, not a hardcoded schematic size:
+
+         subcompact 3.8 x 1.6      luxury 5.3 x 1.9
+         compact    4.3 x 1.7      stationwagon 5.0 x 1.85
+         midsized   4.8 x 1.8
+
+     So choosing a different body already changes the schematic's proportions,
+     hull, wheelbase and every zone band, because the diagram is generated from
+     the chosen part rather than drawn once. The item is closed rather than
+     carried again, which is the point of writing a queue down: an item that
+     turns out to already be satisfied should be retired, not re-raised every
+     few rounds with a new reviewer's name attached.
+
+     What remains genuinely open on the schematic, and is NOT this: the reason
+     six reviews wanted "the actual vehicle sprite" is that the schematic reads
+     as a diagram where they expected a car. That is a design difference, not a
+     defect — the diagram answers "where do my armour points land", which is the
+     only question this screen can answer, and iteration 33 added the link from
+     the selected row to the zone (itself found after seven reviews described the
+     symptom wrongly).
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
