@@ -131,13 +131,13 @@ function toBuildDesign(state: BuilderState): BuildDesign {
 // ---------------------------------------------------------------------------
 
 export type BuilderRow =
-  | { readonly kind: 'name'; readonly label: string; readonly valueLabel: string }
+  | { readonly kind: 'name'; readonly label: string; readonly valueLabel: string; readonly needsInput?: boolean }
   | { readonly kind: 'body'; readonly label: string; readonly valueLabel: string }
   | { readonly kind: 'chassis'; readonly label: string; readonly valueLabel: string }
   | { readonly kind: 'suspension'; readonly label: string; readonly valueLabel: string }
   | { readonly kind: 'plant'; readonly label: string; readonly valueLabel: string }
   | { readonly kind: 'tire'; readonly label: string; readonly valueLabel: string }
-  | { readonly kind: 'armor'; readonly label: string; readonly valueLabel: string; readonly facing: Facing }
+  | { readonly kind: 'armor'; readonly label: string; readonly valueLabel: string; readonly facing: Facing; readonly needsInput?: boolean }
   | {
       readonly kind: 'weapon';
       readonly label: string;
@@ -157,17 +157,33 @@ function titleCase(word: string): string {
 export function computeRows(state: BuilderState): BuilderRow[] {
   const rows: BuilderRow[] = [];
 
-  rows.push({ kind: 'name', label: 'Name', valueLabel: state.name.length > 0 ? state.name : '(unnamed)' });
+  rows.push({
+    kind: 'name',
+    label: 'Name',
+    valueLabel: state.name.length > 0 ? state.name : '(unnamed)',
+    ...(state.name.trim().length === 0 ? { needsInput: true } : {}),
+  });
   rows.push({ kind: 'body', label: 'Body', valueLabel: getBody(state.bodyId).name });
   rows.push({ kind: 'chassis', label: 'Chassis', valueLabel: getChassis(state.chassisId).name });
   rows.push({ kind: 'suspension', label: 'Suspension', valueLabel: getSuspension(state.suspensionId).name });
   rows.push({ kind: 'plant', label: 'Power Plant', valueLabel: getPlant(state.plantId).name });
   rows.push({ kind: 'tire', label: 'Tires', valueLabel: getTire(state.tireId).name });
 
+  // One flag for the whole armour group, not five: the requirement is "fit some
+  // armour", so marking all five rows at once would shout five times about one
+  // unmet rule.
+  const armourTotal = FACINGS.reduce((sum, facing) => sum + state.armor[facing], 0);
   for (const facing of FACINGS) {
-    rows.push({ kind: 'armor', label: `Armor: ${titleCase(facing)}`, valueLabel: String(state.armor[facing]), facing });
+    rows.push({
+      kind: 'armor',
+      label: `Armor: ${titleCase(facing)}`,
+      valueLabel: String(state.armor[facing]),
+      facing,
+      ...(armourTotal === 0 ? { needsInput: true } : {}),
+    });
   }
 
+  const noWeaponsMounted = state.weaponSlots.every((slot) => slot === null);
   state.weaponSlots.forEach((mounted, slot) => {
     if (mounted === null) {
       // `groupStart` is presentation-only. The rows are addressed by index (the
@@ -183,6 +199,7 @@ export function computeRows(state: BuilderState): BuilderRow[] {
         valueLabel: '(empty)',
         slot,
         ...(slot === 0 ? { groupStart: true } : {}),
+        ...(noWeaponsMounted ? { needsInput: true } : {}),
       });
       return;
     }
@@ -690,6 +707,7 @@ function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLE
     li.className = `sm-builder__row sm-builder__row--${row.kind}`;
     if (row.kind === 'facing' || row.kind === 'ammo') li.classList.add('sm-builder__row--sub');
     if (row.kind === 'weapon' && row.groupStart === true) li.classList.add('sm-builder__row--group-start');
+    if ('needsInput' in row && row.needsInput === true) li.classList.add('sm-builder__row--needs-input');
     if (row.kind === 'weapon' && row.valueLabel === '(empty)') li.classList.add('sm-builder__row--empty');
     if (index === state.selectedIndex) li.classList.add('sm-builder__row--selected');
     // Per-row closures over `index`, not a delegated container listener and

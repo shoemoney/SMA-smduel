@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 47
+iteration: 48
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (47 of 82 vision models):
+Reviewers asked (48 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1411,6 +1411,61 @@ TOOLING - the review harness got audited by its own failure this round:
        are legible, grouped and consistent, and restyling them is a theme decision
        rather than a defect, so it belongs to whoever is choosing the game's
        visual language rather than to a defect list.
+
+48. openai/gpt-5-mini -> 1 REAL (buried in a review that got two other things
+     wrong), 4 in known classes:
+     - "Constructor controls lack affordance ... the Confirm area looks like
+       another row ... mark required rows with a yellow badge until satisfied."
+       Two of the sub-claims are STALE and worth recording as such: the Confirm
+       area has been a filled, accent-bordered primary button since iteration 15
+       (and was given a pinned footer outside the scroll region in iteration 39),
+       and the Name field has carried a placeholder since iteration 30. This
+       reviewer is describing the constructor as it was fifteen iterations ago.
+       But the LAST ask is new and it is the good one: nothing on the row list
+       itself marked which legal requirements were still unmet. The legality panel
+       states all three rules in a paragraph BELOW the list, which is the thing
+       the player is not reading while they are editing.
+       Rows that are holding the build up now carry an amber left rail and a
+       faint amber wash: Name, all five armour facings, and every empty weapon
+       slot. Component rows (Body, Chassis, Suspension, Power Plant, Tires) stay
+       clean, because they are chosen for the player and are satisfied by
+       construction.
+       Two deliberate choices: amber rather than RED, because a red row reads as
+       a failure the player caused, which is exactly what the pristine-build
+       messaging exists to avoid (`isPristineBuilder`); and a LEFT rail rather
+       than a right-hand badge, because the right edge of the list is the VALUE
+       column and a badge there would compete with the number being read.
+       The flag is derived from the same fields the violations come from (name,
+       total armour, mounted weapons) rather than by reading `validateDesign`, so
+       the marker cannot drift from the rule that actually gates CONFIRM. Test
+       pins both directions: every unmet row marked on a fresh build, and zero
+       marks once name, armour and a weapon are all present;
+     - "The title and subtitle sit directly on a high-contrast busy background
+       ... place them on a solid backing to guarantee contrast." Measured in
+       iteration 44 at 9.00:1 against the brightest background adjacent to the
+       tagline, with a two-layer shadow. The scrim IS the backing — iteration 27
+       turned it from a blackout into a band, dark at 42% where the text sits and
+       light elsewhere precisely so the art shows;
+     - "The radar is a circular disc with a single static triangle and no visible
+       sweep, blips or distance rings." TWENTY-SECOND report on that element.
+       The rings, crosshair, sweep and player marker are all present; this is the
+       same pre-iteration-2 description the pool keeps re-issuing;
+     - "The condition panel lacks quick-read hierarchy ... armour faces are tiny
+       dashed boxes with no numeric readout." TENTH report, and it is describing
+       iteration 21's state: a fitted facing has carried a real number and a real
+       depleting bar since iteration 25, and an unfitted one carries a
+       deliberately LOUD dashed chip rather than the faint dash that read as
+       missing data;
+     - "Background texture noise competes with gameplay ... add a vignette, reduce
+       pixelation scale." The NEAREST-sampler consequence again, fifth report,
+       and the vignette half is a restatement of the arena-content item declined
+       in iteration 21.
+     WORTH RECORDING: this is the second review in a row to describe a screen
+     accurately, name one genuine gap inside it, and get two of its three
+     supporting observations from a build several iterations old. A review is not
+     a unit of truth — it is three observations of different vintages, and the
+     useful move is to check each against the frame rather than accept or reject
+     the review as a whole.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

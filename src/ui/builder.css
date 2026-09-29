@@ -160,6 +160,23 @@
   flex-direction: column;
 }
 
+/* A row that is holding the build up.
+ *
+ * The legality panel states the three requirements in a paragraph BELOW the
+ * list; this marks the rows themselves. Amber rather than red on purpose — a
+ * red row would read as a failure the player caused, which is the exact thing
+ * the pristine-build messaging was introduced to avoid (see isPristineBuilder).
+ * Amber says "this still needs you", which is a different sentence.
+ *
+ * The marker is a left rail rather than a badge on the right, because the right
+ * edge of the list is where the VALUE column is; a badge there would compete
+ * with the number the player is trying to read.
+ */
+.sm-builder__row--needs-input {
+  border-left: 3px solid var(--ui-warn, #f2b632);
+  background: color-mix(in srgb, var(--ui-warn, #f2b632) 7%, transparent);
+}
+
 .sm-builder__row--confirm {
   margin-top: var(--ui-space-5);
   /* A PRIMARY ACTION, not another data row.

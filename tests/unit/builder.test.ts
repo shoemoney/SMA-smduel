@@ -632,3 +632,45 @@ describe('builder — handleBuilderName (typed into the real <input>)', () => {
     }
   });
 });
+
+describe('computeRows: rows that are holding the build up are marked as such', () => {
+  it('marks name, armour and weapons while unmet, and clears every mark once met', () => {
+    // The legality panel states the three requirements in a paragraph BELOW the
+    // list. This marks them on the list itself, which is the thing the player is
+    // actually scanning and editing. Derived from the same fields the violations
+    // come from, so the marker can never disagree with the rule that gates CONFIRM.
+    const marked = (state: ReturnType<typeof createBuilderState>) =>
+      computeRows(state)
+        .filter((r) => 'needsInput' in r && r.needsInput === true)
+        .map((r) => r.label);
+
+    const fresh = createBuilderState();
+    expect(marked(fresh)).toEqual([
+      'Name',
+      'Armor: Front',
+      'Armor: Rear',
+      'Armor: Left',
+      'Armor: Right',
+      'Armor: Underbody',
+      ...Array.from({ length: fresh.weaponSlots.length }, (_, i) => `Weapon ${i + 1}`),
+    ]);
+
+    // Component rows are never marked: they are chosen for the player and are
+    // satisfied by construction, so a marker there would be noise.
+    // Everything NOT marked is satisfied. Rows that never carry the key at all
+    // count as satisfied — the absence of a marker is the signal.
+    const all = computeRows(fresh);
+    const satisfiedLabels = all.filter((r) => !('needsInput' in r) || r.needsInput !== true).map((r) => r.label);
+    for (const label of ['Body', 'Chassis', 'Suspension', 'Power Plant', 'Tires', 'Confirm']) {
+      expect(satisfiedLabels).toContain(label);
+    }
+
+    const done: ReturnType<typeof createBuilderState> = {
+      ...createBuilderState(),
+      name: 'Rig',
+      armor: { FRONT: 2, REAR: 0, LEFT: 0, RIGHT: 0, UNDERBODY: 0 },
+      weaponSlots: [{ weaponId: allWeapons()[0]!.id, facing: 'FRONT', ammo: 1 }, ...createBuilderState().weaponSlots.slice(1)],
+    };
+    expect(marked(done)).toEqual([]);
+  });
+});

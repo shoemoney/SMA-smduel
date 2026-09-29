@@ -1,0 +1,75 @@
+{
+  "model": "openai/gpt-5-mini",
+  "modelLabel": "openai/gpt-5-mini",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:20:25.384Z",
+  "usage": {
+    "prompt_tokens": 6384,
+    "completion_tokens": 1968,
+    "total_tokens": 8352,
+    "cost": 0.005532,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.005532,
+      "upstream_inference_prompt_cost": 0.001596,
+      "upstream_inference_completions_cost": 0.003936
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 896,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Title and menu contrast collapse",
+      "where": "Title screen — centered logo and bottom-left menu",
+      "problem": "The large SMDUEL title and the two-line subtitle sit directly on a high-contrast, busy photo background; the bottom-left menu uses a semi-transparent panel with low contrast text. Against the bright sun and busy car silhouettes the title loses crisp edges and the menu reads as faint and secondary.",
+      "why": "Players expect the title and main menu to be instantly readable and to establish tone. Poor contrast makes the title feel washed-out and the menu hard to scan, so first impressions are weak and players may not locate primary actions quickly.",
+      "fix": "Place the title/subtitle on a solid or stronger translucent backing (e.g. 70% dark vignette strip) to guarantee contrast; add a subtle outer stroke or drop shadow to the title to preserve shape over highlights. Increase the menu panel opacity to ~85% or add a darker inner rail and boost menu font weight to improve legibility at all window sizes."
+    },
+    {
+      "title": "Radar reads as decorative, not informative",
+      "where": "Arena / Road / City — bottom-left radar unit",
+      "problem": "The radar is a circular disc with a single static triangle and small label; there is no visible sweep, no blips or distance rings, and the orientation text is tiny and low-contrast.",
+      "why": "A radar should convey nearby threats and headings at a glance. As-is it looks like a widget placeholder rather than a working instrument, reducing player situational awareness during high-speed encounters.",
+      "fix": "Add a rotating sweep line with a fading trail and concentric range rings, render contact blips with distinct colors/sizes and brief pulsing, increase the radar label font to be legible (min 14–16px) and place a high-contrast border. Make the player-heading triangle bolder and add a tooltip for scale (e.g. 100m rings)."
+    },
+    {
+      "title": "Condition panel lacks quick-read hierarchy",
+      "where": "Arena / Road / City — top-right Condition panel (armour, tyres, plant & driver)",
+      "problem": "Armor faces are tiny dashed boxes with no numeric readout, tyre bars are thin green slivers, and the plant/driver area is compact with mixed color signals; the whole block is cramped and uses low type sizes.",
+      "why": "During combat or road travel players need to rapidly assess which part of the vehicle is damaged. Small, ambiguous indicators force slow, close inspection and increase cognitive load when seconds matter.",
+      "fix": "Redesign the panel to prioritize status: enlarge armour faces into solid filled panels with per-face numeric HP, thicken tyre bars to at least 6–8px with both color and percentage, and separate Plant & Driver into their own labeled rows with colored badges. Use clear color semantics (green/yellow/red) and add a short hover tooltip for each element showing exact values and recent changes (e.g. -10 on hit)."
+    },
+    {
+      "title": "Background texture noise competes with gameplay",
+      "where": "Arena / Road / City — full-screen ground tile (floor/road) and arena ring",
+      "problem": "The tiled/pixelated ground has high-frequency contrast and strong saturation, which visually competes with small gameplay objects (car, markers, icons). The arena circle boundary is also low-contrast and blends into the ground.",
+      "why": "When background texture is too noisy it reduces the perceived clarity of icons and movement, making it harder to spot enemies, pickups and UI markers. It also feels unfinished and lowers overall polish.",
+      "fix": "Introduce a layered background treatment: apply a subtle blur or lower contrast/ desaturation to the far background layer, keep a sharper localized layer around gameplay objects, and add a faint vignette. Increase the arena ring stroke weight and add a drop shadow or inner glow so it reads as a distinct boundary against the ground tiles. Consider reducing pixelation scale so tiles don't produce distracting moiré at typical zoom levels."
+    },
+    {
+      "title": "Constructor controls lack affordance and visual hierarchy",
+      "where": "Constructor screen — left column (Name field, equipment list) and Confirm button",
+      "problem": "Interactive elements (name input, weapon rows, confirm) share the same thin outlines and color as passive rows; the Name field is a subtle line, the Confirm area looks like another row, and instruction text is low-contrast, making it unclear what is editable/required.",
+      "why": "New players need to immediately understand where to type and how to complete a legal build. Poor control affordance causes hesitation and onboarding friction — players may not notice required fields or how to confirm their vehicle.",
+      "fix": "Make the Name field a clearly filled input box with a visible caret and placeholder text; restyle the Confirm as a filled primary button (distinct color, hover and pressed states). Use stronger visual states for editable rows (light background) and mark required rows with a yellow badge until satisfied. Increase instruction block contrast and move short inline tips next to the relevant controls (e.g. a small 'Required' note by Armor/Weapon rows)."
+    }
+  ],
+  "parseError": null,
+  "raw": "[{\"title\":\"Title and menu contrast collapse\",\"where\":\"Title screen — centered logo and bottom-left menu\",\"problem\":\"The large SMDUEL title and the two-line subtitle sit directly on a high-contrast, busy photo background; the bottom-left menu uses a semi-transparent panel with low contrast text. Against the bright sun and busy car silhouettes the title loses crisp edges and the menu reads as faint and secondary.\",\"why\":\"Players expect the title and main menu to be instantly readable and to establish tone. Poor contrast makes the title feel washed-out and the menu hard to scan, so first impressions are weak and players may not locate primary actions quickly.\",\"fix\":\"Place the title/subtitle on a solid or stronger translucent backing (e.g. 70% dark vignette strip) to guarantee contrast; add a subtle outer stroke or drop shadow to the title to preserve shape over highlights. Increase the menu panel opacity to ~85% or add a darker inner rail and boost menu font weight to improve legibility at all window sizes.\"},{\"title\":\"Radar reads as decorative, not informative\",\"where\":\"Arena / Road / City — bottom-left radar unit\",\"problem\":\"The radar is a circular disc with a single static triangle and small label; there is no visible sweep, no blips or distance rings, and the orientation text is tiny and low-contrast.\",\"why\":\"A radar should convey nearby threats and headings at a glance. As-is it looks like a widget placeholder rather than a working instrument, reducing player situational awareness during high-speed encounters.\",\"fix\":\"Add a rotating sweep line with a fading trail and concentric range rings, render contact blips with distinct colors/sizes and brief pulsing, increase the radar label font to be legible (min 14–16px) and place a high-contrast border. Make the player-heading triangle bolder and add a tooltip for scale (e.g. 100m rings).\"},{\"title\":\"Condition panel lacks quick-read hierarchy\",\"where\":\"Arena / Road / City — top-right Condition panel (armour, tyres, plant & driver)\",\"problem\":\"Armor faces are tiny dashed boxes with no numeric readout, tyre bars are thin green slivers, and the plant/driver area is compact with mixed color signals; the whole block is cramped and uses low type sizes.\",\"why\":\"During combat or road travel players need to rapidly assess which part of the vehicle is damaged. Small, ambiguous indicators force slow, close inspection and increase cognitive load when seconds matter.\",\"fix\":\"Redesign the panel to prioritize status: enlarge armour faces into solid filled panels with per-face numeric HP, thicken tyre bars to at least 6–8px with both color and percentage, and separate Plant & Driver into their own labeled rows with colored badges. Use clear color semantics (green/yellow/red) and add a short hover tooltip for each element showing exact values and recent changes (e.g. -10 on hit).\"},{\"title\":\"Background texture noise competes with gameplay\",\"where\":\"Arena / Road / City — full-screen ground tile (floor/road) and arena ring\",\"problem\":\"The tiled/pixelated ground has high-frequency contrast and strong saturation, which visually competes with small gameplay objects (car, markers, icons). The arena circle boundary is also low-contrast and blends into the ground.\",\"why\":\"When background texture is too noisy it reduces the perceived clarity of icons and movement, making it harder to spot enemies, pickups and UI markers. It also feels unfinished and lowers overall polish.\",\"fix\":\"Introduce a layered background treatment: apply a subtle blur or lower contrast/ desaturation to the far background layer, keep a sharper localized layer around gameplay objects, and add a faint vignette. Increase the arena ring stroke weight and add a drop shadow or inner glow so it reads as a distinct boundary against the ground tiles. Consider reducing pixelation scale so tiles don't produce distracting moiré at typical zoom levels.\"},{\"title\":\"Constructor controls lack affordance and visual hierarchy\",\"where\":\"Constructor screen — left column (Name field, equipment list) and Confirm button\",\"problem\":\"Interactive elements (name input, weapon rows, confirm) share the same thin outlines and color as passive rows; the Name field is a subtle line, the Confirm area looks like another row, and instruction text is low-contrast, making it unclear what is editable/required.\",\"why\":\"New players need to immediately understand where to type and how to complete a legal build. Poor control affordance causes hesitation and onboarding friction — players may not notice required fields or how to confirm their vehicle.\",\"fix\":\"Make the Name field a clearly filled input box with a visible caret and placeholder text; restyle the Confirm as a filled primary button (distinct color, hover and pressed states). Use stronger visual states for editable rows (light background) and mark required rows with a yellow badge until satisfied. Increase instruction block contrast and move short inline tips next to the relevant controls (e.g. a small 'Required' note by Armor/Weapon rows).\"}]"
+}
