@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 68
+iteration: 69
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (68 of 82 vision models):
+Reviewers asked (69 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2906,6 +2906,79 @@ TOOLING - the review harness got audited by its own failure this round:
        and the panel has been near-opaque since iteration 20; "apply an outer
        glow to the active button" is the competing-boxes remedy that iteration 32
        removed after the fill became visible without it.
+
+69. amazon/nova-lite-v1 -> ZERO REAL. Nothing changed, and this is the weakest
+     review in the pool since iteration 42: no coordinates, no measurements, and
+     four of the five findings name elements that do not exist or were declined
+     by name.
+     - "Buttons like 'Build this vehicle' and 'Confirm' do not visually indicate
+       their function ... add a checkmark for 'Confirm' and a wrench for 'Build
+       this vehicle'." ONE ROW, READ AS TWO. `computeRows` pushes
+       `{ kind: 'confirm', label: 'Confirm', valueLabel: 'Build this vehicle' }` —
+       there is a single CONFIRM control and "Build this vehicle" is its VALUE,
+       exactly like every other row's value on that screen. The reviewer split a
+       label/value pair into two buttons and then asked to standardise them
+       against each other. Third sighting of the "element does not exist" class
+       (iterations 21, 35, 40, 61), and the first time it has run in reverse:
+       the element is real and the review invents a second one beside it;
+       WORTH RECORDING ANYWAY, because the misreading is itself a finding. This
+       is the one control the whole screen exists to press, and iteration 15
+       spent a round making it unmistakable — filled, accent-bordered, the only
+       saturated surface in the pane. A reviewer still read two competing calls
+       to action out of it, because the screen's own convention is label-left /
+       value-right and that convention says "data row". The button treatment says
+       "one action" and the label/value pairing says "two things", and they are
+       pulling against each other on the single most important control.
+       The remedies are all copy or layout changes rather than defects: dropping
+       the value leaves a label with no counterpart in a column iteration 27
+       recorded as load-bearing for the 0-9 model; an icon adds decoration to a
+       row that is already the loudest thing on the pane. Recorded as an
+       unresolved tension rather than actioned, because "CONFIRM / Build this
+       vehicle" is genuinely self-describing and the alternative is not clearly
+       better;
+     - "Buttons on the constructor have different colours and styles ... which
+       can be confusing." The inconsistency is the design: iteration 15 reserved
+       `--ui-accent` for CONFIRM alone, "so the one saturated surface on the
+       screen is the thing the screen exists to do", and the row cycle controls
+       are hidden on fine pointers entirely. Standardising them would flatten
+       exactly the hierarchy iteration 15 built;
+     - "The radar does not clearly indicate orientation or object positions ...
+       add a legend explaining the symbols." FORTY-FOURTH report. The radar has
+       an orientation toggle labelled in words ("Orientation: north-up") and a
+       `hud-radar-contact-list` carrying per-contact text for screen readers, so
+       the symbols are explained in text already;
+     - "The right-side panels contain a lot of text and numbers, making it hard
+       to read quickly." Iteration 35's "cluttered HUD" claim. The panel is a
+       dashboard on purpose: iteration 2 grouped it into ARMOUR / TYRES / PLANT
+       & DRIVER precisely so a glance tells you which system a line belongs to,
+       and iterations 25, 29 and 54 gave it bars and thickness so the read is
+       pre-attentive rather than textual;
+     - "The vehicle's status is not indicated on the vehicle model itself, only
+       in the information panels ... add visual indicators on the vehicle model
+       to show armor points and weapon mounts." This is the preview class's ask
+       transplanted onto the GAMEPLAY sprite, and it is the one finding here
+       with a real argument behind it, so it is worth separating from the rest.
+       The loop's settled position is that "the gameplay sprite is a top-down car
+       and armour placement is a build-time abstraction, so the sprite physically
+       cannot carry that information" — which is why eleven reviews asking for
+       "the real sprite in the constructor" were declined. But that reasoning
+       covers ARMOUR PLACEMENT, and this asks for something the sprite could in
+       principle carry: current DAMAGE. The blocker is not conceptual, it is
+       that the atlas holds one frame per body, so a damaged car has no art to
+       switch to. Making it true means authoring per-body damage states — a real
+       ART task of the same class as the title regeneration, not a code change.
+       And the city screen already answers the question this raises from real
+       state: the car strip (iteration 28) carries the name, armour total and
+       mounted count, plus the legality verdict, so "can I take this car out of
+       here" is on screen while driving in the city. Recorded as a genuine new
+       ART candidate, not actioned.
+     NO CODE CHANGED. Worth noting for the pool's calibration: this review and
+     iteration 45's are the same shape — a plausible-sounding list in which the
+     named elements do not exist, the named remedies were declined by name in
+     earlier rounds, and nothing can be checked. The log's standing note from
+     iteration 35 applies with more force at 69 than at 35: not every vision
+     model can critique, and the useful response to one of these is to weight it
+     rather than action it.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
