@@ -1,0 +1,74 @@
+{
+  "model": "bytedance-seed/seed-1.6-flash",
+  "modelLabel": "bytedance-seed/seed-1.6-flash",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T15:45:02.439Z",
+  "usage": {
+    "prompt_tokens": 7000,
+    "completion_tokens": 2115,
+    "total_tokens": 9115,
+    "cost": 0.0011595,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0011595,
+      "upstream_inference_prompt_cost": 0.000525,
+      "upstream_inference_completions_cost": 0.0006345
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 1568,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Top bar text truncation",
+      "where": "Arena screen, top center",
+      "problem": "Text 'Practice arena — WASD/arrows drive, Space/J fire, Q/E cycle weapon. Seed a1tce5ee...' is cut off mid-sentence.",
+      "why": "Hides critical control instructions, leaving players confused about how to play.",
+      "fix": "Shorten non-essential text or wrap it to fit the screen, ensuring all control prompts are fully visible."
+    },
+    {
+      "title": "Radar static and uninformative",
+      "where": "Road and arena screens, bottom-left",
+      "problem": "Radar is a static black disc with a single green dot; no sweep animation or contacts.",
+      "why": "Fails to communicate surrounding threats/obstacles, breaking gameplay feedback for navigation and combat.",
+      "fix": "Add a rotating sweep animation and display nearby contacts (enemies, items) as moving dots."
+    },
+    {
+      "title": "Constructor legal message low visibility",
+      "where": "Constructor screen, bottom-right",
+      "problem": "Small, unhighlighted text 'Name your car, then fit armor and at least one weapon to make it road-legal.' is hard to read.",
+      "why": "New players may not know to add weapons/armor, leading to confusion or inability to progress.",
+      "fix": "Highlight with a colored box, increase font size, or position above the car preview for better visibility."
+    },
+    {
+      "title": "Title screen menu contrast",
+      "where": "Title screen, center menu",
+      "problem": "Menu text is white on dark background, blending into the box; low contrast.",
+      "why": "Interactive elements are hard to distinguish, leading to player confusion about navigation.",
+      "fix": "Add a lighter background tint or border around the menu box to improve text contrast."
+    },
+    {
+      "title": "City screen lack of waypoints",
+      "where": "City screen, center",
+      "problem": "No visual markers (arrows, path) to indicate route to Albany; only a vague circle.",
+      "why": "Navigation is unclear, making it difficult for players to understand their objective.",
+      "fix": "Add a glowing path or arrow markers from the car to Albany, visible on the city map."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n    {\n        \"title\": \"Top bar text truncation\",\n        \"where\": \"Arena screen, top center\",\n        \"problem\": \"Text 'Practice arena — WASD/arrows drive, Space/J fire, Q/E cycle weapon. Seed a1tce5ee...' is cut off mid-sentence.\",\n        \"why\": \"Hides critical control instructions, leaving players confused about how to play.\",\n        \"fix\": \"Shorten non-essential text or wrap it to fit the screen, ensuring all control prompts are fully visible.\"\n    },\n    {\n        \"title\": \"Radar static and uninformative\",\n        \"where\": \"Road and arena screens, bottom-left\",\n        \"problem\": \"Radar is a static black disc with a single green dot; no sweep animation or contacts.\",\n        \"why\": \"Fails to communicate surrounding threats/obstacles, breaking gameplay feedback for navigation and combat.\",\n        \"fix\": \"Add a rotating sweep animation and display nearby contacts (enemies, items) as moving dots.\"\n    },\n    {\n        \"title\": \"Constructor legal message low visibility\",\n        \"where\": \"Constructor screen, bottom-right\",\n        \"problem\": \"Small, unhighlighted text 'Name your car, then fit armor and at least one weapon to make it road-legal.' is hard to read.\",\n        \"why\": \"New players may not know to add weapons/armor, leading to confusion or inability to progress.\",\n        \"fix\": \"Highlight with a colored box, increase font size, or position above the car preview for better visibility.\"\n    },\n    {\n        \"title\": \"Title screen menu contrast\",\n        \"where\": \"Title screen, center menu\",\n        \"problem\": \"Menu text is white on dark background, blending into the box; low contrast.\",\n        \"why\": \"Interactive elements are hard to distinguish, leading to player confusion about navigation.\",\n        \"fix\": \"Add a lighter background tint or border around the menu box to improve text contrast.\"\n    },\n    {\n        \"title\": \"City screen lack of waypoints\",\n        \"where\": \"City screen, center\",\n        \"problem\": \"No visual markers (arrows, path) to indicate route to Albany; only a vague circle.\",\n        \"why\": \"Navigation is unclear, making it difficult for players to understand their objective.\",\n        \"fix\": \"Add a glowing path or arrow markers from the car to Albany, visible on the city map.\"\n    }\n]"
+}

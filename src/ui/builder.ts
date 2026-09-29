@@ -813,9 +813,26 @@ function buildRightPane(state: BuilderState, context: BuilderContext): HTMLEleme
   // name, or moved a single slider, the panel switches to the normal violation
   // list and starts behaving like a real feedback surface.
   if (isPristineBuilder(state)) {
-    const prompt = document.createElement('p');
+    const prompt = document.createElement('div');
     prompt.className = 'sm-builder__legality-prompt';
-    prompt.textContent = t('ui.builder.legalityPrompt');
+    const promptText = document.createElement('strong');
+    promptText.textContent = t('ui.builder.legalityPrompt');
+    prompt.appendChild(promptText);
+    // The steps, because "something is required" is a worse onboarding message
+    // than "do these three things" — a review of the real frame said a new
+    // player "may not know to add weapons/armor", and the fix is to say so.
+    const steps = document.createElement('ol');
+    for (const key of ['ui.builder.legalityStepName', 'ui.builder.legalityStepArmor', 'ui.builder.legalityStepWeapon'] as const) {
+      // The text is set BEFORE appending rather than off appendChild's return
+      // value: the real DOM returns the appended node, but the builder's test
+      // double returns void, so relying on it is a difference between the
+      // double and the browser that only shows up as a confusing
+      // "Cannot set properties of undefined".
+      const item = document.createElement('li');
+      item.textContent = t(key);
+      steps.appendChild(item);
+    }
+    prompt.appendChild(steps);
     legality.appendChild(prompt);
   } else if (derived.violations.length === 0) {
     const ok = document.createElement('div');

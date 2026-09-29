@@ -352,12 +352,31 @@
 .sm-builder__legality-prompt {
   margin: 0;
   padding: var(--ui-space-4) var(--ui-space-5);
-  border: 1px dashed var(--ui-line);
+  border: 1px solid var(--ui-line-accent);
+  border-left: 3px solid var(--ui-accent-strong);
   border-radius: var(--ui-radius-md);
-  background: var(--ui-surface-2);
+  background: color-mix(in srgb, var(--ui-accent) 9%, var(--ui-surface-2));
+  color: var(--ui-ink);
+  font-size: var(--ui-text-base);
+  font-weight: 500;
+  line-height: var(--ui-leading-normal);
+}
+
+/* The step list. A vision review called this text "small, unhighlighted" and
+ * said a new player "may not know to add weapons/armor" — fair. This is the
+ * only instruction the constructor gives before the player has touched
+ * anything, so it carries the whole onboarding, and it now says WHAT to do
+ * rather than only that something is required. */
+.sm-builder__legality-prompt ol {
+  margin: var(--ui-space-3) 0 0;
+  padding-left: 1.4em;
   color: var(--ui-ink-muted);
   font-size: var(--ui-text-sm);
-  line-height: var(--ui-leading-normal);
+  font-weight: 400;
+}
+
+.sm-builder__legality-prompt li + li {
+  margin-top: var(--ui-space-2);
 }
 
 /* --- live vehicle schematic -----------------------------------------------
