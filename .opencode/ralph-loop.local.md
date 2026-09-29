@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 63
+iteration: 64
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (63 of 82 vision models):
+Reviewers asked (64 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2557,6 +2557,59 @@ TOOLING - the review harness got audited by its own failure this round:
        fitted-only (iteration 25) — there is no fraction to scale. The claim that
        tyres use a different language is describing iteration 21's state;
        iteration 29 moved them onto the same bar.
+
+64. google/gemini-3.6-flash -> 1 REAL, 4 in known classes. And the one real
+     finding is iteration 53's fix, reported again one round later — which is the
+     marker precedent firing a THIRD time:
+     - "Bright color-coded chevron icons float randomly in space above buildings
+       WITHOUT shadows, ground rings, or stems connecting them to structures ...
+       making it hard to tell which icon corresponds to which building."
+       The shadows were added in iteration 53, which is the first marker finding
+       in nine to name the AXIS (anchoring) rather than the number — the axis
+       that size changes could never fix. This reviewer is looking at a frame
+       that CONTAINS them and still cannot see them.
+       The marker precedent, stated at iterations 19 and 20 and applied to size,
+       transfers exactly: a reviewer who has already seen the fix and still
+       cannot see it is telling you the NUMBER was too small, not that the
+       report was wrong. And this log already contains the measurement that
+       settles the direction — iteration 17 found the BUILDINGS' contact shadow
+       "soft (0.8) and faint (0.42), so it never registered" and fixed it to
+       0.3 / 0.62. The values iteration 53 shipped were 0.9 / 0.5: softer AND
+       fainter than the pair this codebase has already documented as
+       inadequate. They were always going to be invisible to a reviewer, because
+       a reviewer only ever sees a downscaled frame.
+         DOORMARKER_SHADOW  0.9 / 0.5  ->  0.5 / 0.62
+       Still softer than a building's, because a marker is signage lying ON the
+       ground rather than a mass sitting on it. The shadow's whole job is to
+       terminate the marker in the world instead of letting it hover, and a cue
+       that cannot be seen does not terminate anything. Verified by comparing the
+       two captures: the pools under every chevron are now plainly visible where
+       before they were barely there.
+       WORTH NAMING: this is the third time the "reviewer cannot see a fix that
+       shipped" signal has been correct on this element (size twice, anchoring
+       once), and the first time the fix itself was under-powered rather than
+       absent. The lesson is not "trust reviewers over the code" — it is that a
+       cue tuned to be tasteful can be tuned below the threshold of a downscaled
+       frame, and the threshold is the only frame anyone reviews;
+     - "The 'Arcade' pill floats alone in the top-left margin, separated entirely
+       from the main menu panel ... reads like a temporary developer debug
+       button ... move game mode selection into the main lower-left menu list."
+       HALF fair. The isolation observation is real composition criticism and it
+       is the FOURTH time the menu's placement has been challenged (iterations
+       43, 46, 47, 60, 63). The proposed fix is not available: Arcade is not a
+       mode selector, it is the persistent home link that `builder.css` documents
+       as "the persistent 'Arcade' home link ... position: fixed at the top-left",
+       present on every screen so the player can leave any run in one key. Folding
+       it into the title menu would delete it everywhere else. The composition
+       point is recorded, the remedy is refused;
+     - preview: TENTH report of the preview class, settled — the schematic is
+       generated from the chosen part (iteration 42) and carries the row-to-zone
+       link (iteration 33);
+     - "The ground exhibits severe blocky texture compression noise and
+       pixelated seams": the NEAREST-sampler class, whose remedy is the ART item;
+     - radar: FORTIETH report, remedy again rings, cardinals, sweep and contact
+       blips — all present since iteration 2, with the blips declined fifteen
+       times as fabrications.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

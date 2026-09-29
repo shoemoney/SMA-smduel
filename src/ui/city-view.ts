@@ -228,14 +228,31 @@ const BUILDING_SHADOW_SOFTNESS = 0.3;
 const BUILDING_SHADOW_OPACITY = 0.62;
 
 /**
- * The entrance marker's ground shadow, deliberately softer and lighter than a
- * building's contact shadow (0.3 / 0.62). A building is a solid mass sitting on
- * the ground and casts a tight dark contact; the marker is flat signage lying on
- * the ground, so it wants a diffuse pool that darkens what it stands on rather
- * than reading as a second object beside it.
+ * The entrance marker's ground shadow.
+ *
+ * First shipped at 0.9 / 0.5, chosen to keep the marker reading as flat signage
+ * lying on the ground rather than as a solid mass casting a tight contact. A
+ * review has now reported the markers as "floating randomly in space above
+ * buildings WITHOUT shadows, ground rings, or stems" — which is iteration 53's
+ * finding again, one round later, and the marker precedent applies exactly as it
+ * did for the size complaints in iterations 19 and 20: a reviewer who has
+ * already seen the fix and still cannot see it is telling you the NUMBER was too
+ * small, not that the report was wrong.
+ *
+ * And there is a measurement already in this log that settles the direction.
+ * Iteration 17 found the BUILDINGS' contact shadow "soft (0.8) and faint (0.42),
+ * so it never registered", and fixed it to 0.3 / 0.62. The values shipped here
+ * were softer AND fainter than the pair already documented as inadequate, so
+ * they were always going to be invisible to a reviewer looking at a downscaled
+ * frame — which is the only kind of frame a reviewer ever sees.
+ *
+ * So: firmer and darker than 0.9 / 0.5, still softer than a building's, because
+ * a marker is signage on the ground rather than a mass sitting on it. The point
+ * of the shadow is to terminate the marker in the world instead of letting it
+ * hover, and a cue that cannot be seen does not terminate anything.
  */
-const DOORMARKER_SHADOW_SOFTNESS = 0.9;
-const DOORMARKER_SHADOW_OPACITY = 0.5;
+const DOORMARKER_SHADOW_SOFTNESS = 0.5;
+const DOORMARKER_SHADOW_OPACITY = 0.62;
 const VEHICLE_SHADOW_SOFTNESS = 0.7;
 const VEHICLE_SHADOW_OPACITY = 0.5;
 
