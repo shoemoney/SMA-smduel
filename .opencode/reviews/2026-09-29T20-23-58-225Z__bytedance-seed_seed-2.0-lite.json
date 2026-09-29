@@ -1,0 +1,39 @@
+{
+  "model": "bytedance-seed/seed-2.0-lite",
+  "modelLabel": "bytedance-seed/seed-2.0-lite",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T20:23:58.225Z",
+  "usage": {
+    "prompt_tokens": 6741,
+    "completion_tokens": 1821,
+    "total_tokens": 8562,
+    "cost": 0.00532725,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00532725,
+      "upstream_inference_prompt_cost": 0.00168525,
+      "upstream_inference_completions_cost": 0.003642
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 932,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": null,
+  "parseError": "SyntaxError: Expected ',' or '}' after property value in JSON at position 2565 (line 26 column 29)",
+  "raw": "[\n  {\n    \"title\": \"Non-functional empty radar HUD\",\n    \"where\": \"Arena, Road, and City gameplay screens, bottom-left corner\",\n    \"problem\": \"The circular radar panel only displays a single tiny player orientation marker, with no sweep animation, no contact blips, no terrain/obstacle outlines, appearing as an unused placeholder instead of a working instrument.\",\n    \"why\": \"Wastes valuable HUD real estate that should provide situational awareness, and players will completely ignore a radar that appears to be broken, putting them at a disadvantage in combat encounters.\",\n    \"fix\": \"Add a slow animated sweep line to the radar, render faint blips for nearby enemies, obstacles and friendly units, and draw low-contrast outlines of nearby walls/terrain to match the local map.\"\n  },\n  {\n    \"title\": \"Overly pixelated low-fidelity ground textures\",\n    \"where\": \"Arena and Road gameplay screens, full background play area\",\n    \"problem\": \"All ground, road and terrain textures are heavily downsampled, blocky, and lack distinct detail, with no clear visual differentiation between road, dirt, and concrete surfaces.\",\n    \"why\": \"Makes the game feel unfinished, and at driving speed players cannot quickly parse road edges, hazards, or surface type, leading to accidental off-road collisions.\",\n    \"fix\": \"Re-render ground textures to a usable native WebGPU resolution, assign unique distinct visual styles for asphalt (sharp lane markings), arena concrete (subtle wear marks) and offroad dirt so each surface is instantly recognizable at speed.\"\n  },\n  {\n    \"title\": \"Stacked overlapping top-center tooltip clutter\",\n    \"where\": \"All gameplay screens, top-center edge above the play area\",\n    \"problem\": \"Multiple stacked, overlapping debug-style tooltip boxes display redundant control hints alongside status information, with tiny low-contrast text that blends into the background.\",\n    \"why\": \"Blocks a portion of the top play area, looks like unfinished debug UI left in the release build, and players tune out useful status information because it is buried under crowded hint text.\",\n    \"fix\": \"Condense control hints into a single semi-transparent tooltip that only appears for the first 60 seconds after entering a new zone, then permanently pin only the critical status line (destination, remaining distance, funds, time) to the top edge, removing all stacked overlapping tooltip boxes.\"\n  },\n  {\n    \"title\": \"Inverted menu hierarchy on title screen\",\n    \"where\": \"Title screen, bottom-left main menu selector\",\n    \"problem\": \"The active \"New Driver\" start option has very low contrast highlighting, the border around the entire menu box is more prominent than the active action, and the menu is placed off-center far from the game title text.\",\n    \"why\": \"First-time players may not immediately recognize how to start the game, as the primary call to action does not stand out from the rest of the UI.\",\n    \"fix\": \"Move the main menu panel to center-bottom directly below the SMDUEL title, increase the contrast and add a subtle pulse highlight to the \"New Driver\" active option to make it unambiguous as the primary start action.\"\n  },\n  {\n    \"title\": \"Ungrouped cluttered vehicle constructor UI\",\n    \"where\": \"Vehicle constructor screen, left-side parts list panel\",\n    \"problem\": \"All part rows are unsegmented, 10 unused empty weapon slots take up most of the vertical panel space, and there are no visual dividers between core components, armor slots, and weapon slots. Required build steps are only explained in a small bottom-right hint box.\",\n    \"why\": \"New players struggle to follow build requirements, cannot quickly identify required actions, and have trouble parsing how part changes affect vehicle stats.\",\n    \"fix\": \"Add subtle section dividers between core chassis parts, armor slots, and weapon slots, hide locked/unused weapon slots, add small progress bars next to stat readouts to clearly show remaining weight/space capacity, and highlight required build steps directly in the left parts list instead of only in the hint panel.\"\n  }\n]"
+}

@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 61
+iteration: 62
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (61 of 82 vision models):
+Reviewers asked (62 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2426,6 +2426,66 @@ TOOLING - the review harness got audited by its own failure this round:
        sighting after iteration 40's title-screen radar. Its remedy again asks
        for contact blips "even if static", which is the fabricated-contacts fix
        declined thirteen times.
+
+62. bytedance-seed/seed-2.0-lite -> the review was LOST, then recovered. ZERO
+     REAL, but the round's product is a harness fix worth more than a fix.
+     THE TOOLING FAILURE, and it is the third time this file has cost a reviewer:
+     - The model returned five complete, well-formed findings with
+       `finishReason: "stop"` and a syntactically COMPLETE array — the reply ends
+       cleanly with `\n]`. The tool recorded "did not return parseable JSON" and
+       wrote `findings: null`.
+       Cause: line 26 contained unescaped double quotes inside a string value —
+       `"problem": "The active "New Driver" start option has very low contrast"`
+       — which terminate the JSON string early. Two quote characters cost the
+       entire review.
+       That is the same class as the two earlier failures in this file: an empty
+       body recorded as though it were fact (iteration 15), and a picker that
+       reported "0 models asked" because its `readFileSync` had silently failed
+       (iteration 16). Each time the harness looked perfectly healthy and the
+       cost was a reviewer the loop will never ask again.
+     - FIXED, and narrowly. `parseFindings` now retries once through
+       `escapeBareQuotesInStrings`, which rewrites a `"` ONLY when it is inside
+       an open string and the next non-whitespace character cannot legally
+       continue a JSON string (`,` `}` `]` `:`). A real closing quote is always
+       followed by one of those, so string boundaries are never touched; a bare
+       quote in prose is followed by a letter and gets escaped. Literal newlines
+       inside a string are escaped the same way. If the retry still fails, the
+       ORIGINAL error is thrown rather than a second, more confusing one.
+     - PROVEN against the real payload rather than a synthetic one. Replaying the
+       actual saved reply: the original parser fails at position 2565, the
+       repaired one returns all 5 findings with the quote-bearing text intact
+       (`The active "New Driver" start option has very low contrast...`). The
+       first attempt at that proof was itself wrong — it compared the new
+       function against itself and reported "PARSED" on both sides, because the
+       repair now lives INSIDE `parseFindings`. Measuring the old parser verbatim
+       alongside the new one is what made the difference visible;
+     - All five findings, triaged from the recovered payload:
+       - radar: THIRTY-EIGHTH report, remedy again the sweep plus fabricated
+         blips;
+       - "Overly pixelated low-fidelity ground textures": the NEAREST-sampler
+         class, and the ART item;
+       - "Stacked overlapping top-center tooltip clutter": the status pill, the
+         fading control hint and the message feed, each separately placed by two
+         screenshot passes (iterations 18, 22, 57) and each carrying a different
+         kind of information — permanent status, transient teaching aid, session
+         log. The consolidation this asks for is a layout change recorded in
+         iteration 58, not a defect;
+       - "The active 'New Driver' option has very low contrast highlighting, and
+         the border around the entire menu box is more prominent than the active
+         [row]." That is ITERATION 47's finding, word for word in substance: the
+         `:focus-visible` ring was 2px at a 4px offset in full-strength cyan,
+         which had stopped being a focus indicator and become the panel's visible
+         border, so it was stepped to 1px at 2px offset mixed to 55% precisely
+         "so the strongest cyan on the screen stays on the SELECTED ROW rather
+         than the frame around it". The selected row has carried a real gradient
+         fill since iteration 32 and the constructor's equivalent since
+         iteration 59;
+       - "Ungrouped cluttered vehicle constructor UI": the density class, whose
+         own remedies (collapsible sections) break the 0-9 index addressing.
+     NO GAME CODE CHANGED. Two harness failures in the last six rounds, both
+     silent, both costing a reviewer — which is a worse ratio than the review
+     itself, and worth watching: the loop's own tooling is now a bigger source of
+     lost signal than the pool's weakest models.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

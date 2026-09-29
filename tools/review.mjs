@@ -267,6 +267,72 @@ if (!res.ok) {
 const json = await res.json();
 const raw = json.choices?.[0]?.message?.content ?? '';
 
+/**
+ * Repairs unescaped double quotes inside JSON string values.
+ *
+ * Models emit `"The active "New Driver" option ..."` — raw quotes nested in a
+ * string value, which terminate it early and make the WHOLE review unparseable.
+ * A real case: bytedance-seed/seed-2.0-lite returned five complete, well-formed
+ * findings with `finishReason: "stop"` and a perfectly complete array, and lost
+ * all of them to two quote characters. The harness losing a good reviewer to a
+ * formatting slip is the same class of failure as the two earlier ones in this
+ * file's history (an empty body recorded as if it were fact, and a picker that
+ * reported "0 models asked" because its read had silently failed).
+ *
+ * The repair is deliberately narrow. A `"` is only rewritten when it is inside an
+ * open string AND the next non-whitespace character cannot legally continue a
+ * JSON string (one of `,` `}` `]` `:`). A closing quote is always followed by one
+ * of those, so genuine string boundaries are never touched; a bare quote in the
+ * middle of prose is followed by a letter and gets escaped. That is the only
+ * transformation applied, and if the result still fails to parse the original
+ * error is surfaced unchanged rather than a second, more confusing one.
+ */
+function escapeBareQuotesInStrings(text) {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (escaped) {
+      out += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      out += ch;
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      if (!inString) {
+        inString = true;
+        out += ch;
+        continue;
+      }
+      // Look ahead past whitespace: a real closing quote is followed by a
+      // structural character, a bare one by prose.
+      let j = i + 1;
+      while (j < text.length && /\s/.test(text[j])) j += 1;
+      const next = text[j];
+      if (next === ',' || next === '}' || next === ']' || next === ':') {
+        inString = false;
+        out += ch;
+      } else {
+        out += '\\"';
+      }
+      continue;
+    }
+    if (ch === '\n') {
+      // A literal newline inside a string is also invalid JSON; models do it
+      // when a "quote" swallowed the rest of the value.
+      out += inString ? '\\n' : ch;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
 /** Extracts the JSON array from a model reply that may or may not have fenced it. */
 function parseFindings(text) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -274,7 +340,14 @@ function parseFindings(text) {
   const start = candidate.indexOf('[');
   const end = candidate.lastIndexOf(']');
   if (start === -1 || end === -1) throw new Error(`no JSON array in reply:\n${text.slice(0, 500)}`);
-  return JSON.parse(candidate.slice(start, end + 1));
+  const slice = candidate.slice(start, end + 1);
+  try {
+    return JSON.parse(slice);
+  } catch (err) {
+    const repaired = escapeBareQuotesInStrings(slice);
+    if (repaired === slice) throw err;
+    return JSON.parse(repaired);
+  }
 }
 
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
