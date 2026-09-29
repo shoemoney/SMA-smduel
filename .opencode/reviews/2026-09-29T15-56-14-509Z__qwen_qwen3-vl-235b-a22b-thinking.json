@@ -1,0 +1,74 @@
+{
+  "model": "qwen/qwen3-vl-235b-a22b-thinking",
+  "modelLabel": "qwen/qwen3-vl-235b-a22b-thinking",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T15:56:14.510Z",
+  "usage": {
+    "prompt_tokens": 5376,
+    "completion_tokens": 2874,
+    "total_tokens": 8250,
+    "cost": 0.0136464,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0136464,
+      "upstream_inference_prompt_cost": 0.0021504,
+      "upstream_inference_completions_cost": 0.011496
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2134,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Title menu box blending with background",
+      "where": "Title screen, the dark rectangular menu box containing 'New Driver' and 'Controls'",
+      "problem": "The menu box uses a near-black background with minimal transparency, making it visually merge with the dark desert backdrop instead of standing out as an interactive element.",
+      "why": "Players may overlook the menu entirely, delaying game start and reducing perceived polish; critical navigation elements must immediately draw attention in the first 3 seconds of gameplay.",
+      "fix": "Add a 4px opaque black background behind the menu box with 90% opacity, keeping only the cyan border visible to create strong visual separation from the background."
+    },
+    {
+      "title": "Radar lacks threat visibility",
+      "where": "Arena and road screens, the circular radar in bottom-left corner",
+      "problem": "The radar sweep and contact blip use identical dark green tones with no size or brightness differentiation, making threats indistinguishable from the radar background.",
+      "why": "In combat scenarios, players need instant threat assessment; ambiguous radar feedback forces excessive screen scanning and increases cognitive load during high-pressure moments.",
+      "fix": "Render contact blips as solid white dots 30% larger than the sweep, with a pulsing outer glow when within 50m range to create immediate visual priority."
+    },
+    {
+      "title": "Critical condition text low contrast",
+      "where": "Arena and road screens, right-side 'CONDITION' panel, specifically 'Body armor: x 0/3' line",
+      "problem": "The critical red text for missing body armor uses a dark maroon (#8B0000) against near-black panel background, resulting in less than 2:1 contrast ratio.",
+      "why": "Players may miss vital vehicle damage states during combat, leading to preventable destruction; critical warnings must be instantly legible without conscious effort.",
+      "fix": "Change critical status text to pure red (#FF0000) with a 1px white outer stroke, maintaining the same font size but ensuring 4.5:1 contrast minimum."
+    },
+    {
+      "title": "City road path ambiguity",
+      "where": "City screen, the circular road segments forming the main route",
+      "problem": "The road is rendered as disconnected white segments with large gaps, failing to communicate a continuous navigable path and resembling damaged pavement rather than a route.",
+      "why": "Players may attempt to drive through non-traversable areas, causing navigation errors and breaking immersion; clear pathing is essential for first-time map comprehension.",
+      "fix": "Replace dotted segments with a solid white center line and add 30% brighter yellow shoulder markers at consistent intervals to define the drivable corridor."
+    },
+    {
+      "title": "Empty weapon slots illegible",
+      "where": "Constructor screen, left panel weapon list (Weapon 1-10 rows)",
+      "problem": "The '(empty)' text uses dark gray (#333333) against black background, creating 1.5:1 contrast ratio—well below WCAG readability standards for interface text.",
+      "why": "Players cannot quickly identify available slots while building, slowing progression and causing missed equipment opportunities during critical customization phases.",
+      "fix": "Change empty slot text to #555555 (medium gray) with 1px black outline, matching the contrast level of 'Subcompact' part names to maintain visual consistency."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Title menu box blending with background\",\n    \"where\": \"Title screen, the dark rectangular menu box containing 'New Driver' and 'Controls'\",\n    \"problem\": \"The menu box uses a near-black background with minimal transparency, making it visually merge with the dark desert backdrop instead of standing out as an interactive element.\",\n    \"why\": \"Players may overlook the menu entirely, delaying game start and reducing perceived polish; critical navigation elements must immediately draw attention in the first 3 seconds of gameplay.\",\n    \"fix\": \"Add a 4px opaque black background behind the menu box with 90% opacity, keeping only the cyan border visible to create strong visual separation from the background.\"\n  },\n  {\n    \"title\": \"Radar lacks threat visibility\",\n    \"where\": \"Arena and road screens, the circular radar in bottom-left corner\",\n    \"problem\": \"The radar sweep and contact blip use identical dark green tones with no size or brightness differentiation, making threats indistinguishable from the radar background.\",\n    \"why\": \"In combat scenarios, players need instant threat assessment; ambiguous radar feedback forces excessive screen scanning and increases cognitive load during high-pressure moments.\",\n    \"fix\": \"Render contact blips as solid white dots 30% larger than the sweep, with a pulsing outer glow when within 50m range to create immediate visual priority.\"\n  },\n  {\n    \"title\": \"Critical condition text low contrast\",\n    \"where\": \"Arena and road screens, right-side 'CONDITION' panel, specifically 'Body armor: x 0/3' line\",\n    \"problem\": \"The critical red text for missing body armor uses a dark maroon (#8B0000) against near-black panel background, resulting in less than 2:1 contrast ratio.\",\n    \"why\": \"Players may miss vital vehicle damage states during combat, leading to preventable destruction; critical warnings must be instantly legible without conscious effort.\",\n    \"fix\": \"Change critical status text to pure red (#FF0000) with a 1px white outer stroke, maintaining the same font size but ensuring 4.5:1 contrast minimum.\"\n  },\n  {\n    \"title\": \"City road path ambiguity\",\n    \"where\": \"City screen, the circular road segments forming the main route\",\n    \"problem\": \"The road is rendered as disconnected white segments with large gaps, failing to communicate a continuous navigable path and resembling damaged pavement rather than a route.\",\n    \"why\": \"Players may attempt to drive through non-traversable areas, causing navigation errors and breaking immersion; clear pathing is essential for first-time map comprehension.\",\n    \"fix\": \"Replace dotted segments with a solid white center line and add 30% brighter yellow shoulder markers at consistent intervals to define the drivable corridor.\"\n  },\n  {\n    \"title\": \"Empty weapon slots illegible\",\n    \"where\": \"Constructor screen, left panel weapon list (Weapon 1-10 rows)\",\n    \"problem\": \"The '(empty)' text uses dark gray (#333333) against black background, creating 1.5:1 contrast ratio—well below WCAG readability standards for interface text.\",\n    \"why\": \"Players cannot quickly identify available slots while building, slowing progression and causing missed equipment opportunities during critical customization phases.\",\n    \"fix\": \"Change empty slot text to #555555 (medium gray) with 1px black outline, matching the contrast level of 'Subcompact' part names to maintain visual consistency.\"\n  }\n]"
+}
