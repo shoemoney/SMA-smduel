@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 28
+iteration: 29
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (28 of 82 vision models):
+Reviewers asked (29 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -571,6 +571,49 @@ TOOLING - the review harness got audited by its own failure this round:
        earlier review, but filling it is a layout change and the ask here is
        about content that is present;
      - radar: 19th report on the same element.
+
+29. z-ai/glm-5v-turbo -> 1 REAL (and it was the panel speaking two languages at
+     once), 1 FALSE by a factor of four, 3 in known classes:
+     - "Critical status indicators are represented by tiny colored dots (approx
+       4px) that are difficult to distinguish from one another or read quickly
+       while the vehicle is moving ... replace the dot indicators with wider
+       horizontal bars (health bars) that visibly deplete." REAL, and the sharpest
+       framing of this ask yet, because it identified the actual defect: iteration
+       25 put bars on ARMOUR and left TYRES on dots, so the condition panel was
+       answering the same question - how much of this system is left - in two
+       different visual grammars depending on which group you looked at. A tyre
+       wears down gradually and is almost never in the unfitted state, which makes
+       it the best candidate in the whole panel for the pre-attentive read a 4px
+       dot cannot give. Tyre rows now carry the same bar, the same
+       currentColor fill, and the same guarded ratio.
+       Worth recording as a process note: the iteration-25 test that counts
+       armour bars immediately started counting TYRE bars too, because both used
+       one shared fill class. The test caught it - that is the second time a test
+       written to pin a fix has caught the NEXT change breaking that pin - so the
+       tyre fill now carries its own modifier class and the armour query filters
+       it out explicitly.
+     - "The progress bar is a thin 1-2px black line ... near-zero contrast ... it
+       looks like a scratch on the camera lens." FALSE by a factor of four on the
+       measurement: scanning a column through the bar, the dark track spans y=46
+       to y=50 with its border at 45 and 51, so the rendered bar is 8px including
+       both borders. The 0%-fill perception was already measured and recorded in
+       iteration 22 as the honest report of zero miles driven.
+     - "The city is a narrow band of mid-tone greys ... no lighting model or
+       shadow to define edges." FOURTH report of this class. There IS a lighting
+       model - buildings have analytic contact shadows, tightened in iteration 17
+       precisely so separation does not ride on the art (measured gaps 17.6 and
+       7.9), and iteration 24 measured the three floors at 144/58/101 luma.
+     - "The radar is a large opaque black disc ... visually identical to a hole
+       punched in the UI layer." 20th report on the same element. The suggested
+       fix - dim the widget to 30-40% when no contacts are present - is a new one
+       and is DECLINED on the same reasoning as iteration 28: a practice arena with
+       no opponents would render a nearly invisible instrument, and a player
+       arriving at combat would have to learn a state change to trust the panel
+       they are relying on. Standing by at a fixed weight is the honest read of
+       "this is an instrument, and right now it is reporting nothing".
+     - "Collapse the ten weapon rows into a summary." Fifth/sixth report of this
+       class; the rows are addressed by index and 0-9 typing, so collapsing them
+       would break selection and mounting.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

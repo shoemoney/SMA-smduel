@@ -547,14 +547,33 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
   vehicle.tireDP.forEach((dp, i) => {
     const label = TIRE_LABELS[i] ?? t('ui.hud.tireFallbackLabel', { index: i + 1 });
     const state = damageState(dp, tireMax);
-    tireList.appendChild(
-      el(
-        doc,
-        'li',
-        { class: 'hud-tire', 'data-state': state, 'aria-label': t('ui.hud.tireArmor', { label, current: dp, max: tireMax }) },
-        `${label}: ${damageLabel(dp, tireMax)}`,
-      ),
+    const tireRow = el(
+      doc,
+      'li',
+      { class: 'hud-tire', 'data-state': state, 'aria-label': t('ui.hud.tireArmor', { label, current: dp, max: tireMax }) },
     );
+    tireRow.appendChild(el(doc, 'span', {}, `${label}: `));
+    tireRow.appendChild(el(doc, 'span', { class: 'hud-tire-value' }, damageLabel(dp, tireMax)));
+    // A tyre wears down gradually, so unlike armour it is almost never in the
+    // unfitted state — which makes it the best candidate in the whole panel for
+    // the pre-attentive read a 4px status dot cannot give. A review said the
+    // indicators are "tiny colored dots (approx 4px) that are difficult to
+    // distinguish from one another or read quickly while the vehicle is moving",
+    // and asked to "replace the dot indicators with wider horizontal bars that
+    // visibly deplete". That is the same argument that put bars on the armour
+    // rows in iteration 25, and the panel should speak ONE language: if armour
+    // has a bar, a tyre must too, or the player is reading two different
+    // visual grammars for the same question.
+    //
+    // Same fill as the armour bar — `currentColor`, so it inherits the row's
+    // existing state colour and cannot disagree with the number beside it.
+    const tireBar = el(doc, 'span', { class: 'hud-armor-bar hud-armor-bar--tire' });
+    const tireFill = el(doc, 'span', { class: 'hud-armor-bar__fill hud-armor-bar__fill--tire' });
+    const tireFrac = tireMax > 0 ? Math.max(0, Math.min(1, dp / tireMax)) : 0;
+    tireFill.setAttribute('style', `transform:scaleX(${tireFrac.toFixed(4)})`);
+    tireBar.appendChild(tireFill);
+    tireRow.appendChild(tireBar);
+    tireList.appendChild(tireRow);
   });
   panel.appendChild(el(doc, 'h3', { class: 'hud-condition-group' }, t('ui.hud.groupTyres')));
   panel.appendChild(tireList);

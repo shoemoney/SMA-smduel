@@ -1,0 +1,75 @@
+{
+  "model": "z-ai/glm-5v-turbo",
+  "modelLabel": "z-ai/glm-5v-turbo",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T17:58:42.844Z",
+  "usage": {
+    "prompt_tokens": 6549,
+    "completion_tokens": 4808,
+    "total_tokens": 11357,
+    "cost": 0.0270908,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0270908,
+      "upstream_inference_prompt_cost": 0.0078588,
+      "upstream_inference_completions_cost": 0.019232
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3781,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Invisible Route Progress Bar",
+      "where": "Road screen, top-center header",
+      "problem": "The progress bar ('En route to Albany') is a thin 1-2px black line with a white fill, placed directly over a complex, mid-grey textured background. It lacks a backing plate, resulting in near-zero contrast, causing it to look like a scratch on the camera lens or a rendering artifact.",
+      "why": "The core loop of the highway mode is resource management over distance. If the player cannot track their progress at a glance, the experience becomes a tedious, endless drive without pacing or tension, leading to frustration.",
+      "fix": "Embed the progress bar in a solid, dark-translucent UI panel (matching the 'Condition' panel style) to isolate it from the 3D world. Increase the bar height to 8-10px and use a high-contrast accent color (e.g., the title screen's cyan or an amber warning color) for the filled segment."
+    },
+    {
+      "title": "The 'Black Hole' Radar",
+      "where": "Arena and Road screens, bottom-left HUD",
+      "problem": "The radar widget is a large, opaque black disc with only a faint green gradient sweep. In its current 'clear' state, it provides no information and absorbs light, appearing visually identical to a missing texture asset or a hole punched in the UI layer.",
+      "why": "It occupies prime screen real estate (the lower-left anchor) which draws the eye away from the vehicle. Instead of providing situational awareness, it acts as visual noise that makes the game's interface look unfinished or buggy.",
+      "fix": "Implement a 'Standby' visual state. Reduce the widget's opacity to 30-40% when no contacts are present and fill the interior with a subtle grid or topographic pattern to indicate it is an active instrument. Only increase opacity and brightness when contacts are detected."
+    },
+    {
+      "title": "Microscopic Combat Status",
+      "where": "Arena and Road screens, top-right 'Condition' panel",
+      "problem": "The vehicle damage report (Armour/Tyres) uses extremely small, low-contrast typography. Critical status indicators are represented by tiny colored dots (approx 4px) that are difficult to distinguish from one another or read quickly while the vehicle is moving.",
+      "why": "In a combat scenario, players must parse health data in microseconds to decide whether to flee or fight. Current legibility forces the player to stop moving and stare at the corner of the screen, breaking the flow of action and causing avoidable failures.",
+      "fix": "Increase the font size and line height significantly. Replace the dot indicators with wider horizontal bars (health bars) that visibly deplete. Bold the numerical values (e.g., **4/4**) to create a clear hierarchy between static labels and dynamic data."
+    },
+    {
+      "title": "Flat Value Range in City View",
+      "where": "City (Open World) screen, main viewport",
+      "problem": "The entire environment is rendered in a narrow band of mid-tone greys. The ground, building structures, and crack textures share nearly identical luminance values. There is no lighting model or shadow to define edges, making the world look like an untextured grey-box prototype.",
+      "why": "Spatial readability in top-down games relies on contrast to differentiate traversable floor from obstacles. A flat grey wash makes navigation feel imprecise and 'floaty'. It also fails dramatically to carry over the atmospheric quality established by the title screen.",
+      "fix": "Push the ground texture to a much darker value (charcoal) to act as negative space. Introduce a simple directional shadow (e.g., cast to the bottom-right) on all building assets, or apply a bright rim-light/outline to building perimeters to separate them mathematically from the floor."
+    },
+    {
+      "title": "The Vertical 'Empty Slot' Wall",
+      "where": "Constructor screen, left column (Weapon list)",
+      "problem": "The interface lists 'Weapon 1' through 'Weapon 10' as ten full-height vertical rows, all displaying '(empty)'. This creates a massive, monotonous block of text that dominates the layout and pushes more relevant stats (Chassis, Engine) toward the top edge.",
+      "why": "It presents the most boring aspect of the UI (administering empty slots) as the largest visual element. It makes the customization screen feel daunting and sparse simultaneously, discouraging engagement with the build system.",
+      "fix": "Collapse the weapon inventory into a compact summary row (e.g., 'Weapons: [Grid of 10 small icons]') or a single line showing 'Mounted: 0 / 10'. Only expand the full vertical list when the user explicitly selects the 'Weapons' category to edit."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Invisible Route Progress Bar\",\n    \"where\": \"Road screen, top-center header\",\n    \"problem\": \"The progress bar ('En route to Albany') is a thin 1-2px black line with a white fill, placed directly over a complex, mid-grey textured background. It lacks a backing plate, resulting in near-zero contrast, causing it to look like a scratch on the camera lens or a rendering artifact.\",\n    \"why\": \"The core loop of the highway mode is resource management over distance. If the player cannot track their progress at a glance, the experience becomes a tedious, endless drive without pacing or tension, leading to frustration.\",\n    \"fix\": \"Embed the progress bar in a solid, dark-translucent UI panel (matching the 'Condition' panel style) to isolate it from the 3D world. Increase the bar height to 8-10px and use a high-contrast accent color (e.g., the title screen's cyan or an amber warning color) for the filled segment.\"\n  },\n  {\n    \"title\": \"The 'Black Hole' Radar\",\n    \"where\": \"Arena and Road screens, bottom-left HUD\",\n    \"problem\": \"The radar widget is a large, opaque black disc with only a faint green gradient sweep. In its current 'clear' state, it provides no information and absorbs light, appearing visually identical to a missing texture asset or a hole punched in the UI layer.\",\n    \"why\": \"It occupies prime screen real estate (the lower-left anchor) which draws the eye away from the vehicle. Instead of providing situational awareness, it acts as visual noise that makes the game's interface look unfinished or buggy.\",\n    \"fix\": \"Implement a 'Standby' visual state. Reduce the widget's opacity to 30-40% when no contacts are present and fill the interior with a subtle grid or topographic pattern to indicate it is an active instrument. Only increase opacity and brightness when contacts are detected.\"\n  },\n  {\n    \"title\": \"Microscopic Combat Status\",\n    \"where\": \"Arena and Road screens, top-right 'Condition' panel\",\n    \"problem\": \"The vehicle damage report (Armour/Tyres) uses extremely small, low-contrast typography. Critical status indicators are represented by tiny colored dots (approx 4px) that are difficult to distinguish from one another or read quickly while the vehicle is moving.\",\n    \"why\": \"In a combat scenario, players must parse health data in microseconds to decide whether to flee or fight. Current legibility forces the player to stop moving and stare at the corner of the screen, breaking the flow of action and causing avoidable failures.\",\n    \"fix\": \"Increase the font size and line height significantly. Replace the dot indicators with wider horizontal bars (health bars) that visibly deplete. Bold the numerical values (e.g., **4/4**) to create a clear hierarchy between static labels and dynamic data.\"\n  },\n  {\n    \"title\": \"Flat Value Range in City View\",\n    \"where\": \"City (Open World) screen, main viewport\",\n    \"problem\": \"The entire environment is rendered in a narrow band of mid-tone greys. The ground, building structures, and crack textures share nearly identical luminance values. There is no lighting model or shadow to define edges, making the world look like an untextured grey-box prototype.\",\n    \"why\": \"Spatial readability in top-down games relies on contrast to differentiate traversable floor from obstacles. A flat grey wash makes navigation feel imprecise and 'floaty'. It also fails dramatically to carry over the atmospheric quality established by the title screen.\",\n    \"fix\": \"Push the ground texture to a much darker value (charcoal) to act as negative space. Introduce a simple directional shadow (e.g., cast to the bottom-right) on all building assets, or apply a bright rim-light/outline to building perimeters to separate them mathematically from the floor.\"\n  },\n  {\n    \"title\": \"The Vertical 'Empty Slot' Wall\",\n    \"where\": \"Constructor screen, left column (Weapon list)\",\n    \"problem\": \"The interface lists 'Weapon 1' through 'Weapon 10' as ten full-height vertical rows, all displaying '(empty)'. This creates a massive, monotonous block of text that dominates the layout and pushes more relevant stats (Chassis, Engine) toward the top edge.\",\n    \"why\": \"It presents the most boring aspect of the UI (administering empty slots) as the largest visual element. It makes the customization screen feel daunting and sparse simultaneously, discouraging engagement with the build system.\",\n    \"fix\": \"Collapse the weapon inventory into a compact summary row (e.g., 'Weapons: [Grid of 10 small icons]') or a single line showing 'Mounted: 0 / 10'. Only expand the full vertical list when the user explicitly selects the 'Weapons' category to edit.\"\n  }\n]"
+}

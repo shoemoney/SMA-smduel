@@ -498,7 +498,9 @@ describe('vehicle condition panel', () => {
     (fitted.design as { armor: Record<string, number> }).armor = { FRONT: 4, REAR: 4, LEFT: 4, RIGHT: 0, UNDERBODY: 4 };
     const { root } = render(baseSnapshot({ vehicle: fitted }));
 
-    const bars = byClass(root, 'hud-armor-bar__fill');
+    // Scoped to ARMOUR bars: tyre fills carry their own modifier class precisely
+    // so this query cannot start counting them when tyres grew bars too.
+    const bars = byClass(root, 'hud-armor-bar__fill').filter((b) => !b.hasClass('hud-armor-bar__fill--tire'));
     // Four fitted facings, one unfitted (right, max 0).
     expect(bars).toHaveLength(4);
     const scales = bars.map((b) => Number(/scaleX\(([\d.]+)\)/.exec(b.attrs.get('style') ?? '')?.[1])).sort((a, b) => a - b);
@@ -516,15 +518,31 @@ describe('vehicle condition panel', () => {
     const { root } = render(
       baseSnapshot({ vehicle: baseVehicle({ armorDP: { FRONT: 9, REAR: -2, LEFT: 1, RIGHT: 0, UNDERBODY: 0 } }, []) }),
     );
-    const scales = byClass(root, 'hud-armor-bar__fill').map((b) =>
-      Number(/scaleX\(([\d.]+)\)/.exec(b.attrs.get('style') ?? '')?.[1]),
-    );
+    const scales = byClass(root, 'hud-armor-bar__fill')
+      .filter((b) => !b.hasClass('hud-armor-bar__fill--tire'))
+      .map((b) => Number(/scaleX\(([\d.]+)\)/.exec(b.attrs.get('style') ?? '')?.[1]));
     for (const scale of scales) {
       expect(Number.isFinite(scale)).toBe(true);
       expect(scale).toBeGreaterThanOrEqual(0);
       expect(scale).toBeLessThanOrEqual(1);
     }
   });
+
+
+  it('gives every tyre a depleting bar, on the same visual grammar as armour', () => {
+    // A review called the condition indicators "tiny colored dots (approx 4px)
+    // that are difficult to distinguish from one another or read quickly while
+    // the vehicle is moving". Armour got bars in iteration 25; if tyres kept dots
+    // the panel would be answering the same question in two visual grammars.
+    const { root } = render(baseSnapshot({ vehicle: baseVehicle({}, []) }));
+    const tireBars = byClass(root, 'hud-armor-bar__fill--tire');
+    expect(tireBars).toHaveLength(4);
+    // baseVehicle's tyreDP is 4/4 across, so every bar is full.
+    for (const bar of tireBars) {
+      expect(/scaleX\(1\.0000\)/.test(bar.attrs.get('style') ?? '')).toBe(true);
+    }
+  });
+
 
   it('renders cargo integrity as its own raw magnitude, not a fabricated percentage of an invented max', () => {
     // No ruleset table defines a cargo integrity max, and sim/damage.ts's

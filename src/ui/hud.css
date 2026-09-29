@@ -566,6 +566,16 @@
   overflow: hidden;
 }
 
+/* Tyre bars sit beside the fraction rather than in the armour grid's slot.
+ *
+ * The fill keeps the base class for styling but carries its own modifier so a
+ * query for armour bars cannot silently start counting tyre bars — which is
+ * exactly what happened to the iteration-25 test the first time this shipped. */
+.hud-armor-bar--tire {
+  width: 30px;
+  height: 3px;
+}
+
 .hud-armor-bar__fill {
   position: absolute;
   inset: 0;
