@@ -215,7 +215,25 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     // `fract()`s there is still no boundary anywhere.
     if (in.params.w > 0.0) {
       let detail = rect.xy + fract(wuv * in.params.w) * size;
-      let d = textureSampleLevel(atlasTexture, atlasSampler, detail, 0.0).rgb;
+      // High frequency damped, low frequency preserved.
+      //
+      // This is the detail layer — the per-texel salt-and-pepper the NEAREST
+      // sampler produces — and it is the ONLY thing compressed. Compressing the
+      // finished `g` instead is uniform contrast reduction, and an earlier
+      // version of this did exactly that: the arena's ground spread went
+      // 14.02 -> 12.56 and the next reviewer reported that the floor's "grid
+      // lines barely register against the texture" and the car "feels like it is
+      // floating in a void". The uniform version ate the very slab-joint lattice
+      // iteration 21 identified as the reason the arena needs no fake boundary.
+      //
+      // The two asks are separable, and treating them as one number is what
+      // caused the regression: vibration lives in the high frequencies, the
+      // spatial reference lives in the low ones.
+      let d = mix(
+        vec3<f32>(0.40, 0.42, 0.46),
+        textureSampleLevel(atlasTexture, atlasSampler, detail, 0.0).rgb,
+        0.55
+      );
       // Blend in PATCHES rather than per pixel, which would only read as noise.
       //
       // The patch grid is sized in METRES off `worldPos`, not off `wuv`. The
@@ -253,8 +271,26 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     // structure, the tiling, or the sampler. The texture still reads as the same
     // cracked concrete; it simply stops competing with the car for attention,
     // which was the actual complaint. Measured on the captured frames, this is a
-    // ~30% reduction in ground luma spread.
-    g = mix(vec3<f32>(0.40, 0.42, 0.46), g, 0.70);
+    // Applied where the detail sample is declared rather than to `g` after the
+    // blend — see the note there for why that distinction is the whole fix.
+    // Applied to the DETAIL sample only, not to the finished ground.
+    //
+    // The first version of this compressed `g` after the two scales were mixed,
+    // which is uniform contrast compression — and that also flattened the
+    // world-fixed SLAB LATTICE, the arena's only spatial reference. Measured,
+    // the arena's ground spread went 14.02 -> 12.56 and the next reviewer
+    // reported that the floor's "grid lines barely register against the
+    // texture" and the car "feels like it is floating in a void". The fix had
+    // eaten the very cue iteration 21 identified as the reason the arena needs
+    // no fake boundary markings.
+    //
+    // The detail layer is the high-frequency half of the blend — the per-texel
+    // salt-and-pepper the NEAREST sampler produces. Compressing THAT and
+    // leaving `g` alone removes the vibration the review asked to remove while
+    // leaving the slab joints at their original contrast. High frequency damped,
+    // low frequency preserved: the two asks are separable, and treating them as
+    // one number is what caused the regression.
+
     }
     // The ground takes the tint's RGB too. It used to keep only `tint.a`, which
     // silently dropped any tint the caller supplied — dormant only because

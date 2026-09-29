@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 33
+iteration: 34
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (33 of 82 vision models):
+Reviewers asked (34 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -788,6 +788,47 @@ TOOLING - the review harness got audited by its own failure this round:
          models getAttribute, so reading an attribute back is a crash waiting for
          a different caller. The first version of this passed the preview test
          and crashed builder.test.ts on exactly that.
+
+34. qwen/qwen3.5-397b-a17b -> 1 REAL, and it is a REGRESSION I CAUSED LAST ROUND -
+     the iteration-17 lesson firing for the third time:
+     - "The floor is a flat low-contrast grey with extremely faint grid lines
+       that barely register against the texture ... it is difficult to judge speed
+       and distance, causing the car to feel like it is floating in a void." TRUE,
+       and caused by iteration 31. That iteration added the ground base value -
+       and it compressed the FINISHED ground value, which is UNIFORM contrast
+       reduction, so it flattened the world-fixed SLAB LATTICE along with the
+       high-frequency noise it was meant to damp. Measured: arena ground spread
+       14.02 -> 12.56. The slab joints are the arena's only spatial reference, and
+       iteration 21 recorded exactly that when declining to fake boundary
+       markings. My own fix had eaten the cue the earlier decision depended on.
+       THE FIX IS TO SEPARATE THE TWO ASKS, which is what treating them as one
+       number prevented: vibration lives in the HIGH frequencies (the per-texel
+       salt-and-pepper the NEAREST sampler produces) and the spatial reference
+       lives in the LOW ones. The compression now applies to the DETAIL sample
+       where it is declared, not to the blended result:
+         arena ground spread  12.56 -> 13.25   (original 14.02 - mostly recovered)
+         road ground spread   24.44 -> 25.56   (original 26.58 - still damped)
+         city ground spread    8.91 -> 10.26   (original 10.95)
+         road/verge gap  26.5 -> 19.1, i.e. back to its honest 19.9 baseline
+       Both reviewers' asks are now better served than either uniform version.
+       A WORTHWHILE PROCESS NOTE: the first attempt referenced the detail sample
+       from outside the block it is declared in, so the shader failed to compile,
+       every ground quad vanished, and THREE SCREENS captured with spread 0. The
+       capture gate caught it immediately - which is the second time in this loop
+       that a gate earned its place by failing loudly rather than by passing.
+     - "Add distinct roof colours (rusted metal, blue tarps) to lift the buildings
+       off the ground." FIFTH review to make this ask, and the suggested fix is a
+       direct reversal of iteration 16: per-building colour IS the collage problem
+       that iteration spent a whole round undoing. Measured building/ground gaps
+       are 17.2 and 18.7 - the buildings do separate, via the analytic contact
+       shadows tightened in iteration 17, not via hue;
+     - "The menu box is a thin semi-transparent rectangle." SEVENTH report of
+       this class. The panel has been near-opaque since iteration 20 (a
+       0.92-alpha stack) and its selected row now carries a real fill since
+       iteration 32;
+     - "Replace the weapon list with a visual grid." Seventh report; the rows are
+       addressed by index and by 0-9 typing;
+     - radar: 22nd report on the same element.
 
 DEFERRED (real, documented, not bugs):
 - City daylight grade (my 0.6 ground tint is why it reads dim), street network,

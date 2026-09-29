@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3.5-397b-a17b",
+  "modelLabel": "qwen/qwen3.5-397b-a17b",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T18:30:02.235Z",
+  "usage": {
+    "prompt_tokens": 5404,
+    "completion_tokens": 4476,
+    "total_tokens": 9880,
+    "cost": 0.0125814,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0125814,
+      "upstream_inference_prompt_cost": 0.00210756,
+      "upstream_inference_completions_cost": 0.01047384
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3813,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Menu Container Hierarchy",
+      "where": "Title screen, center overlay",
+      "problem": "The menu box is a thin, semi-transparent rectangle that lacks visual weight against the detailed background art, resembling a default HTML form element.",
+      "why": "It feels like a debug overlay or placeholder rather than a polished game interface, reducing immersion and making the primary call-to-action feel fragile.",
+      "fix": "Add a solid, dark background with high opacity or a backdrop blur to the menu container, and increase the padding to separate the text from the edges."
+    },
+    {
+      "title": "Building-Ground Camouflage",
+      "where": "City screen, throughout the play area",
+      "problem": "The grey building roofs have nearly identical luminance and saturation to the grey cracked ground texture, causing them to blend together.",
+      "why": "Players cannot instantly distinguish obstacles and driveable surfaces from buildings, which slows down navigation and makes collision avoidance difficult.",
+      "fix": "Add distinct roof colors (e.g., rusted metal, blue tarps) or cast strong directional shadows to visually lift the buildings off the ground plane."
+    },
+    {
+      "title": "Radar Legibility",
+      "where": "Arena and Road screens, bottom-left corner",
+      "problem": "The radar display is extremely dark with a faint green sweep; the grid lines and potential contact blips are barely visible.",
+      "why": "In a combat game, situational awareness is critical; a dark radar fails to communicate threats, orientation, or range quickly at a glance.",
+      "fix": "Increase the brightness and opacity of the radar sweep and grid lines, and ensure enemy contacts render as high-contrast red or white dots."
+    },
+    {
+      "title": "Weapon List Density",
+      "where": "Constructor screen, left column",
+      "problem": "A vertical list of 10 text rows labeled 'Weapon 1' through 'Weapon 10' with '(empty)' status creates a tedious wall of text.",
+      "why": "It feels like a spreadsheet rather than a game interface; players have to read every line to find a slot, making the customization process feel like data entry.",
+      "fix": "Replace the vertical text list with a visual grid of 10 mounting slots or icons that show 'Empty' visually, allowing for faster scanning."
+    },
+    {
+      "title": "Arena Floor Definition",
+      "where": "Arena screen, background",
+      "problem": "The floor is a flat, low-contrast grey with extremely faint grid lines that barely register against the texture.",
+      "why": "The lack of texture or grid definition makes it difficult to judge speed and distance, causing the car to feel like it is floating in a void rather than driving on a surface.",
+      "fix": "Darken the floor texture slightly and significantly increase the contrast/opacity of the grid lines to provide a clear sense of scale and movement."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Menu Container Hierarchy\",\n    \"where\": \"Title screen, center overlay\",\n    \"problem\": \"The menu box is a thin, semi-transparent rectangle that lacks visual weight against the detailed background art, resembling a default HTML form element.\",\n    \"why\": \"It feels like a debug overlay or placeholder rather than a polished game interface, reducing immersion and making the primary call-to-action feel fragile.\",\n    \"fix\": \"Add a solid, dark background with high opacity or a backdrop blur to the menu container, and increase the padding to separate the text from the edges.\"\n  },\n  {\n    \"title\": \"Building-Ground Camouflage\",\n    \"where\": \"City screen, throughout the play area\",\n    \"problem\": \"The grey building roofs have nearly identical luminance and saturation to the grey cracked ground texture, causing them to blend together.\",\n    \"why\": \"Players cannot instantly distinguish obstacles and driveable surfaces from buildings, which slows down navigation and makes collision avoidance difficult.\",\n    \"fix\": \"Add distinct roof colors (e.g., rusted metal, blue tarps) or cast strong directional shadows to visually lift the buildings off the ground plane.\"\n  },\n  {\n    \"title\": \"Radar Legibility\",\n    \"where\": \"Arena and Road screens, bottom-left corner\",\n    \"problem\": \"The radar display is extremely dark with a faint green sweep; the grid lines and potential contact blips are barely visible.\",\n    \"why\": \"In a combat game, situational awareness is critical; a dark radar fails to communicate threats, orientation, or range quickly at a glance.\",\n    \"fix\": \"Increase the brightness and opacity of the radar sweep and grid lines, and ensure enemy contacts render as high-contrast red or white dots.\"\n  },\n  {\n    \"title\": \"Weapon List Density\",\n    \"where\": \"Constructor screen, left column\",\n    \"problem\": \"A vertical list of 10 text rows labeled 'Weapon 1' through 'Weapon 10' with '(empty)' status creates a tedious wall of text.\",\n    \"why\": \"It feels like a spreadsheet rather than a game interface; players have to read every line to find a slot, making the customization process feel like data entry.\",\n    \"fix\": \"Replace the vertical text list with a visual grid of 10 mounting slots or icons that show 'Empty' visually, allowing for faster scanning.\"\n  },\n  {\n    \"title\": \"Arena Floor Definition\",\n    \"where\": \"Arena screen, background\",\n    \"problem\": \"The floor is a flat, low-contrast grey with extremely faint grid lines that barely register against the texture.\",\n    \"why\": \"The lack of texture or grid definition makes it difficult to judge speed and distance, causing the car to feel like it is floating in a void rather than driving on a surface.\",\n    \"fix\": \"Darken the floor texture slightly and significantly increase the contrast/opacity of the grid lines to provide a clear sense of scale and movement.\"\n  }\n]"
+}
