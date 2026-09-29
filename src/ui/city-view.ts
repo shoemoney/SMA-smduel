@@ -655,9 +655,20 @@ function buildingInstances(layout: CityLayout, doorway: Doorway, atlasIndex: Atl
  * rather than baked into the art.
  */
 const WAYPOINT_FRAME = 'decal-waypoint';
-const WAYPOINT_TINT = { r: 0.35, g: 0.88, b: 0.82, a: 0.95 } as const;
+const WAYPOINT_TINT = { r: 0.42, g: 0.92, b: 0.86, a: 0.82 } as const;
 /** Metres the beacon floats above the gate's footprint. */
-const WAYPOINT_LIFT_M = 2.6;
+/**
+ * How far the beacon floats above the gate.
+ *
+ * A review of the real frame said the marker read as "an oversized, disconnected
+ * cyan arrow floating above the car" whose "scale is jarring compared to the
+ * pixel-art top-down vehicle", making the objective feel like a UI overlay
+ * rather than a world object. That is fair, and it is a critique of this very
+ * marker: it was sized and lifted like a HUD element sitting in a 3D-ish world.
+ * It now sits low and small, close to the gate it marks, so it reads as a sign
+ * AT the building rather than a badge floating over the map.
+ */
+const WAYPOINT_LIFT_M = 1.5;
 /**
  * The beacon rides on LAYER_BUILDING, not on a layer of its own.
  *
@@ -681,7 +692,7 @@ function waypointInstance(gate: Gate, atlasIndex: AtlasIndex): SpriteInstanceInp
     atlasId: String(frame.atlasIndex),
     position: { x: gate.position.x, y: gate.position.y + WAYPOINT_LIFT_M },
     rotationRad: 0,
-    sizeM: { x: 3.0, y: 3.8 },
+    sizeM: { x: 2.1, y: 2.6 },
     uvRect: frame.uv,
     tint: WAYPOINT_TINT,
     layer: LAYER_WAYPOINT,

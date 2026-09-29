@@ -1,0 +1,74 @@
+{
+  "model": "google/gemini-3.1-flash-lite-preview",
+  "modelLabel": "google/gemini-3.1-flash-lite-preview",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T16:02:44.052Z",
+  "usage": {
+    "prompt_tokens": 5826,
+    "completion_tokens": 672,
+    "total_tokens": 6498,
+    "cost": 0.0024645,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0024645,
+      "upstream_inference_prompt_cost": 0.0014565,
+      "upstream_inference_completions_cost": 0.001008
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Instructional Text Visual Hierarchy",
+      "where": "Arena and Road, top-center notification box",
+      "problem": "The gameplay instructions are rendered as a small, thin, white sans-serif font against a translucent gray box that is too small for the container.",
+      "why": "It lacks visual authority, causing the player to miss vital operational context (like controls) because the eye naturally ignores the top-center area of the screen.",
+      "fix": "Increase font weight, add a subtle border or accent color (e.g., brand cyan) to the container, and center the text with increased internal padding to create a 'HUD element' feel rather than a 'debug log' feel."
+    },
+    {
+      "title": "Vehicle Silhouette Readability",
+      "where": "Vehicle constructor, center-right preview pane",
+      "problem": "The car model is a thin, neon-cyan line drawing that lacks depth, volume, or orientation markers on the actual chassis.",
+      "why": "The player cannot intuitively judge the vehicle's shape or orientation, making armor and weapon placement feel abstract and disconnected from the physical car.",
+      "fix": "Fill the silhouette with a low-opacity flat base color and add distinct 'hit zone' outlines for the Front, Rear, Left, and Right segments to mirror the armor stats."
+    },
+    {
+      "title": "Interactive Element Indication",
+      "where": "Vehicle constructor, left-hand list",
+      "problem": "The list of vehicle parts and weapon slots looks like a static text document rather than an interactive form.",
+      "why": "New players will struggle to understand that these lines are clickable or focusable fields, causing friction in the core 'build' loop.",
+      "fix": "Add a distinct hover-state background highlight and a small chevron icon to the right of editable rows to signal that they are inputs, not just labels."
+    },
+    {
+      "title": "Action-State Visual Contrast",
+      "where": "Arena and Road, bottom-center speedometer",
+      "problem": "The speedometer uses thin lines and white text that blend into the high-frequency detail of the road/arena textures.",
+      "why": "Vital feedback regarding speed and damage (the 100% indicator) is hard to read during high-speed movement, leading to 'blind' driving.",
+      "fix": "Apply a thicker, high-contrast border to the speedometer panel and use a bolder, fixed-width digit font that maintains legibility even when the camera is panning over terrain."
+    },
+    {
+      "title": "Navigational Anchor Confusion",
+      "where": "City screen, player vehicle marker",
+      "problem": "The player's current location is indicated by the vehicle itself, while the 'destination' is an oversized, disconnected cyan arrow floating above the car.",
+      "why": "The scale of the arrow is jarring compared to the pixel-art/top-down vehicle, creating a visual disconnect that makes the objective feel like a UI overlay rather than a world object.",
+      "fix": "Replace the floating arrow with a 'pulse' effect or a ground-projected target circle beneath the destination, keeping the UI components smaller and more integrated into the map perspective."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Instructional Text Visual Hierarchy\",\n    \"where\": \"Arena and Road, top-center notification box\",\n    \"problem\": \"The gameplay instructions are rendered as a small, thin, white sans-serif font against a translucent gray box that is too small for the container.\",\n    \"why\": \"It lacks visual authority, causing the player to miss vital operational context (like controls) because the eye naturally ignores the top-center area of the screen.\",\n    \"fix\": \"Increase font weight, add a subtle border or accent color (e.g., brand cyan) to the container, and center the text with increased internal padding to create a 'HUD element' feel rather than a 'debug log' feel.\"\n  },\n  {\n    \"title\": \"Vehicle Silhouette Readability\",\n    \"where\": \"Vehicle constructor, center-right preview pane\",\n    \"problem\": \"The car model is a thin, neon-cyan line drawing that lacks depth, volume, or orientation markers on the actual chassis.\",\n    \"why\": \"The player cannot intuitively judge the vehicle's shape or orientation, making armor and weapon placement feel abstract and disconnected from the physical car.\",\n    \"fix\": \"Fill the silhouette with a low-opacity flat base color and add distinct 'hit zone' outlines for the Front, Rear, Left, and Right segments to mirror the armor stats.\"\n  },\n  {\n    \"title\": \"Interactive Element Indication\",\n    \"where\": \"Vehicle constructor, left-hand list\",\n    \"problem\": \"The list of vehicle parts and weapon slots looks like a static text document rather than an interactive form.\",\n    \"why\": \"New players will struggle to understand that these lines are clickable or focusable fields, causing friction in the core 'build' loop.\",\n    \"fix\": \"Add a distinct hover-state background highlight and a small chevron icon to the right of editable rows to signal that they are inputs, not just labels.\"\n  },\n  {\n    \"title\": \"Action-State Visual Contrast\",\n    \"where\": \"Arena and Road, bottom-center speedometer\",\n    \"problem\": \"The speedometer uses thin lines and white text that blend into the high-frequency detail of the road/arena textures.\",\n    \"why\": \"Vital feedback regarding speed and damage (the 100% indicator) is hard to read during high-speed movement, leading to 'blind' driving.\",\n    \"fix\": \"Apply a thicker, high-contrast border to the speedometer panel and use a bolder, fixed-width digit font that maintains legibility even when the camera is panning over terrain.\"\n  },\n  {\n    \"title\": \"Navigational Anchor Confusion\",\n    \"where\": \"City screen, player vehicle marker\",\n    \"problem\": \"The player's current location is indicated by the vehicle itself, while the 'destination' is an oversized, disconnected cyan arrow floating above the car.\",\n    \"why\": \"The scale of the arrow is jarring compared to the pixel-art/top-down vehicle, creating a visual disconnect that makes the objective feel like a UI overlay rather than a world object.\",\n    \"fix\": \"Replace the floating arrow with a 'pulse' effect or a ground-projected target circle beneath the destination, keeping the UI components smaller and more integrated into the map perspective.\"\n  }\n]"
+}

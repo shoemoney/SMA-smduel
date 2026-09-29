@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 10
+iteration: 11
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (10 of 82 vision models):
+Reviewers asked (11 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -56,6 +56,17 @@ every HUD panel - caught in a screenshot, reverted, redone as weight-only.
      road bar overlap, constructor selected-row indicator (all present).
      NOTE: first pick from a re-filtered pool - content-safety/classifier models
      were excluded; they answer safety questions, not design ones.
+
+11. google/gemini-3.1-flash-lite-preview -> 2 REAL, both critiques of MY work:
+     - beacon read as "oversized disconnected cyan arrow floating above the car",
+       "jarring ... makes the objective feel like a UI overlay" (FIXED: smaller, sits
+       low and close to the gate so it reads as a sign AT the building)
+     - preview "lacks orientation markers on the actual chassis"; on a PRISTINE
+       build no armour marks were drawn at all, so nothing showed where
+       "Armor: Front" lives (FIXED: dashed ZONE outline always drawn, fill only
+       where points were bought)
+     This is the first reviewer in two rounds to score above zero, and both finds
+     were regressions or mis-sjudgements of my own earlier iterations.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

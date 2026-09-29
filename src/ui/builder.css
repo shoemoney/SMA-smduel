@@ -497,3 +497,20 @@
   stroke: rgba(143, 208, 255, 0.45);
   stroke-width: 1.5;
 }
+
+/* An armour ZONE with nothing bought into it.
+ *
+ * A review of the real frame said the preview "lacks ... orientation markers on
+ * the actual chassis" and that armour placement felt "abstract and
+ * disconnected from the physical car" — true on a pristine build, where the
+ * earlier version drew no armour marks at all, so nothing showed where
+ * "Armor: Front" lives on the vehicle.
+ *
+ * The outline says WHERE without claiming anything is fitted there, and it uses
+ * a dashed edge so it is never mistaken for a filled band. */
+.sm-builder__preview-zone {
+  fill: rgba(159, 232, 221, 0.05);
+  stroke: rgba(159, 232, 221, 0.4);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}

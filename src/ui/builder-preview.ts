@@ -184,16 +184,23 @@ export function buildVehiclePreview(doc: Document, state: BuilderState): HTMLEle
   bonnet.dataset.role = 'bonnet';
   root.appendChild(bonnet);
 
-  // --- armour bands ---------------------------------------------------------
-  // One band per facing, THICKNESS proportional to the points on that facing,
-  // so a player can see at a glance which end of the car they have been
-  // neglecting. Capped so a 99-point facing cannot swallow the whole silhouette.
+  // --- armour zones ---------------------------------------------------------
+  // A faint OUTLINE is drawn for every facing, always, including the ones with
+  // zero points; the FILL appears only where points were actually bought.
+  //
+  // A review of the real frame said the preview "lacks depth, volume, or
+  // orientation markers on the actual chassis" and that "armor and weapon
+  // placement feel abstract and disconnected from the physical car". Correct on
+  // a PRISTINE build: with nothing bought, the earlier version drew no armour
+  // marks AT ALL, so the panel gave a player no idea where "Armor: Front"
+  // lives on the car. The empty outline is the answer — it shows the zone
+  // without claiming anything is fitted there.
   const maxPoints = Math.max(1, ...FACINGS.map((f) => state.armor[f]));
   const bandMax = Math.min(halfW * 0.55, 26);
   for (const facing of FACINGS) {
     const points = state.armor[facing];
-    if (points <= 0) continue;
-    const t = (points / maxPoints) * bandMax;
+    // A zero-point facing still gets a zone outline, drawn at a fixed thin band.
+    const t = points > 0 ? (points / maxPoints) * bandMax : Math.max(5, bandMax * 0.16);
     const isUnder = facing === 'UNDERBODY';
     let rect: SVGElementTagNameMap['rect'];
     if (facing === 'FRONT' || facing === 'REAR') {
@@ -205,6 +212,7 @@ export function buildVehiclePreview(doc: Document, state: BuilderState): HTMLEle
     }
     rect.dataset.facing = facing;
     rect.dataset.points = String(points);
+    if (points <= 0) rect.setAttribute('class', 'sm-builder__preview-zone');
     // Underbody armour is invisible from above, so it is drawn as a dashed
     // centre stripe instead of pretending to be a side band.
     if (isUnder) {
