@@ -555,12 +555,31 @@
 }
 
 /* Underbody spans the full width: it is the one facing that is not a corner, so
-   giving it a single cell would make the grid read as a 2x3 block. */
+ * giving it a single cell would make the grid read as a 2x3 block.
+ *
+ * The bars were 4px (3px for tyres) when they landed, and that is thin for the
+ * one job they exist to do. Iterations 25 and 29 added them because a number in
+ * a 2-column grid is not readable at a glance under pressure, and a bar's
+ * LENGTH is the pre-attentive read — a 3px bar undercuts the reason it was
+ * added. A review asking to "increase the thickness of the status bars" is
+ * asking for exactly that, and it is the second one: iteration 29 was told the
+ * 4px indicators were "tiny colored dots", which the bars answered, and now the
+ * bars are being called "too delicate to read at a glance".
+ *
+ * Deliberately the only change. The same review claimed the panel is
+ * semi-transparent and the text "bleeds into the ground textures", and that is
+ * false by a wide margin: the glass tokens are 0.78/0.80 alpha over a
+ * `backdrop-filter: blur(6px)`, and #e9eff6 on the composited result measures
+ * 24-55:1 against the brightest plausible arena ground. The blur is the part
+ * that matters here — it removes the high-frequency ground detail that the
+ * iteration-24 status-pill argument was about — so raising the panel's opacity
+ * would spend legibility the panel does not need. Colour and contrast are
+ * untouched; only the bar grows. */
 .hud-armor-bar {
   position: relative;
   flex: 0 0 auto;
   width: 34px;
-  height: 4px;
+  height: 6px;
   border-radius: 999px;
   background: var(--ui-surface-3, rgba(255, 255, 255, 0.09));
   overflow: hidden;
@@ -573,7 +592,7 @@
  * exactly what happened to the iteration-25 test the first time this shipped. */
 .hud-armor-bar--tire {
   width: 30px;
-  height: 3px;
+  height: 5px;
 }
 
 .hud-armor-bar__fill {

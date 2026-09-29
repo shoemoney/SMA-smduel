@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 53
+iteration: 54
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (53 of 82 vision models):
+Reviewers asked (54 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1843,6 +1843,79 @@ TOOLING - the review harness got audited by its own failure this round:
        move the empty space. Recorded as a design observation rather than
        changed — the same category as the preview "make it a picture" asks, and
        the first reviewer to frame the stats block's alignment at all.
+
+54. google/gemini-3-flash-preview -> 1 REAL (half a finding), 1 half-real that is
+     a lie about gameplay, 3 FALSE:
+     - "The armor and tyre status use thin green bars ... the thin green lines
+       are too delicate to read at a glance ... increase the thickness of the
+       status bars." REAL, and the second time this has been asked in this
+       shape. Iteration 29 was told the condition indicators were "tiny colored
+       dots (approx 4px) ... difficult to distinguish" and the bars were the
+       answer; the bars then landed at 4px for armour and 3px for tyres, which
+       undercuts the reason they exist. A bar exists so that LENGTH is the
+       pre-attentive read, and 3px is thin for that job in a combat panel the
+       player is supposed to read in a fraction of a second. Now 6px and 5px.
+       Deliberately the ONLY change in the panel, because the rest of the same
+       finding is false by a wide margin: "semi-transparent dark background ...
+       the text bleeds into the ground textures ... add a solid high-opacity
+       backing plate." The glass tokens are 0.78/0.80 alpha, but the panel also
+       carries `backdrop-filter: blur(6px)`, and that blur is the part that
+       answers this specific complaint — it removes the high-frequency ground
+       detail that the iteration-24 status-pill argument was about. Measured,
+       #e9eff6 on the composited result is 24-55:1 against the brightest
+       plausible arena ground. Raising the opacity would spend legibility the
+       panel does not need, so colour and contrast are untouched and only the
+       bar grows;
+     - "The vehicle lacks a contact shadow or ambient occlusion bake underneath
+       it, making it appear to float above the tiling textures." FOURTH report
+       of this class (iterations 15, 18, 43) and the first one I have been able
+       to settle with a MEASUREMENT rather than a code citation, which is the
+       right way round. Sampled the arena: ground directly beneath the car reads
+       143.2 luma against 153.7-156.8 in the same band either side of it and
+       153.2 further away — a consistent ~8% darkening under the car and
+       nowhere else, which is the analytic contact shadow the shader has carried
+       since iteration 1. Worth noting the two earlier attempts at this check
+       sampled INSIDE the car's own bounding box and read the orange body as
+       "ground", which is the sampling error from iteration 50 in a new costume:
+       the fix there was to confirm what you are measuring before you trust the
+       number, and it applies to a measurement as much as to a crop;
+     - "The building sprites are disproportionately small compared to the
+       vehicle and the vast empty ground ... increase the scale of building
+       clusters by 1.5x." DECLINED, and the first reviewer to name a
+       consequence for this one. `layout.tileSizeM` is assigned
+       `interactionRadiusM` in `generateCityLayout` and `buildingInstances`
+       sizes every facility sprite at exactly that: a building's drawn footprint
+       IS the ground in which the player can interact with it. Scaling the art
+       1.5x would make each building claim 2.25x the area it actually responds
+       to, so the player would drive toward a door that turns out to be out of
+       range. That is the same trade declined in iteration 21 (painting walls
+       that do not exist) and iteration 28 (drawing instruments that can never
+       move): a visual that misreports a real affordance is worse than a plain
+       one. The eleventh-plus report of the city feeling empty, and the first to
+       identify the emptiness as a SIZE problem — which it cannot be, for this
+       reason;
+     - "Add secondary decorative 'rubble' or 'sidewalk' sprites around the base
+       of interactive buildings to ground them." The right instinct and blocked
+       by geometry rather than principle: the facility ring already TILES
+       EDGE-TO-EDGE at `tileSizeM` (documented at `buildingInstances`), so there
+       is no ground between buildings for a sidewalk to occupy — any dressing
+       would overlap a neighbour. Making room means changing the ring spacing,
+       which is a layout change and not a decoration. Recorded, not faked. Note
+       that iteration 53's count-drift test is what makes this tractable at all:
+       dressing would add instances, and before that test the only guard was a
+       runtime bounds check that blanks the whole city screen;
+     - "Dim the '(empty)' text to 30% opacity to highlight active components."
+       ALREADY DIMMED, and this is the tenth report of this class with the
+       requests now running in BOTH directions — iterations 49 and 52 asked for
+       it BRIGHTER, this one asks for it dimmer, and iteration 17 set it to
+       `--ui-ink-dim` + italic specifically so fitted weapons are what the eye
+       lands on. The two asks cannot both be satisfied, and the settled answer
+       is the one that keeps the fitted state loud;
+     - "Reduce the contrast of the ground texture noise and add a subtle
+       vignette or 'speed blur'." The first half is iteration 31 (base value)
+       and iteration 34 (high-frequency-only compression), both measured. The
+       vignette is a post-pass effect and a theme decision rather than a defect,
+       recorded alongside the HUD-restyle theme item with the same status.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

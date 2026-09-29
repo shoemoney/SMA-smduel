@@ -1,0 +1,75 @@
+{
+  "model": "google/gemini-3-flash-preview",
+  "modelLabel": "google/gemini-3-flash-preview",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:52:24.095Z",
+  "usage": {
+    "prompt_tokens": 5843,
+    "completion_tokens": 696,
+    "total_tokens": 6539,
+    "cost": 0.0050095,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0050095,
+      "upstream_inference_prompt_cost": 0.0029215,
+      "upstream_inference_completions_cost": 0.002088
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Ground-to-Sprite Disconnect",
+      "where": "Arena and Road screens, center vehicle placement",
+      "problem": "The vehicle lacks a contact shadow or ambient occlusion bake underneath it, making it appear to float above the tiling textures.",
+      "why": "It destroys the sense of weight and physical presence essential for vehicular combat, making the car feel like a flat UI element rather than a heavy machine.",
+      "fix": "Add a static, blurred dark elliptical shadow sprite underneath the vehicle that rotates with the chassis."
+    },
+    {
+      "title": "Low-Contrast Environmental Tiling",
+      "where": "Arena and Road screens, ground textures",
+      "problem": "The concrete and asphalt textures use a high-frequency, noisy grit pattern that competes with the vehicle's visual detail.",
+      "why": "It creates visual 'vibrations' at speed and makes the vehicle harder to track during fast maneuvers because the background is as busy as the player character.",
+      "fix": "Reduce the contrast of the ground texture noise and add a subtle vignette or 'speed blur' effect at the edges of the screen to focus the eye on the center."
+    },
+    {
+      "title": "Interactive Element Scale",
+      "where": "City screen, building icons and mission markers",
+      "problem": "The building sprites are disproportionately small compared to the vehicle and the vast empty space of the ground texture.",
+      "why": "The world feels empty and clinical rather than like a lived-in city. The 'New York' label doesn't match the visual of a few scattered gray boxes.",
+      "fix": "Increase the scale of building clusters by 1.5x and add secondary decorative 'rubble' or 'sidewalk' sprites around the base of interactive buildings to ground them."
+    },
+    {
+      "title": "Information Density Imbalance",
+      "where": "Vehicle Constructor screen, left-hand list",
+      "problem": "The weapon slot list (1-10) is a vertical wall of text with identical '(empty)' labels and no visual dividers.",
+      "why": "It creates 'wall of text' fatigue. A player scanning for their current loadout has to read line-by-line rather than recognizing shapes or colors.",
+      "fix": "Use a grid of icon boxes for weapons instead of a vertical list, or at least dim the '(empty)' text to 30% opacity to highlight active components."
+    },
+    {
+      "title": "HUD Hierarchy and Separation",
+      "where": "Arena and Road screens, 'Condition' panel (Top-Right)",
+      "problem": "The armor and tire status use thin green bars and small text on a semi-transparent dark background that sits directly over gameplay tiles.",
+      "why": "In the heat of combat, the thin green lines are too delicate to read at a glance. The lack of a solid backing plate makes the text bleed into the ground textures.",
+      "fix": "Increase the thickness of the status bars (FL, FR, etc.) and add a solid, high-opacity dark backing plate to the entire Condition UI block."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Ground-to-Sprite Disconnect\",\n    \"where\": \"Arena and Road screens, center vehicle placement\",\n    \"problem\": \"The vehicle lacks a contact shadow or ambient occlusion bake underneath it, making it appear to float above the tiling textures.\",\n    \"why\": \"It destroys the sense of weight and physical presence essential for vehicular combat, making the car feel like a flat UI element rather than a heavy machine.\",\n    \"fix\": \"Add a static, blurred dark elliptical shadow sprite underneath the vehicle that rotates with the chassis.\"\n  },\n  {\n    \"title\": \"Low-Contrast Environmental Tiling\",\n    \"where\": \"Arena and Road screens, ground textures\",\n    \"problem\": \"The concrete and asphalt textures use a high-frequency, noisy grit pattern that competes with the vehicle's visual detail.\",\n    \"why\": \"It creates visual 'vibrations' at speed and makes the vehicle harder to track during fast maneuvers because the background is as busy as the player character.\",\n    \"fix\": \"Reduce the contrast of the ground texture noise and add a subtle vignette or 'speed blur' effect at the edges of the screen to focus the eye on the center.\"\n  },\n  {\n    \"title\": \"Interactive Element Scale\",\n    \"where\": \"City screen, building icons and mission markers\",\n    \"problem\": \"The building sprites are disproportionately small compared to the vehicle and the vast empty space of the ground texture.\",\n    \"why\": \"The world feels empty and clinical rather than like a lived-in city. The 'New York' label doesn't match the visual of a few scattered gray boxes.\",\n    \"fix\": \"Increase the scale of building clusters by 1.5x and add secondary decorative 'rubble' or 'sidewalk' sprites around the base of interactive buildings to ground them.\"\n  },\n  {\n    \"title\": \"Information Density Imbalance\",\n    \"where\": \"Vehicle Constructor screen, left-hand list\",\n    \"problem\": \"The weapon slot list (1-10) is a vertical wall of text with identical '(empty)' labels and no visual dividers.\",\n    \"why\": \"It creates 'wall of text' fatigue. A player scanning for their current loadout has to read line-by-line rather than recognizing shapes or colors.\",\n    \"fix\": \"Use a grid of icon boxes for weapons instead of a vertical list, or at least dim the '(empty)' text to 30% opacity to highlight active components.\"\n  },\n  {\n    \"title\": \"HUD Hierarchy and Separation\",\n    \"where\": \"Arena and Road screens, 'Condition' panel (Top-Right)\",\n    \"problem\": \"The armor and tire status use thin green bars and small text on a semi-transparent dark background that sits directly over gameplay tiles.\",\n    \"why\": \"In the heat of combat, the thin green lines are too delicate to read at a glance. The lack of a solid backing plate makes the text bleed into the ground textures.\",\n    \"fix\": \"Increase the thickness of the status bars (FL, FR, etc.) and add a solid, high-opacity dark backing plate to the entire Condition UI block.\"\n  }\n]"
+}
