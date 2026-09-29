@@ -97,6 +97,10 @@
   min-width: 0;
   padding: var(--ui-space-5);
   background: var(--ui-surface);
+  /* The right pane stacks stats + schematic + legality, and on a short
+     viewport that can exceed the available height. It scrolls rather than
+     clipping, so the legality verdict is always reachable. */
+  overflow-y: auto;
 }
 
 .sm-builder__pane--right {
@@ -393,7 +397,16 @@
    * schematic is now the visual centre of this pane, so it is allowed to grow
    * into the space; the cap still exists so a long body cannot push the
    * legality panel off-screen on a short viewport. */
-  max-height: min(62vh, 560px);
+  /* Capped so the LEGALITY verdict below always fits on screen.
+   *
+   * Growing this to 62vh in iteration 2 (a review had called the schematic
+   * "a tiny car outline" in "a large amount of unused space") pushed the
+   * legality panel clean off the bottom of the frame — the next review found
+   * "the 'LEGALITY' section header is literally cut off by the screen edge
+   * with none of its content visible". The primary action's verdict being
+   * unreachable is a far worse outcome than a slightly smaller car, so the
+   * cap is set to leave room for it. */
+  max-height: min(34vh, 300px);
   overflow: visible;
 }
 

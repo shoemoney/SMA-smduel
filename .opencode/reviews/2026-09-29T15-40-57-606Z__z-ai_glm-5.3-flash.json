@@ -1,0 +1,74 @@
+{
+  "model": "z-ai/glm-5.3-flash",
+  "modelLabel": "z-ai/glm-5.3-flash",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T15:40:57.607Z",
+  "usage": {
+    "prompt_tokens": 7048,
+    "completion_tokens": 6989,
+    "total_tokens": 14037,
+    "cost": 0.0045517,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0045517,
+      "upstream_inference_prompt_cost": 0.0010572,
+      "upstream_inference_completions_cost": 0.0034945
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5611,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Ground noise reads as texture corruption",
+      "where": "Road (entire frame) and arena floor — the large pixelated brown/gray blotch clusters across the whole ground plane",
+      "problem": "The terrain is covered in low-frequency, blocky noise patches (8–16px chunks) that look like compression artifacts or a broken noise shader, not authored detail. On the road they sit on and around the asphalt; in the arena they form random dark smears on the concrete. There is no other texture detail at a consistent scale to anchor them.",
+      "why": "It is the first thing a player sees in two of the five screens, and it reads as 'the renderer is broken'. At driving speed these blotches will strobe past and visually swamp the road markings, hurting lane readability; in the arena they make the stage look like an untextured test map.",
+      "fix": "Replace the blotch layer with fine-grain tiling noise at 1–2px scale and keep luminance variance under ~5%; add authored decals instead at readable scale — tire tracks, oil stains, cracks along the road shoulder, a gravel shoulder strip. In the arena, use a poured-concrete tile pattern with visible expansion joints so the play space reads as deliberate."
+    },
+    {
+      "title": "City is a washed-out, structureless void",
+      "where": "City screen — the entire frame, especially the empty lower two-thirds and the dimmed buildings/markers",
+      "problem": "A uniform dark blue-gray wash flattens the whole scene even though the header says 'daytime'. Inside the big ring wall, buildings are a handful of tiny stamps with no streets, sidewalks or ground detail connecting them; ~85% of the frame is bare cracked ground. The yellow door markers and barrier props are a few pixels each.",
+      "why": "The dim kills the little contrast the buildings and markers have, so nothing communicates 'interactive'; without a street network the player has no wayfinding structure and the frame reads as an unfinished blockout. The funereal light also contradicts the stated daytime, breaking atmosphere.",
+      "fix": "Lift exposure about 1.5–2 stops and apply a warm daylight grade; scale building footprints up 2–3× with soft drop shadows so they sit on the ground instead of floating on it; add an asphalt street/sidewalk network under the buildings; replace the door markers with icon+label plates at readable size, and give the ring wall a solid barrier treatment so its purpose is obvious."
+    },
+    {
+      "title": "Menu card parks over the hero shot",
+      "where": "Title screen — the dark menu box in the exact center, overlapping the fronts of both feature vehicles",
+      "problem": "The small dialog sits directly on top of the most interesting art on the screen, cropping both tank-like vehicles mid-hull. Inside, it holds only two items plus a debug-style status line ('$0 | 2030-01-01 (DAY) — smduel') and a wide band of empty dead space at the bottom.",
+      "why": "Composition fights itself: the artwork says 'epic convoy at dusk', the layout says 'form dialog'. The $0/date line reads like a debug HUD left on screen, and a near-empty two-item box makes the title screen feel stubbed rather than designed.",
+      "fix": "Move the menu to the lower-left as a compact vertical list (New Driver / Controls / Garage / Credits), size the card to its content, and delete the $0+date line from the title (it belongs in the in-game HUD). Leave both vehicles untouched flanking the wordmark, and add a subtle warm rim-light to the SMDUEL type so it sits in the amber scene instead of floating as a detached teal slab."
+    },
+    {
+      "title": "Constructor: filler rows bury the build action",
+      "where": "Constructor — left column (Weapons 1–10 rows and the CONFIRM row) and the bottom-right edge where 'LEGALITY' is clipped",
+      "problem": "Ten consecutive 'Weapon n — (empty)' rows dominate the left list, pushing the CONFIRM/Build row down as a low-key text line. At the bottom-right, the 'LEGALITY' section header is literally cut off by the screen edge with none of its content visible. The right-hand schematic is an empty shell with no part zones.",
+      "why": "The two most important pieces of information on the screen — the primary action and the legality verdict — are either buried in placeholder text or off-screen, so the layout looks like it ran out of room rather than being designed. The player also can't connect form rows to anything visual on the car diagram.",
+      "fix": "Collapse the weapons list to a 'Weapons: 0/10 mounted' summary with an '+ add weapon' action that expands only filled slots; reflow the right column with bottom padding so LEGALITY and its verdict render fully; render CONFIRM/'Build this vehicle' as a full-width primary button; as parts are added, draw them into labeled zones on the schematic and highlight the matching zone on form-row hover."
+    },
+    {
+      "title": "Armor 0/0 shown with healthy green dots",
+      "where": "Arena and road — right-hand CONDITION panel: the five ARMOUR rows and the red 'Body armor: ×0/3' line",
+      "problem": "All five armor rows display '0/0' with the same green dot used for genuinely full parts (tyres 4/4, plant 5/5), so 'no armor installed' and 'armor undamaged' are visually identical. Below the panel, an unexplained red line 'Body armor: ×0/3' floats with no label or context.",
+      "why": "This panel is the player's damage instrument. Green-on-zero trains them to ignore it, and the orphan red line reads like an error state — so when real damage starts flashing during combat, it won't register against a panel that already shows confusing zeros.",
+      "fix": "Render uninstalled parts as a neutral gray '—' (or 'n/a') instead of 0/0 with a green dot; reserve green dots for intact installed parts only; convert the red line into a labeled row ('Body armor plates: 0/3') in a neutral color that shifts amber then red as it depletes; on any hit, flash the corresponding armor row red for ~300ms so the panel doubles as damage feedback."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Ground noise reads as texture corruption\",\n    \"where\": \"Road (entire frame) and arena floor — the large pixelated brown/gray blotch clusters across the whole ground plane\",\n    \"problem\": \"The terrain is covered in low-frequency, blocky noise patches (8–16px chunks) that look like compression artifacts or a broken noise shader, not authored detail. On the road they sit on and around the asphalt; in the arena they form random dark smears on the concrete. There is no other texture detail at a consistent scale to anchor them.\",\n    \"why\": \"It is the first thing a player sees in two of the five screens, and it reads as 'the renderer is broken'. At driving speed these blotches will strobe past and visually swamp the road markings, hurting lane readability; in the arena they make the stage look like an untextured test map.\",\n    \"fix\": \"Replace the blotch layer with fine-grain tiling noise at 1–2px scale and keep luminance variance under ~5%; add authored decals instead at readable scale — tire tracks, oil stains, cracks along the road shoulder, a gravel shoulder strip. In the arena, use a poured-concrete tile pattern with visible expansion joints so the play space reads as deliberate.\"\n  },\n  {\n    \"title\": \"City is a washed-out, structureless void\",\n    \"where\": \"City screen — the entire frame, especially the empty lower two-thirds and the dimmed buildings/markers\",\n    \"problem\": \"A uniform dark blue-gray wash flattens the whole scene even though the header says 'daytime'. Inside the big ring wall, buildings are a handful of tiny stamps with no streets, sidewalks or ground detail connecting them; ~85% of the frame is bare cracked ground. The yellow door markers and barrier props are a few pixels each.\",\n    \"why\": \"The dim kills the little contrast the buildings and markers have, so nothing communicates 'interactive'; without a street network the player has no wayfinding structure and the frame reads as an unfinished blockout. The funereal light also contradicts the stated daytime, breaking atmosphere.\",\n    \"fix\": \"Lift exposure about 1.5–2 stops and apply a warm daylight grade; scale building footprints up 2–3× with soft drop shadows so they sit on the ground instead of floating on it; add an asphalt street/sidewalk network under the buildings; replace the door markers with icon+label plates at readable size, and give the ring wall a solid barrier treatment so its purpose is obvious.\"\n  },\n  {\n    \"title\": \"Menu card parks over the hero shot\",\n    \"where\": \"Title screen — the dark menu box in the exact center, overlapping the fronts of both feature vehicles\",\n    \"problem\": \"The small dialog sits directly on top of the most interesting art on the screen, cropping both tank-like vehicles mid-hull. Inside, it holds only two items plus a debug-style status line ('$0 | 2030-01-01 (DAY) — smduel') and a wide band of empty dead space at the bottom.\",\n    \"why\": \"Composition fights itself: the artwork says 'epic convoy at dusk', the layout says 'form dialog'. The $0/date line reads like a debug HUD left on screen, and a near-empty two-item box makes the title screen feel stubbed rather than designed.\",\n    \"fix\": \"Move the menu to the lower-left as a compact vertical list (New Driver / Controls / Garage / Credits), size the card to its content, and delete the $0+date line from the title (it belongs in the in-game HUD). Leave both vehicles untouched flanking the wordmark, and add a subtle warm rim-light to the SMDUEL type so it sits in the amber scene instead of floating as a detached teal slab.\"\n  },\n  {\n    \"title\": \"Constructor: filler rows bury the build action\",\n    \"where\": \"Constructor — left column (Weapons 1–10 rows and the CONFIRM row) and the bottom-right edge where 'LEGALITY' is clipped\",\n    \"problem\": \"Ten consecutive 'Weapon n — (empty)' rows dominate the left list, pushing the CONFIRM/Build row down as a low-key text line. At the bottom-right, the 'LEGALITY' section header is literally cut off by the screen edge with none of its content visible. The right-hand schematic is an empty shell with no part zones.\",\n    \"why\": \"The two most important pieces of information on the screen — the primary action and the legality verdict — are either buried in placeholder text or off-screen, so the layout looks like it ran out of room rather than being designed. The player also can't connect form rows to anything visual on the car diagram.\",\n    \"fix\": \"Collapse the weapons list to a 'Weapons: 0/10 mounted' summary with an '+ add weapon' action that expands only filled slots; reflow the right column with bottom padding so LEGALITY and its verdict render fully; render CONFIRM/'Build this vehicle' as a full-width primary button; as parts are added, draw them into labeled zones on the schematic and highlight the matching zone on form-row hover.\"\n  },\n  {\n    \"title\": \"Armor 0/0 shown with healthy green dots\",\n    \"where\": \"Arena and road — right-hand CONDITION panel: the five ARMOUR rows and the red 'Body armor: ×0/3' line\",\n    \"problem\": \"All five armor rows display '0/0' with the same green dot used for genuinely full parts (tyres 4/4, plant 5/5), so 'no armor installed' and 'armor undamaged' are visually identical. Below the panel, an unexplained red line 'Body armor: ×0/3' floats with no label or context.\",\n    \"why\": \"This panel is the player's damage instrument. Green-on-zero trains them to ignore it, and the orphan red line reads like an error state — so when real damage starts flashing during combat, it won't register against a panel that already shows confusing zeros.\",\n    \"fix\": \"Render uninstalled parts as a neutral gray '—' (or 'n/a') instead of 0/0 with a green dot; reserve green dots for intact installed parts only; convert the red line into a labeled row ('Body armor plates: 0/3') in a neutral color that shifts amber then red as it depletes; on any hit, flash the corresponding armor row red for ~300ms so the panel doubles as damage feedback.\"\n  }\n]"
+}

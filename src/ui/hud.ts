@@ -465,12 +465,32 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
     const current = vehicle.armorDP[facing];
     const max = vehicle.design.armor[facing];
     const state = damageState(current, max);
+    // "NOTHING FITTED" is not the same claim as "FULLY HEALTHY", and it must
+    // not LOOK the same.
+    //
+    // `damageState` deliberately returns 'ok' for a zero-max facing — and a
+    // test pins that — because "no armour was bought here" is a build choice,
+    // not battle damage, and rendering it red would be a lie about a car that
+    // has never been hit. The bug was downstream of that decision: the row
+    // then drew a GREEN dot beside "0/0", identical to the green beside a
+    // healthy 4/4 tyre, so a review of the real frame could not tell "no armour
+    // installed" from "armour undamaged". Green-on-zero also trains the player
+    // to ignore the panel, which is the one instrument they will need when
+    // damage does start.
+    //
+    // So the DAMAGE classification is untouched and a separate visual state
+    // carries "nothing fitted": neutral grey, a dash, and no green.
+    const unfitted = max <= 0;
     armorList.appendChild(
       el(
         doc,
         'li',
-        { class: 'hud-armor-facing', 'data-state': state, 'aria-label': t('ui.hud.facingArmor', { facing, current, max }) },
-        `${facing}: ${damageLabel(current, max)}`,
+        {
+          class: 'hud-armor-facing',
+          'data-state': unfitted ? 'unfitted' : state,
+          'aria-label': t('ui.hud.facingArmor', { facing, current, max }),
+        },
+        unfitted ? `${facing}: ${t('ui.hud.notFitted')}` : `${facing}: ${damageLabel(current, max)}`,
       ),
     );
   });

@@ -803,3 +803,28 @@
 @media (max-width: 640px) {
   .sm-road-progress { width: min(320px, 62vw); }
 }
+
+/* A component with nothing fitted to it.
+ *
+ * `damageState` returns 'ok' for a zero-max facing because "no armour was
+ * bought" is a build choice rather than battle damage — a test pins that, and
+ * rendering it red would lie about a car that has never been hit. The
+ * consequence was that the row drew the SAME green dot beside "0/0" as beside
+ * a healthy 4/4, so a vision review of the real frame could not distinguish
+ * "no armour installed" from "armour undamaged" — and green-on-zero trains
+ * the player to ignore the one panel they will need when damage starts.
+ *
+ * This is a separate VISUAL state: neutral, dashed, and explicitly not a
+ * health reading. */
+.hud-root [data-state='unfitted'] {
+  color: var(--ui-ink-dim);
+}
+
+.hud-root [data-state='unfitted']::before,
+.hud-armor-facing[data-state='unfitted'] {
+  opacity: 0.72;
+}
+
+.hud-armor-facing[data-state='unfitted'] {
+  border-left-style: dashed;
+}
