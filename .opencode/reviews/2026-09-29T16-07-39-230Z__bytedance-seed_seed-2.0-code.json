@@ -1,0 +1,74 @@
+{
+  "model": "bytedance-seed/seed-2.0-code",
+  "modelLabel": "bytedance-seed/seed-2.0-code",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T16:07:39.232Z",
+  "usage": {
+    "prompt_tokens": 3268,
+    "completion_tokens": 4390,
+    "total_tokens": 7658,
+    "cost": 0.014804,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.014804,
+      "upstream_inference_prompt_cost": 0.001634,
+      "upstream_inference_completions_cost": 0.01317
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3339,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Unreadable Armour Status UI",
+      "where": "Arena, Road, City screens; right-side CONDITION panel > ARMOUR section",
+      "problem": "All ARMOUR location statuses use low-contrast dark gray \"--\" placeholders on a near-black panel, with no visual hierarchy. Sections within CONDITION (ARMOUR, TYRES, PLANT & DRIVER) have no vertical spacing, making the panel cramped and hard to scan.",
+      "why": "Players cannot quickly assess critical armour status during combat or high-speed travel, and the unreadable text makes the UI look broken/underdeveloped, breaking immersion and removing actionable survival feedback.",
+      "fix": "Replace \"--\" with high-contrast white numeric values (or 0% filled progress bars) for each armour location. Add 8px of vertical padding between ARMOUR, TYRES, and PLANT & DRIVER sections to create clear visual hierarchy."
+    },
+    {
+      "title": "City Screen Lack of Visual Differentiation",
+      "where": "City screen; entire play area (ground, buildings, circular boundary)",
+      "problem": "The entire ground uses a single uniform cracked concrete texture with no variation. Buildings are tiny, low-detail assets with no function-based visual cues (no unique colors/shapes). The circular boundary is a thin, repetitive line that blends into the ground.",
+      "why": "Players cannot quickly orient themselves, identify key locations (garages, quest hubs) at a glance, or distinguish the playable area boundary. This slows navigation and makes the open world feel lifeless/underdeveloped.",
+      "fix": "Add distinct texture/color variations: (1) main roads = dark asphalt with white lane markers, (2) sidewalks = light concrete, (3) parking lots = brown cracked earth. Color-code buildings by function: blue for constructors/garages, yellow for courier pickups, green for shops. Make the circular boundary a 20px thick dark gray wall with a thin yellow inner warning line."
+    },
+    {
+      "title": "Title Screen Tagline & Menu Header Legibility",
+      "where": "Title screen; below the \"SMDUEL\" title (tagline) and top of the central menu panel",
+      "problem": "The tagline (\"One car. Sixteen cities. A highway that wants you dead.\") is extremely small (~10px), low-contrast light gray on dark background, with no spacing from the title. The menu panel's header text (\"$0 | 2030-01-01 (DAY) - smduel\") is also small, low-contrast, and blends into the dark panel.",
+      "why": "Players miss the game's core pitch entirely, and the menu header provides no clear, readable save/context info at a glance, making the title screen feel unpolished and disorganized.",
+      "fix": "Increase tagline font size to 18px, set color to bright off-white (#f0f0f0), and add 10px top margin from the title. Make menu header text 14px white (#ffffff) with a 2px bright cyan underline (matching the \"New Driver\" highlight) for cohesion."
+    },
+    {
+      "title": "Constructor Left Panel Visual Hierarchy & Spacing",
+      "where": "Constructor screen; left-side vehicle parts/stats list",
+      "problem": "The 10 weapon slots (Weapon 1–10) all display \"(empty)\" with identical formatting, no vertical spacing, and no indentation. Body stats (Chassis, Suspension, etc.) use the same font weight/color for labels and values, with no spacing between rows.",
+      "why": "Players cannot quickly scan to select empty weapon slots, and the cramped, uniform formatting makes vehicle customization (a core RPG loop) feel clunky and hard to navigate, slowing down progression.",
+      "fix": "For weapons: add 4px vertical padding between each row, indent \"(empty)\" by 12px, and color \"(empty)\" muted red (#ff6666) to mark unassigned slots. For body stats: make labels (Chassis, etc.) bold white text, values (Light, etc.) regular light gray, with 6px vertical spacing between rows."
+    },
+    {
+      "title": "Non-Functional Radar Panel",
+      "where": "Arena, Road, City screens; bottom-left RADAR panel",
+      "problem": "The radar is a static black disc with a tiny central cyan player dot, a static cyan highlight, no contact markers, no sweep animation, and cramped, low-contrast orientation text at the bottom.",
+      "why": "The radar reads as broken rather than a useful navigation/combat tool, wasting critical screen real estate and removing a key aid for high-speed travel or enemy detection.",
+      "fix": "Add a rotating 2px thick cyan sweep animation (360-degree rotation every 2 seconds). Add 8x8px color-coded contact markers: orange for enemies, green for objectives, yellow for key locations. Increase orientation text to 14px white (#ffffff), move it to the panel top with 4px padding, and add 1px white 90-degree grid lines to the radar disc."
+    }
+  ],
+  "parseError": null,
+  "raw": "[{\"title\":\"Unreadable Armour Status UI\",\"where\":\"Arena, Road, City screens; right-side CONDITION panel > ARMOUR section\",\"problem\":\"All ARMOUR location statuses use low-contrast dark gray \\\"--\\\" placeholders on a near-black panel, with no visual hierarchy. Sections within CONDITION (ARMOUR, TYRES, PLANT & DRIVER) have no vertical spacing, making the panel cramped and hard to scan.\",\"why\":\"Players cannot quickly assess critical armour status during combat or high-speed travel, and the unreadable text makes the UI look broken/underdeveloped, breaking immersion and removing actionable survival feedback.\",\"fix\":\"Replace \\\"--\\\" with high-contrast white numeric values (or 0% filled progress bars) for each armour location. Add 8px of vertical padding between ARMOUR, TYRES, and PLANT & DRIVER sections to create clear visual hierarchy.\"},{\"title\":\"City Screen Lack of Visual Differentiation\",\"where\":\"City screen; entire play area (ground, buildings, circular boundary)\",\"problem\":\"The entire ground uses a single uniform cracked concrete texture with no variation. Buildings are tiny, low-detail assets with no function-based visual cues (no unique colors/shapes). The circular boundary is a thin, repetitive line that blends into the ground.\",\"why\":\"Players cannot quickly orient themselves, identify key locations (garages, quest hubs) at a glance, or distinguish the playable area boundary. This slows navigation and makes the open world feel lifeless/underdeveloped.\",\"fix\":\"Add distinct texture/color variations: (1) main roads = dark asphalt with white lane markers, (2) sidewalks = light concrete, (3) parking lots = brown cracked earth. Color-code buildings by function: blue for constructors/garages, yellow for courier pickups, green for shops. Make the circular boundary a 20px thick dark gray wall with a thin yellow inner warning line.\"},{\"title\":\"Title Screen Tagline & Menu Header Legibility\",\"where\":\"Title screen; below the \\\"SMDUEL\\\" title (tagline) and top of the central menu panel\",\"problem\":\"The tagline (\\\"One car. Sixteen cities. A highway that wants you dead.\\\") is extremely small (~10px), low-contrast light gray on dark background, with no spacing from the title. The menu panel's header text (\\\"$0 | 2030-01-01 (DAY) - smduel\\\") is also small, low-contrast, and blends into the dark panel.\",\"why\":\"Players miss the game's core pitch entirely, and the menu header provides no clear, readable save/context info at a glance, making the title screen feel unpolished and disorganized.\",\"fix\":\"Increase tagline font size to 18px, set color to bright off-white (#f0f0f0), and add 10px top margin from the title. Make menu header text 14px white (#ffffff) with a 2px bright cyan underline (matching the \\\"New Driver\\\" highlight) for cohesion.\"},{\"title\":\"Constructor Left Panel Visual Hierarchy & Spacing\",\"where\":\"Constructor screen; left-side vehicle parts/stats list\",\"problem\":\"The 10 weapon slots (Weapon 1–10) all display \\\"(empty)\\\" with identical formatting, no vertical spacing, and no indentation. Body stats (Chassis, Suspension, etc.) use the same font weight/color for labels and values, with no spacing between rows.\",\"why\":\"Players cannot quickly scan to select empty weapon slots, and the cramped, uniform formatting makes vehicle customization (a core RPG loop) feel clunky and hard to navigate, slowing down progression.\",\"fix\":\"For weapons: add 4px vertical padding between each row, indent \\\"(empty)\\\" by 12px, and color \\\"(empty)\\\" muted red (#ff6666) to mark unassigned slots. For body stats: make labels (Chassis, etc.) bold white text, values (Light, etc.) regular light gray, with 6px vertical spacing between rows.\"},{\"title\":\"Non-Functional Radar Panel\",\"where\":\"Arena, Road, City screens; bottom-left RADAR panel\",\"problem\":\"The radar is a static black disc with a tiny central cyan player dot, a static cyan highlight, no contact markers, no sweep animation, and cramped, low-contrast orientation text at the bottom.\",\"why\":\"The radar reads as broken rather than a useful navigation/combat tool, wasting critical screen real estate and removing a key aid for high-speed travel or enemy detection.\",\"fix\":\"Add a rotating 2px thick cyan sweep animation (360-degree rotation every 2 seconds). Add 8x8px color-coded contact markers: orange for enemies, green for objectives, yellow for key locations. Increase orientation text to 14px white (#ffffff), move it to the panel top with 4px padding, and add 1px white 90-degree grid lines to the radar disc.\"}]"
+}

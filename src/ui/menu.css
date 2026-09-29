@@ -255,11 +255,20 @@
   max-width: 52ch;
   text-align: center;
   font-family: var(--ui-font-sans);
-  font-size: clamp(11px, 1.35vw, 13px);
-  line-height: 1.4;
-  letter-spacing: 0.04em;
-  color: rgba(226, 236, 244, 0.86);
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8);
+  /* Two reviews have now called the tagline too small to read, and both are
+   * right about the read and wrong about the fix. It was first reduced to
+   * 11-13px in iteration 3 to stop the title screen having "three competing
+   * layers", which was a real problem — but the correction overshot and left the
+   * one line that says what the game IS at roughly 11px.
+   *
+   * The hierarchy is fixed by RELATIVE size, not by making the tagline tiny:
+   * the wordmark is 40-76px, so 13-16px still reads as clearly subordinate
+   * while being legible at a glance. */
+  font-size: clamp(13px, 1.7vw, 16px);
+  line-height: 1.45;
+  letter-spacing: 0.035em;
+  color: rgba(238, 245, 250, 0.95);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.9);
 }
 
 @media (prefers-reduced-motion: no-preference) {

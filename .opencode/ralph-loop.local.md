@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 11
+iteration: 12
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (11 of 82 vision models):
+Reviewers asked (12 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -67,6 +67,14 @@ every HUD panel - caught in a screenshot, reverted, redone as weight-only.
        where points were bought)
      This is the first reviewer in two rounds to score above zero, and both finds
      were regressions or mis-sjudgements of my own earlier iterations.
+
+12. bytedance-seed/seed-2.0-code -> 1 REAL: tagline ~10-13px, too small to read at
+     a glance (FIXED: 13-16px, brighter; hierarchy held by RELATIVE size against
+     the 40-76px wordmark, not by making the tagline tiny - iteration 3 had
+     overshot when it shrank the tagline to fix "three competing layers").
+     Checked and FALSE: condition-panel section spacing (ARMOUR/TYRES/PLANT have
+     rules and gaps), constructor row cramping (rows have clear rhythm).
+     Radar sweep: 6th false report.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
