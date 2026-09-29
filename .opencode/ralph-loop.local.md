@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 37
+iteration: 38
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (37 of 82 vision models):
+Reviewers asked (38 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -960,6 +960,41 @@ TOOLING - the review harness got audited by its own failure this round:
      - radar: 24th report on the same element, and the reviewer's own suggested
        fix - a rotating sweep arc, range rings, a heading chevron - describes
        what iteration 2 added.
+
+38. z-ai/glm-4.6v -> ZERO REAL. All five measured; nothing changed. The third
+     zero, and the first whose two substantive claims are about work the loop
+     shipped in the last eight iterations:
+         - "The Name field placeholder is light gray, blending with the dark
+           input background." FALSE. Measured on the real frame: the placeholder
+           peaks at 182.6 against an input background of 34.1 - 7.89:1, which
+           clears WCAG AA and AAA. It is dimmed ON PURPOSE: iteration 30 styled it
+           dimmer than the real text and italic precisely so an untouched build
+           cannot be misread as a car actually called "Name your car". The
+           reviewer's fix - make it a brighter, more saturated colour - would
+           walk that back toward looking like a value;
+         - "The orange 'Not road-legal' text is small and low contrast." FALSE,
+           and measurably: it peaks at 189.0 against a 43.0 strip background,
+           7.54:1, also past AAA. The crop confirms it is the most prominent line
+           in the panel, set in bold amber under two quieter rows - which is the
+           intended hierarchy, since it is the one line that blocks the player
+           from taking the car anywhere;
+         - "'0 mph' is white but low contrast against the dark speedometer."
+           Measured at 10.25:1 in iteration 26, and the reviewer's own fix - pure
+           #FFFFFF with a border - would make it louder still for no gain;
+         - "The unselected 'Controls' option is in a dark bar with low contrast
+           ... use a lighter gray background for unselected menu items." The fix
+           is backwards: it would make UNSELECTED rows more prominent than the
+           selected one, which is the exact defect iteration 32 spent itself
+           fixing when the selection became a fill rather than an outline;
+         - radar: 25th report on the same element, and the requested fix - "a
+           thin white sweep line ... and small white dots for visible contacts" -
+           describes the rings, crosshair, sweep and player marker iteration 2
+           added, which every capture has shown since.
+     NO CODE CHANGED. Three zeros in thirty-eight reviews is the clearest
+     evidence yet that the pool's remaining models have less to add than the
+     first twenty did - the five complaints that used to recur every round have
+     either been fixed or, more often, turned out to be measurements I had
+     already taken and should have kept in front of me.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
