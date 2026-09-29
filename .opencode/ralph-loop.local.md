@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 39
+iteration: 40
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (39 of 82 vision models):
+Reviewers asked (40 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1048,6 +1048,51 @@ TOOLING - the review harness got audited by its own failure this round:
      - "Replace the flat rounded rectangle with a top-down vehicle rendering."
        The same ask as iterations 13, 16, 24, 26 and 37, declined for the settled
        reason: the schematic exists to show armour zones the sprite cannot carry.
+
+40. qwen/qwen3.5-35b-a3b -> ZERO REAL, and the first finding is the most
+     confidently wrong claim in the log:
+     - "Broken Radar Visualization — TITLE SCREEN (top-left) ... the radar is a
+       dark, empty disc with no active scanning animation ... fix: add a
+       rotating, animated cyan sweep line and inject 1-2 faint white 'blips' on
+       the screen edge to simulate active scanning of distant enemies."
+       THERE IS NO RADAR ON THE TITLE SCREEN. The crop shows an "Arcade" button
+       and title art; the radar is a HUD element on the arena and road screens
+       only, and it has been reported missing 25 times. This is the second
+       sighting of the "element does not exist" class and the worst instance,
+       because the proposed fix is not a no-op: it would add a scanning
+       instrument to a MENU, complete with fabricated enemy contacts, purely to
+       satisfy a screenshot reading. That is the same trade this loop has
+       declined five times - a fake instrument that teaches the player to trust
+       a readout reporting nothing - except here it would ship on the first
+       screen the player ever sees, before any gameplay exists to report on. The
+       radar is 26th on the list of "missing" things that are present;
+     - "The player's orange vehicle is surrounded by an active selection box, but
+       there is no visible cursor ... fix: overlay a high-contrast yellow arrow
+       directly above the selected vehicle." That "selection box" is the teal
+       waypoint BEACON from iteration 8, which is already exactly the arrow the
+       review is asking for, in the game's objective colour, sized down in
+       iteration 11 after a reviewer called it oversized. It is not a selection
+       box and the player is not selecting anything;
+     - "The vehicle obscures the lane marker completely." The car is centred on
+       the road by design and the dashes continue ahead of and behind it; this
+       is the standard consequence of a top-down camera on a vehicle that
+       occupies the lane it is driving down;
+     - "All buildings and obstacles look identical in colour and texture ...
+       gates in bright red, buildings in muted blue." TENTH report of that class.
+       Measured building/ground gaps are 17.2 and 18.7, iteration 37 grouped the
+       ten facility kinds into four functional colours with a legend, and
+       "gates in bright red, buildings in muted blue" is the per-building-hue
+       collage fix iteration 16 spent a round removing, restated;
+     - "Key stats and options are rendered in low-contrast text ... fix:
+       undefined." The model returned no fix at all for its own finding. The
+       constructor's primary action carries the accent-bordered treatment from
+       iteration 15 and the onboarding steps carry full ink from iteration 23,
+       and the premise is that a low-contrast PRIMARY ACTION is exactly the
+       defect iteration 15 set out to remove.
+     NO CODE CHANGED. Worth recording alongside this one: the "radar is missing"
+     claim has now been made 26 times, and this is the first time it was made
+     about a screen that does not have one. A finding that recurs 26 times
+     without ever being right about WHERE it is has stopped being evidence.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
