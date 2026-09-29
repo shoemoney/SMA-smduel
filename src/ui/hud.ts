@@ -716,6 +716,30 @@ function buildMessageFeed(doc: HudDocument, messages: readonly HudMessage[]): Hu
 function buildAccessibilityControls(doc: HudDocument, settings: HudSettings, handlers: HudHandlers): HudElement {
   const panel = el(doc, 'section', { class: 'hud-panel hud-panel--a11y', 'aria-label': t('ui.hud.ariaAccessibilityOptions') });
 
+  // ONLY THE ACTIVE REDUCTION IS SHOWN.
+  //
+  // Three reviews have now called these two permanent chips a problem: "crowding
+  // the HUD with debug information" (iteration 52), "train players to scan past
+  // that corner" and "add two dead lines of text to every combat frame" (this
+  // round). The earlier two asked for them REMOVED or moved into a menu, and
+  // both were declined on the same ground: these are one-key reachable BECAUSE
+  // they are on screen, and hiding them behind a menu means a player who needs
+  // reduced shake has to find a menu mid-combat.
+  //
+  // This proposal is the one that survives that objection, because it keeps the
+  // access and drops the noise. A chip reading "off" is not telling the player
+  // anything — it is occupying a corner that otherwise carries radar, telemetry
+  // and the speedometer, on every frame of every run, to report a null. A chip
+  // reading "on" is load-bearing: it is how the player knows a reduction is
+  // active, and how they turn it back off. So each chip is rendered only while
+  // its own setting is on, and the panel hides itself entirely when both are
+  // off — the same `data-empty` mechanism `buildMessageFeed` already uses for
+  // the same reason.
+  //
+  // The trade is real and worth naming: a keyboard player can still turn either
+  // reduction on with the same key, but a player who has never seen the control
+  // has one fewer cue that it exists. That is a smaller loss than two permanent
+  // "off" lines teaching everyone to ignore the corner.
   const flashBtn = el(
     doc,
     'button',
@@ -723,7 +747,6 @@ function buildAccessibilityControls(doc: HudDocument, settings: HudSettings, han
     t('ui.a11y.reducedFlash', { state: settings.reducedFlash ? t('ui.a11y.on') : t('ui.a11y.off') }),
   );
   if (handlers.onToggleReducedFlash) flashBtn.addEventListener('click', handlers.onToggleReducedFlash);
-  panel.appendChild(flashBtn);
 
   const shakeBtn = el(
     doc,
@@ -732,7 +755,10 @@ function buildAccessibilityControls(doc: HudDocument, settings: HudSettings, han
     t('ui.a11y.reducedShake', { state: settings.reducedShake ? t('ui.a11y.on') : t('ui.a11y.off') }),
   );
   if (handlers.onToggleReducedShake) shakeBtn.addEventListener('click', handlers.onToggleReducedShake);
-  panel.appendChild(shakeBtn);
+
+  if (settings.reducedFlash) panel.appendChild(flashBtn);
+  if (settings.reducedShake) panel.appendChild(shakeBtn);
+  if (!settings.reducedFlash && !settings.reducedShake) panel.setAttribute('data-empty', 'true');
 
   return panel;
 }

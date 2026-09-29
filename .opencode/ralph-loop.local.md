@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (71 of 82 vision models):
+Reviewers asked (72 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -3126,6 +3126,92 @@ TOOLING - the review harness got audited by its own failure this round:
        of stale screenshots can surface a real defect, and even a weak review can
        be right once. But the correct response to the REVIEW is still to weight
        it, while the correct response to the FINDING is to go and look.
+
+72. qwen/qwen3.8-max-prime -> 1 REAL, and it is the THIRD report on an element
+     this loop declined twice — but the remedy it offers is a different one, and
+     that is what makes it actionable. 4 FALSE:
+     - "Two grey chips expose raw options state ('off') during play ... visible
+       settings literals read as a debug build and train players to scan past
+       that corner ... they add two dead lines of text to every combat frame,
+       diluting the corners that carry real telemetry." REAL, and the third
+       report on this element (iterations 39 and 52 made the first two), so the
+       perception is corroborated rather than idiosyncratic. Both earlier
+       remedies were "remove them" or "move them into a collapsible menu", and
+       both were declined on one ground: these controls are one-key reachable
+       BECAUSE they are on screen, and burying them means a player who needs
+       reduced shake mid-combat has to go find a menu.
+       This proposal survives that objection, and the distinction is the whole
+       point: "if an in-HUD reminder is required, show a single small icon only
+       while a reduction is active." That keeps the keybinding AND the click
+       target, and drops only the thing nobody needed — a chip reading "off".
+       A chip that reports a null is not information, it is a corner (the
+       bottom-right, already carrying the radar-adjacent stack) spent on every
+       frame of every run to say nothing. A chip reading "on" is load-bearing:
+       it tells the player a reduction is active and lets them switch it off.
+       So each chip now renders ONLY while its own setting is on, and the panel
+       marks itself `data-empty` when both are off — the exact mechanism
+       `buildMessageFeed` already uses, for the same reason, in the same file.
+       THE TRADE IS REAL and worth stating rather than burying: a keyboard
+       player can still toggle either reduction with the same key, but a player
+       who has never seen the control now has one fewer cue that it exists. That
+       is a smaller loss than two permanent "off" lines teaching every player to
+       ignore the corner — but it is a loss, and it is the reason this took three
+       reports rather than one;
+     - A TEST WAS PINNING THE OLD BEHAVIOUR, and that is the more interesting
+       half. `wires the reduced-flash and reduced-shake toggle buttons` asserted
+       `expect(buttons).toHaveLength(2)` against a default snapshot with both
+       settings OFF — so it only passed because the chips were rendered
+       unconditionally. The test's name describes wiring, but what it actually
+       guaranteed was permanent visibility. That is the third time in this log a
+       test written to pin a fix has been the thing standing in the way of the
+       next fix (iterations 29 and 33 were the first two), and it is the mirror
+       of those: those tests caught a fix breaking an invariant; this one was
+       quietly enforcing the bug. Replaced with three tests that assert the new
+       contract in BOTH directions — nothing rendered and `data-empty` when both
+       are off, exactly one chip when one is on, both wired when both are on. The
+       replacement is a strictly better test than the one it replaced, because it
+       now pins the property that actually matters (an "off" chip is never
+       rendered) instead of the incidental one (two nodes exist);
+     - "The route progress bar is a plain black rounded track with a lone white
+       knob ... no progress fill, no origin/destination marks, no distance ticks,
+       and no mileage on the bar itself ... reads as an unstyled debug slider."
+       The "no progress fill" half is the static-frame class for the FOURTH time
+       (iterations 22, 46, 53, 58): the fill is a teal-to-blue gradient scaled by
+       progress, and at `scaleX(0)` on a fresh 150-mile run it is legitimately
+       empty. The rest is a real enhancement rather than a defect — origin and
+       destination ticks, quarter marks, and the mileage riding the fill edge.
+       Iteration 22 declined the duplicate readout for a specific reason ("the
+       number is already on screen, one row up") and that reason still holds, so
+       this is recorded as a design option, not actioned;
+     - "The arena floor is a seamed, unbounded grey void ... no wall, prop or
+       decal appears anywhere in frame." The arena class, twenty-two reports deep,
+       with the same remedy set (boundary, cover, decals) declined in iterations
+       21, 24, 33, 34, 40, 55, 58 and 66 for the recorded reason: the arena has no
+       collision, so a painted wall lies and non-colliding props are things the
+       player drives through. The decal form remains the one that survives the
+       "is this a lie about the simulation?" test, because a decal is placed
+       content and does not repeat;
+     - "City POIs are unlabeled chevrons ... attach a small label plate above
+       each marker that fades in within ~40m or on hover." NEW, and worth
+       separating from the iterations 51/52 hover-tooltip ask, which was
+       INAPPLICABLE because there is no DOM to hover on a canvas. Drawing the
+       label IN the render is possible and is a different thing. It is declined
+       for the same reason the markers cannot be made louder (iterations 33, 47,
+       60): every one of a dozen POIs carrying a text plate is more ink
+       competing with the marker it labels, on the element the loop has
+       established is already the most contested thing on the screen. The legend
+       (iteration 39, enlarged to 12px in 52) is the DOM-side answer and it
+       exists;
+     - "The constructor's left column stops at ~60% of viewport height leaving
+       large black dead regions ... armour and weapon rows separated only by a
+       thin yellow gutter so they read as one undifferentiated 16-row stack."
+       The dead space below the schematic is real and has now been raised by
+       three separate reviews (28, 58, 72) without a remedy this loop can take:
+       the suggested fixes are a sticky-header scroll region and a scaled-up
+       preview, both of which restructure the screen, and the "undifferentiated
+       stack" complaint describes the section rule from iteration 17 and the
+       requirement rails from iteration 48 doing exactly the job they were added
+       to do. Recorded as the most persistent unresolved layout item in the log.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

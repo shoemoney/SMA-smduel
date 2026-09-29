@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3.8-max-prime",
+  "modelLabel": "qwen/qwen3.8-max-prime",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T21:08:34.299Z",
+  "usage": {
+    "prompt_tokens": 5417,
+    "completion_tokens": 11395,
+    "total_tokens": 16812,
+    "cost": 0.158408,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.158408,
+      "upstream_inference_prompt_cost": 0.021668,
+      "upstream_inference_completions_cost": 0.13674
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10176,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Arena floor is a seamed, unbounded grey void",
+      "where": "Arena screen: the entire ground plane around the car; straight tiling seams form a faint grid across the field and no wall, prop or decal appears anywhere in frame",
+      "problem": "The surface is one low-contrast noise texture whose tile seams read as straight vertical/horizontal lines; with no boundary, cover, markings or stains in view, the combat space is an empty grey plane with a single small car in the middle.",
+      "why": "Players read arena extent and their own speed from landmarks and surface detail; the seams make the texture look broken, and the void gives nothing to judge distance, velocity or the fight ring against, so the mode feels like a test scene rather than an arena.",
+      "fix": "Hide the seams with offset/rotated tiles or a crack-and-decal overlay, then dress the ring: a barrier wall or tire-stack boundary at the play edge, 4-6 props (barrels, containers, corner stacks), and painted ground decals (center circle, skid arcs, oil stains) so extent and motion are readable at a glance."
+    },
+    {
+      "title": "City POIs are unlabeled chevrons on a street-less plain",
+      "where": "City screen: inside the gate ring; saturated chevron markers hovering over flat grey box buildings, with the only key being a ~8px four-swatch legend pinned to the bottom-right corner",
+      "problem": "Services are raw colored chevrons (green/blue/orange/red) with no name plates, and all four share one identical shape; buildings sit directly on cracked noise with no streets, curbs or lots connecting them, so the markers float instead of being placed.",
+      "why": "At driving speed the player cannot tell a job board from a garage without cross-referencing a corner legend that is too small to read while steering; without a street network the 'city' reads as placeholder icons on a texture, not a place to navigate.",
+      "fix": "Lay dark asphalt street strips with curb lines connecting the buildings and the gate, and attach a small label plate (color swatch + name, e.g. 'Jobs', 'Garage') above each marker that fades in within ~40m or on hover; promote the legend into the left HUD stack at readable row height."
+    },
+    {
+      "title": "Route progress renders as an unstyled debug slider",
+      "where": "Road screen: top-center, directly beneath the 'En route to Albany · 150mi remaining' chip",
+      "problem": "The journey meter is a plain black rounded track with a lone white knob at the left end: no progress fill, no origin/destination marks, no distance ticks, and no mileage on the bar itself.",
+      "why": "It is the primary courier feedback for long drives; as a bare range-input it communicates fraction-complete and distance-left only through the text chip above, and it is the single most obviously unfinished UI element on the screen.",
+      "fix": "Rebuild it as a route instrument: origin and destination ticks with city abbreviations at each end, an accent-color fill running from origin to a small car glyph, quarter-distance ticks, and the remaining-mi number riding the fill edge; give the track a 1px light inner border so it reads over both shoulder and asphalt."
+    },
+    {
+      "title": "Settings literals shipped as permanent HUD chips",
+      "where": "Arena and Road screens: bottom-right corner, two stacked chips reading 'Reduced flash: off' and 'Reduced shake: off'",
+      "problem": "Two grey chips expose raw options state ('off') during play; they share no panel, icon or accent language with the rest of the HUD and occupy a corner otherwise reserved for gameplay feedback.",
+      "why": "Visible settings literals read as a debug build and train players to scan past that corner; they also add two dead lines of text to every combat frame, diluting the corners that carry real telemetry.",
+      "fix": "Move both options into the pause/settings menu; if an in-HUD reminder is required, show a single small icon (crossed bolt / stabilized glyph) only while a reduction is active, docked into the radar panel's header row with a hover tooltip."
+    },
+    {
+      "title": "Constructor collapses into half-empty voids with flat row hierarchy",
+      "where": "Constructor screen: left column below the key-hint line (roughly y=650 downward) and right column below the LEGALITY panel; also the 16 armour+weapon rows in the left list and the small schematic inside the SUBCOMPACT panel",
+      "problem": "Both columns stop at about 60% of viewport height leaving large black dead regions; armour and weapon rows are separated only by a thin yellow gutter so they read as one undifferentiated 16-row stack; the top-view car schematic fills only a small fraction of its panel.",
+      "why": "This is the player's first authoring screen; the dead space makes the build feel unbuilt, and without group headers or a dominant preview the player cannot see at a glance what costs weight versus what mounts where while editing.",
+      "fix": "Make the left list a full-height scroll region with sticky group headers (IDENT / ARMOUR / MOUNTS) and stronger selected/hover row states; scale the top-view schematic to fill its panel with labeled mount slots and a FRONT tag; pin the key-hint line to a footer bar spanning both columns so the bottom edge reads deliberate."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Arena floor is a seamed, unbounded grey void\",\n    \"where\": \"Arena screen: the entire ground plane around the car; straight tiling seams form a faint grid across the field and no wall, prop or decal appears anywhere in frame\",\n    \"problem\": \"The surface is one low-contrast noise texture whose tile seams read as straight vertical/horizontal lines; with no boundary, cover, markings or stains in view, the combat space is an empty grey plane with a single small car in the middle.\",\n    \"why\": \"Players read arena extent and their own speed from landmarks and surface detail; the seams make the texture look broken, and the void gives nothing to judge distance, velocity or the fight ring against, so the mode feels like a test scene rather than an arena.\",\n    \"fix\": \"Hide the seams with offset/rotated tiles or a crack-and-decal overlay, then dress the ring: a barrier wall or tire-stack boundary at the play edge, 4-6 props (barrels, containers, corner stacks), and painted ground decals (center circle, skid arcs, oil stains) so extent and motion are readable at a glance.\"\n  },\n  {\n    \"title\": \"City POIs are unlabeled chevrons on a street-less plain\",\n    \"where\": \"City screen: inside the gate ring; saturated chevron markers hovering over flat grey box buildings, with the only key being a ~8px four-swatch legend pinned to the bottom-right corner\",\n    \"problem\": \"Services are raw colored chevrons (green/blue/orange/red) with no name plates, and all four share one identical shape; buildings sit directly on cracked noise with no streets, curbs or lots connecting them, so the markers float instead of being placed.\",\n    \"why\": \"At driving speed the player cannot tell a job board from a garage without cross-referencing a corner legend that is too small to read while steering; without a street network the 'city' reads as placeholder icons on a texture, not a place to navigate.\",\n    \"fix\": \"Lay dark asphalt street strips with curb lines connecting the buildings and the gate, and attach a small label plate (color swatch + name, e.g. 'Jobs', 'Garage') above each marker that fades in within ~40m or on hover; promote the legend into the left HUD stack at readable row height.\"\n  },\n  {\n    \"title\": \"Route progress renders as an unstyled debug slider\",\n    \"where\": \"Road screen: top-center, directly beneath the 'En route to Albany · 150mi remaining' chip\",\n    \"problem\": \"The journey meter is a plain black rounded track with a lone white knob at the left end: no progress fill, no origin/destination marks, no distance ticks, and no mileage on the bar itself.\",\n    \"why\": \"It is the primary courier feedback for long drives; as a bare range-input it communicates fraction-complete and distance-left only through the text chip above, and it is the single most obviously unfinished UI element on the screen.\",\n    \"fix\": \"Rebuild it as a route instrument: origin and destination ticks with city abbreviations at each end, an accent-color fill running from origin to a small car glyph, quarter-distance ticks, and the remaining-mi number riding the fill edge; give the track a 1px light inner border so it reads over both shoulder and asphalt.\"\n  },\n  {\n    \"title\": \"Settings literals shipped as permanent HUD chips\",\n    \"where\": \"Arena and Road screens: bottom-right corner, two stacked chips reading 'Reduced flash: off' and 'Reduced shake: off'\",\n    \"problem\": \"Two grey chips expose raw options state ('off') during play; they share no panel, icon or accent language with the rest of the HUD and occupy a corner otherwise reserved for gameplay feedback.\",\n    \"why\": \"Visible settings literals read as a debug build and train players to scan past that corner; they also add two dead lines of text to every combat frame, diluting the corners that carry real telemetry.\",\n    \"fix\": \"Move both options into the pause/settings menu; if an in-HUD reminder is required, show a single small icon (crossed bolt / stabilized glyph) only while a reduction is active, docked into the radar panel's header row with a hover tooltip.\"\n  },\n  {\n    \"title\": \"Constructor collapses into half-empty voids with flat row hierarchy\",\n    \"where\": \"Constructor screen: left column below the key-hint line (roughly y=650 downward) and right column below the LEGALITY panel; also the 16 armour+weapon rows in the left list and the small schematic inside the SUBCOMPACT panel\",\n    \"problem\": \"Both columns stop at about 60% of viewport height leaving large black dead regions; armour and weapon rows are separated only by a thin yellow gutter so they read as one undifferentiated 16-row stack; the top-view car schematic fills only a small fraction of its panel.\",\n    \"why\": \"This is the player's first authoring screen; the dead space makes the build feel unbuilt, and without group headers or a dominant preview the player cannot see at a glance what costs weight versus what mounts where while editing.\",\n    \"fix\": \"Make the left list a full-height scroll region with sticky group headers (IDENT / ARMOUR / MOUNTS) and stronger selected/hover row states; scale the top-view schematic to fill its panel with labeled mount slots and a FRONT tag; pin the key-hint line to a footer bar spanning both columns so the bottom edge reads deliberate.\"\n  }\n]"
+}

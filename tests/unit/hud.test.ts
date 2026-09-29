@@ -607,20 +607,42 @@ describe('settings', () => {
     expect(root.attrs.get('data-reduced-shake')).toBe('true');
   });
 
+  // Only the ACTIVE reduction is rendered (see `buildAccessibilityControls`): a
+  // chip reading "off" reports a null in a corner that carries live telemetry, so
+  // both chips are omitted while both settings are off and the panel marks
+  // itself empty for the stylesheet to hide. Asserted in BOTH directions now,
+  // where the old version asserted only that two buttons exist — which is how a
+  // permanently-visible pair of "off" chips survived three reviews unnoticed.
+  it('hides the accessibility panel entirely when neither reduction is active', () => {
+    const { root } = render(baseSnapshot({ settings: { scale: 1, radarOrientation: 'world', reducedFlash: false, reducedShake: false } }));
+    const panel = byClass(root, 'hud-panel--a11y')[0] as FakeElement;
+    expect(byClass(root, 'hud-a11y-toggle')).toHaveLength(0);
+    expect(panel.attrs.get('data-empty')).toBe('true');
+  });
+
   it('wires the reduced-flash and reduced-shake toggle buttons to their handlers', () => {
     let flash = 0;
     let shake = 0;
     const doc = new FakeDocument();
     const root = new FakeElement('div');
-    renderHud(doc, root, baseSnapshot(), {
+    renderHud(doc, root, baseSnapshot({ settings: { scale: 1, radarOrientation: 'world', reducedFlash: true, reducedShake: true } }), {
       onToggleReducedFlash: () => (flash += 1),
       onToggleReducedShake: () => (shake += 1),
     });
+    const panel = byClass(root, 'hud-panel--a11y')[0] as FakeElement;
+    expect(panel.attrs.get('data-empty')).toBeUndefined();
     const buttons = byClass(root, 'hud-a11y-toggle') as FakeElement[];
     expect(buttons).toHaveLength(2);
     buttons.forEach((b) => b.click());
     expect(flash).toBe(1);
     expect(shake).toBe(1);
+  });
+
+  it('renders only the one chip whose reduction is active', () => {
+    const { root } = render(baseSnapshot({ settings: { scale: 1, radarOrientation: 'world', reducedFlash: true, reducedShake: false } }));
+    const panel = byClass(root, 'hud-panel--a11y')[0] as FakeElement;
+    expect(byClass(root, 'hud-a11y-toggle')).toHaveLength(1);
+    expect(panel.attrs.get('data-empty')).toBeUndefined();
   });
 });
 

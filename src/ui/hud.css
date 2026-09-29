@@ -179,6 +179,17 @@
   width: min(calc(420px * var(--hud-scale)), 62vw);
 }
 
+/* The accessibility panel hides itself when neither reduction is active.
+ *
+ * A chip that reads "off" occupies a corner carrying radar, telemetry and the
+ * speedometer on every frame of every run, in order to report a null. Only the
+ * ACTIVE reduction is rendered — see `buildAccessibilityControls`, where the
+ * same `data-empty` mechanism the message feed already uses does this job. The
+ * keyboard toggles are unaffected either way. */
+[data-empty='true'].hud-panel--a11y {
+  display: none;
+}
+
 .hud-panel--a11y {
   right: var(--inset);
   bottom: var(--inset);
