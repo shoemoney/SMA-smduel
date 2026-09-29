@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3-vl-235b-a22b-instruct",
+  "modelLabel": "qwen/qwen3-vl-235b-a22b-instruct",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T18:59:51.421Z",
+  "usage": {
+    "prompt_tokens": 5392,
+    "completion_tokens": 687,
+    "total_tokens": 6079,
+    "cost": 0.0021164,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0021164,
+      "upstream_inference_prompt_cost": 0.00140192,
+      "upstream_inference_completions_cost": 0.00071448
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Title screen menu lacks visual hierarchy",
+      "where": "Title screen, menu box below tagline",
+      "problem": "The 'New Driver' and 'Controls' options are visually identical: same font, color, size, and no hover/selection highlight. No clear primary action.",
+      "why": "Player doesn’t know what to click first; reduces conversion from idle viewer to active player. Feels like a prototype UI.",
+      "fix": "Make 'New Driver' bright cyan with a subtle glow or border; dim 'Controls' to 70% opacity. Add a pulsing white outline on hover."
+    },
+    {
+      "title": "Radar is unreadable as an instrument",
+      "where": "Arena and Road screens, bottom-left panel",
+      "problem": "The radar is a black disc with faint green concentric rings and a tiny static triangle. No sweep animation, no contacts, no scale, no labels.",
+      "why": "Player can’t use it for spatial awareness or threat detection. Looks broken or decorative rather than functional. Undermines immersion in combat driving.",
+      "fix": "Add a rotating sweep line (green), label cardinal directions (N/E/S/W), show player position as a larger icon, and add blips for nearby entities when they exist."
+    },
+    {
+      "title": "Vehicle health bars lack contrast and urgency",
+      "where": "Arena, Road, City — right-side CONDITION panel",
+      "problem": "All status bars (tyres, plant, driver) use the same green color even at critical levels. Body armor shows red 'x 0/3' but no bar or visual weight.",
+      "why": "Player cannot quickly assess damage state under pressure. Critical systems look no different from full ones. Reduces tactical decision-making speed.",
+      "fix": "Change tyre/driver/plant bars to yellow at 50%, red at 25%. Make Body Armor display a red bar filling left-to-right with '0/3' inside it, not beside it."
+    },
+    {
+      "title": "Road screen lacks directional feedback",
+      "where": "Road screen, top-center HUD",
+      "problem": "The route text says 'En route to Albany — 150mi remaining' but there’s no arrow, minimap, or compass to indicate direction or turn cues.",
+      "why": "Player must guess which way to go; increases cognitive load and frustration during navigation. Feels like driving blindfolded.",
+      "fix": "Add a small compass rose (N/S/E/W) next to the distance counter. Replace text with a dynamic arrow pointing toward destination relative to car orientation."
+    },
+    {
+      "title": "Constructor weapon slots are ambiguous",
+      "where": "Constructor screen, left column under 'Weapon 1' through 'Weapon 10'",
+      "problem": "All weapon slots say '(empty)' in dim grey text with no visual affordance for selection or mounting. No icons, no drag targets, no highlight on hover.",
+      "why": "Player doesn’t know how to equip weapons or if they’re even interactive. Makes vehicle customization feel broken or unfinished.",
+      "fix": "Replace '(empty)' with a plus icon (+) that glows on hover. Add a small weapon category icon (e.g., gun, missile, turret) when selected. Show a tooltip on hover: 'Press Enter to mount weapon'."
+    }
+  ],
+  "parseError": null,
+  "raw": "[{\"title\": \"Title screen menu lacks visual hierarchy\", \"where\": \"Title screen, menu box below tagline\", \"problem\": \"The 'New Driver' and 'Controls' options are visually identical: same font, color, size, and no hover/selection highlight. No clear primary action.\", \"why\": \"Player doesn’t know what to click first; reduces conversion from idle viewer to active player. Feels like a prototype UI.\", \"fix\": \"Make 'New Driver' bright cyan with a subtle glow or border; dim 'Controls' to 70% opacity. Add a pulsing white outline on hover.\"}, {\"title\": \"Radar is unreadable as an instrument\", \"where\": \"Arena and Road screens, bottom-left panel\", \"problem\": \"The radar is a black disc with faint green concentric rings and a tiny static triangle. No sweep animation, no contacts, no scale, no labels.\", \"why\": \"Player can’t use it for spatial awareness or threat detection. Looks broken or decorative rather than functional. Undermines immersion in combat driving.\", \"fix\": \"Add a rotating sweep line (green), label cardinal directions (N/E/S/W), show player position as a larger icon, and add blips for nearby entities when they exist.\"}, {\"title\": \"Vehicle health bars lack contrast and urgency\", \"where\": \"Arena, Road, City — right-side CONDITION panel\", \"problem\": \"All status bars (tyres, plant, driver) use the same green color even at critical levels. Body armor shows red 'x 0/3' but no bar or visual weight.\", \"why\": \"Player cannot quickly assess damage state under pressure. Critical systems look no different from full ones. Reduces tactical decision-making speed.\", \"fix\": \"Change tyre/driver/plant bars to yellow at 50%, red at 25%. Make Body Armor display a red bar filling left-to-right with '0/3' inside it, not beside it.\"}, {\"title\": \"Road screen lacks directional feedback\", \"where\": \"Road screen, top-center HUD\", \"problem\": \"The route text says 'En route to Albany — 150mi remaining' but there’s no arrow, minimap, or compass to indicate direction or turn cues.\", \"why\": \"Player must guess which way to go; increases cognitive load and frustration during navigation. Feels like driving blindfolded.\", \"fix\": \"Add a small compass rose (N/S/E/W) next to the distance counter. Replace text with a dynamic arrow pointing toward destination relative to car orientation.\"}, {\"title\": \"Constructor weapon slots are ambiguous\", \"where\": \"Constructor screen, left column under 'Weapon 1' through 'Weapon 10'\", \"problem\": \"All weapon slots say '(empty)' in dim grey text with no visual affordance for selection or mounting. No icons, no drag targets, no highlight on hover.\", \"why\": \"Player doesn’t know how to equip weapons or if they’re even interactive. Makes vehicle customization feel broken or unfinished.\", \"fix\": \"Replace '(empty)' with a plus icon (+) that glows on hover. Add a small weapon category icon (e.g., gun, missile, turret) when selected. Show a tooltip on hover: 'Press Enter to mount weapon'.\"}]"
+}

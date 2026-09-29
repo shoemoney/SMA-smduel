@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 40
+iteration: 41
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (40 of 82 vision models):
+Reviewers asked (41 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1093,6 +1093,49 @@ TOOLING - the review harness got audited by its own failure this round:
      claim has now been made 26 times, and this is the first time it was made
      about a screen that does not have one. A finding that recurs 26 times
      without ever being right about WHERE it is has stopped being evidence.
+
+41. qwen/qwen3-vl-235b-a22b-instruct -> ZERO REAL. Nothing changed. Two of the
+     five were worth the checking anyway, and one of those is now a standing
+     rule:
+     - "All status bars (tyres, plant, driver) use the same green colour even at
+       critical levels ... critical systems look no different from full ones."
+       FALSE, and this one I checked rather than waved off, because it is the
+       EXACT shape of the iteration-32 bug: a rule that looks present in the
+       stylesheet and silently never applies. So I traced the whole chain rather
+       than reading one line of it:
+         row carries data-state  ->  .hud-root [data-state='critical']
+         ->  var(--ui-critical)  ->  DECLARED at tokens.css:168 (#ff8a3d)
+       and the panel really is a descendant of `.hud-root`
+       (`root.appendChild(buildDamageFacings(...))`, with `root` carrying the
+       class), so the selector matches. Iteration 9 measured those four tokens at
+       10.88 / 10.39 / 8.08 / 6.13:1. The state colouring is wired end to end.
+       What the reviewer is seeing is the PRISTINE case: on a capture every
+       system genuinely IS ok, so every row genuinely IS green. That is correct
+       reporting, and it is the mirror image of the iteration-21 bug — green on a
+       zero — which is precisely why it was worth verifying instead of assuming;
+     - "'New Driver' and 'Controls' are visually identical: same font, colour,
+       size, and no selection highlight. No clear primary action." SIXTH report
+       of this class, and false since iteration 32: the selected row carries a
+       real cyan gradient fill (52% -> 30%) and is the only filled row on the
+       panel. The reviewer describes the state that existed before the
+       `--ui-surface-2` fix, and has now described it six times;
+     - radar: 27th report on the same element;
+     - "The road lacks directional feedback ... add a compass rose." A feature
+       request rather than a defect, and recorded as one. The road is a
+       one-dimensional route with a fixed heading: the car drives forward along
+       the lane and the progress bar reports distance, so "which way" is
+       answered by driving. A compass would add a second, redundant answer;
+     - "Replace '(empty)' with a plus icon ... tooltip: 'Press Enter to mount
+       weapon'." EIGHTH report of this class, and the proposed copy is wrong
+       again: Enter is CONFIRM, not mount — mounting is done by typing a digit,
+       which is what the hint line under the list already says. A tooltip
+       teaching the wrong verb is worse than no tooltip.
+     NO CODE CHANGED. The transferable rule from this round, written down because
+     it nearly went the other way: a claim that a rule "is not applying" is the
+     one claim in this log where reading the stylesheet is NOT enough. Check the
+     selector matches the actual DOM ancestry, then check the token is declared.
+     Iteration 32 proved that a rule can look perfect and render nothing, and
+     "I read the CSS and it looked right" is exactly the check that missed it.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
