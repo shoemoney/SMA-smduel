@@ -434,8 +434,22 @@
      low-opacity against the dark blue background" and said the shape was not
      readable — correct. This is the one element the whole panel exists to show,
      so it gets a heavier stroke, a brighter colour and a soft glow rather than
-     a hairline. */
-  fill: rgba(99, 168, 255, 0.16);
+     a hairline.
+   *
+   * The FILL is also darker than it was, deliberately. A later review said the
+   * whole preview "is just a blue rounded rectangle with a dotted line" — and
+   * that claim is factually wrong: at full resolution the wheels, cabin, bonnet,
+   * armour zones and nose marker are all plainly there. But the perception is
+   * the finding. Every part was a similar blue at a similar alpha on a blue
+   * hull, so at a glance — and especially at review-image scale — the interior
+   * detail did not separate from the body and the whole thing read as one slab.
+   *
+   * So the interior parts now contrast against a DARKER hull rather than adding
+   * more parts. The lesson is the one the whole loop keeps re-learning: when a
+   * reviewer says a thing is absent, check it at full resolution, and when the
+   * check says it is present but the reviewer still could not see it, believe
+   * them about the contrast. */
+  fill: rgba(20, 44, 78, 0.55);
   stroke: #8fd0ff;
   stroke-width: 3;
   filter: drop-shadow(0 0 6px rgba(99, 168, 255, 0.45));
@@ -481,21 +495,21 @@
    rounded cyan rectangle outline ... it does not resemble a car", which is
    exactly what a build with zero armour and zero weapons looks like. */
 .sm-builder__preview-wheel {
-  fill: #0b1118;
-  stroke: rgba(159, 232, 221, 0.55);
-  stroke-width: 1.5;
+  fill: #05080c;
+  stroke: #5fe3d2;
+  stroke-width: 2;
 }
 
 .sm-builder__preview-cabin {
-  fill: rgba(159, 232, 221, 0.14);
-  stroke: rgba(159, 232, 221, 0.5);
-  stroke-width: 1.5;
+  fill: rgba(159, 232, 221, 0.30);
+  stroke: #7fe8dc;
+  stroke-width: 2;
 }
 
 .sm-builder__preview-bonnet {
-  fill: rgba(143, 208, 255, 0.12);
-  stroke: rgba(143, 208, 255, 0.45);
-  stroke-width: 1.5;
+  fill: rgba(143, 208, 255, 0.26);
+  stroke: #9ad4ff;
+  stroke-width: 2;
 }
 
 /* An armour ZONE with nothing bought into it.

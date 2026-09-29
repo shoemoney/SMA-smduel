@@ -455,8 +455,20 @@
 
 .hud-accel-tier,
 .hud-odometer {
-  color: var(--ui-ink-dim);
-  font-size: var(--txs);
+  /* A review said the speedometer's secondary readouts are "tiny, grey, and
+   * have low contrast against the dark panel background" and that a player has
+   * to "squint or focus hard to understand their status". Fair: the speed
+   * number is the display type and these were set two steps below it AND in the
+   * dimmest ink, so they lost twice.
+   *
+   * They keep their subordinate position — one step under the speed figure, not
+   * competing with it — but they gain a step of size and come off the dimmest
+   * ink. `--ui-ink-dim` measures 4.61:1 on the panel, which clears AA but is the
+   * quietest text in the HUD; `--ui-ink-muted` is 8.83:1. */
+  color: var(--ui-ink-muted);
+  font-size: var(--tbase);
+  font-weight: var(--ui-weight-medium);
+  letter-spacing: 0.04em;
 }
 
 .hud-accel-tier {

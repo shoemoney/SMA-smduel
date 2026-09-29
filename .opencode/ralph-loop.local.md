@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 12
+iteration: 13
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (12 of 82 vision models):
+Reviewers asked (13 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -75,6 +75,19 @@ every HUD panel - caught in a screenshot, reverted, redone as weight-only.
      Checked and FALSE: condition-panel section spacing (ARMOUR/TYRES/PLANT have
      rules and gaps), constructor row cramping (rows have clear rhythm).
      Radar sweep: 6th false report.
+
+13. qwen/qwen3.6-35b-a3b -> 2 REAL:
+     - speedometer secondary text (TIER/0.0 mi) tiny+dim (FIXED: one step larger,
+       off the dimmest ink 4.61:1 -> 8.83:1, still subordinate to the speed figure)
+     - "preview is just a blue rounded rectangle with a dotted line" -> claim
+       WRONG at full res (wheels/cabin/bonnet/zones/nose all present) but the
+       PERCEPTION was the finding: every part was a similar blue on a similar
+       alpha so nothing separated. FIXED by darkening the hull so the parts
+       contrast, rather than by adding more parts.
+       THIS IS THE LOOP'S KEY LESSON, now twice: when a reviewer says a thing is
+       absent, check at full res; when the check says present and they still
+       could not see it, believe them about CONTRAST.
+     Radar sweep: 7th false report.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
