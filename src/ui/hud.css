@@ -931,3 +931,16 @@
   color: var(--ui-ink-muted);
   font-style: normal;
 }
+
+/* The weapons panel's nothing-fitted state.
+ *
+ * Mirrors `hud-radar-offline`: the panel says what is true instead of rendering
+ * a titled box with no content, which reads as a build that failed to finish
+ * rather than as a car with nothing fitted. Deliberately dim rather than
+ * critical-coloured — the radar's offline state is a FAULT (plant damaged) and
+ * this is not; an unarmed practice car is the normal starting state. */
+.hud-panel--weapons[data-state='empty'] .hud-weapons-empty {
+  margin: var(--gap) 0;
+  color: var(--ui-ink-dim);
+  font-style: italic;
+}

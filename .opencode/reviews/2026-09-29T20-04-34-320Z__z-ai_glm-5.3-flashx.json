@@ -1,0 +1,75 @@
+{
+  "model": "z-ai/glm-5.3-flashx",
+  "modelLabel": "z-ai/glm-5.3-flashx",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T20:04:34.320Z",
+  "usage": {
+    "prompt_tokens": 7066,
+    "completion_tokens": 6154,
+    "total_tokens": 13220,
+    "cost": 0.01030692,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.01030692,
+      "upstream_inference_prompt_cost": 0.00261442,
+      "upstream_inference_completions_cost": 0.0076925
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4986,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Debug seed string leaking into the HUD",
+      "where": "Arena and Road, top-left corner — a panel labelled 'WEAPONS' whose only content is the line 'Seed a11ce5ee'",
+      "problem": "A raw hex seed value is displayed under a mismatched panel title, and the panel never shows anything weapon-related. It sits in prime corner real estate next to the radar and looks like a developer console left open.",
+      "why": "This is the single loudest 'unfinished' signal in any frame. Players will read it as internal debug state, the label/content mismatch erodes trust in the rest of the HUD, and it wastes the top-left slot that should carry the most useful combat info.",
+      "fix": "Remove it from the gameplay HUD entirely: move the seed to the pause screen or a debug overlay as a small mono footer line ('Run seed: a11ce5ee'). Repurpose the top-left panel as a real WEAPONS readout listing mounted weapons with ammo/heat bars, and collapse it to a sliver when the loadout is empty."
+    },
+    {
+      "title": "Placeholder-noise ground with zero lighting",
+      "where": "Road (both shoulders and the median), Arena floor, and City ground — the entire world layer of all gameplay screens",
+      "problem": "Terrain is uniform mid-grey/beige pixel noise at essentially one value. There is no directional light, no cast or contact shadow under the car or buildings, no large-scale value breaks. The road is separated from the dirt only by a slightly darker band and two thin edge lines; the arena is a vast blurry beige blotch field.",
+      "why": "The car, the chevrons and the HUD are the only sharp, high-contrast elements, so the world reads as a greybox. At driving speed the noise vibrates into static and lane edges dissolve; with no contact shadow the car visibly floats over the texture instead of sitting on the road.",
+      "fix": "Give the ground a value plan: drop asphalt 15–20% below shoulders, bake a soft ambient-occlusion/contact shadow under the car and building footprints, break large surfaces with 2–3 large tiling decals (tar seams, tire tracks, dirt drifts, oil stains), and add one directional light so every object casts a single soft shadow — one shadow instantly grounds the whole scene."
+    },
+    {
+      "title": "Monochrome city where only the UI has colour",
+      "where": "City screen — the building cluster inside the ring, the destination chevrons, and the cyan arrow above the player's car",
+      "problem": "Buildings are flat grey boxes at nearly the same value as the cracked grey ground, with no cast shadows or roof detail, so the town reads as blocks scattered on a parking lot. The saturated green/orange/blue/red chevrons are the only salient objects, and the player's own cyan chevron is bigger than the car roof it hovers over, partially occluding the sprite the player most needs to see.",
+      "why": "The hierarchy is inverted: UI screams, world is mute. The eye tracks the pins instead of the city, buildings never separate from the pavement, and the oversized player marker hides the vehicle — exactly backwards for a screen about finding buildings while driving your car.",
+      "fix": "Drop building values below ground with a lit roof edge and one soft cast shadow per mass; give each destination type a coloured doorway or roof trim so targets survive without giant pins; replace the player arrow with a small ring or short chevron at the car's leading edge rather than covering its footprint."
+    },
+    {
+      "title": "Constructor reads as an empty spreadsheet",
+      "where": "Vehicle constructor — the left column's ten '(empty)' weapon rows, the static top-view diagram, and the bare bottom third of the screen",
+      "problem": "Ten identical '(empty)' rows fill a third of the screen with repeated nothing; below CONFIRM and the legality box the layout dissolves into black with roughly the lower 35% of the frame unused. The top-view diagram shows two abstract blue rectangles that give no feedback for the Body, Armor or Weapon rows being edited.",
+      "why": "The core build screen greets new players with a wall of empty slots and dead space — it communicates 'nothing to do here' and buries the fantasy of building a war rig. A preview that ignores your edits makes the stat list feel disconnected from the car you're supposedly shaping.",
+      "fix": "Collapse weapons into a compact 2×5 grid of socket icons; use the freed and empty space for a large annotated garage view where armor facings thicken and weapon hardpoints ghost onto the diagram as you change rows; anchor CONFIRM as a full-width bottom action bar carrying cost and road-legality state."
+    },
+    {
+      "title": "Stacked tutorial banners squat over the play space",
+      "where": "Arena — three stacked boxes at top-center ('Practice arena', the control legend, and the entry toast); Road — the route bar plus a persistent 'WASD / arrows to drive' box",
+      "problem": "Up to three separate dark caption chips with independent borders stack vertically at top-center, and the driving hint never expires — it sits on screen indefinitely even though it's the same text the arena already showed.",
+      "why": "The stack occupies exactly the band where oncoming traffic and arena opponents will enter, so it will obstruct threats mid-fight. A permanent 'WASD/arrows to drive' reads as debug overlay noise, and three floating grey chips cap any sense of place on the highway.",
+      "fix": "Run one system with one line: extend the Road route bar style into a single status strip for location/legs/toasts, demote control legends to a translucent single-line strip that fades after ~2 seconds of movement or the relevant input, and queue toasts into the same strip instead of stacking extra boxes."
+    }
+  ],
+  "parseError": null,
+  "raw": "[{\"title\":\"Debug seed string leaking into the HUD\",\"where\":\"Arena and Road, top-left corner — a panel labelled 'WEAPONS' whose only content is the line 'Seed a11ce5ee'\",\"problem\":\"A raw hex seed value is displayed under a mismatched panel title, and the panel never shows anything weapon-related. It sits in prime corner real estate next to the radar and looks like a developer console left open.\",\"why\":\"This is the single loudest 'unfinished' signal in any frame. Players will read it as internal debug state, the label/content mismatch erodes trust in the rest of the HUD, and it wastes the top-left slot that should carry the most useful combat info.\",\"fix\":\"Remove it from the gameplay HUD entirely: move the seed to the pause screen or a debug overlay as a small mono footer line ('Run seed: a11ce5ee'). Repurpose the top-left panel as a real WEAPONS readout listing mounted weapons with ammo/heat bars, and collapse it to a sliver when the loadout is empty.\"},{\"title\":\"Placeholder-noise ground with zero lighting\",\"where\":\"Road (both shoulders and the median), Arena floor, and City ground — the entire world layer of all gameplay screens\",\"problem\":\"Terrain is uniform mid-grey/beige pixel noise at essentially one value. There is no directional light, no cast or contact shadow under the car or buildings, no large-scale value breaks. The road is separated from the dirt only by a slightly darker band and two thin edge lines; the arena is a vast blurry beige blotch field.\",\"why\":\"The car, the chevrons and the HUD are the only sharp, high-contrast elements, so the world reads as a greybox. At driving speed the noise vibrates into static and lane edges dissolve; with no contact shadow the car visibly floats over the texture instead of sitting on the road.\",\"fix\":\"Give the ground a value plan: drop asphalt 15–20% below shoulders, bake a soft ambient-occlusion/contact shadow under the car and building footprints, break large surfaces with 2–3 large tiling decals (tar seams, tire tracks, dirt drifts, oil stains), and add one directional light so every object casts a single soft shadow — one shadow instantly grounds the whole scene.\"},{\"title\":\"Monochrome city where only the UI has colour\",\"where\":\"City screen — the building cluster inside the ring, the destination chevrons, and the cyan arrow above the player's car\",\"problem\":\"Buildings are flat grey boxes at nearly the same value as the cracked grey ground, with no cast shadows or roof detail, so the town reads as blocks scattered on a parking lot. The saturated green/orange/blue/red chevrons are the only salient objects, and the player's own cyan chevron is bigger than the car roof it hovers over, partially occluding the sprite the player most needs to see.\",\"why\":\"The hierarchy is inverted: UI screams, world is mute. The eye tracks the pins instead of the city, buildings never separate from the pavement, and the oversized player marker hides the vehicle — exactly backwards for a screen about finding buildings while driving your car.\",\"fix\":\"Drop building values below ground with a lit roof edge and one soft cast shadow per mass; give each destination type a coloured doorway or roof trim so targets survive without giant pins; replace the player arrow with a small ring or short chevron at the car's leading edge rather than covering its footprint.\"},{\"title\":\"Constructor reads as an empty spreadsheet\",\"where\":\"Vehicle constructor — the left column's ten '(empty)' weapon rows, the static top-view diagram, and the bare bottom third of the screen\",\"problem\":\"Ten identical '(empty)' rows fill a third of the screen with repeated nothing; below CONFIRM and the legality box the layout dissolves into black with roughly the lower 35% of the frame unused. The top-view diagram shows two abstract blue rectangles that give no feedback for the Body, Armor or Weapon rows being edited.\",\"why\":\"The core build screen greets new players with a wall of empty slots and dead space — it communicates 'nothing to do here' and buries the fantasy of building a war rig. A preview that ignores your edits makes the stat list feel disconnected from the car you're supposedly shaping.\",\"fix\":\"Collapse weapons into a compact 2×5 grid of socket icons; use the freed and empty space for a large annotated garage view where armor facings thicken and weapon hardpoints ghost onto the diagram as you change rows; anchor CONFIRM as a full-width bottom action bar carrying cost and road-legality state.\"},{\"title\":\"Stacked tutorial banners squat over the play space\",\"where\":\"Arena — three stacked boxes at top-center ('Practice arena', the control legend, and the entry toast); Road — the route bar plus a persistent 'WASD / arrows to drive' box\",\"problem\":\"Up to three separate dark caption chips with independent borders stack vertically at top-center, and the driving hint never expires — it sits on screen indefinitely even though it's the same text the arena already showed.\",\"why\":\"The stack occupies exactly the band where oncoming traffic and arena opponents will enter, so it will obstruct threats mid-fight. A permanent 'WASD/arrows to drive' reads as debug overlay noise, and three floating grey chips cap any sense of place on the highway.\",\"fix\":\"Run one system with one line: extend the Road route bar style into a single status strip for location/legs/toasts, demote control legends to a translucent single-line strip that fades after ~2 seconds of movement or the relevant input, and queue toasts into the same strip instead of stacking extra boxes.\"}]"
+}

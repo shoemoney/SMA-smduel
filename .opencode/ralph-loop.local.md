@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 57
+iteration: 58
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (57 of 82 vision models):
+Reviewers asked (58 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2112,6 +2112,93 @@ TOOLING - the review harness got audited by its own failure this round:
      NO CODE CHANGED. Nine zeros in twenty-two reviews, and the two findings in
      this round that WOULD have shipped fixes to already-correct work are the
      clearest sign yet that the useful remaining work is not in the frame.
+
+58. z-ai/glm-5.3-flashx -> 1 REAL and it is the sharpest UI diagnosis in the log,
+     1 FALSE that measurement contradicts, 3 in known classes:
+     - "A panel labelled 'WEAPONS' whose only content is the line 'Seed a11ce5ee'
+       ... the panel never shows anything weapon-related ... it sits in prime
+       corner real estate ... and looks like a developer console left open."
+       TRUE, and the reviewer diagnosed the mechanism rather than the symptom,
+       which is why it is the best of its kind: the complaint is not "debug text"
+       (iteration 50's version of this finding, answered as "the seed is real
+       state" — correct, and it missed the point) but the LABEL/CONTENT MISMATCH.
+       Two real defects, one shared cause:
+         1. `buildWeaponList` appends a `<ul>` and, when nothing is fitted, simply
+            does not fill it. The panel is a fixed corner, so it rendered as a
+            bordered box headed WEAPONS containing nothing at all.
+         2. The seed chip sat at `top: 52px; left: 8px` — directly beneath that
+            panel (iteration 22 put it there because "the arena's corners are all
+            spoken for"), so a bare hex hash appeared to caption a WEAPONS
+            heading.
+       The sibling `buildRadar` has always handled its own nothing-to-show case
+       explicitly (`✕ RADAR OFFLINE — plant damaged`), and iteration 21 reached
+       the same conclusion for the armour panel: a state with nothing in it must
+       be LOUDER than an empty region, or it reads as an area that failed to
+       render. The weapons panel was the one HUD panel that never got the
+       treatment its own neighbour already had. It now renders "— none fitted",
+       dimmed and italic rather than critical-coloured, because the radar's
+       offline state is a FAULT (plant damaged) and an unarmed practice car is
+       not.
+       The seed chip is GONE. The seed is real state — full hash in the console
+       log and the crash banner for bug reports — so it was not deleted; it is
+       announced in the session message feed, which already carries session
+       lines and where `practiceResumed` already included the seed. Removing the
+       chip also removed a fragility that had been latent since iteration 22: its
+       `top` was derived from a panel whose height changes with the loadout, so
+       the moment the panel grew, the chip sat underneath it. That is exactly
+       what happened the first time I captured the new empty state, and it is
+       the second time in two rounds that a capture caught a collision the code
+       review had passed;
+     - "Terrain is uniform mid-grey pixel noise ... no directional light, no cast
+       or contact shadow under the car or buildings." FALSE on the shadows, and
+       this is the FIFTH report of the car-shadow class (15, 18, 43, 54, 58) —
+       measured in iteration 54 at 143.2 luma under the car against 153.7-156.8
+       either side of it in the same band. Buildings have carried analytic
+       contact shadows since iteration 17, tightened to 0.3/0.62 precisely so
+       separation does not ride on the art, and iteration 53 gave the entrance
+       markers their own. The road is "separated only by a slightly darker band
+       and two thin edge lines", which inverts the measurement: asphalt reads
+       81.5 against 101.5 for the verge, a 20-point gap that was 5.4 before
+       iteration 18 rebuilt the road as its own rotated strip. "The arena is a
+       vast blurry beige blotch field" is the arena-floor claim contradicted five
+       times by the same measurement (arena 144 luma against 58 road, 101 city —
+       the BRIGHTEST floor in the game, carrying a world-fixed slab lattice).
+       The remedy — "break large surfaces with 2-3 large tiling decals (tar
+       seams, tire tracks, oil stains)" — is the ART item this log has carried
+       since iteration 6, and the one suggestion here worth keeping: DECALS, not
+       more tiling. A decal is placed content, so it does not repeat;
+     - "The player's own cyan chevron is bigger than the car roof it hovers over,
+       partially occluding the sprite the player most needs to see." FALSE, and
+       measured: the beacon is 17x55px against the car's 186x160px. It sits at
+       the car's leading edge and clips the top ~15% of the roof, which is what
+       makes it read as pointing at the gate (iteration 11 sized it down for
+       exactly the "oversized overlay" complaint this claim restates). The rest
+       of the finding — buildings flat grey, "UI screams, world is mute" — is the
+       collage class, and its own remedy ("drop building values below ground
+       with a lit roof edge") is the per-building-value reversal declined in
+       iterations 16, 23, 24, 25, 27, 29, 34, 36, 37, 39, 40 and 44;
+     - "The constructor's ten '(empty)' rows fill a third of the screen ...
+       the lower 35% of the frame is unused ... a preview that ignores your
+       edits." The dead space below the schematic was first noted in iteration 28
+       and this is the second review to raise it, so it is a real, persistent
+       observation. Its remedies are all refused for reasons already recorded:
+       a 2x5 grid breaks the 0-9 index addressing, and "a large annotated garage
+       view" is the top-down-schematic redesign declined nine times. The
+       right-hand column simply has more vertical room than content;
+     - "The driving hint never expires ... it sits on screen indefinitely."
+       FALSE and checkable in one line: the hint carries
+       `animation: sm-road-hint-fade 7s ease-out forwards` (iteration 18), and
+       `forwards` is load-bearing — without it the fill would snap back, the
+       exact trap the scroll-driven entrance animations hit. The reviewer is
+       seeing a t=0 capture, which is the same static-frame class as iteration
+       22's empty progress bar and iteration 46's "0 mph means broken";
+     - "Three stacked tutorial banners ... the stack occupies the band where
+       opponents will enter." The stacking is real and the fix it asks for —
+       "run one system with one line" — is a layout consolidation worth noting,
+       but the elements are deliberate and separately placed by two screenshot
+       passes (iteration 18 moved the hint clear of the 44..52px progress-bar
+       band; iteration 22 split the run-on and tucked the seed under WEAPONS,
+       which this same round has now removed). Recorded as an observation.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

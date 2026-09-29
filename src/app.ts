@@ -2464,9 +2464,26 @@ function showArena(
   arenaControls.style.cssText =
     'position:absolute;top:34px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.62);padding:3px 9px;border-radius:4px;text-align:center;white-space:nowrap;pointer-events:none;animation:sm-road-hint-fade 7s ease-out forwards;';
   arenaControls.textContent = t(isCoarsePointer() ? 'ui.arena.arenaControlsTouch' : 'ui.arena.arenaControls');
-  const seedTag = el('div');
-  seedTag.style.cssText =
-    'position:absolute;top:52px;left:8px;color:#7f8fa2;font-family:ui-monospace,monospace;font-size:11px;background:rgba(10,14,20,0.62);padding:3px 7px;border-radius:4px;white-space:nowrap;pointer-events:none;';
+  // The seed is announced in the session message feed rather than floating as a
+  // chip, and the chip is gone entirely.
+  //
+  // It used to sit at `top: 52px; left: 8px`, tucked directly beneath the WEAPONS
+  // panel, and a review read that corner — an empty titled panel with a bare hex
+  // hash under it — as "a developer console left open", naming the
+  // label/content mismatch as the defect.
+  //
+  // The seed is real state, not debug output: the full hash is in the console log
+  // and the crash banner for bug reports. What was wrong was never the seed, it
+  // was the presentation, and two things about the chip do not survive being put
+  // in the feed:
+  //   - it sat under a heading it had no relationship to, and
+  //   - its position was derived from a panel whose height changes with the
+  //     loadout, so the moment the weapons panel grew, the chip was underneath
+  //     it. That fragility was latent from iteration 22 and only became visible
+  //     once the panel learned to say "none fitted".
+  // The feed already carries session lines, `practiceResumed` already includes
+  // the seed, and an entry line that names it reads as a deliberate feature
+  // rather than as a variable printed to screen.
   const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
@@ -2477,7 +2494,6 @@ function showArena(
   container.appendChild(hudHost);
   container.appendChild(status);
   container.appendChild(arenaControls);
-  container.appendChild(seedTag);
   container.appendChild(retryBtn);
   container.appendChild(exitBtn);
   clearAndAppend(root, container);
@@ -2507,7 +2523,7 @@ function showArena(
     'info',
     session.restoreWorld !== undefined
       ? t('ui.arena.practiceResumed', { seed: session.sessionSeed })
-      : t('ui.arena.practiceEntered'),
+      : t('ui.arena.practiceEntered', { seed: session.sessionSeed.slice(0, 8) }),
   );
 
   const systems = createSystemsRegistry();
@@ -2598,7 +2614,6 @@ function showArena(
     // crash banner, both of which carry it in full for a bug report. On screen
     // it only needs to be recognisable and short.
     status.textContent = t('ui.arena.practiceHint');
-    seedTag.textContent = t('ui.arena.seedLabel', { seed: session.sessionSeed.slice(0, 8) });
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
 

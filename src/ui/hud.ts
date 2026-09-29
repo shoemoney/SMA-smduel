@@ -334,6 +334,30 @@ function buildWeaponList(doc: HudDocument, vehicle: VehicleState, activeIndex: n
   });
 
   panel.appendChild(list);
+
+  // An EMPTY TITLED BOX READS AS AN UNFINISHED BUILD.
+  //
+  // This panel is a fixed corner of the arena, so with nothing fitted it
+  // rendered as a bordered box headed WEAPONS containing no content whatsoever.
+  // A review read the corner — an empty titled panel with the session's hex seed
+  // chip tucked directly beneath it (iteration 22 put it there because every
+  // other corner was spoken for) — as "a developer console left open", and named
+  // the label/content mismatch as the real defect. That reading is correct about
+  // the PANEL and wrong about the seed, which is real state: the full hash is in
+  // the console log and the crash banner for bug reports.
+  //
+  // The fix belongs here rather than in the seed's placement, because the empty
+  // box is the part that is actually ambiguous. The sibling `buildRadar` has
+  // always handled its own nothing-to-show case explicitly (`hud-radar-offline`),
+  // and iteration 21 reached the same conclusion for the armour panel — a state
+  // with nothing in it should be LOUDER than an empty region, not quieter, so it
+  // cannot read as an area that failed to render. An explicit line says what is
+  // true: this car has no weapons fitted, which on a practice run is normal and
+  // not a fault.
+  if (shown === 0) {
+    panel.setAttribute('data-state', 'empty');
+    panel.appendChild(el(doc, 'p', { class: 'hud-weapons-empty' }, t('ui.hud.weaponsNone')));
+  }
   return panel;
 }
 
