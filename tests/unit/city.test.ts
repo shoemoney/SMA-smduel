@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { citiesConfig, drivingConfig, economy } from '@/data/rulesets';
 import { UnknownRulesetIdError } from '@/data/rulesets';
 import { groundQuad } from '@/render/ground';
+import { facilityMarkerTint } from '@/ui/city-view';
 import { advanceDays, closeOutDay, formatDate, initialClock, type Clock } from '@/sim/calendar';
 import {
   CITY_DIRECTIONS,
@@ -1017,5 +1018,46 @@ describe('groundQuad: strips, rotation, and the missing-extent guard', () => {
     const quad = groundQuad(atlasIndex, { pool: 'road', center: { x: 0, y: 0 }, layer: 0, tileMetres: 34, halfExtentM: 12 });
     expect(quad.sizeM).toEqual({ x: 24, y: 24 });
     expect(quad.rotationRad).toBe(0);
+  });
+});
+
+describe('facility entrance markers are colour-coded by FUNCTION, not by building', () => {
+  it('gives each facility family its own tint, and leaves the buildings in one palette', () => {
+    // The point of this is the distinction it is easy to collapse. Eight reviews
+    // called the city an undifferentiated grey box field and most wanted
+    // per-BUILDING colour - which iteration 16 spent a whole round REMOVING,
+    // because it made the city read as a collage of unrelated source art, and
+    // which iteration 34 was asked to reverse for the fifth time.
+    //
+    // A functional colour is the other thing: the same pixels carrying what the
+    // building IS FOR rather than what it happens to look like. It lives on the
+    // entrance marker, so the building sprites keep the single slate grade.
+    //
+    // And it costs no instances — the city actor buffer is exactly full at
+    // 95/95, which is why iteration 19's marker shadows had to be reverted.
+    const workshop = facilityMarkerTint('garage');
+    const trade = facilityMarkerTint('truckstop');
+    const care = facilityMarkerTint('medical');
+    const combat = facilityMarkerTint('arena');
+
+    const tints = [workshop, trade, care, combat].map((t) => `${t.r},${t.g},${t.b}`);
+    expect(new Set(tints).size).toBe(4);
+
+    // Each one has to read as ITS OWN hue, not merely as "a different number",
+    // so check the dominant channel actually differs.
+    const dominant = (t: { r: number; g: number; b: number }) =>
+      (['r', 'g', 'b'] as const).reduce((a, b) => (t[b] > t[a] ? b : a));
+    expect(dominant(combat)).toBe('r');
+    expect(dominant(workshop)).toBe('r');
+    expect(dominant(care)).toBe('g');
+    expect(dominant(trade)).toBe('b');
+
+    // The four workshop-ish facilities share one tint, and an unknown kind falls
+    // back to trade rather than rendering white.
+    expect(facilityMarkerTint('weaponshop')).toEqual(workshop);
+    expect(facilityMarkerTint('salvage')).toEqual(workshop);
+    expect(facilityMarkerTint('assembly')).toEqual(workshop);
+    expect(facilityMarkerTint('bar')).toEqual(care);
+    expect(facilityMarkerTint('something-new')).toEqual(trade);
   });
 });

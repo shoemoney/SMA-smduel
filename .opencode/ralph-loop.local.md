@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 36
+iteration: 37
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (36 of 82 vision models):
+Reviewers asked (37 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -910,6 +910,56 @@ TOOLING - the review harness got audited by its own failure this round:
      NO CODE CHANGED. The log's standing note is worth repeating here though:
      a symptom that has been "fixed" several times without the disease being
      named is a signal to stop fixing the symptom.
+
+37. minimax/minimax-m3 -> 1 REAL, and it is the eighth report of its class
+     that finally asked for the RIGHT thing:
+     - "Every building is a near-identical flat grey block ... none carry
+       signage, colour, or a clear icon that tells the player what they do
+       (garage, shop, mission board, arena entrance) ... give each building a
+       colour-coded floating icon above it (wrench for garage, dollar sign for
+       shop, exclamation for mission, crossed swords for arena)." The ASK is
+       right and the CLASS has been wrong seven times.
+       Seven earlier reviews wanted per-BUILDING COLOUR, which is the collage
+       problem iteration 16 spent a whole round undoing and which iteration 34
+       was asked to reverse for the fifth time. This one wanted colour that
+       carries FUNCTION. Those are opposite intents wearing the same paint, and
+       the difference is the whole fix: iteration 16 removed hue because it made
+       every building carry an identity for no reason; grouping the ten facility
+       kinds by what they are FOR tells the player something true, and tells it
+       without driving up to each door.
+       The ten facility kinds group into four: arena (combat, red), garage /
+       weaponshop / salvage / assembly (workshop, amber), medical / bar (care,
+       green), and truckstop / federal / courierguild (trade, cyan, also the
+       fallback for an unknown kind so a new facility never renders white).
+       It lands on the entrance MARKER, not the building, so the building
+       sprites keep the single slate grade from iteration 16 and the collage fix
+       is fully intact. It also adds ZERO instances, which matters: the city
+       actor buffer is exactly full at 95/95, and iteration 19's marker shadows
+       had to be reverted for precisely that reason.
+       A test pins the four tints are distinct, that each reads as its OWN hue
+       (dominant channel differs, not merely "a different number"), that the
+       workshop family shares one tint, and that an unknown kind falls back to
+       trade rather than rendering white.
+     - "The title screen shows tanks, not cars." SECOND report of iteration 36's
+       finding, from a different model, which is what makes it a fact rather
+       than an opinion. Still an asset regeneration, still not faked with CSS;
+     - "The constructor preview shows no mounted weapons regardless of which row
+       is selected ... selecting 'Armor: Front' or 'Weapon 1' produces zero
+       visual feedback on the car itself." FALSE about the link, which iteration
+       33 added four reviews ago: a static capture cannot show what happens when
+       a row is selected, and this capture has the NAME row selected, which
+       correctly highlights nothing. The first half - no armour, no weapons
+       drawn - is the PRISTINE case again, and it is the honest rendering of a
+       car with nothing fitted;
+     - "All five armour facings show the same dashed-outline empty box ... no
+       fill, no number." Fifth report of this class, and the specific ask -
+       "print the numeric value inside the box, and keep the empty/dashed look
+       only when armour is genuinely zero" - is a description of what iterations
+       21 and 25 built. A fitted facing has carried a number and a depleting bar
+       for a dozen reviews now;
+     - radar: 24th report on the same element, and the reviewer's own suggested
+       fix - a rotating sweep arc, range rings, a heading chevron - describes
+       what iteration 2 added.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

@@ -467,6 +467,7 @@ function spriteInstance(
   sizeM: Vec2,
   layer: number,
   grade?: { desaturate: number; tone: number },
+  tint: SpriteInstanceInput['tint'] = WHITE_TINT,
 ): SpriteInstanceInput {
   return {
     atlasId: String(frame.atlasIndex),
@@ -474,7 +475,7 @@ function spriteInstance(
     rotationRad,
     sizeM,
     uvRect: frame.uv,
-    tint: WHITE_TINT,
+    tint,
     layer,
     ...(grade === undefined ? {} : { gradeDesaturate: grade.desaturate, gradeTone: grade.tone }),
   };
@@ -766,6 +767,33 @@ function gateInstances(layout: CityLayout, gate: Gate, atlasIndex: AtlasIndex): 
  * (nothing in `@/sim/city` collides against props at all), so it cannot block
  * the walk-up that fires the trigger.
  */
+export function facilityMarkerTint(facilityKind: string): SpriteInstanceInput['tint'] {
+  const TINTS = {
+    /** Somewhere you fight. */
+    combat: { r: 1.2, g: 0.34, b: 0.34, a: 1 },
+    /** Somewhere you build or buy the machine. */
+    workshop: { r: 1.2, g: 0.6, b: 0.14, a: 1 },
+    /** Somewhere that keeps the driver alive. */
+    care: { r: 0.28, g: 1.2, b: 0.52, a: 1 },
+    /** Somewhere the job comes from. */
+    trade: { r: 0.26, g: 0.84, b: 1.25, a: 1 },
+  } as const;
+  switch (facilityKind) {
+    case 'arena':
+      return TINTS.combat;
+    case 'garage':
+    case 'weaponshop':
+    case 'salvage':
+    case 'assembly':
+      return TINTS.workshop;
+    case 'medical':
+    case 'bar':
+      return TINTS.care;
+    default:
+      return TINTS.trade;
+  }
+}
+
 function doormarkerInstances(layout: CityLayout, atlasIndex: AtlasIndex): SpriteInstanceInput[] {
   const frame = atlasIndex.frame(DOORMARKER_FRAME);
   const radiusM = layout.boundsRadiusM - (layout.tileSizeM / 2 + DOORMARKER_SIZE_M.y / 2);
@@ -778,7 +806,31 @@ function doormarkerInstances(layout: CityLayout, atlasIndex: AtlasIndex): Sprite
   // costs nothing; growing a GPU buffer budget to fit a nice-to-have shadow is
   // the wrong trade, so the shadow is what goes.
   for (const doorway of layout.doorways) {
-    out.push(spriteInstance(frame, polar(radiusM, angleOf(doorway.position)), 0, DOORMARKER_SIZE_M, LAYER_BUILDING));
+    // Tinted by what the facility IS FOR, which is the one colour distinction
+    // in this scene that is information rather than decoration.
+    //
+    // Eight reviews have called the city an undifferentiated grey box field, and
+    // most wanted per-BUILDING colour - the collage problem iteration 16 spent a
+    // whole round undoing, and which iteration 34 was asked to reverse for the
+    // fifth time. This is the other thing: a review asked for "a colour-coded
+    // icon above it (wrench for garage, dollar sign for shop, crossed swords for
+    // arena)". The ten facility kinds are grouped by what they are FOR, so a
+    // player can read the plaza - can I fix this car, can I buy a gun, is that a
+    // fight - without driving up to each door. It lands on the entrance MARKER,
+    // so the building sprites themselves stay in one palette, and it adds NO
+    // instances, which matters because the city actor buffer is exactly full at
+    // 95/95 (see `cityInstanceCount`).
+    out.push(
+      spriteInstance(
+        frame,
+        polar(radiusM, angleOf(doorway.position)),
+        0,
+        DOORMARKER_SIZE_M,
+        LAYER_BUILDING,
+        { desaturate: 0, tone: 0 },
+        facilityMarkerTint(doorway.facilityKind),
+      ),
+    );
   }
   return out;
 }
