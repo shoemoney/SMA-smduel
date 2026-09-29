@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 43
+iteration: 44
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (43 of 82 vision models):
+Reviewers asked (44 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1225,6 +1225,53 @@ TOOLING - the review harness got audited by its own failure this round:
        31 and 34 damped the high frequencies without touching the low-frequency
        lattice, and the two-scale blend is what breaks the repeat the reviewer is
        reading as a seam.
+
+44. bytedance-seed/seed-2.0-mini -> ZERO REAL. Nothing changed. Two of the
+     five are claims about work this loop shipped in the last twenty-two
+     iterations, and both measured clean, which is the useful part:
+     - "The white tagline text overlaps with the bright yellow sun glow, making
+       parts of it faded and less readable ... add a dark drop shadow and shift
+       it away from the sun's centre." FALSE, and it is worth measuring rather
+       than asserting because iteration 43 MOVED that lockup. Composited
+       against the brightest background adjacent to the tagline, the text peaks
+       at 240.15 on a 64.7 background — 9.00:1, against the 9.48:1 measured
+       before the move. The scrim is at its darkest at 42% of the frame and
+       the lockup now sits at 38%, so the two are still stacked by design; the
+       move cost 0.5 of a ratio point and bought a title screen that shows the
+       art. The sun glow is off to the side of the text, not under it;
+     - "Two key messages (controls and arena status) are stacked with no
+       spacing, creating dense, hard-to-read text." FALSE, and the frame is the
+       clearest possible rebuttal: three SEPARATE panels, each with its own
+       background, at 8px / 34px / and the message feed below — "Practice
+       arena" as the status pill, the controls as a fading hint, and "Practice
+       arena entered — free run, no opponents." as the feed. That is precisely
+       the layout iteration 22 built, when the single run-on element carrying a
+       mode label, three control hints and a seed hash was split apart. A review
+       describing the pre-iteration-22 layout as a current defect is the
+       six-times-reported "only a thin neon outline" pattern again: describing a
+       fixed state rather than reading the shipped one;
+     - "Add a thin rotating cyan sweep line and placeholder contact blips to the
+       radar to confirm it is active." TWENTY-EIGHTH report on that element, and
+       the fix is the one this loop has declined seven times, for the same
+       reason: a practice arena with no opponents would gain FABRICATED contacts
+       whose only purpose is to make an empty readout look busy. An instrument
+       that invents signals to look functional is worse than a quiet one;
+     - "Divide the progress bar into 10 equal segments." Fifth report of this
+       class. The bar is a continuous fill with a vehicle glyph at its head and
+       the remaining miles in the objective line directly above it. A segmented
+       bar is a legitimate alternative design, and iteration 22 declined the
+       duplicate readout for the same reason this declines it: the number is
+       already on screen, one row up;
+     - "Add a numeric value and a colour-coded micro-bar next to each armour
+       facing." Seventh report of this class, and it describes exactly what
+       iterations 21 and 25 built — a loud dashed chip when nothing is fitted,
+       and a real number plus a real depleting bar when something is. On a
+       pristine capture every facing genuinely IS unfitted, so every chip
+       genuinely IS empty.
+     NO CODE CHANGED. The tagline measurement is the one worth keeping: the
+     composition change cost 0.5 of a contrast point and the art is visible for
+     the first time, which is a trade this loop should make knowingly rather than
+     discover later — and now that it is written down, it is known.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
