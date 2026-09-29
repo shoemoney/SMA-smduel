@@ -3450,6 +3450,79 @@ TOOLING - the review harness got audited by its own failure this round:
        log is where that decision is recorded instead of a fifth review
        re-reporting them.
 
+77. google/gemini-2.5-pro-preview -> ZERO CODE CHANGES, THREE REAL FINDINGS, AND
+     ALL THREE LAND ON ITEMS THIS LOG HAS BEEN DEFERRING. The first call failed
+     with `finishReason: "error"` and a zero-length body, which is NOT the same
+     thing as a model that declined to answer, so it was not logged as asked: the
+     ID was checked against the live OpenRouter catalogue (present, 464 models,
+     `input_modemities` includes image), a 20s backoff was taken, and the retry
+     returned a full review. A parse failure caused by an upstream error must
+     never be allowed to pass as "reviewed, nothing found".
+     This is the strongest review the loop has produced in the last ten rounds,
+     and the shape of it is worth naming: it found nothing in the code and
+     re-derived, independently, all three art items that have been sitting in
+     DEFERRED since iteration 36.
+     - "The title screen uses a high-detail, painterly/photorealistic
+       illustration. The in-game art style is a top-down, low-resolution
+       aesthetic." REAL, and it is the top deferred item arriving with a second
+       independent argument. Iteration 36 recorded that the title art shows
+       TANKS rather than cars; this review says the same asset is also the wrong
+       ART DIRECTION — a painted key-art plate against a top-down sprite game.
+       Two independent routes to the same verdict on one file:
+       `assets/ui-title-art.png` needs regenerating in the game's own style, and
+       it needs to show a car. Still an asset regeneration, still not a CSS
+       change, still must not be faked with a filter;
+     - "The vehicle schematic is a simple, abstract blue outline with two
+       rectangles inside. It provides no visual information about the selected
+       parts or the final appearance of the car." FALSE, and the pristine-capture
+       trap again: the schematic draws armour zones and fitted weapons, with
+       `.sm-builder__preview-zone--selected` and `.sm-builder__preview-weapon--selected`
+       for the part being edited. A build with 0 armour and 0 weapons correctly
+       renders as an outline with empty zone rectangles, which is what the capture
+       is. builder-preview.ts:102 records WHY the schematic exists instead of the
+       real sprite: a sprite cannot carry armour, so the zones are the only place
+       that information can live. The proposed "use the actual in-game vehicle
+       sprite" would delete the feature. The preview class, THIRTEENTH report;
+     - "The icons are colored chevrons ... their meaning is not intuitive from
+       the design alone ... replace the abstract chevrons with simple,
+       recognizable pictograms." REAL, and already agreed: the log defers
+       "redesign city chevrons as worn painted signs". Iteration 37 added the
+       colour legend and the marker-to-key mapping; the missing half is pictogram
+       ART, and this review supplies the right pictogram vocabulary (wrench for
+       garage, cart for market, reticle for arena, briefcase for jobs) with the
+       right rule that colour should mean status, not type. That is a better
+       specification than the one this log was carrying;
+     - "The minus-sign icons for missing armor plates are difficult to
+       distinguish from the empty slots at a glance. All health bars are the
+       same green color ... use a traffic-light color system: green for >75%,
+       yellow for 25-75%, and red for <25%." FALSE, and the refutation is the
+       reviewer's own proposal, already implemented. `damageState()` (hud.ts:178)
+       splits at exactly 0.25 and 0.75 — the proposed bands — into ok/damaged/
+       critical/destroyed, each with its own token (`--ui-ok`, `--ui-damaged`,
+       `--ui-critical`, `--ui-destroyed`, hud.css:707-721) AND its own glyph
+       (`● ▲ ◆ ✕`, hud.ts:171-176). The panel encodes state twice, in hue and in
+       shape, and the review proposed a subset of a four-state system. The dash
+       complaint is the fifth state, documented at hud.ts:496-501: an unfitted
+       facing is neutral grey with a dash and NO green, precisely so "no armour
+       bought" cannot be misread as "armour undamaged". A test pins it;
+     - "The ground is covered in a single, repetitive, noisy texture ... lacks
+       variation, large-scale detail, or handcrafted elements." REAL, and the
+       fourth independent arrival at the ground-decal deferral. The remedy is
+       concrete and correct: oil stains, tyre marks, painted lane markings,
+       unique crack patterns, debris sprites. Worth recording the one part that
+       is NOT art: "on the Road screen, the lack of variation also makes it
+       harder to judge speed" is a gameplay-legibility claim about a moving
+       ground plane, and that is a different problem from tiling variety.
+       It belongs with the deferred fixed-roadside-furniture work, because
+       roadside furniture is the only ground feature that moves past the camera
+       at a known rate and therefore the only thing that can carry speed.
+     NO CODE CHANGED, and this is the correct outcome rather than a disappointing
+     one: three findings are real, none of them is a defect a line of code causes,
+     and the correct response to all three is art work this loop is not equipped
+     to do. What the round DOES establish is that the deferral list is not a
+     backlog of avoidance — three separate reviewers, arriving by different
+     routes, have now independently demanded the same three assets.
+
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
   asset regeneration, not a CSS change, and it must not be faked with a filter.

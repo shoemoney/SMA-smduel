@@ -1,0 +1,39 @@
+{
+  "model": "google/gemini-2.5-pro-preview",
+  "modelLabel": "google/gemini-2.5-pro",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T21:39:48.958Z",
+  "usage": {
+    "prompt_tokens": 1729,
+    "completion_tokens": 524,
+    "total_tokens": 2253,
+    "cost": 0,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00740125,
+      "upstream_inference_prompt_cost": 0.00216125,
+      "upstream_inference_completions_cost": 0.00524
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "error",
+  "findings": null,
+  "parseError": "Error: no JSON array in reply:\n",
+  "raw": ""
+}
