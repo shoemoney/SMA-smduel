@@ -414,8 +414,23 @@
 .sm-builder__legality-prompt ol {
   margin: var(--ui-space-3) 0 0;
   padding-left: 1.4em;
-  color: var(--ui-ink-muted);
-  font-size: var(--ui-text-sm);
+  /* One step up from --ui-text-sm, and NOT --ui-ink-muted.
+   *
+   * A review called the panel "small, unformatted, and blends into the
+   * background". The measured numbers say the panel chrome is already fine —
+   * 15.06:1 for the prompt line and 7.79:1 for the step list on the measured
+   * panel — so "blends in" was not about contrast at all. It was about WEIGHT:
+   * the three steps are the entire onboarding, they are the only instruction
+   * this screen gives before the player has touched anything, and they were set
+   * a size and a colour step BELOW the summary line above them. The thing that
+   * matters most was the quietest thing on the panel.
+   *
+   * So: steps up one size step, and up to full --ui-ink, which still leaves
+   * them clearly subordinate to the bold prompt line above via size and weight.
+   * The panel box, border and background were left exactly as they are.
+   */
+  color: var(--ui-ink);
+  font-size: var(--ui-text-base);
   font-weight: 400;
 }
 

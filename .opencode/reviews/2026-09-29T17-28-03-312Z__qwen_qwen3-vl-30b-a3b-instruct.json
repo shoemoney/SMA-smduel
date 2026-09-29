@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3-vl-30b-a3b-instruct",
+  "modelLabel": "qwen/qwen3-vl-30b-a3b-instruct",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T17:28:03.312Z",
+  "usage": {
+    "prompt_tokens": 5392,
+    "completion_tokens": 735,
+    "total_tokens": 6127,
+    "cost": 0.0012498,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0012498,
+      "upstream_inference_prompt_cost": 0.0008088,
+      "upstream_inference_completions_cost": 0.000441
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Low-contrast UI elements on dark background",
+      "where": "All screens (title, arena, road, city, constructor)",
+      "problem": "UI text and icons (e.g., 'New Driver', 'Controls', 'WEAPONS', 'Radar', 'Condition' panels) use light cyan or white text on dark backgrounds, but lack sufficient contrast and edge definition, making them hard to read at a glance.",
+      "why": "Low contrast reduces readability, especially during fast-paced play or when scanning the screen quickly. It diminishes hierarchy and makes critical information (like status or controls) harder to parse under stress.",
+      "fix": "Increase the contrast of all UI text by adding a thin black stroke or drop shadow to the text, or use a slightly brighter white with a subtle glow to ensure legibility against dark backgrounds."
+    },
+    {
+      "title": "Invisible radar sweep and no contact indicators",
+      "where": "Arena and road screens",
+      "problem": "The radar is a static dark disc with no moving sweep or visible contacts; it appears as a blank circle with no feedback on enemy or object presence.",
+      "why": "A radar without motion or contact indicators reads as broken or inactive, undermining the player’s situational awareness and making the interface feel unresponsive.",
+      "fix": "Add a slow-moving radar sweep line and small glowing dots or icons for detected entities (e.g., enemies, objectives) to provide immediate visual feedback on proximity and direction."
+    },
+    {
+      "title": "Unreadable mission text in the road screen",
+      "where": "Top center of the road screen",
+      "problem": "The mission text 'En route to Albany — 150mi remaining — Day 0, daytime' is white on a dark, textured background with low contrast, making it hard to read quickly.",
+      "why": "Mission info is critical for navigation and context; poor legibility forces players to slow down or strain to read, breaking immersion and flow during travel.",
+      "fix": "Apply a dark outline or drop shadow to the mission text and increase its brightness slightly to improve contrast against the road texture."
+    },
+    {
+      "title": "Inconsistent visual weight in the city map",
+      "where": "City screen",
+      "problem": "The city map uses a uniform grey cracked texture, and all buildings and icons are rendered at the same visual weight, making it impossible to distinguish important locations or objectives.",
+      "why": "Without visual hierarchy, players can't quickly identify key points (e.g., buildings, objectives, gates), reducing navigational efficiency and strategic awareness.",
+      "fix": "Add subtle color highlights (e.g., yellow for objectives, blue for buildings) and increase icon size or use distinct shapes for key structures to differentiate them from the background."
+    },
+    {
+      "title": "Ambiguous legality text in constructor",
+      "where": "Bottom-right of the constructor screen",
+      "problem": "The 'LEGALITY' section contains text that is small, unformatted, and blends into the background, with no clear visual separation from the rest of the interface.",
+      "why": "This text contains critical game rules (e.g., armor, weapon requirements) that players must understand to avoid penalties; poor visibility makes it easy to overlook.",
+      "fix": "Wrap the legality text in a bordered box with a slightly lighter background and increase the font size and contrast to make it stand out as a key rule panel."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Low-contrast UI elements on dark background\",\n    \"where\": \"All screens (title, arena, road, city, constructor)\",\n    \"problem\": \"UI text and icons (e.g., 'New Driver', 'Controls', 'WEAPONS', 'Radar', 'Condition' panels) use light cyan or white text on dark backgrounds, but lack sufficient contrast and edge definition, making them hard to read at a glance.\",\n    \"why\": \"Low contrast reduces readability, especially during fast-paced play or when scanning the screen quickly. It diminishes hierarchy and makes critical information (like status or controls) harder to parse under stress.\",\n    \"fix\": \"Increase the contrast of all UI text by adding a thin black stroke or drop shadow to the text, or use a slightly brighter white with a subtle glow to ensure legibility against dark backgrounds.\"\n  },\n  {\n    \"title\": \"Invisible radar sweep and no contact indicators\",\n    \"where\": \"Arena and road screens\",\n    \"problem\": \"The radar is a static dark disc with no moving sweep or visible contacts; it appears as a blank circle with no feedback on enemy or object presence.\",\n    \"why\": \"A radar without motion or contact indicators reads as broken or inactive, undermining the player’s situational awareness and making the interface feel unresponsive.\",\n    \"fix\": \"Add a slow-moving radar sweep line and small glowing dots or icons for detected entities (e.g., enemies, objectives) to provide immediate visual feedback on proximity and direction.\"\n  },\n  {\n    \"title\": \"Unreadable mission text in the road screen\",\n    \"where\": \"Top center of the road screen\",\n    \"problem\": \"The mission text 'En route to Albany — 150mi remaining — Day 0, daytime' is white on a dark, textured background with low contrast, making it hard to read quickly.\",\n    \"why\": \"Mission info is critical for navigation and context; poor legibility forces players to slow down or strain to read, breaking immersion and flow during travel.\",\n    \"fix\": \"Apply a dark outline or drop shadow to the mission text and increase its brightness slightly to improve contrast against the road texture.\"\n  },\n  {\n    \"title\": \"Inconsistent visual weight in the city map\",\n    \"where\": \"City screen\",\n    \"problem\": \"The city map uses a uniform grey cracked texture, and all buildings and icons are rendered at the same visual weight, making it impossible to distinguish important locations or objectives.\",\n    \"why\": \"Without visual hierarchy, players can't quickly identify key points (e.g., buildings, objectives, gates), reducing navigational efficiency and strategic awareness.\",\n    \"fix\": \"Add subtle color highlights (e.g., yellow for objectives, blue for buildings) and increase icon size or use distinct shapes for key structures to differentiate them from the background.\"\n  },\n  {\n    \"title\": \"Ambiguous legality text in constructor\",\n    \"where\": \"Bottom-right of the constructor screen\",\n    \"problem\": \"The 'LEGALITY' section contains text that is small, unformatted, and blends into the background, with no clear visual separation from the rest of the interface.\",\n    \"why\": \"This text contains critical game rules (e.g., armor, weapon requirements) that players must understand to avoid penalties; poor visibility makes it easy to overlook.\",\n    \"fix\": \"Wrap the legality text in a bordered box with a slightly lighter background and increase the font size and contrast to make it stand out as a key rule panel.\"\n  }\n]"
+}

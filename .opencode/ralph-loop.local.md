@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 22
+iteration: 23
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (22 of 82 vision models):
+Reviewers asked (23 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -349,6 +349,38 @@ TOOLING - the review harness got audited by its own failure this round:
        ambiguous (it has an accent wash plus a 3px edge, and iteration 20
        strengthened the panel around it); the constructor is unstructured (it has
        a section edge, a distinct CONFIRM button, and a loadout group heading).
+
+23. qwen/qwen3-vl-30b-a3b-instruct -> 1 REAL, and 4 that measurement contradicts:
+     - "The LEGALITY section contains text that is small, unformatted, and
+       blends into the background, with no clear visual separation." HALF TRUE,
+       and the half that is wrong is the half the review led with. The panel has
+       a border, a 3px accent left edge, a tinted background and a rule above it
+       - it already has clear separation, and I did not add any. What was true is
+       "small", and it was true in a way the review misdiagnosed: measured, the
+       prompt line is 15.06:1 and the step list 7.79:1 on the panel, so nothing
+       was blending. The problem was WEIGHT - the three steps are the entire
+       onboarding and the only instruction the screen gives before the player
+       touches anything, and they were set a size AND a colour step BELOW the
+       summary line above them. The most important text was the quietest. Steps
+       up one size and to full ink, still subordinate by size and weight. Same
+       lesson as iteration 13: when the check says the contrast is fine and they
+       still could not see it, believe them about WEIGHT.
+     FALSE: "UI text and icons lack sufficient contrast and edge definition"
+       (all screens) - the same misdiagnosis applied globally, on no measurement;
+     - "the mission text is white on a dark textured background with low
+       contrast" - it sits in an opaque pill, and every status colour in the UI
+       was measured in iteration 9 at 6.13:1 or better;
+     - "all buildings and icons are rendered at the same visual weight"
+       (city) - the reviewer's own suggested fix is to "add color highlights ...
+       (yellow for objectives, blue for buildings)", which is the collage
+       problem iteration 16 spent a whole iteration UNDOING. Buildings are
+       deliberately desaturated and tone-pulled to the ground's slate; measured
+       mean saturation across the city is 0.096, which is the fix working.
+       Restoring per-building colour would reverse it.
+     Radar: 15th report on the same element. This model class (a 30B instruct VL)
+       reports it in nearly every review, which is itself worth recording: the
+       radar sweep, rings, crosshair and player marker have all been verified
+       present at full resolution in 15 separate passes.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
