@@ -1,0 +1,75 @@
+{
+  "model": "xiaomi/mimo-v2.6-pro-ultraspeed",
+  "modelLabel": "xiaomi/mimo-v2.6-pro-ultraspeed",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:05:14.608Z",
+  "usage": {
+    "prompt_tokens": 5391,
+    "completion_tokens": 8186,
+    "total_tokens": 13577,
+    "cost": 0.09466905,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.09466905,
+      "upstream_inference_prompt_cost": 0.02345085,
+      "upstream_inference_completions_cost": 0.0712182
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7005,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Armour readout is a stub: '--' values and empty dashed boxes",
+      "where": "Arena and Road, top-right CONDITION panel",
+      "problem": "Every facing row (FRONT/REAR/LEFT/RIGHT/UNDERBODY) shows a literal '--' next to a dotted-outline box with no fill, no number, no tint. The TYRES and PLANT & DRIVER rows below are fully populated with green pips and bars, so the panel is visibly half-built — the top third reads as missing art, not as an instrument.",
+      "why": "This is the primary damage readout in a combat game. A placeholder-looking widget in the most-scrubbed corner makes the whole HUD look unfinished, and in a fight it tells the player nothing about where their armour is gone.",
+      "fix": "Render a real value per facing (points remaining / max) plus a 4-segment bar that recolours green→amber→red, and draw a small top-down car glyph in the panel with the damaged facing highlighted and flashing for 200ms on hit."
+    },
+    {
+      "title": "Vehicle heading and road markings disagree by 90 degrees",
+      "where": "Road, centre frame and the road surface bands",
+      "problem": "The car sprite is drawn nose-up in every gameplay frame, while the highway's white edge lines and the single row of long olive dashes run left-to-right across the screen. The vehicle therefore sits perpendicular to its own lane markings, as if it were crossing the road sideways.",
+      "why": "The single most-read spatial cue — 'which way am I facing relative to the road' — is contradictory. At speed this reads as a rendering bug and destroys the sense of travel direction toward the destination.",
+      "fix": "Rotate the vehicle sprite with its heading (camera stays north-up per the radar label), and generate the route's markings along the route direction so edge lines and dashed centre line run vertically when travelling north; add a subtle wheel-track/polished-lane value gradient along the travel axis."
+    },
+    {
+      "title": "Playfield is a bare tiled plane with visible tile seams",
+      "where": "Arena and Road, the entire playfield; city ground to a lesser degree",
+      "problem": "Hard vertical tile boundaries sit at roughly x=230 and x=1040 in both frames, and the surface is a repeating 8x8 blocky noise mosaic that reads as compression artefacts. There is also no boundary geometry at all: the arena has no walls, props or floor markings, and the road has no shoulders, barriers or roadside detail — just a flat sheet running to the frame edge.",
+      "why": "Seams scroll and look like renderer bugs, and a boundaryless flat sheet gives no sense of enclosure, scale or speed. Both screens look like grey-box test levels rather than an arena and a highway.",
+      "fix": "Make the ground texture seamless and quadruple its tile size, then overlay a second low-frequency detail layer (oil stains, patches, cracks) multiplied over it to kill the repeat. Add hard geometry: painted ring/target markings plus blast walls and tyre stacks around the arena floor, and gravel shoulders with guardrail posts along the road; close the frame with a soft vignette."
+    },
+    {
+      "title": "Objects share the ground's value — no contact shadows or separation",
+      "where": "Arena, Road and City — the player car in the centre, and the city buildings over the pavement",
+      "problem": "The car's orange and the city buildings' mid-grey both sit within a few percent of the grey pavement value, and nothing has a drop shadow, outline or darkened ground patch under it. The buildings especially dissolve into the cracked pavement, and only the floating chevrons tell you they are interactive.",
+      "why": "The player cannot track their own vehicle at speed, and in the city cannot tell a walkable building from empty ground at a glance. Flat-on-flat placement makes the world read as a texture map with sprites pasted on top.",
+      "fix": "Add a hard offset contact shadow to every world object (e.g. 6px down-right at 35% black) plus a soft multiply blob darkening the ground beneath it; push building top planes ~25% lighter and side faces darker, and keep the car sprite 20-30% brighter than any ground value with a 2px dark outline."
+    },
+    {
+      "title": "Menu panel cuts straight through the hero key art",
+      "where": "Title screen, centre of frame",
+      "problem": "The dark menu box is dead-centre and its top edge slices across both hero vehicles' hulls and the crack line in the foreground, occluding the two machines the whole image is built around. The tagline is squeezed into the thin gap between the wordmark and the box, and both wordmark and menu compete for the same centre axis.",
+      "why": "First impression is a composition where the UI blocks the art instead of sitting on it; the tagline is too small to carry the pitch, and the CTA has no clear hierarchy over the logo.",
+      "fix": "Move the menu to the lower-left third, aligned to the left vehicle's front wheel line (or make it a full-width bottom bar), keep the centre of the frame clear so the foreground crack leads up into the wordmark, and set the tagline at roughly 60% of the wordmark cap height with a dark text-shadow so it holds against the sun glow."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Armour readout is a stub: '--' values and empty dashed boxes\",\n    \"where\": \"Arena and Road, top-right CONDITION panel\",\n    \"problem\": \"Every facing row (FRONT/REAR/LEFT/RIGHT/UNDERBODY) shows a literal '--' next to a dotted-outline box with no fill, no number, no tint. The TYRES and PLANT & DRIVER rows below are fully populated with green pips and bars, so the panel is visibly half-built — the top third reads as missing art, not as an instrument.\",\n    \"why\": \"This is the primary damage readout in a combat game. A placeholder-looking widget in the most-scrubbed corner makes the whole HUD look unfinished, and in a fight it tells the player nothing about where their armour is gone.\",\n    \"fix\": \"Render a real value per facing (points remaining / max) plus a 4-segment bar that recolours green→amber→red, and draw a small top-down car glyph in the panel with the damaged facing highlighted and flashing for 200ms on hit.\"\n  },\n  {\n    \"title\": \"Vehicle heading and road markings disagree by 90 degrees\",\n    \"where\": \"Road, centre frame and the road surface bands\",\n    \"problem\": \"The car sprite is drawn nose-up in every gameplay frame, while the highway's white edge lines and the single row of long olive dashes run left-to-right across the screen. The vehicle therefore sits perpendicular to its own lane markings, as if it were crossing the road sideways.\",\n    \"why\": \"The single most-read spatial cue — 'which way am I facing relative to the road' — is contradictory. At speed this reads as a rendering bug and destroys the sense of travel direction toward the destination.\",\n    \"fix\": \"Rotate the vehicle sprite with its heading (camera stays north-up per the radar label), and generate the route's markings along the route direction so edge lines and dashed centre line run vertically when travelling north; add a subtle wheel-track/polished-lane value gradient along the travel axis.\"\n  },\n  {\n    \"title\": \"Playfield is a bare tiled plane with visible tile seams\",\n    \"where\": \"Arena and Road, the entire playfield; city ground to a lesser degree\",\n    \"problem\": \"Hard vertical tile boundaries sit at roughly x=230 and x=1040 in both frames, and the surface is a repeating 8x8 blocky noise mosaic that reads as compression artefacts. There is also no boundary geometry at all: the arena has no walls, props or floor markings, and the road has no shoulders, barriers or roadside detail — just a flat sheet running to the frame edge.\",\n    \"why\": \"Seams scroll and look like renderer bugs, and a boundaryless flat sheet gives no sense of enclosure, scale or speed. Both screens look like grey-box test levels rather than an arena and a highway.\",\n    \"fix\": \"Make the ground texture seamless and quadruple its tile size, then overlay a second low-frequency detail layer (oil stains, patches, cracks) multiplied over it to kill the repeat. Add hard geometry: painted ring/target markings plus blast walls and tyre stacks around the arena floor, and gravel shoulders with guardrail posts along the road; close the frame with a soft vignette.\"\n  },\n  {\n    \"title\": \"Objects share the ground's value — no contact shadows or separation\",\n    \"where\": \"Arena, Road and City — the player car in the centre, and the city buildings over the pavement\",\n    \"problem\": \"The car's orange and the city buildings' mid-grey both sit within a few percent of the grey pavement value, and nothing has a drop shadow, outline or darkened ground patch under it. The buildings especially dissolve into the cracked pavement, and only the floating chevrons tell you they are interactive.\",\n    \"why\": \"The player cannot track their own vehicle at speed, and in the city cannot tell a walkable building from empty ground at a glance. Flat-on-flat placement makes the world read as a texture map with sprites pasted on top.\",\n    \"fix\": \"Add a hard offset contact shadow to every world object (e.g. 6px down-right at 35% black) plus a soft multiply blob darkening the ground beneath it; push building top planes ~25% lighter and side faces darker, and keep the car sprite 20-30% brighter than any ground value with a 2px dark outline.\"\n  },\n  {\n    \"title\": \"Menu panel cuts straight through the hero key art\",\n    \"where\": \"Title screen, centre of frame\",\n    \"problem\": \"The dark menu box is dead-centre and its top edge slices across both hero vehicles' hulls and the crack line in the foreground, occluding the two machines the whole image is built around. The tagline is squeezed into the thin gap between the wordmark and the box, and both wordmark and menu compete for the same centre axis.\",\n    \"why\": \"First impression is a composition where the UI blocks the art instead of sitting on it; the tagline is too small to carry the pitch, and the CTA has no clear hierarchy over the logo.\",\n    \"fix\": \"Move the menu to the lower-left third, aligned to the left vehicle's front wheel line (or make it a full-width bottom bar), keep the centre of the frame clear so the foreground crack leads up into the wordmark, and set the tagline at roughly 60% of the wordmark cap height with a dark text-shadow so it holds against the sun glow.\"\n  }\n]"
+}

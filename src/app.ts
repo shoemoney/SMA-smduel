@@ -667,7 +667,25 @@ function showTitle(
   // resolves correctly under vite's `base: './'` at the /smduel/ subpath.
   const titleArtUrl = new URL('../assets/ui-title-art.png', import.meta.url).href;
   container.style.cssText =
-    'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
+    // The lockup is centred; the MENU is pinned to the lower left.
+    //
+    // A review of the composition: "the dark menu box is dead-centre and its top
+    // edge slices across both hero vehicles' hulls and the crack line in the
+    // foreground, occluding the two machines the whole image is built around ...
+    // the UI blocks the art instead of sitting on it."
+    //
+    // That is right, and it is the last thing standing between the title screen
+    // and the art it is supposed to be selling. The art is built symmetrically —
+    // two vehicles flanking a centre axis with the foreground crack leading up
+    // through it — so a centred menu sits exactly on the one thing the
+    // composition is pointing at. Pinning it to the lower-left third clears the
+    // whole centre: both vehicles, the crack line, and the wordmark keep the
+    // frame, and the menu reads as a deliberate corner plate rather than a
+    // dialog dropped on the picture.
+    //
+    // Absolute positioning for both children rather than a flex column, because a
+    // flex row cannot put one child on the centre axis and another in a corner.
+    'position:absolute;inset:0;' +
     // A scrim, not a blackout.
     //
     // A review called the title "heavily crushed, muddy and desaturated ... the
@@ -713,15 +731,17 @@ function showTitle(
   tagline.textContent = t('ui.title.tagline');
   lockup.appendChild(wordmark);
   lockup.appendChild(tagline);
+  lockup.style.cssText = 'position:absolute;left:0;right:0;top:38%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 16px;';
   container.appendChild(lockup);
 
   if (titleOptions.hasWonVictory === true) {
     const wonLine = el('div', undefined, t('ui.title.campaignWon'));
-    wonLine.style.cssText = 'color:#4fd6c4;font-weight:600;font-family:system-ui,sans-serif;';
+    wonLine.style.cssText = 'position:absolute;left:0;right:0;top:58%;text-align:center;color:#4fd6c4;font-weight:600;font-family:system-ui,sans-serif;';
     container.appendChild(wonLine);
   }
   const menuHost = el('div');
-  menuHost.style.cssText = 'width:min(420px,90vw);';
+  menuHost.style.cssText =
+    'position:absolute;left:clamp(16px,4vw,56px);bottom:clamp(20px,5vh,56px);width:min(360px,calc(100vw - 32px));';
   container.appendChild(menuHost);
   clearAndAppend(root, container);
 

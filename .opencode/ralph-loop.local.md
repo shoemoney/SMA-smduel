@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 42
+iteration: 43
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (42 of 82 vision models):
+Reviewers asked (43 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1175,6 +1175,56 @@ TOOLING - the review harness got audited by its own failure this round:
      only question this screen can answer, and iteration 33 added the link from
      the selected row to the zone (itself found after seven reviews described the
      symptom wrongly).
+
+43. xiaomi/mimo-v2.6-pro-ultraspeed -> 1 BIG REAL (the title composition, the item
+     deferred since iteration 14), 1 FALSE that would have BROKEN correct code if
+     I had believed it, 3 in known classes:
+     - "The dark menu box is dead-centre and its top edge slices across both hero
+       vehicles' hulls and the crack line in the foreground, occluding the two
+       machines the whole image is built around ... the UI blocks the art instead
+       of sitting on it." TRUE, and it is the sharpest composition note in the log.
+       The art is built symmetrically — two vehicles flanking a centre axis with
+       the foreground crack leading up through it — so a CENTRED menu sits exactly
+       on the one thing the composition is pointing at.
+       The lockup is now absolutely centred and the MENU is pinned to the
+       lower-left third, which clears the whole centre: both vehicles, the
+       skyline, the crack line and the wordmark all keep the frame, and the menu
+       reads as a deliberate corner plate rather than a dialog dropped on the
+       picture. Both children are absolutely positioned rather than laid out by
+       the flex column, because a flex row cannot put one child on the centre
+       axis and another in a corner.
+       This is the best the title screen has looked in forty-three iterations, and
+       it is the last item on the deferred list that could be executed in code —
+       the tanks themselves remain an asset regeneration, not a CSS change;
+     - "The car sprite is drawn nose-up while the road markings run
+       left-to-right ... the vehicle sits perpendicular to its own lane markings,
+       as if it were crossing the road sideways." FALSE, and the fix it proposes
+       would have introduced a real bug. The crop shows the car nose-LEFT, parallel
+       to the road, driving along it: the road strip is rotated to the route
+       heading and the car sprite is rotated to `vehicle.headingRad`, so the two
+       agree. The suggested remedy — "rotate the vehicle sprite with its heading
+       (camera stays north-up)" — describes what the renderer already does, and
+       the reviewer's own framing ("nose-up in every gameplay frame") is simply
+       not what the frame shows. Believing this one would have decoupled the car
+       from the road it is driving on;
+     - "Objects share the ground's value — no contact shadows or separation ...
+       nothing has a drop shadow, outline or darkened ground patch under it."
+       FALSE. Every vehicle has carried an analytic contact shadow since
+       iteration 1, visible in this very crop, and city buildings have had theirs
+       tightened in iteration 17 to 0.3/0.62 precisely so separation does not
+       ride on the art. Measured building/ground gaps are 17.2 and 18.7;
+     - "The armour readout is a stub: '--' values and empty dashed boxes ... the
+       panel is visibly half-built." SIXTH report of this class, and it is the
+       pristine case: on a capture every facing genuinely is unfitted, so the
+       dashed chip is the honest rendering iteration 21 deliberately made
+       LOUDER, and a fitted facing has carried a real number and a real depleting
+       bar since iteration 25;
+     - "Hard vertical tile boundaries ... reads as compression artefacts." The
+       documented NEAREST-sampler consequence — the ground reads inside an atlas
+       sub-rect, so linear filtering would bleed the neighbouring cell. Iterations
+       31 and 34 damped the high frequencies without touching the low-frequency
+       lattice, and the two-scale blend is what breaks the repeat the reviewer is
+       reading as a seam.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
