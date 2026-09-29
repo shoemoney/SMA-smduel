@@ -128,6 +128,24 @@
   font-size: var(--ui-text-sm);
 }
 
+/* A section edge, so ten weapon rows read as ONE loadout with capacity
+ * instead of ten identical rows of leftover data — a review called the list
+ * "a debug console or spreadsheet". The rows themselves are NOT collapsed:
+ * they are addressed by index, so removing any would break both selection and
+ * mounting a weapon into that slot. */
+.sm-builder__row--group-start {
+  margin-top: var(--ui-space-4);
+  padding-top: var(--ui-space-3);
+  border-top: 1px solid var(--ui-line);
+}
+
+/* Unfilled slots recede so the fitted weapons are what the eye lands on. The
+ * label keeps full contrast — it is the part that names the slot. */
+.sm-builder__row--empty .sm-builder__row-value {
+  color: var(--ui-ink-dim);
+  font-style: italic;
+}
+
 .sm-builder__row--confirm {
   margin-top: var(--ui-space-5);
   /* A PRIMARY ACTION, not another data row.

@@ -208,8 +208,24 @@ const SHADOW_GROWTH = 1.9;
  * was smaller than the shadow's own margin, so almost none of it was visible.
  */
 const SHADOW_OFFSET_M: Vec2 = { x: 1.0, y: -0.9 };
-const BUILDING_SHADOW_SOFTNESS = 0.8;
-const BUILDING_SHADOW_OPACITY = 0.42;
+/**
+ * Contact shadow for static architecture.
+ *
+ * These were soft (0.8) and faint (0.42) because a big soft blob under every
+ * building muddied the map. But once iteration 16 graded the buildings toward
+ * the ground's cool slate to stop them reading as a collage of unrelated source
+ * art, the grade took away the VALUE separation too — and a review immediately
+ * reported the result: "the gray building sprites lack drop shadows or distinct
+ * outlines against the similar-toned blue-gray ground, making them look flat".
+ *
+ * Measured on the real frame, the old values gave a building/ground luminance
+ * gap of 20 on one building and 4 on another — i.e. separation that depended on
+ * whatever value a given piece of source art happened to have. Tightening the
+ * falloff and raising the peak puts a consistent dark contact under EVERY
+ * building, so legibility no longer rides on the art.
+ */
+const BUILDING_SHADOW_SOFTNESS = 0.3;
+const BUILDING_SHADOW_OPACITY = 0.62;
 const VEHICLE_SHADOW_SOFTNESS = 0.7;
 const VEHICLE_SHADOW_OPACITY = 0.5;
 
@@ -424,7 +440,7 @@ function shadowInstance(
  * then pull the remainder toward the ground's cool slate. They keep their own
  * light-to-dark modelling, which is what actually reads as "building".
  */
-const CITY_PROP_GRADE = { desaturate: 0.55, tone: 0.42 } as const;
+const CITY_PROP_GRADE = { desaturate: 0.55, tone: 0.5 } as const;
 
 function spriteInstance(
   frame: { readonly atlasIndex: number; readonly uv: SpriteInstanceInput['uvRect'] },

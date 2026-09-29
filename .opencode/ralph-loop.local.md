@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 16
+iteration: 17
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (16 of 82 vision models):
+Reviewers asked (17 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -157,6 +157,33 @@ TOOLING - the review harness got audited by its own failure this round:
        models forever while looking perfectly healthy. The only safe response to
        "I do not know what has been asked" is to stop.
      - 75 models in the pool, 61 not yet asked.
+
+17. qwen/qwen3.6-plus -> 2 REAL, one of them a REGRESSION I caused last round:
+     - "The gray building sprites lack drop shadows or distinct outlines against
+       the similar-toned blue-gray ground, making them look flat and hard to
+       distinguish as obstacles." TRUE, and it is the bill for iteration 16: the
+       grade fixed colour cohesion by pulling the buildings toward the ground's
+       slate, and in doing so spent the VALUE separation the collage used to
+       have. Measured on the real frame, the building/ground luminance gap was
+       20 on one building and 4 on another - separation that depended on
+       whatever value a given piece of source art happened to carry. Fixed at
+       the source rather than per-asset: the contact shadow was already there
+       but soft (0.8) and faint (0.42), so it never registered. Tightened to
+       0.3/0.62 so EVERY building gets a consistent dark contact and legibility
+       stops riding on the art. Grade tone 0.42 -> 0.5.
+       THE LESSON: a visual fix that trades one axis for another will be caught
+       by the NEXT reviewer. Grade cohesion, then re-measure separation - do
+       not assume the two are independent.
+     - "ten rows of text saying (empty) looks like a debug console or
+       spreadsheet." Real, but the rows are ADDRESSED BY INDEX (selection is an
+       index into the same array, and the hint tells the player to type 0-9), so
+       collapsing them would break selection and mounting. Fixed without moving
+       a row: a section edge above Weapon 1 makes the block read as one loadout
+       with CAPACITY, and unfilled values now recede in dim italic so fitted
+       weapons are what the eye lands on.
+     FALSE: radar low contrast (9th report on the same element); logo kerning
+       (the wordmark is uniform tracking); preview disconnected from the car
+       (the schematic is the vehicle - zones, wheels, dimensions all shown).
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

@@ -138,7 +138,14 @@ export type BuilderRow =
   | { readonly kind: 'plant'; readonly label: string; readonly valueLabel: string }
   | { readonly kind: 'tire'; readonly label: string; readonly valueLabel: string }
   | { readonly kind: 'armor'; readonly label: string; readonly valueLabel: string; readonly facing: Facing }
-  | { readonly kind: 'weapon'; readonly label: string; readonly valueLabel: string; readonly slot: number }
+  | {
+      readonly kind: 'weapon';
+      readonly label: string;
+      readonly valueLabel: string;
+      readonly slot: number;
+      /** Marks the first row of the weapon group so it can carry a section edge. */
+      readonly groupStart?: boolean;
+    }
   | { readonly kind: 'facing'; readonly label: string; readonly valueLabel: string; readonly slot: number }
   | { readonly kind: 'ammo'; readonly label: string; readonly valueLabel: string; readonly slot: number }
   | { readonly kind: 'confirm'; readonly label: string; readonly valueLabel: string };
@@ -163,7 +170,20 @@ export function computeRows(state: BuilderState): BuilderRow[] {
 
   state.weaponSlots.forEach((mounted, slot) => {
     if (mounted === null) {
-      rows.push({ kind: 'weapon', label: `Weapon ${slot + 1}`, valueLabel: '(empty)', slot });
+      // `groupStart` is presentation-only. The rows are addressed by index (the
+      // selected row IS an index into this array, and the hint line tells the
+      // player to type 0-9), so the ten weapon rows are NOT collapsed into a
+      // summary — a review called that list "a debug console or spreadsheet",
+      // but deleting rows would break selection and mounting. Instead the group
+      // gets a visible edge so it reads as a loadout with CAPACITY rather than
+      // as ten identical rows of leftover data, and the empty ones recede.
+      rows.push({
+        kind: 'weapon',
+        label: `Weapon ${slot + 1}`,
+        valueLabel: '(empty)',
+        slot,
+        ...(slot === 0 ? { groupStart: true } : {}),
+      });
       return;
     }
     const def = getWeapon(mounted.weaponId);
@@ -667,6 +687,8 @@ function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLE
     const li = document.createElement('li');
     li.className = `sm-builder__row sm-builder__row--${row.kind}`;
     if (row.kind === 'facing' || row.kind === 'ammo') li.classList.add('sm-builder__row--sub');
+    if (row.kind === 'weapon' && row.groupStart === true) li.classList.add('sm-builder__row--group-start');
+    if (row.kind === 'weapon' && row.valueLabel === '(empty)') li.classList.add('sm-builder__row--empty');
     if (index === state.selectedIndex) li.classList.add('sm-builder__row--selected');
     // Per-row closures over `index`, not a delegated container listener and
     // not `dataset`/`closest` lookups: the unit-test fake DOM harness (see
