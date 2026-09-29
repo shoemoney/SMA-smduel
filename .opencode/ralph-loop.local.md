@@ -3378,7 +3378,77 @@ TOOLING - the review harness got audited by its own failure this round:
        compared them" defect fixed in 6812a2b one commit earlier.
      NO CODE CHANGED. Two of five findings are one 13px token misread by a
      downscale, which makes this the second review in a row (74, 75) where the
-     cheapest possible refutation was to read the stylesheet.
+     cheapest possible refutation      was to read the stylesheet.
+
+76. qwen/qwen3.5-9b -> ONE REAL, AND IT WAS NOT THE FINDING. Four false, one
+     real, and the real one is the same size complaint as iteration 75 with a
+     genuine defect hiding underneath it:
+     - "The tagline text blends into the bright, sunset-colored background ...
+       apply a subtle text stroke or change the color to a slightly darker,
+       opaque white/grey." THIRD report of the iteration-65 finding, against a
+       measured 7.92/7.72/7.99:1 across the three thirds — above the 7:1 AAA
+       line. A "dark outline" here is also the second remedy proposed for the
+       same pixels in two rounds running, neither of which has been tried
+       because the contrast measurement says there is nothing to fix;
+     - "The radar display lacks a visible sweep or scanning animation, appearing
+       static ... add a subtle, rotating line or sweep across the radar face."
+       FORTY-EIGHTH report. The sweep, the range rings, the crosshair and the
+       `▲` player marker are documented in hud.css:286-324 — that comment block
+       exists SPECIFICALLY because "technically drawn but reads as broken" was
+       the failure mode. The reviewer is describing, as a defect, the exact
+       state iteration 21 built the ring structure to make legible;
+     - "The health numbers (e.g., '4/4') are small and crowded next to the
+       labels ('FRONT') ... increase the font size or weight to make them the
+       primary data point." Size is false (`.hud-root` inherits `--tbase`, which
+       is `--ui-text-base` x `--hud-scale`, at ink contrast 24-55:1). The
+       hierarchy half has no competing element to lose to: the row is a label
+       and a value, the bar is the meter, and iteration 54 already rebalanced
+       the bar to 6px/5px so the value is not competing with it;
+     - "The list of slots lacks a visual cursor or highlight for the currently
+       selected row." The highlight is not missing, it is generic —
+       builder.ts:712 applies `sm-builder__row--selected` to ANY row whose index
+       equals `state.selectedIndex`, and `computeRows()` interleaves the ten
+       weapon rows into that same flat array, so a weapon row gets the same
+       52%->30% gradient and the same label recolour as the Name row. The real
+       reason no weapon row is highlighted in the capture is that a pristine
+       frame boots with `selectedIndex: 0`, which is the Name row: this is the
+       "selected rows" static-frame class, and a still frame of a list with one
+       cursor in it will always show the cursor on row one;
+     - "The car stats ('0 armour - 0 mounted') are small and run together next
+       to the larger warning text." HALF STALE, HALF REAL. "Run together" has
+       been fixed since iteration 49 — the string is `ui.city.stripStats`,
+       "{armour} armour · {weapons} mounted", with a middot, because em dashes
+       were replaced in that exact round. But "small" was pointing at something
+       true for the wrong reason: the city strip hard-coded `font-size:12px` in
+       an inline style, so it was the one readout in the build that could not
+       follow `--ui-text-base`, the 13px body token everything else inherits.
+       FIXED: the strip now uses `var(--ui-text-base, 13px)`. The hierarchy half
+       is declined on purpose — the gate line is allowed to be the loudest thing
+       in the box, because it is the actionable road-legality state and the
+       stats are context, and making the context louder to satisfy a scan-speed
+       argument would invert the box's job.
+       Verified: tsc clean, 65 files / 1423 tests, 2 browser tests, build clean
+       (bundle hash `index-CnHcXLff.js` unchanged by the follow-up comment fix,
+       which is the point — the token swap was the only behavioural byte),
+       `.shots/iter76` = 8 screens, 0 problems, and `--ui-text-base: .8125rem`
+       confirmed present in the SHIPPED css rather than assumed from source.
+       The Vite `@import must precede all other statements` warning on hud.css
+       line 38 was chased down while verifying this and is COSMETIC: tokens.css
+       does reach the bundle (`--hud-scale: 1` and `--ui-text-base` both present),
+       so no import is being dropped.
+       One correction to my own first comment on this fix, worth recording
+       because the log is mostly about not claiming more than was measured: the
+       strip inherits `--ui-text-base` but NOT `--hud-scale`. The scale reaches
+       the HUD through `--tbase`, which is declared on `.hud-root`, and the strip
+       lives outside it. The comment now says that.
+       DISCOVERED, NOT FIXED, ON PURPOSE: grepping for the literal this review
+       complained about found four more hard-coded `font-size:12px` elements —
+       the arena control hint (app.ts:2520), `deviceNotice` (4202), the road
+       `driveHint` (5013) and the road `notice` (5017). All four are transient
+       HINTS or ALERTS, not readouts, and a hint sitting a tier below body text
+       is deliberate. They stay 12px. What they are NOT is accidental, so this
+       log is where that decision is recorded instead of a fifth review
+       re-reporting them.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

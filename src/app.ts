@@ -4119,8 +4119,18 @@ function showCity(root: HTMLElement, state: CityRunState): void {
    * driver is on foot, because then there is no car to describe.
    */
   const carStrip = el('div');
+  // The size is the SHARED body token, not a literal. This strip is the one
+  // piece of city chrome that was built with inline styles instead of the HUD
+  // class system, so it sat at a hard-coded 12px while every classed readout in
+  // the build inherited `--ui-text-base`. A review flagged the stats as too
+  // quiet next to the gate line, which is half right: the gate line being the
+  // loudest thing in the box is the design (it is the actionable road-legality
+  // state), but a readout that cannot follow the body-size token is a real
+  // inconsistency. Note it tracks `--ui-text-base` only — `--hud-scale` reaches
+  // the HUD through `--tbase`, which is scoped to `.hud-root`, and this strip
+  // lives outside it. Do not re-hard-code a font size here.
   carStrip.style.cssText =
-    'position:absolute;bottom:10px;left:10px;max-width:min(320px, 42vw);color:#c9d6e4;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-left:3px solid var(--ui-accent-strong, #4fd6c4);border-radius:6px;padding:6px 9px;pointer-events:none;box-shadow:0 3px 14px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset;';
+    'position:absolute;bottom:10px;left:10px;max-width:min(320px, 42vw);color:#c9d6e4;font-family:system-ui,sans-serif;font-size:var(--ui-text-base, 13px);background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-left:3px solid var(--ui-accent-strong, #4fd6c4);border-radius:6px;padding:6px 9px;pointer-events:none;box-shadow:0 3px 14px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset;';
   if (state.vehicle !== null) {
     const v = state.vehicle;
     const armourTotal = FACINGS.reduce<number>((sum, f) => sum + (v.design.armor[f] ?? 0), 0);
