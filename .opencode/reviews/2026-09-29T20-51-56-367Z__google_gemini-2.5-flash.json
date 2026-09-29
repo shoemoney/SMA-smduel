@@ -1,0 +1,75 @@
+{
+  "model": "google/gemini-2.5-flash",
+  "modelLabel": "google/gemini-2.5-flash",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T20:51:56.368Z",
+  "usage": {
+    "prompt_tokens": 1673,
+    "completion_tokens": 1030,
+    "total_tokens": 2703,
+    "cost": 0.0030769,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0030769,
+      "upstream_inference_prompt_cost": 0.0005019,
+      "upstream_inference_completions_cost": 0.002575
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Unclear UI Hierarchy and Style",
+      "where": "All screens, especially constructor and game UI elements",
+      "problem": "The UI elements across the screens lack consistent visual hierarchy and a distinct style. Many boxes are plain rectangles with default-looking fonts, leading to a bland and unfinished appearance. For example, the radar, speedo, and condition panels have a similar visual weight, making it hard to prioritize information.",
+      "why": "This hurts legibility by failing to guide the player's eye to important information. It also diminishes the game's atmosphere by presenting information in a generic, unpolished way, making the game feel less 'designed' and less engaging.",
+      "fix": "Implement a consistent UI style guide using more stylized fonts, distinct background textures or borders for different UI elements, and vary the visual weight (size, contrast, color) of elements to establish a clear hierarchy. For example, make the speed and radar more prominent or visually integrated."
+    },
+    {
+      "title": "Radar Lacks Functionality Indicators",
+      "where": "Arena and Road screens, bottom-left",
+      "problem": "The radar is a static green circle with a few faint lines. There are no clear indications of a sweeping motion, active contacts, or the player's orientation within the radar's field.",
+      "why": "The current radar reads as non-functional or broken rather than an active instrument, which significantly hurts readability at speed and the sense of situational awareness. Players rely on visual feedback for such instruments.",
+      "fix": "Add a distinct 'sweep' animation to the radar and highlight contacts with clear, contrasting visual markers (e.g., small squares or dots). Ensure the player's car is represented clearly, perhaps with a small arrow indicating direction, even if 'Orientations: north-up' is specified."
+    },
+    {
+      "title": "Monochromatic World Aesthetics",
+      "where": "City, Arena, and Road screens (game world)",
+      "problem": "The game world (ground textures, walls, buildings) is predominantly gray and desaturated. The city is a sea of light gray, and the arena/road are various shades of concrete/asphalt, making everything look drab and visually indistinct.",
+      "why": "This monotonous color palette makes the environments feel bland, sterile, and uninviting. It also reduces visual interest and can make it harder to distinguish environmental features or navigate, especially in the city, which lacks character.",
+      "fix": "Introduce more color variation and texture richness to the environments. For the city, vary building colors, add environmental decals, or introduce elements like dust, sand, or overgrown areas. For the arena/road, add more distinct wear, oil stains, or different material textures to break up the gray."
+    },
+    {
+      "title": "Lack of Visual Feedback on UI Elements",
+      "where": "Title screen menu, constructor menus",
+      "problem": "Interactive elements like menu items ('New Driver', 'Controls' on title screen) and constructor options (e.g., 'Body', 'Armor') do not show clear visual feedback when hovered over or selected beyond a slight color change or border. The selected item on the constructor is barely distinguishable.",
+      "why": "This lack of strong visual feedback makes the UI feel unresponsive and can confuse the player about what is currently active or selectable. It hurts usability and the overall 'feel' of interaction.",
+      "fix": "Implement more pronounced hover and selected states for all interactive UI elements. This could include a significant color change, a bold highlight, an animated glow, or an expansion effect. For the constructor, make the selected item's background color or border much more distinct and contrasting."
+    },
+    {
+      "title": "Insufficient Contrast for Text Overlays",
+      "where": "Title screen (subtitle), Arena/Road/City (instruction text at top)",
+      "problem": "The subtitle text on the title screen ('One car. Sixteen cities...') and the instruction text at the top of the gameplay screens (e.g., 'WASD/arrows drive') often have insufficient contrast against their background. The title screen's white text on a light brown/grey background is particularly difficult to read.",
+      "why": "Poor contrast makes the text hard to read quickly, forcing the player to squint or focus unnecessarily, which hurts legibility and overall readability. This is particularly problematic for critical instructions during gameplay.",
+      "fix": "Add a subtle but distinct background panel behind these text overlays, or apply a dark text shadow/outline to ensure they stand out clearly against varied backgrounds. Alternatively, choose a color for the text that consistently offers high contrast, such as a brighter white or a different shade."
+    }
+  ],
+  "parseError": null,
+  "raw": "```json\n[\n  {\n    \"title\": \"Unclear UI Hierarchy and Style\",\n    \"where\": \"All screens, especially constructor and game UI elements\",\n    \"problem\": \"The UI elements across the screens lack consistent visual hierarchy and a distinct style. Many boxes are plain rectangles with default-looking fonts, leading to a bland and unfinished appearance. For example, the radar, speedo, and condition panels have a similar visual weight, making it hard to prioritize information.\",\n    \"why\": \"This hurts legibility by failing to guide the player's eye to important information. It also diminishes the game's atmosphere by presenting information in a generic, unpolished way, making the game feel less 'designed' and less engaging.\",\n    \"fix\": \"Implement a consistent UI style guide using more stylized fonts, distinct background textures or borders for different UI elements, and vary the visual weight (size, contrast, color) of elements to establish a clear hierarchy. For example, make the speed and radar more prominent or visually integrated.\"\n  },\n  {\n    \"title\": \"Radar Lacks Functionality Indicators\",\n    \"where\": \"Arena and Road screens, bottom-left\",\n    \"problem\": \"The radar is a static green circle with a few faint lines. There are no clear indications of a sweeping motion, active contacts, or the player's orientation within the radar's field.\",\n    \"why\": \"The current radar reads as non-functional or broken rather than an active instrument, which significantly hurts readability at speed and the sense of situational awareness. Players rely on visual feedback for such instruments.\",\n    \"fix\": \"Add a distinct 'sweep' animation to the radar and highlight contacts with clear, contrasting visual markers (e.g., small squares or dots). Ensure the player's car is represented clearly, perhaps with a small arrow indicating direction, even if 'Orientations: north-up' is specified.\"\n  },\n  {\n    \"title\": \"Monochromatic World Aesthetics\",\n    \"where\": \"City, Arena, and Road screens (game world)\",\n    \"problem\": \"The game world (ground textures, walls, buildings) is predominantly gray and desaturated. The city is a sea of light gray, and the arena/road are various shades of concrete/asphalt, making everything look drab and visually indistinct.\",\n    \"why\": \"This monotonous color palette makes the environments feel bland, sterile, and uninviting. It also reduces visual interest and can make it harder to distinguish environmental features or navigate, especially in the city, which lacks character.\",\n    \"fix\": \"Introduce more color variation and texture richness to the environments. For the city, vary building colors, add environmental decals, or introduce elements like dust, sand, or overgrown areas. For the arena/road, add more distinct wear, oil stains, or different material textures to break up the gray.\"\n  },\n  {\n    \"title\": \"Lack of Visual Feedback on UI Elements\",\n    \"where\": \"Title screen menu, constructor menus\",\n    \"problem\": \"Interactive elements like menu items ('New Driver', 'Controls' on title screen) and constructor options (e.g., 'Body', 'Armor') do not show clear visual feedback when hovered over or selected beyond a slight color change or border. The selected item on the constructor is barely distinguishable.\",\n    \"why\": \"This lack of strong visual feedback makes the UI feel unresponsive and can confuse the player about what is currently active or selectable. It hurts usability and the overall 'feel' of interaction.\",\n    \"fix\": \"Implement more pronounced hover and selected states for all interactive UI elements. This could include a significant color change, a bold highlight, an animated glow, or an expansion effect. For the constructor, make the selected item's background color or border much more distinct and contrasting.\"\n  },\n  {\n    \"title\": \"Insufficient Contrast for Text Overlays\",\n    \"where\": \"Title screen (subtitle), Arena/Road/City (instruction text at top)\",\n    \"problem\": \"The subtitle text on the title screen ('One car. Sixteen cities...') and the instruction text at the top of the gameplay screens (e.g., 'WASD/arrows drive') often have insufficient contrast against their background. The title screen's white text on a light brown/grey background is particularly difficult to read.\",\n    \"why\": \"Poor contrast makes the text hard to read quickly, forcing the player to squint or focus unnecessarily, which hurts legibility and overall readability. This is particularly problematic for critical instructions during gameplay.\",\n    \"fix\": \"Add a subtle but distinct background panel behind these text overlays, or apply a dark text shadow/outline to ensure they stand out clearly against varied backgrounds. Alternatively, choose a color for the text that consistently offers high contrast, such as a brighter white or a different shade.\"\n  }\n]\n```"
+}

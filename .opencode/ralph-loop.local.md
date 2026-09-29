@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 69
+iteration: 70
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (69 of 82 vision models):
+Reviewers asked (70 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2979,6 +2979,70 @@ TOOLING - the review harness got audited by its own failure this round:
      iteration 35 applies with more force at 69 than at 35: not every vision
      model can critique, and the useful response to one of these is to weight it
      rather than action it.
+
+70. google/gemini-2.5-flash -> ZERO REAL. Nothing changed, and this review is
+     the cleanest example yet of a review describing a build several iterations
+     old — which is iteration 48's standing observation, now with a fourth data
+     point and a fix in between.
+     - "The selected item on the constructor is barely distinguishable ... make
+       the selected item's background color or border much more distinct." FALSE
+       against the shipped frame, and the frame settles it in one look: the
+       selected Name row carries a full-width teal gradient fill, an amber
+       requirement rail on its left edge, full-ink label text and its input
+       field, sitting directly above two flat unselected rows. It is the single
+       most conspicuous element in the pane.
+       This is the FOURTH report on constructor selection (iterations 52, 59,
+       70, and glancingly 54) and the first made against a frame that CONTAINS
+       the fix. Iteration 59 took the row from a 14% accent wash carrying the
+       signal on a 1px border — a measured +28.4 luma — to the menu's real
+       gradient at a measured +82.4, and in the same change removed the blanket
+       `border-color` that had been repainting the amber "unmet" rail teal on
+       exactly this row. The reviewer is describing the state BEFORE both halves
+       of that fix, which is what iteration 48 called "a review describing a
+       fixed state rather than reading the shipped one" and what iteration 62
+       counted at its eleventh occurrence;
+     - "Menu items ('New Driver', 'Controls') do not show clear visual feedback
+       when hovered or selected beyond a slight color change or border." The
+       FIFTH report of the title-menu class against a frame carrying iteration
+       32's 52%->30% gradient. Its companion ask — "make the speed and radar more
+       prominent or visually integrated" — is the weight-hierarchy theme item
+       (iterations 51, 47), and "apply a consistent UI style guide ... more
+       stylized fonts, distinct background textures" is that item's third
+       independent recipe. The theme item now has THREE full recipes from three
+       unrelated models, which is worth stating plainly: the pool keeps asking
+       for this language, and the honest answer is still that restyling the
+       panels is a decision about what SMDUEL looks like rather than a defect in
+       what they do;
+     - "The subtitle is particularly difficult to read ... white text on a light
+       brown/grey background." MEASURED FALSE TWICE, per third, on the real frame:
+         LEFT  7.92:1   MID  7.72:1   RIGHT 7.99:1  (vs brightest adjacent bg)
+       All past WCAG AAA, and the right third — the one the review singles out —
+       is the BEST of the three. That measurement took four wrong attempts to
+       land (iteration 65) and the result has now survived two independent
+       challenges across three rounds (63, 65, 70). A claim measured twice,
+       re-measured under challenge, and unchanged is not a claim awaiting a
+       better method;
+     - radar: FORTY-FIFTH report, and "the player's car is represented clearly,
+       perhaps with a small arrow indicating direction" is the `▲` player marker
+       that `buildRadar` places inside the face, with an orientation toggle
+       labelled in words beside it;
+     - "The world is predominantly gray and desaturated ... for the city, vary
+       building colors." The collage class, and the remedy is the per-building
+       hue reversal declined in iterations 16, 23, 24, 25, 27, 29, 34, 36, 37, 39,
+       40, 44, 55 and 65. Iteration 16 removed hue because it made every building
+       carry an identity for no reason, and the measured mean saturation across
+       the city (0.096) is that fix working. The arena/road half of the same
+       finding — "add more distinct wear, oil stains, or different material
+       textures" — is the ground ART item, recorded since iteration 6, and the
+       DECALS form of it is the version that survives the "is this a lie about
+       the simulation?" test.
+     NO CODE CHANGED. The round's product is the calibration: two of this
+     review's five findings are about a fix that shipped eleven and thirty-eight
+     rounds ago respectively, one is a theme restatement, and two are classes
+     this log has measured to death. Nothing here can be acted on, and the
+     cheapest correct response is exactly the one iteration 48 wrote down — check
+     whether the review is looking at the shipped build before treating it as a
+     description of the current one.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
