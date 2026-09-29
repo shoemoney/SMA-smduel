@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3.7-flash",
+  "modelLabel": "qwen/qwen3.7-flash",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T20:44:48.024Z",
+  "usage": {
+    "prompt_tokens": 5404,
+    "completion_tokens": 6935,
+    "total_tokens": 12339,
+    "cost": 0.00106367,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00106367,
+      "upstream_inference_prompt_cost": 0.00016212,
+      "upstream_inference_completions_cost": 0.00090155
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5932,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Radar Legibility and Contrast",
+      "where": "Bottom-left corner (Arena and Road screens)",
+      "problem": "The radar display is extremely dark, with a nearly black background and a faint teal sweep line that is barely visible. There are no visible range rings or grid lines.",
+      "why": "The radar is a critical instrument for situational awareness in a combat game. If it looks like a broken black disc rather than a working instrument, players cannot trust it to detect threats or navigate, reducing the tension and utility of the HUD.",
+      "fix": "Lighten the radar background to a dark slate-blue/grey, add faint concentric range rings and crosshairs, and increase the opacity and brightness of the sweep line (e.g., solid cyan with 50% alpha) so contacts and orientation are immediately readable."
+    },
+    {
+      "title": "Mission Progress Bar Contrast",
+      "where": "Top center (Road screen)",
+      "problem": "The mission progress bar (below the 'En route to Albany' text) is a thin dark grey line against a grey asphalt background. The white marker is small, and the bar track blends into the road texture.",
+      "why": "Players need to gauge remaining distance quickly while driving. Low contrast makes this vital information invisible at a glance, forcing the player to hunt for the bar rather than focusing on the road.",
+      "fix": "Place the progress bar and the destination text inside a semi-transparent dark panel (matching the style of the 'Practice arena' info box) to separate it from the background. Increase the bar thickness to 4-6px and make the progress fill a bright color (e.g., white or cyan)."
+    },
+    {
+      "title": "Constructor List Visual Noise",
+      "where": "Left column, Armor and Weapon rows (Constructor screen)",
+      "problem": "Every row for Armor (5 rows) and Weapons (10 rows) has a prominent vertical orange bar on the left edge. With 15 such rows, this creates a dense 'barcode' effect of orange lines.",
+      "why": "This visual noise draws the player's eye away from the car schematic and the main stats (Cost, Weight). It looks like a warning list or a selection highlight, but since all these rows are empty/zero, it clutters the interface and reduces readability of the actual configuration options.",
+      "fix": "Remove the vertical orange bars from rows that are at default/empty values (0 or empty). Use a subtle dark grey separator line instead. Reserve the orange/yellow accent color for the currently selected row or rows that have a specific warning state."
+    },
+    {
+      "title": "Player Vehicle vs Objective Color Clash",
+      "where": "Center map and icons (City screen)",
+      "problem": "The player vehicle ('Duster') is orange/brown. The 'Build' mission icons (chevrons) are also orange. Additionally, the 'Not road-legal' status text is orange. This creates a significant color clash.",
+      "why": "In a top-down game, color coding is essential for quick recognition. Clashing colors between the player and objectives force the player to look closer at icons rather than glancing at the map to understand their status and goals.",
+      "fix": "Change the 'Build' icon color to a distinct hue (e.g., yellow or purple) that does not match the player vehicle. Recolor the 'Not road-legal' text to a distinct red to indicate status, and add a white outline or glow to the player vehicle to make it pop against the orange build icons."
+    },
+    {
+      "title": "Armour Status Ambiguity",
+      "where": "Top-right 'Condition' panel (Arena and Road screens)",
+      "problem": "The Armour section (Front, Rear, Left, Right, Underbody) uses small empty rectangular boxes. With 0 armour, they are blank, looking like placeholder UI elements or a bug, unlike the Tyre section which has clear green bars.",
+      "why": "Armour is vital for survival. Blank boxes are ambiguous—they could mean 'not equipped', 'destroyed', or 'missing data'. This lack of clear feedback makes the player unsure of their defensive capabilities.",
+      "fix": "Replace the empty boxes with a clear visual indicator of status. If empty, use a red 'X' or a dashed red border to signal 'unprotected'. If damaged, show a grey fill or a number. Match the visual language of the Tyre bars (e.g., small bars inside the boxes) for consistency."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Radar Legibility and Contrast\",\n    \"where\": \"Bottom-left corner (Arena and Road screens)\",\n    \"problem\": \"The radar display is extremely dark, with a nearly black background and a faint teal sweep line that is barely visible. There are no visible range rings or grid lines.\",\n    \"why\": \"The radar is a critical instrument for situational awareness in a combat game. If it looks like a broken black disc rather than a working instrument, players cannot trust it to detect threats or navigate, reducing the tension and utility of the HUD.\",\n    \"fix\": \"Lighten the radar background to a dark slate-blue/grey, add faint concentric range rings and crosshairs, and increase the opacity and brightness of the sweep line (e.g., solid cyan with 50% alpha) so contacts and orientation are immediately readable.\"\n  },\n  {\n    \"title\": \"Mission Progress Bar Contrast\",\n    \"where\": \"Top center (Road screen)\",\n    \"problem\": \"The mission progress bar (below the 'En route to Albany' text) is a thin dark grey line against a grey asphalt background. The white marker is small, and the bar track blends into the road texture.\",\n    \"why\": \"Players need to gauge remaining distance quickly while driving. Low contrast makes this vital information invisible at a glance, forcing the player to hunt for the bar rather than focusing on the road.\",\n    \"fix\": \"Place the progress bar and the destination text inside a semi-transparent dark panel (matching the style of the 'Practice arena' info box) to separate it from the background. Increase the bar thickness to 4-6px and make the progress fill a bright color (e.g., white or cyan).\"\n  },\n  {\n    \"title\": \"Constructor List Visual Noise\",\n    \"where\": \"Left column, Armor and Weapon rows (Constructor screen)\",\n    \"problem\": \"Every row for Armor (5 rows) and Weapons (10 rows) has a prominent vertical orange bar on the left edge. With 15 such rows, this creates a dense 'barcode' effect of orange lines.\",\n    \"why\": \"This visual noise draws the player's eye away from the car schematic and the main stats (Cost, Weight). It looks like a warning list or a selection highlight, but since all these rows are empty/zero, it clutters the interface and reduces readability of the actual configuration options.\",\n    \"fix\": \"Remove the vertical orange bars from rows that are at default/empty values (0 or empty). Use a subtle dark grey separator line instead. Reserve the orange/yellow accent color for the currently selected row or rows that have a specific warning state.\"\n  },\n  {\n    \"title\": \"Player Vehicle vs Objective Color Clash\",\n    \"where\": \"Center map and icons (City screen)\",\n    \"problem\": \"The player vehicle ('Duster') is orange/brown. The 'Build' mission icons (chevrons) are also orange. Additionally, the 'Not road-legal' status text is orange. This creates a significant color clash.\",\n    \"why\": \"In a top-down game, color coding is essential for quick recognition. Clashing colors between the player and objectives force the player to look closer at icons rather than glancing at the map to understand their status and goals.\",\n    \"fix\": \"Change the 'Build' icon color to a distinct hue (e.g., yellow or purple) that does not match the player vehicle. Recolor the 'Not road-legal' text to a distinct red to indicate status, and add a white outline or glow to the player vehicle to make it pop against the orange build icons.\"\n  },\n  {\n    \"title\": \"Armour Status Ambiguity\",\n    \"where\": \"Top-right 'Condition' panel (Arena and Road screens)\",\n    \"problem\": \"The Armour section (Front, Rear, Left, Right, Underbody) uses small empty rectangular boxes. With 0 armour, they are blank, looking like placeholder UI elements or a bug, unlike the Tyre section which has clear green bars.\",\n    \"why\": \"Armour is vital for survival. Blank boxes are ambiguous—they could mean 'not equipped', 'destroyed', or 'missing data'. This lack of clear feedback makes the player unsure of their defensive capabilities.\",\n    \"fix\": \"Replace the empty boxes with a clear visual indicator of status. If empty, use a red 'X' or a dashed red border to signal 'unprotected'. If damaged, show a grey fill or a number. Match the visual language of the Tyre bars (e.g., small bars inside the boxes) for consistency.\"\n  }\n]"
+}

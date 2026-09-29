@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 66
+iteration: 67
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (66 of 82 vision models):
+Reviewers asked (67 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2755,6 +2755,87 @@ TOOLING - the review harness got audited by its own failure this round:
      twenty-odd iterations. That is a much more actionable diagnosis than either
      sprite: the loop is not misreading these screens, it is being asked a
      question the screens do not answer.
+
+67. qwen/qwen3.7-flash -> ZERO REAL, and one GENUINELY NEW OBSERVATION that no
+     earlier review in sixty-seven rounds has made:
+     - "The player vehicle is orange/brown, the 'Build' mission icons are also
+       orange, and the 'Not road-legal' status text is orange. This creates a
+       significant colour clash ... clashing colors between the player and
+       objectives force the player to look closer at icons rather than glancing."
+       The clash is REAL, and it is a semantic collision rather than an aesthetic
+       one, which is why sixty-seven reviews missed it: everyone has been asking
+       about individual elements, and this is about a HUE carrying three
+       unrelated meanings at once.
+       Checked all three rather than taking the description:
+         the player car      PLAYER_TINT is {1.18, 1.18, 1.18} — NEUTRAL. The
+                             orange is baked into the car-subcompact ART, not
+                             applied as a tint;
+         the Build chevron   facilityMarkerTint workshop = {1.2, 0.6, 0.14};
+         "Not road-legal"    --ui-warn, #f2b632, measured at 7.54:1.
+       So one hue family is doing three jobs: "this is you", "this is a workshop",
+       and "this build is illegal". Iteration 37 established that marker colour
+       must carry FUNCTION, and iteration 48 chose amber for unmet requirements
+       precisely because "a red row reads as a failure the player caused" — so
+       both of those uses were deliberate. The collision is the cost of two good
+       decisions meeting in the same palette.
+       The proposed remedy does not survive checking, and the reason is the most
+       useful part of this entry. "Change the Build icon to yellow or purple":
+         - PURPLE is free, but it would break the four-hue functional set that
+           `facilityMarkerTint` defines and that a test pins as four distinct
+           dominant channels, and it would read as a category the game has no
+           meaning for;
+         - YELLOW is closer to the car but lands on --ui-warn, so the workshop
+           markers would then share a hue with "you still have work to do" — a
+           WORSE collision than the one being fixed, and one between two things
+           on the same screen that a player is actively comparing.
+       The palette is red / amber / green / cyan for function, plus amber for
+       warning, plus an orange car. There is no free hue left to move a marker
+       into, so a recolour does not solve this; it relocates it.
+       What DOES solve it is the fix iteration 33 already identified and that
+       iterations 47 and 64 have kept re-approaching: the markers are maximally
+       saturated, so they compete with the car for attention by construction. A
+       worn painted sign at lower saturation stops competing with the car
+       REGARDLESS of its hue, which is why the ART task keeps being the right
+       answer and the colour arguments keep going in circles. This entry is
+       additional evidence for that ART item rather than a new one;
+     - "Remove the vertical orange bars from rows that are at default/empty values
+       ... reserve the orange accent for the currently selected row or rows that
+       have a specific warning state." INVERTED, and cleanly so. The rails are
+       iteration 48's requirement markers, and they are on the empty rows
+       PRECISELY BECAUSE those rows are the unmet ones — the requirement is a
+       name, armour points, and a mounted weapon, and a pristine build fails all
+       three. Applying the fix as written would strip the marker from every row
+       that needs it and keep it on the rows that are already satisfied, which
+       inverts the signal completely. This is the second report of the "too many
+       orange bars" family (iteration 56 made the first), and iteration 56
+       already recorded the honest tension: the marker is ACCURATE on fifteen of
+       twenty rows and simultaneously low-information, because a marker on nearly
+       every row stops reading as a marker. Neither report makes that better by
+       changing it;
+     - radar: FORTY-SECOND report, and this one asks to "lighten the radar
+       background to a dark slate-blue/grey", which is the dim-when-idle variant
+       declined in iteration 29 — a practice arena with no opponents would render
+       a nearly invisible instrument, and a player arriving at combat would have
+       to learn a state change to trust the panel they are relying on;
+     - "The progress bar is a thin dark grey line ... place it inside a
+       semi-transparent dark panel ... increase thickness to 4-6px." The panel
+       EXISTS (the status pill, raised to 0.86 alpha and 13.20:1 in iteration 24
+       for exactly this moving-texture problem), the bar renders 8px including
+       borders, and 4-6px is asking for LESS than the shipped value. Sixth report
+       of the class, fifth consecutive one below what is already there;
+     - "The armour section uses small empty rectangular boxes ... unlike the Tyre
+       section which has clear green bars." THE PRISTINE CASE, thirteenth-plus
+       report, and this is the first to notice the armour/tyre ASYMMETRY — which
+       iteration 29 already removed: tyres were moved onto the same bar language
+       specifically because "the condition panel was answering the same question
+       in two different visual grammars". On a pristine build the asymmetry is
+       unavoidable and correct: there is no fraction to scale an armour bar by,
+       while every tyre has 4/4. The proposed fix — "use a red X or dashed red
+       border to signal unprotected" — would also be the green-on-a-zero bug in
+       a new costume, the exact thing iteration 21's chip was built to avoid.
+     NO CODE CHANGED. The colour-semantics collision is the first finding in
+     sixty-seven rounds that is about the PALETTE rather than any single element,
+     and it is worth keeping for that reason.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
