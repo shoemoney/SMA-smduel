@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 30
+iteration: 31
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (30 of 82 vision models):
+Reviewers asked (31 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -649,6 +649,49 @@ TOOLING - the review harness got audited by its own failure this round:
      - "the road progress bar is extremely thin" - THIRD report, measured twice
        now at 8px including borders;
      - radar: 21st report on the same element.
+
+31. z-ai/glm-4.5v -> 2 REAL, and the first is THE LONGEST-STANDING DEFERRED ITEM
+     IN THE LOG - ground blockiness, recorded since iteration 6 - finally closed
+     with a lever that does not require replacing the atlas:
+     - "The ground texture is composed of harsh, high-contrast pixel noise (a
+       salt-and-pepper effect). It lacks a solid mid-tone base, creating visual
+       vibration that competes with the vehicle and lane dividers ... overlay a
+       dark, semi-transparent solid colour to establish a base value." REAL, and
+       the diagnosis is exactly right where my own note had been stuck. The cause
+       is the SAMPLER: the ground reads inside an atlas sub-rect, so it must stay
+       NEAREST (linear would bleed the neighbouring cell) and every texel edge
+       becomes a hard magnified edge. The deferred note had assumed the only fix
+       was a dedicated linear+repeat texture and a load-time change; the review
+       found the cheaper and better lever.
+       So the ground now has a BASE VALUE: the sample is compressed toward a
+       mid-grey (mix(vec3(0.40,0.42,0.46), g, 0.70)). Structure, tiling and the
+       sampler are all untouched - the texture still reads as the same cracked
+       concrete, it just stops competing with the car.
+       MEASURED, and checked for the iteration-17 trap specifically - a fix that
+       improves one axis by spending another will be caught by the next reviewer,
+       so the road/verge separation was re-measured rather than assumed:
+         ground luma spread  city 10.95 -> 8.91, arena 14.02 -> 12.56, road 26.58 -> 24.44
+         road vs verge gap    19.9   -> 26.5   (WIDER, not narrower)
+         city building/ground 116.3 vs 97.7 (gap 18.7, was 17.6)
+       The verge sat closer to the base value than the asphalt did, so converging
+       toward mid-grey pushed them APART rather than together. Two fixes that
+       would have cancelled out turned out to reinforce each other.
+     - "The SMDUEL logo and the menu container border share the exact same neon
+       cyan hue and similar luminance. They vibrate against each other, flattening
+       the depth between the branding and the interactive interface." REAL, and
+       measured differently than the review described: the PANEL border is already
+       slate (--ui-line-strong), so the clash is the SELECTED ROW - a full-strength
+       accent border plus a 45% inset ring, putting two bright cyan edges directly
+       below a bright cyan logotype. The accent WASH is what actually makes the row
+       read as selected, so the border and ring step down to a supporting weight
+       and the logotype is unambiguously the most saturated cyan on the screen.
+       Selection legibility was re-checked in the frame rather than assumed from a
+       measurement taken under the OLD title scrim, which iteration 27 replaced.
+     Recorded, not changed: the constructor list is uniform monospace with no
+     zebra striping. Changing the label face would fight the terminal aesthetic
+     the rest of the UI commits to, and iteration 27 already established that a
+     reviewer who cannot see a distinction will call it a weight problem when it
+     is a grouping one - the section edge added in iteration 17 is the grouping.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

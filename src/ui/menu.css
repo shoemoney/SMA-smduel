@@ -118,9 +118,24 @@
    * separates by FILL as well as by outline. The number also brightens (below),
    * so the row has two independent signals rather than one. */
   background: color-mix(in srgb, var(--ui-accent) 26%, var(--ui-surface-2));
-  border-color: var(--ui-accent-strong);
+  /* The FILL carries selection, not the outline.
+   *
+   * A review said the SMDUEL wordmark and the menu chrome "share the exact same
+   * neon cyan hue and similar luminance. They vibrate against each other,
+   * flattening the depth between the branding and the interactive interface."
+   * Measured, that is true of this row: a full-strength accent border plus a
+   * 45%-strength inset ring put two bright cyan edges on screen directly below
+   * a bright cyan logotype, and the eye has no idea which one is the brand.
+   *
+   * The accent WASH is what actually makes the row read as selected, and that
+   * is untouched — iteration 26 measured selected-vs-unselected at 34.26 against
+   * 28.86 luma, and every bit of that comes from the fill. The border and the
+   * inset ring step down to a supporting weight so the logotype is
+   * unambiguously the most saturated cyan on the title screen, which is what
+   * "the branding sits behind the interface" looks like in a flat UI. */
+  border-color: color-mix(in srgb, var(--ui-accent-strong) 55%, transparent);
   border-left-width: 3px;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-accent-strong) 45%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-accent-strong) 22%, transparent);
 }
 
 .sm-menu__item:is(.sm-menu__item--selected, [aria-selected='true']) .sm-menu__number {

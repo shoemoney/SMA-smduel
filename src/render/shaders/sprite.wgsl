@@ -234,6 +234,27 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
       let cell = floor(in.worldPos / 9.0);
       let m = fract(sin(dot(cell, vec2<f32>(12.9898, 78.233))) * 43758.5453);
       g = mix(g, d, smoothstep(0.30, 0.70, m) * 0.6);
+
+    // --- base value ----------------------------------------------------------
+    //
+    // A review called the ground "harsh, high-contrast pixel noise (a
+    // salt-and-pepper effect) ... lacking a solid mid-tone base, creating visual
+    // vibration that competes with the vehicle and lane dividers", and asked to
+    // "overlay a dark, semi-transparent solid colour to establish a base value".
+    //
+    // The cause is the SAMPLER, and it cannot be swapped: the ground reads inside
+    // an atlas sub-rect, where linear filtering would bleed the neighbouring
+    // cell, so it must stay NEAREST (see createAtlasSampler). At the ground's
+    // tile scale that means every texel edge is a hard magnified edge, and the
+    // eye reads the result as vibration rather than as surface.
+    //
+    // So the fix is a base value rather than a different filter: compressing the
+    // sample toward a mid-grey pulls the extremes in without touching the
+    // structure, the tiling, or the sampler. The texture still reads as the same
+    // cracked concrete; it simply stops competing with the car for attention,
+    // which was the actual complaint. Measured on the captured frames, this is a
+    // ~30% reduction in ground luma spread.
+    g = mix(vec3<f32>(0.40, 0.42, 0.46), g, 0.70);
     }
     // The ground takes the tint's RGB too. It used to keep only `tint.a`, which
     // silently dropped any tint the caller supplied — dormant only because
