@@ -41,10 +41,27 @@
   margin: 0 auto;
   padding: var(--ui-space-7) var(--ui-space-8);
   color: var(--ui-ink);
-  background: linear-gradient(180deg, var(--ui-glass-raised), var(--ui-glass) 40%);
-  border: 1px solid var(--ui-line);
+  /* A designed SURFACE, not a bordered box.
+   *
+   * Three separate reviews have called this menu "a simple rectangle with a
+   * thin cyan border and plain text ... a default HTML form or a debug overlay"
+   * that clashes with the art behind it. The selected-row treatment was already
+   * fixed long ago (an accent wash plus a 3px edge, so selection separates by
+   * fill as well as outline), which is why the remaining complaint is about the
+   * PANEL and not the rows: the old fill was 78-80% glass, so the art behind
+   * showed straight through a thin 1px outline and the whole thing read as a
+   * wireframe rectangle drawn on top of the picture.
+   *
+   * So the surface itself carries the weight now: a near-opaque body, a
+   * top-lit inner highlight so it has a surface direction, and a stronger edge.
+   * Deliberately no size or padding change — a browser test pins menu item
+   * height at 390x664, and this is a colour-weight fix, not a layout one. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 34%),
+    linear-gradient(180deg, var(--ui-glass-strong), var(--ui-glass) 60%);
+  border: 1px solid var(--ui-line-strong);
   border-radius: var(--ui-radius-xl);
-  box-shadow: var(--ui-shadow-raised);
+  box-shadow: var(--ui-shadow-raised), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   font-family: var(--ui-font-sans);
   font-size: var(--ui-text-md);
   line-height: var(--ui-leading-relaxed);

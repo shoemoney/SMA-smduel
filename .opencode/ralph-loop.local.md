@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 19
+iteration: 20
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (19 of 82 vision models):
+Reviewers asked (20 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -244,6 +244,36 @@ TOOLING - the review harness got audited by its own failure this round:
      went, and the enlargement stayed. cityInstanceCount() is the single contract
      for city prop instances; it already carries a comment about the first
      violation and the count is the thing to update when adding props.
+
+20. qwen/qwen3.7-plus -> 2 REAL, both long-standing, one of them caught by a
+     reviewer looking at a fix that had ALREADY shipped:
+     - "Tiny yellow arrows that blend into the grey, cracked ground texture ...
+       they lack visual weight." This was the THIRD report on the entrance
+       markers and it was looking at the 50% enlargement from iteration 19. That
+       is the useful part: a reviewer who has already seen the fix and still
+       cannot find the thing is telling you the NUMBER was too small, not that
+       the report was wrong. The loop lesson (believe them about weight and
+       contrast) applied to a fix I had just made. Doubled overall, 1.4m ->
+       2.8m. A size change costs no instances, so unlike the iteration-19 shadow
+       attempt it fits the exactly-full city buffer without touching the contract.
+     - "The menu box is a simple rectangle with a thin cyan border and plain text
+       ... looks like a default HTML form or a debug overlay." THIRD report of
+       this too. The selected-ROW treatment had been fixed long ago (accent wash
+       plus a 3px edge), which is why the surviving complaint is about the PANEL:
+       the fill was 78-80% glass, so the title art showed straight through a 1px
+       outline and the whole thing read as a wireframe rectangle drawn on the
+       picture. The surface now carries the weight - near-opaque body, a
+       top-lit inner highlight for surface direction, stronger edge. Deliberately
+       no size or padding change: a real-Chrome test pins menu item height at
+       390x664, so this is a colour-weight fix only. Ran the browser gate
+       (SMDUEL_TEST_BROWSER=1) rather than assuming it was unaffected.
+     FALSE: radar (12th report on the same element); schematic is a "generic blue
+       rounded rectangle" bearing no resemblance to the car (the schematic IS the
+       vehicle and shows armour zones the sprite cannot; iteration 13 raised its
+       contrast and this is the same class of claim, now for the third time -
+       the remaining honest ask is tying it to the player's colour, queued);
+       convert the weapon list to a 2-column grid (rows are index-addressed, and
+       iteration 17 already applied the lighter fix that does not move a row).
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

@@ -291,18 +291,24 @@ const DRESSING_RINGS: readonly DressingRing[] = [
 /**
  * `prop-doormarker` (96x90 px) as a doorstep mat on each building's inner face.
  *
- * Enlarged 50% from its original 1.4 x 1.31m. Two reviews in a row reported the
- * entrance markers as unreadable — "tiny yellow markers fail to contrast against
- * the cracked gray terrain and lack visual weight", and earlier "the yellow
- * chevrons marking doors/gates are tiny and static ... so the city boundary and
- * its interactables are invisible at a glance". The core loop is "head into a
- * building or the gate", so the thing you drive up to has to be findable while
- * moving. Deliberately NOT graded: every other city prop goes through CITY_PROP_GRADE,
+ * Doubled from its original 1.4 x 1.31m, in two steps. Three reviews in a row
+ * have called the entrance markers unreadable — "tiny yellow markers fail to
+ * contrast against the cracked gray terrain and lack visual weight", "the
+ * yellow chevrons marking doors/gates are tiny and static ... invisible at a
+ * glance", and then, after a 50% enlargement had already shipped, STILL "tiny
+ * yellow arrows that blend into the grey, cracked ground texture ... they lack
+ * visual weight".
+ *
+ * That third report is the useful one: it was looking at the enlarged marker,
+ * so the 50% under-delivered rather than the review being wrong. The core loop
+ * is "head into a building or the gate", so the thing you drive up to has to be
+ * findable while moving — and a reviewer who has already seen the fix and still
+ * cannot find it is telling you the number was too small. Deliberately NOT graded: every other city prop goes through CITY_PROP_GRADE,
  * and the marker is the one thing on the map that must stay saturated, because
  * it IS the objective.
  */
 const DOORMARKER_FRAME = 'prop-doormarker';
-const DOORMARKER_SIZE_M: Vec2 = { x: 2.1, y: 1.97 };
+const DOORMARKER_SIZE_M: Vec2 = { x: 2.8, y: 2.62 };
 
 const WHITE_TINT: Tint = { r: 1, g: 1, b: 1, a: 1 };
 const BLACK_TINT: Tint = { r: 0, g: 0, b: 0, a: 1 };
