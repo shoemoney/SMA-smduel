@@ -131,6 +131,22 @@ export function renderHeaderText(info: MenuHeaderInfo): string {
 export interface MenuMountOptions {
   readonly container: HTMLElement;
   readonly header: MenuHeaderInfo;
+  /**
+   * Whether to render the money/date header at all.
+   *
+   * It is genuinely useful on the in-run menus, where it is persistent status a
+   * player wants while choosing. It is pure noise on the TITLE screen, where no
+   * run is in progress: a review called the line "an unprompted debug-style text
+   * block ($9 | 2030-01-01 (DAY) - smduel) placed over the primary menu" and said
+   * it "makes the game look unfinished and confuses players about whether the
+   * text is part of intended UI or a glitch".
+   *
+   * It read as a debug readout because that is effectively what it was — a
+   * session header describing a session that does not exist yet, with a starting
+   * balance of $9 and a day-zero date. Defaults to true so every existing caller
+   * is unchanged.
+   */
+  readonly showHeader?: boolean;
   readonly actions: readonly MenuAction[];
   readonly onActivate: (id: string) => void;
   readonly onBack: () => void;
@@ -142,14 +158,21 @@ export interface MountedMenu {
   destroy(): void;
 }
 
-function buildMenuDom(state: MenuState, header: MenuHeaderInfo, onRowActivate: (index: number) => void): HTMLElement {
+function buildMenuDom(
+  state: MenuState,
+  header: MenuHeaderInfo,
+  onRowActivate: (index: number) => void,
+  showHeader: boolean,
+): HTMLElement {
   const root = document.createElement('div');
   root.className = 'sm-menu';
 
-  const headerEl = document.createElement('div');
-  headerEl.className = 'sm-menu__header';
-  headerEl.textContent = renderHeaderText(header);
-  root.appendChild(headerEl);
+  if (showHeader) {
+    const headerEl = document.createElement('div');
+    headerEl.className = 'sm-menu__header';
+    headerEl.textContent = renderHeaderText(header);
+    root.appendChild(headerEl);
+  }
 
   const list = document.createElement('ol');
   list.className = 'sm-menu__list';
@@ -214,7 +237,7 @@ export function mountMenu(options: MenuMountOptions): MountedMenu {
 
   function render(): void {
     options.container.innerHTML = '';
-    options.container.appendChild(buildMenuDom(state, header, onRowActivate));
+    options.container.appendChild(buildMenuDom(state, header, onRowActivate, options.showHeader !== false));
   }
 
   function onKeyDown(ev: KeyboardEvent): void {

@@ -712,6 +712,12 @@ function showTitle(
   }
   mountMenu({
     container: menuHost,
+    // No run is in progress yet, so there is no money, no day and no city to
+    // report. The header is still passed (it is required, and the controls and
+    // continue paths re-render through this same mount) but explicitly hidden —
+    // a session readout above "New Driver" read as a debug block, and it was
+    // describing a session that did not exist.
+    showHeader: false,
     header: { cash: 0, dayIndex: clock.dayIndex, phase: clock.phase, cityName: t('ui.title.appName') },
     actions,
     onActivate: (id) => {

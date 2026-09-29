@@ -288,9 +288,21 @@ const DRESSING_RINGS: readonly DressingRing[] = [
   { frame: 'prop-fence-post', sizeM: { x: 0.5, y: 0.5 }, rotationOffsetRad: 0, setbackM: 6.9, spacingM: 3, period: 5 },
 ];
 
-/** `prop-doormarker` (96x90 px) as a doorstep mat on each building's inner face. */
+/**
+ * `prop-doormarker` (96x90 px) as a doorstep mat on each building's inner face.
+ *
+ * Enlarged 50% from its original 1.4 x 1.31m. Two reviews in a row reported the
+ * entrance markers as unreadable — "tiny yellow markers fail to contrast against
+ * the cracked gray terrain and lack visual weight", and earlier "the yellow
+ * chevrons marking doors/gates are tiny and static ... so the city boundary and
+ * its interactables are invisible at a glance". The core loop is "head into a
+ * building or the gate", so the thing you drive up to has to be findable while
+ * moving. Deliberately NOT graded: every other city prop goes through CITY_PROP_GRADE,
+ * and the marker is the one thing on the map that must stay saturated, because
+ * it IS the objective.
+ */
 const DOORMARKER_FRAME = 'prop-doormarker';
-const DOORMARKER_SIZE_M: Vec2 = { x: 1.4, y: 1.31 };
+const DOORMARKER_SIZE_M: Vec2 = { x: 2.1, y: 1.97 };
 
 const WHITE_TINT: Tint = { r: 1, g: 1, b: 1, a: 1 };
 const BLACK_TINT: Tint = { r: 0, g: 0, b: 0, a: 1 };
@@ -752,6 +764,13 @@ function doormarkerInstances(layout: CityLayout, atlasIndex: AtlasIndex): Sprite
   const frame = atlasIndex.frame(DOORMARKER_FRAME);
   const radiusM = layout.boundsRadiusM - (layout.tileSizeM / 2 + DOORMARKER_SIZE_M.y / 2);
   const out: SpriteInstanceInput[] = [];
+  // No contact shadow on the markers, even though every building has one and
+  // the same reasoning would apply. The city's instance buffer is EXACTLY full
+  // at 95/95, so ten extra marker shadows pushed it to 105 and `writeInstanceBuffer`
+  // rejected the write — which renders the whole city screen BLANK rather than
+  // dropping the overflow. The enlargement above is the reviewer's actual ask and
+  // costs nothing; growing a GPU buffer budget to fit a nice-to-have shadow is
+  // the wrong trade, so the shadow is what goes.
   for (const doorway of layout.doorways) {
     out.push(spriteInstance(frame, polar(radiusM, angleOf(doorway.position)), 0, DOORMARKER_SIZE_M, LAYER_BUILDING));
   }

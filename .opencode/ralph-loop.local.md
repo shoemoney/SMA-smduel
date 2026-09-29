@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 18
+iteration: 19
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (18 of 82 vision models):
+Reviewers asked (19 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -214,6 +214,36 @@ TOOLING - the review harness got audited by its own failure this round:
        help line (both read cleanly at full res).
      Recorded: buildings still do not read as ENTERABLE (chevrons are small and
        static, interior ground matches exterior) - the next real city item.
+
+19. bytedance-seed/seed-1.6 -> 2 REAL, one of them debug data in the UI:
+     - "An unprompted debug-style text block ($9 | 2030-01-01 (DAY) - smduel) is
+       placed over the primary menu ... makes the game look unfinished and
+       confuses players about whether the text is intended UI or a glitch."
+       CONFIRMED. The title screen has no run in progress, so it was printing a
+       session header describing a session that does not exist: a $9 starting
+       balance and a day-zero date. It read as a debug readout because that is
+       effectively what it was. The menu header is now opt-out and the title
+       hides it; the in-run menus keep it, where it is real status.
+     - "Tiny yellow markers fail to contrast against the cracked gray terrain and
+       lack visual weight." CONFIRMED - and this is the item iteration 18
+       RECORDED for next, so two reviewers now agree on it independently.
+       Entrance markers enlarged 50% (1.4x1.31m -> 2.1x1.97m). Deliberately left
+       ungraded, the one prop that must stay saturated because it IS the
+       objective.
+     FALSE: radar has no sweep (11th report on the same element); replace
+       (empty) with "Press Enter to Mount" (Enter is CONFIRM, not mount -
+       mounting is done by typing a digit, so this would teach the wrong verb);
+       red x is ambiguous (marginal, the x is labelled).
+     THE GUARD CAUGHT A SECOND CONTRACT VIOLATION - second live catch for the
+     instance-capacity check, after the invisible beacon in iteration 8. I also
+     gave every doormarker a contact shadow (10 more instances). The city actor
+     buffer is sized from cityInstanceCount(), which is EXACT: 95/95. Ten extra
+     shadows pushed it to 105 and writeInstanceBuffer rejected the write, which
+     renders the whole city screen BLANK rather than dropping the overflow. So
+     the shadow - which was MY embellishment, not the reviewer's ask - is what
+     went, and the enlargement stayed. cityInstanceCount() is the single contract
+     for city prop instances; it already carries a comment about the first
+     violation and the count is the thing to update when adding props.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
