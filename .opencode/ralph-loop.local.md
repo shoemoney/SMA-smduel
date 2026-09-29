@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (34 of 82 vision models):
+Reviewers asked (35 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -829,6 +829,42 @@ TOOLING - the review harness got audited by its own failure this round:
      - "Replace the weapon list with a visual grid." Seventh report; the rows are
        addressed by index and by 0-9 typing;
      - radar: 22nd report on the same element.
+
+35. openai/gpt-4o-mini-2024-07-18 -> ZERO REAL. All five checked; nothing changed.
+     The second zero in the loop, and a useful one to pair with iteration 26:
+         - "The title SMDUEL lacks contrast against the background." FALSE.
+           Measured on the real frame: the wordmark band peaks at 250 against a
+           73.5 mean, and the wordmark carries its own shadow. It is the most
+           saturated thing on that screen by a wide margin - which is what
+           iteration 31 set out to achieve;
+         - "The instruction text is small and uses a colour that blends with the
+           background, making it hard to read." FALSE, and I nearly logged it
+           TRUE on a bad measurement. A 300x16 sample of the legality steps
+           returned 72.8 against a 74.4 panel - a ratio of essentially 1.0, which
+           would have been invisible. A WIDER crop of the same block shows a bold
+           prompt line and three clearly legible steps. The sample box had landed
+           on empty panel. That is the FOURTH time in this loop a crop has nearly
+           misled me (iterations 12, 30, 33, 35) and the rule is unchanged and now
+           well earned: a crop that disagrees with the code is evidence about the
+           CROP until proven otherwise. A suspiciously exact number is the tell -
+           1.0:1 is not a legibility problem, it is a sampling error;
+         - "The icons and text for weapon selection are too small and lack
+           distinction" at the arena's top left. There is no such element there:
+           the crop shows the WEAPONS button and the seed tag, both added by
+           iterations 8 and 22. First sighting of the "element does not exist"
+           class since iteration 21;
+         - "The road HUD combines multiple readings that appear cluttered." The
+           condition panel is a dashboard on purpose - iteration 2 grouped it into
+           ARMOUR / TYRES / PLANT & DRIVER precisely so a glance tells you which
+           system a line belongs to;
+         - "City indicators lack differentiation from the background." Sixth
+           report of that class, and the markers measure max saturation 1.0.
+     NO CODE CHANGED. This review is also the weakest of the pool so far: no
+     coordinates, no measurements, and every finding is a generic "increase
+     contrast / increase size" that would apply to any game ever made. Worth
+     recording as its own kind of evidence - not every vision model can critique,
+     and the pool contains models whose output should be weighted accordingly
+     rather than actioned.
 
 DEFERRED (real, documented, not bugs):
 - City daylight grade (my 0.6 ground tint is why it reads dim), street network,
