@@ -2517,7 +2517,7 @@ function showArena(
    */
   const arenaControls = el('div');
   arenaControls.style.cssText =
-    'position:absolute;top:34px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.62);padding:3px 9px;border-radius:4px;text-align:center;white-space:nowrap;pointer-events:none;animation:sm-road-hint-fade 7s ease-out forwards;';
+    'position:absolute;top:34px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:3px 9px;border-radius:4px;text-align:center;white-space:nowrap;pointer-events:none;animation:sm-road-hint-fade 7s ease-out forwards;';
   arenaControls.textContent = t(isCoarsePointer() ? 'ui.arena.arenaControlsTouch' : 'ui.arena.arenaControls');
   // The seed is announced in the session message feed rather than floating as a
   // chip, and the chip is gone entirely.

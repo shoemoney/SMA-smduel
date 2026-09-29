@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 72
+iteration: 73
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (72 of 82 vision models):
+Reviewers asked (73 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -3212,6 +3212,78 @@ TOOLING - the review harness got audited by its own failure this round:
        stack" complaint describes the section rule from iteration 17 and the
        requirement rails from iteration 48 doing exactly the job they were added
        to do. Recorded as the most persistent unresolved layout item in the log.
+
+73. qwen/qwen3.8-27b -> 1 REAL, and it is a genuine internal inconsistency in the
+     HUD rather than a taste disagreement. 4 FALSE:
+     - "Three separate panels of different sizes and background weights are
+       stacked in the top-centre: a solid dark title pill, a control-hint line
+       on its own LIGHTER TRANSLUCENT STRIP, and a third status box. The middle
+       hint strip's background differs from the others ... the HUD looks
+       assembled from parts rather than designed." REAL, and the specific claim
+       ("the middle hint strip's background differs") is checkable in one grep,
+       which is why it is worth separating from the review's larger ask:
+         status pill  `background: rgba(10,14,20,0.7)`
+         hint  strip  `background: rgba(10,14,20,0.62)`
+       Two near-identical dark pills stacked 26px apart, 0.08 alpha apart, read
+       as two mismatched components rather than as one stack. Nothing about that
+       is intentional; the 0.62 was picked by eye when the hint became a separate
+       fading element in iteration 18, and the status pill's own alpha was later
+       raised independently (to 0.86 on the road in iteration 24) without the
+       hint following. The two numbers simply drifted apart.
+       FIXED by making them identical (0.7, matching the pill directly above),
+       which is the whole of the defect. The reviewer's LARGER ask — merge all
+       three into one banner with a single type hierarchy — is a layout
+       consolidation and is declined for the reason iteration 58 recorded: the
+       three elements carry three different KINDS of information (permanent
+       status, a transient teaching aid, and the session log), they are placed
+       separately by deliberate screenshot passes (iteration 18 moved the hint
+       clear of the 44..52px progress-bar band), and the hint fades after 7s so
+       the stack is not permanent. Fixing the measurable part of the complaint
+       rather than the structural part is the same discipline iteration 72
+       applied to the accessibility chips;
+     - "A large dashed circle encircles the building cluster and the player car,
+       with no label or legend entry ... it reads as a leftover debug overlay."
+       That is the PERIMETER WALL (`prop-citywall`), which iteration 1 recorded
+       as a closed ring of segmented sprites with its face outward — a
+       deliberately dashed-looking band. It is not a debug overlay and it is not
+       unlabelled by accident: the city is a walled compound and the wall is what
+       makes it read as one. Note the echo of iteration 50 here, where a reviewer
+       described this same element as "low-contrast gray" and I built a fix,
+       measured, found the wall byte-identical, re-tinted to locate it, and
+       reverted having sampled the wrong element. The wall's true contrast has
+       therefore still never been measured, and that remains an open check rather
+       than a settled one;
+     - "Building markers don't match the legend — a green chevron on a blue tile,
+       a blue chevron on a green tile ... no red marker is visible in this frame."
+       The chevron and its base are ONE sprite carrying ONE tint
+       (`facilityMarkerTint`, iteration 37), so they cannot disagree; what shows
+       through the marker's semi-transparent upper half is the GROUND behind it,
+       which is the grey-green city surface, not a second service colour. And
+       "no red marker is visible in this frame" is the static-frame class again —
+       a frame shows the facilities near the player, and the capture is the
+       practice-rig layout. The legend's fourth entry describes a facility that
+       need not be on screen. The player's teal chevron is iteration 8's GATE
+       BEACON, deliberately not a service and deliberately not in the legend;
+     - "Empty HUD states read as broken, not as 'none equipped' — 'none fitted'
+       is faint italic gray and the armour slots look like unfilled form fields."
+       The OPPOSITE of iterations 21, 50 and 57, which called the loud dashed
+       chip correct and the faint dash wrong. Both positions were deliberate, for
+       opposite reasons, and the log now holds the tension explicitly: the
+       ARMOUR panel shouts its empty state (iteration 21 — an unfitted slot must
+       not read as an area that failed to render) while the WEAPONS list dims
+       its empty slots (iteration 17 — the list is dense, and dimming the empties
+       is what makes the fitted weapons land). Changing the weapons list to "full
+       opacity accent" would invert iteration 17's whole solution to the density
+       problem to satisfy a complaint that iteration 17 already answered with a
+       measurement. Declined, and recorded as the log's clearest example of two
+       correct decisions about opposite elements;
+     - "The constructor's left column is a flat wall of dim empty rows with dead
+       space below the help line." The density class (iterations 17, 27, 31, 57,
+       58, 62, 72) and the dead space first noted in iteration 28 and raised by
+       three separate reviews since. Still no remedy this loop can take that
+       does not restructure the screen or break the 0-9 index addressing.
+     ONE REAL, FOUR FALSE, and the real one was a two-digit drift between two
+     numbers that were never compared to each other.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3.8-27b",
+  "modelLabel": "qwen/qwen3.8-27b",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T21:16:39.029Z",
+  "usage": {
+    "prompt_tokens": 5446,
+    "completion_tokens": 8951,
+    "total_tokens": 14397,
+    "cost": 0.017053497,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.017053497,
+      "upstream_inference_prompt_cost": 0.001102815,
+      "upstream_inference_completions_cost": 0.015950682
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7593,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Unlabeled dashed circle swallows the city",
+      "where": "City screen, center — a large dashed ring encircles the building cluster and the player car",
+      "problem": "A big dashed circle with no label, tooltip, or legend entry spans most of the map, overlapping the buildings and the player. It is drawn in the same neutral gray as the pavement cracks and has no icon or text explaining what it is (boundary? event zone? debug?).",
+      "why": "It competes with the colored building markers for the eye and visually frames the play area in a way that reads as a leftover debug overlay or an unexplained rule, so the city looks unfinished and the actual points of interest get buried inside it.",
+      "fix": "Either remove it or make it meaningful: if it is a zone or boundary, render it as a 1-2px line in a distinct low-alpha color, put a short label on its rim (e.g. 'CITY LIMITS' or the zone name), and lower its visual weight so the colored building markers sit clearly on top of it."
+    },
+    {
+      "title": "Building service markers don't match the legend and are too small",
+      "where": "City screen, the colored chevrons above each building, versus the legend in the bottom-right corner",
+      "problem": "Each marker is a tiny chevron painted on a small base tile, and the chevron color and tile color frequently disagree (e.g. a green chevron on a blue tile, a blue chevron on a green tile). The legend shows single-color swatches (Fight=red, Build=orange, Care=green, Jobs=blue), but no red marker is visible in this frame and the player's own teal chevron is not in the legend at all.",
+      "why": "At a glance a player cannot map a building to a service, which is the core navigation task in an open city; the two-color markers actively mislead, and the extra teal marker above the player is ambiguous (player marker or a fifth service?), making the world feel unexplained and the legend untrustworthy.",
+      "fix": "Use one color per service for the whole marker (chevron + tile) so it matches the legend exactly, add the player's marker to the legend or give it a unique shape (e.g. a white outline arrow), enlarge the chevron about 1.5x, and add a 1px dark outline so each icon reads crisply at map zoom."
+    },
+    {
+      "title": "Empty HUD states read as broken, not as 'none equipped'",
+      "where": "Arena and Road screens — the top-left 'WEAPONS / none fitted' panel and the right CONDITION panel's ARMOUR rows (FRONT/REAR/LEFT/RIGHT/UNDERBODY)",
+      "problem": "The 'nothing equipped' state is the dimmest content on screen: 'none fitted' is faint italic gray, and every ARMOUR slot renders as an empty dashed-bracket glyph (FRONT: [ ]) that looks like a missing value or an unfilled form field rather than a deliberate 'no plate here' status.",
+      "why": "In a combat game the player must instantly know they are unarmored and unarmed; right now that critical safety information is rendered as the lowest-contrast, most placeholder-like text on the HUD, so it looks buggy and the player may not register they have zero defense.",
+      "fix": "Give empty slots an explicit higher-contrast empty state — a thin red or amber rounded outline with a small slash or the word 'NONE' in a readable weight — and restyle the WEAPONS panel's 'none fitted' in an accent color at full opacity so 'no weapon' reads as a clear status, not a glitch."
+    },
+    {
+      "title": "Constructor left list is a flat wall of dim empty rows",
+      "where": "Constructor screen, left column — the Armor rows and Weapon 1-10 rows, plus the empty area below the one-line help text",
+      "problem": "Ten Weapon rows all show '(empty)' in faint gray italic and five Armor rows show '0' in dim green, so the list is a long block of near-identical low-contrast rows where an empty slot looks almost the same as a filled one; below the help line the bottom-left quadrant is empty dead space.",
+      "why": "The build screen is the one place the player must scan many options quickly; a wall of identical dim rows gives no hierarchy between assigned and empty, makes the panel feel half-built, and the wasted space makes the two-column layout look unbalanced and unfinished.",
+      "fix": "Reserve bright text for filled values and render empty slots as a subtle dashed-outline chip with a muted but legible placeholder; collapse unused weapon slots into a single '+ add weapon' row (or dim the rest to ~40% under a 'WEAPONS' header); and remove the empty bottom-left space or rebalance the columns so the panel fills its area."
+    },
+    {
+      "title": "Arena top-center stacks three mismatched HUD boxes",
+      "where": "Arena screen, top-center — the 'Practice arena' title pill, the control-hint line, and the status box stacked vertically",
+      "problem": "Three separate panels of different sizes and background weights are stacked in the top-center: a solid dark title pill, a control-hint line on its own lighter translucent strip, and a third status box. The middle hint strip's background differs from the others, and the whole stack sits in the focal point of a top-down view.",
+      "why": "Top-center is where the eye lands first in top-down gameplay; three mismatched floating boxes make the HUD look assembled from parts rather than designed, and the disconnected hint strip is exactly the element the eye skips, so the controls the player needs most when entering a new area are the least seen.",
+      "fix": "Merge them into one top banner with a single consistent panel background and a clear type hierarchy (bold title line 1, smaller dimmer hints line 2, status line 3), and auto-fade the control hints after a few seconds or on first keypress so the banner shrinks to just title + status."
+    }
+  ],
+  "parseError": null,
+  "raw": "\n\n[\n  {\n    \"title\": \"Unlabeled dashed circle swallows the city\",\n    \"where\": \"City screen, center — a large dashed ring encircles the building cluster and the player car\",\n    \"problem\": \"A big dashed circle with no label, tooltip, or legend entry spans most of the map, overlapping the buildings and the player. It is drawn in the same neutral gray as the pavement cracks and has no icon or text explaining what it is (boundary? event zone? debug?).\",\n    \"why\": \"It competes with the colored building markers for the eye and visually frames the play area in a way that reads as a leftover debug overlay or an unexplained rule, so the city looks unfinished and the actual points of interest get buried inside it.\",\n    \"fix\": \"Either remove it or make it meaningful: if it is a zone or boundary, render it as a 1-2px line in a distinct low-alpha color, put a short label on its rim (e.g. 'CITY LIMITS' or the zone name), and lower its visual weight so the colored building markers sit clearly on top of it.\"\n  },\n  {\n    \"title\": \"Building service markers don't match the legend and are too small\",\n    \"where\": \"City screen, the colored chevrons above each building, versus the legend in the bottom-right corner\",\n    \"problem\": \"Each marker is a tiny chevron painted on a small base tile, and the chevron color and tile color frequently disagree (e.g. a green chevron on a blue tile, a blue chevron on a green tile). The legend shows single-color swatches (Fight=red, Build=orange, Care=green, Jobs=blue), but no red marker is visible in this frame and the player's own teal chevron is not in the legend at all.\",\n    \"why\": \"At a glance a player cannot map a building to a service, which is the core navigation task in an open city; the two-color markers actively mislead, and the extra teal marker above the player is ambiguous (player marker or a fifth service?), making the world feel unexplained and the legend untrustworthy.\",\n    \"fix\": \"Use one color per service for the whole marker (chevron + tile) so it matches the legend exactly, add the player's marker to the legend or give it a unique shape (e.g. a white outline arrow), enlarge the chevron about 1.5x, and add a 1px dark outline so each icon reads crisply at map zoom.\"\n  },\n  {\n    \"title\": \"Empty HUD states read as broken, not as 'none equipped'\",\n    \"where\": \"Arena and Road screens — the top-left 'WEAPONS / none fitted' panel and the right CONDITION panel's ARMOUR rows (FRONT/REAR/LEFT/RIGHT/UNDERBODY)\",\n    \"problem\": \"The 'nothing equipped' state is the dimmest content on screen: 'none fitted' is faint italic gray, and every ARMOUR slot renders as an empty dashed-bracket glyph (FRONT: [ ]) that looks like a missing value or an unfilled form field rather than a deliberate 'no plate here' status.\",\n    \"why\": \"In a combat game the player must instantly know they are unarmored and unarmed; right now that critical safety information is rendered as the lowest-contrast, most placeholder-like text on the HUD, so it looks buggy and the player may not register they have zero defense.\",\n    \"fix\": \"Give empty slots an explicit higher-contrast empty state — a thin red or amber rounded outline with a small slash or the word 'NONE' in a readable weight — and restyle the WEAPONS panel's 'none fitted' in an accent color at full opacity so 'no weapon' reads as a clear status, not a glitch.\"\n  },\n  {\n    \"title\": \"Constructor left list is a flat wall of dim empty rows\",\n    \"where\": \"Constructor screen, left column — the Armor rows and Weapon 1-10 rows, plus the empty area below the one-line help text\",\n    \"problem\": \"Ten Weapon rows all show '(empty)' in faint gray italic and five Armor rows show '0' in dim green, so the list is a long block of near-identical low-contrast rows where an empty slot looks almost the same as a filled one; below the help line the bottom-left quadrant is empty dead space.\",\n    \"why\": \"The build screen is the one place the player must scan many options quickly; a wall of identical dim rows gives no hierarchy between assigned and empty, makes the panel feel half-built, and the wasted space makes the two-column layout look unbalanced and unfinished.\",\n    \"fix\": \"Reserve bright text for filled values and render empty slots as a subtle dashed-outline chip with a muted but legible placeholder; collapse unused weapon slots into a single '+ add weapon' row (or dim the rest to ~40% under a 'WEAPONS' header); and remove the empty bottom-left space or rebalance the columns so the panel fills its area.\"\n  },\n  {\n    \"title\": \"Arena top-center stacks three mismatched HUD boxes\",\n    \"where\": \"Arena screen, top-center — the 'Practice arena' title pill, the control-hint line, and the status box stacked vertically\",\n    \"problem\": \"Three separate panels of different sizes and background weights are stacked in the top-center: a solid dark title pill, a control-hint line on its own lighter translucent strip, and a third status box. The middle hint strip's background differs from the others, and the whole stack sits in the focal point of a top-down view.\",\n    \"why\": \"Top-center is where the eye lands first in top-down gameplay; three mismatched floating boxes make the HUD look assembled from parts rather than designed, and the disconnected hint strip is exactly the element the eye skips, so the controls the player needs most when entering a new area are the least seen.\",\n    \"fix\": \"Merge them into one top banner with a single consistent panel background and a clear type hierarchy (bold title line 1, smaller dimmer hints line 2, status line 3), and auto-fade the control hints after a few seconds or on first keypress so the banner shrinks to just title + status.\"\n  }\n]"
+}
