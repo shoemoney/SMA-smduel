@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 74
+iteration: 76
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -3332,7 +3332,53 @@ TOOLING - the review harness got audited by its own failure this round:
      the first review where EVERY finding was falsifiable from source without
      opening a single screenshot. A review that can be refuted that cheaply has
      not engaged with the build, and the correct response to it is to weight it
-     rather than answer it.
+      rather than answer it.
+
+75. qwen/qwen3-vl-30b-a3b-thinking -> ZERO REAL. Nothing changed. Two of the five
+     assert a font size of "8-9px" for text that is declared as 13px in a single
+     token, and the round is worth recording for the harness rather than the
+     findings: the first attempt pointed `--shots` at a directory that did not
+     exist, and `reviewSized` REFUSED it instead of quietly resizing the stale
+     `_small_*` files iteration 74 had left behind. The stale-screenshot guard
+     built at iteration 71 paid for itself on its first live use:
+     - "Radar display is a solid black disc with no visible sweep line or contact
+       indicators (e.g., rotating line, glowing dots for targets)." FORTY-SEVENTH
+       report. `hud.css` documents the sweep, the range rings, the crosshair and
+       the `▲` player marker in the comment block at lines 286-324, written
+       precisely because "a radar that is technically drawn but reads as broken"
+       is the failure. The remedy proposed here — "add a rotating line and a dot
+       for testing" — is to add the thing that is already there plus a permanent
+       lie, since a fabricated contact blip has been declined seventeen times;
+     - "Colored arrow icons (green/orange/red) blend with gray cracked background
+       due to low contrast/saturation ... increase icon saturation by 20% and add
+       a 1px white outline." The markers carry a real drop shadow
+       (`DOORMARKER_SHADOW_SOFTNESS = 0.5`, `DOORMARKER_SHADOW_OPACITY = 0.62`,
+       city-view.ts:254-255) and the saturated tints iteration 52/53 installed
+       over the desaturated originals. A 1px white outline on every marker is the
+       same competing treatment declined on buildings: it puts a second, brighter
+       edge on a shape whose job is to sit BEHIND the chevron it marks;
+     - "Tagline text is small, low-contrast, and blends with the dusty orange
+       background ... increase font size by 20% and add a 1px dark outline." The
+       contrast was measured in iteration 65 at 7.92/7.72/7.99:1 across the three
+       thirds, i.e. above the 7:1 AAA line, at 13-16px. A dark outline is also
+       the specific remedy the tagline gradient was built to make unnecessary;
+     - "(empty) text is too small (8-9px) and low-contrast." `.sm-builder` sets
+       `font-size: var(--ui-text-base)` at builder.css:81 and that token is
+       `0.8125rem` — 13px, labelled "the HUD's body size" — at tokens.css:199.
+       The 8-9px figure is arithmetic on a downscale: 1440 -> 1280 is 0.889x, so
+       13px lands at ~11.6px with a ~10px glyph band, and "bright cyan" would
+       recolour a placeholder to match an icon it does not represent;
+     - "Numbers (e.g., "FR: 4/4") are too small (8-9px) and lack contrast ...
+       use bright green (matching the progress bars)." `.hud-root` inherits the
+       same 13px base through `--tbase: calc(var(--ui-text-base) * var(--hud-scale))`
+       (hud.css:51,63), and the ink measures 24-55:1. The colour half of the
+       remedy is the part worth declining explicitly: painting the number the
+       same green as its bar collapses a value and a meter into one undifferentiated
+       block, which is the same "two stacked pills, two different alphas, nobody
+       compared them" defect fixed in 6812a2b one commit earlier.
+     NO CODE CHANGED. Two of five findings are one 13px token misread by a
+     downscale, which makes this the second review in a row (74, 75) where the
+     cheapest possible refutation was to read the stylesheet.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

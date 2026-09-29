@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3-vl-30b-a3b-thinking",
+  "modelLabel": "qwen/qwen3-vl-30b-a3b-thinking",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T21:23:50.769Z",
+  "usage": {
+    "prompt_tokens": 5394,
+    "completion_tokens": 2670,
+    "total_tokens": 8064,
+    "cost": 0.00423426,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00423426,
+      "upstream_inference_prompt_cost": 0.00156426,
+      "upstream_inference_completions_cost": 0.00267
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2096,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Radar Instrument Broken",
+      "where": "Left side of arena and road screens (radar panel)",
+      "problem": "Radar display is a solid black disc with no visible sweep line or contact indicators (e.g., rotating line, glowing dots for targets)",
+      "why": "Players cannot determine if the radar is active or detect enemies, undermining combat awareness and feedback",
+      "fix": "Add a thin green sweep line rotating around the radar edge and small green dots for detected contacts (e.g., one dot for testing)"
+    },
+    {
+      "title": "City Map Icon Contrast",
+      "where": "Central area of city screenshot (arrow-shaped vehicle icons on cracked map)",
+      "problem": "Colored arrow icons (green/orange/red) blend with gray cracked background due to low contrast/saturation",
+      "why": "Players miss navigation cues or mission locations, causing confusion during courier work",
+      "fix": "Increase icon saturation by 20% and add a 1px white outline to make icons pop against the background"
+    },
+    {
+      "title": "Title Screen Tagline Readability",
+      "where": "Center of title screen, beneath \"SMDUEL\" logo",
+      "problem": "Tagline text is small, low-contrast, and blends with the dusty orange background",
+      "why": "Players fail to absorb the game’s core premise quickly, weakening first impression and marketing",
+      "fix": "Increase tagline font size by 20% and add a 1px dark outline to text for contrast against the background"
+    },
+    {
+      "title": "Constructor Weapon Slot Labels",
+      "where": "Left panel of constructor screen, under \"Weapon 1-10\" rows",
+      "problem": "(empty) text is too small (8-9px) and low-contrast against dark background",
+      "why": "Players can’t confirm empty weapon slots quickly, causing frustration during vehicle building",
+      "fix": "Increase (empty) text size to 12px and use bright cyan color (matching weapon icons) for readability"
+    },
+    {
+      "title": "Condition Panel Text Size",
+      "where": "Right panel of arena screen, under \"Armour\" and \"Tyres\" sections",
+      "problem": "Numbers (e.g., \"FR: 4/4\") are too small (8-9px) and lack contrast against dark background",
+      "why": "Players miss armor/tyre status during fast-paced arena fights, leading to poor combat decisions",
+      "fix": "Increase text size to 12px and use bright green (matching the progress bars) for the numbers"
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Radar Instrument Broken\",\n    \"where\": \"Left side of arena and road screens (radar panel)\",\n    \"problem\": \"Radar display is a solid black disc with no visible sweep line or contact indicators (e.g., rotating line, glowing dots for targets)\",\n    \"why\": \"Players cannot determine if the radar is active or detect enemies, undermining combat awareness and feedback\",\n    \"fix\": \"Add a thin green sweep line rotating around the radar edge and small green dots for detected contacts (e.g., one dot for testing)\"\n  },\n  {\n    \"title\": \"City Map Icon Contrast\",\n    \"where\": \"Central area of city screenshot (arrow-shaped vehicle icons on cracked map)\",\n    \"problem\": \"Colored arrow icons (green/orange/red) blend with gray cracked background due to low contrast/saturation\",\n    \"why\": \"Players miss navigation cues or mission locations, causing confusion during courier work\",\n    \"fix\": \"Increase icon saturation by 20% and add a 1px white outline to make icons pop against the background\"\n  },\n  {\n    \"title\": \"Title Screen Tagline Readability\",\n    \"where\": \"Center of title screen, beneath \\\"SMDUEL\\\" logo\",\n    \"problem\": \"Tagline text is small, low-contrast, and blends with the dusty orange background\",\n    \"why\": \"Players fail to absorb the game’s core premise quickly, weakening first impression and marketing\",\n    \"fix\": \"Increase tagline font size by 20% and add a 1px dark outline to text for contrast against the background\"\n  },\n  {\n    \"title\": \"Constructor Weapon Slot Labels\",\n    \"where\": \"Left panel of constructor screen, under \\\"Weapon 1-10\\\" rows\",\n    \"problem\": \"(empty) text is too small (8-9px) and low-contrast against dark background\",\n    \"why\": \"Players can’t confirm empty weapon slots quickly, causing frustration during vehicle building\",\n    \"fix\": \"Increase (empty) text size to 12px and use bright cyan color (matching weapon icons) for readability\"\n  },\n  {\n    \"title\": \"Condition Panel Text Size\",\n    \"where\": \"Right panel of arena screen, under \\\"Armour\\\" and \\\"Tyres\\\" sections\",\n    \"problem\": \"Numbers (e.g., \\\"FR: 4/4\\\") are too small (8-9px) and lack contrast against dark background\",\n    \"why\": \"Players miss armor/tyre status during fast-paced arena fights, leading to poor combat decisions\",\n    \"fix\": \"Increase text size to 12px and use bright green (matching the progress bars) for the numbers\"\n  }\n]"
+}
