@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 64
+iteration: 65
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (64 of 82 vision models):
+Reviewers asked (65 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2610,6 +2610,97 @@ TOOLING - the review harness got audited by its own failure this round:
      - radar: FORTIETH report, remedy again rings, cardinals, sweep and contact
        blips — all present since iteration 2, with the blips declined fifteen
        times as fabrications.
+
+65. qwen/qwen3.5-plus-20260420 -> ZERO REAL. Nothing changed. But this round
+     CLOSED THE ONE ITEM LOGGED AS UNVERIFIED, and it closed by measurement
+     after four wrong attempts:
+     - **ITERATION 63'S "UNVERIFIED" IS NOW FALSE.** That entry recorded, as the
+       one open item in its review, a claim that "the small white tagline's right
+       half nearly disappears into the sky", on the reasoning that a reviewer
+       naming one END of a line is a specific spatial claim worth separating from
+       the whole-line contrast already measured at 9.00:1.
+       It is false, and the three thirds are indistinguishable:
+         LEFT  text peak (235,240,244)  vs brightest adjacent bg ->  7.92:1
+         MID   text peak (233,237,241)  vs brightest adjacent bg ->  7.72:1
+         RIGHT text peak (236,241,244)  vs brightest adjacent bg ->  7.99:1
+       All three clear WCAG AAA, and the RIGHT third is the best of the three,
+       which is the opposite of the claim. The visual explains it: the sun glow
+       sits ABOVE the lockup, and the tagline's right end lies over a dark tank
+       hull. True adjacent background at those rows is a median of (15,12,10).
+       And a second model has now made the same claim independently ("Subtitle
+       Legibility ... placed directly over the brightest part of the
+       sunset/dust cloud, causing it to wash out"), which makes it a recurring
+       class rather than a one-off: two reviews in three rounds have located the
+       sun as being behind the text when the scrim band from iteration 27 puts
+       its darkest point exactly there.
+
+       WORTH RECORDING IS THE MEASUREMENT, because it took four wrong attempts
+       to get right and every one of them produced a confident, plausible,
+       completely false number:
+         attempt 1  1.79:1  — the "background" filter caught anti-aliased glyph
+                             pixels, so I was measuring the text against its
+                             own halo;
+         attempt 2  1.12:1  — the row band spanned the wordmark as well as the
+                             tagline, and the wordmark's bright end is CYAN;
+         attempt 3  1.50:1  — narrowed correctly but still used in-band
+                             non-text pixels, which at the tagline's own rows are
+                             mostly halo;
+         attempt 4  7.92 / 7.72 / 7.99:1 — sample the background from the SAME
+                             ROWS but OUTSIDE the text's x extent, where there is
+                             genuinely nothing but art.
+       This is iteration 35's rule again and it has now cost more than any other
+       lesson in the log: a ratio near 1.0 is not a legibility problem, it is a
+       sampling error. And the general form is sharper than "check the crop" —
+       the background sample must come from somewhere the TEXT IS NOT. Every
+       wrong attempt above sampled the text's own neighbourhood;
+     - "The yellow dashed lane markings have very low saturation and contrast
+       against the grey asphalt, making them blend into the road noise ... at
+       speed these lines will vanish." The SATURATION half is right and the
+       CONCLUSION is wrong, which is the iteration-9/23/24 shape. Measured: the
+       brightest dash pixel is (207,198,162) — a muted cream, so yes it is
+       desaturated rather than vivid — against a median asphalt of (50,50,56),
+         CONTRAST 7.43:1
+       which clears AAA, and the frame shows four dashes plainly separated from
+       the surface with dark gaps between them. The proposed remedy is also the
+       one worth being careful about: real high-contrast road markings DO use a
+       dark edge, but adding a stroke here would put more visual noise on a road
+       that iterations 34, 39, 43, 47 and 55 have all called busy, to solve a
+       legibility problem the measurement says does not exist. The geometry was
+       checked in iteration 36: a 3.2m mark inside a 10m period, so the gap is
+       2.1x the mark, not 1x;
+     - "The constructor preview is a generic blue wireframe/CAD drawing ...
+       replace it with a rendered top-down view of the actual pixel-art vehicle."
+       ELEVENTH report of the preview class, and this one is the sharpest
+       statement of the underlying disagreement yet: the reviewer wants the
+       PLAYER to see weapons and armour "on the pixel sprite, not an abstract
+       box". That is precisely the trade the loop declined in iterations 13, 16,
+       24, 26, 37, 43, 47, 51, 55, 56 and 63 — the gameplay sprite is a top-down
+       car and armour placement is a build-time abstraction, so the sprite
+       physically cannot show where the points land. The review names the
+       disagreement instead of restating the symptom, and the answer is unchanged
+       because the reason is structural;
+     - "The arena floor is a uniform flat grey texture resembling a developer
+       placeholder ... add tire skid marks, oil stains, cracked patches, debris."
+       The arena-emptiness class, and the ART item — DECALS specifically, which
+       is the one suggestion in the log that survives the "is this a lie about
+       the simulation?" test, because a decal is placed content and does not
+       repeat. Recorded again here, third time;
+     - "All interactable buildings are identical grey blocks ... vary the roof
+       shapes, heights or textures to match their function." THE ELEVENTH report
+       of the city-cohesion class, and worth separating from the seven earlier
+       ones: those wanted per-building COLOUR, which is the collage problem
+       iteration 16 spent a round removing. This one wants per-function building
+       ART, which is iteration 37's idea taken one step further — iteration 37
+       put function in the MARKER tint because the building sprites all come from
+       one graded family, and varying the art per function means new assets per
+       facility type. That is an ART task of the same class as the title
+       regeneration, not a code change.
+
+     A SELF-FOUND ITEM, recorded because the loop is supposed to find things and
+     not only triage what it is handed: the radar panel's orientation toggle
+     renders as "Orientation: north-" / "up" — the label wraps at the hyphen.
+     Visible in the frame, minor, and the break point is a legitimate one, so
+     recorded rather than churned.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
