@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 44
+iteration: 45
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (44 of 82 vision models):
+Reviewers asked (45 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1272,6 +1272,43 @@ TOOLING - the review harness got audited by its own failure this round:
      composition change cost 0.5 of a contrast point and the art is visible for
      the first time, which is a trade this loop should make knowingly rather than
      discover later — and now that it is written down, it is known.
+
+45. amazon/nova-2-lite-v1 -> ZERO REAL. Nothing changed. The first finding is a
+     spatial claim that is checkable in one glance, and it is wrong:
+     - "The condition panel overlaps the radar and health display, creating
+       visual clutter." FALSE, and the frame settles it: the four corners hold
+       four DISTINCT instruments — CONDITION top-right, RADAR bottom-left, the
+       speedometer bottom-centre, the accessibility toggles bottom-right — with
+       the centre of the frame left entirely clear for the car. The status pill
+       and control hints sit top-centre, the WEAPONS button and seed top-left.
+       Nothing overlaps anything. This is the fourth distinct false claim class
+       to appear in a row (radar missing, tagline sun-glow, stacked messages,
+       overlapping panels) and they share a shape: the reviewer describes a
+       plausible layout problem and never checks whether the layout has it;
+     - "The orange sunset makes the white title text hard to read." Measured in
+       iteration 44 at 9.00:1 against the brightest background adjacent to the
+       tagline, with a two-layer shadow underneath. "Especially on lower-end
+       displays" is a claim about hardware this loop cannot measure and has no
+       evidence for;
+     - "Add a compass or arrow indicating next turn direction." THIRD report of
+       this class, declined on the same reasoning both times: the road is a
+       one-dimensional route with a fixed heading. You drive forward. A compass
+       would be a second answer to a question the road already answers by being
+       straight;
+     - "City road markings are faint and lack clear lane divisions." FOURTH
+       report of this class. The city is a walled compound with a perimeter ring
+       and facility doors, not a multi-lane carriageway, and the entrance
+       markers are the most saturated thing on the map at max_sat 1.0;
+     - "Empty weapon slots lack visual differentiation from filled slots." NINTH
+       report of this class. Iteration 17 gave unfilled slots dim ITALIC `(empty)`
+       against a section rule, while a fitted slot shows the weapon's NAME in
+       full ink — the two are as different as two states of the same row can be,
+       and the reviewer's own suggested fix (a distinct outline) is a third
+       treatment where two already work.
+     NO CODE CHANGED. The overlap claim is the one worth remembering: it is the
+     cheapest possible check in the whole loop — one look at the frame answers it
+     — and it is exactly the kind of claim that gets actioned anyway when a
+     review is long and confident.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

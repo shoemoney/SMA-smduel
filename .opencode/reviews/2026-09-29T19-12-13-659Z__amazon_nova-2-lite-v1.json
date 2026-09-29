@@ -1,0 +1,75 @@
+{
+  "model": "amazon/nova-2-lite-v1",
+  "modelLabel": "amazon/nova-2-lite-v1",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:12:13.659Z",
+  "usage": {
+    "prompt_tokens": 1576,
+    "completion_tokens": 468,
+    "total_tokens": 2044,
+    "cost": 0.0016428,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0016428,
+      "upstream_inference_prompt_cost": 0.0004728,
+      "upstream_inference_completions_cost": 0.00117
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Title screen contrast",
+      "where": "title screen, background and text",
+      "problem": "The orange sunset background makes the white title text hard to read, especially on lower-end displays",
+      "why": "Low contrast reduces readability and makes the game look unfinished",
+      "fix": "Darken the background or add a subtle glow/shadow to the title text to increase contrast"
+    },
+    {
+      "title": "Arena UI clutter",
+      "where": "arena screen, top right panel",
+      "problem": "The condition panel overlaps the radar and health display, creating visual clutter and making it hard to see essential info at a glance",
+      "why": "Overlapping UI elements compete for attention and reduce situational awareness",
+      "fix": "Shift the condition panel slightly right or reduce its opacity when not in focus"
+    },
+    {
+      "title": "Road navigation feedback",
+      "where": "road and city screens, top center",
+      "problem": "The destination bar only shows remaining distance, not direction or next turn, making navigation unclear at speed",
+      "why": "Players need clear directional cues to avoid accidents and make quick decisions",
+      "fix": "Add a small compass or arrow indicating next turn direction and distance to next intersection"
+    },
+    {
+      "title": "City traffic clarity",
+      "where": "city screen, road network",
+      "problem": "Road markings are faint and lack clear lane divisions, making it hard to judge vehicle positions and paths",
+      "why": "Ambiguous road layout increases cognitive load and collision risk during fast-paced gameplay",
+      "fix": "Enhance road markings with brighter, more distinct lane dividers and add subtle glow to active roads"
+    },
+    {
+      "title": "Constructor weapon feedback",
+      "where": "constructor screen, weapon slots",
+      "problem": "Empty weapon slots show '(empty)' text but lack visual differentiation from filled slots, making it hard to spot available slots",
+      "why": "Players need instant visual confirmation of available build options to avoid confusion",
+      "fix": "Use a distinct outline or placeholder icon for empty slots to clearly distinguish them from equipped weapons"
+    }
+  ],
+  "parseError": null,
+  "raw": "```json\n[\n    {\n        \"title\": \"Title screen contrast\",\n        \"where\": \"title screen, background and text\",\n        \"problem\": \"The orange sunset background makes the white title text hard to read, especially on lower-end displays\",\n        \"why\": \"Low contrast reduces readability and makes the game look unfinished\",\n        \"fix\": \"Darken the background or add a subtle glow/shadow to the title text to increase contrast\"\n    },\n    {\n        \"title\": \"Arena UI clutter\",\n        \"where\": \"arena screen, top right panel\",\n        \"problem\": \"The condition panel overlaps the radar and health display, creating visual clutter and making it hard to see essential info at a glance\",\n        \"why\": \"Overlapping UI elements compete for attention and reduce situational awareness\",\n        \"fix\": \"Shift the condition panel slightly right or reduce its opacity when not in focus\"\n    },\n    {\n        \"title\": \"Road navigation feedback\",\n        \"where\": \"road and city screens, top center\",\n        \"problem\": \"The destination bar only shows remaining distance, not direction or next turn, making navigation unclear at speed\",\n        \"why\": \"Players need clear directional cues to avoid accidents and make quick decisions\",\n        \"fix\": \"Add a small compass or arrow indicating next turn direction and distance to next intersection\"\n    },\n    {\n        \"title\": \"City traffic clarity\",\n        \"where\": \"city screen, road network\",\n        \"problem\": \"Road markings are faint and lack clear lane divisions, making it hard to judge vehicle positions and paths\",\n        \"why\": \"Ambiguous road layout increases cognitive load and collision risk during fast-paced gameplay\",\n        \"fix\": \"Enhance road markings with brighter, more distinct lane dividers and add subtle glow to active roads\"\n    },\n    {\n        \"title\": \"Constructor weapon feedback\",\n        \"where\": \"constructor screen, weapon slots\",\n        \"problem\": \"Empty weapon slots show '(empty)' text but lack visual differentiation from filled slots, making it hard to spot available slots\",\n        \"why\": \"Players need instant visual confirmation of available build options to avoid confusion\",\n        \"fix\": \"Use a distinct outline or placeholder icon for empty slots to clearly distinguish them from equipped weapons\"\n    }\n]\n```"
+}
