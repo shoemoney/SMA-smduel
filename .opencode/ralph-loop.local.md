@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 25
+iteration: 26
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (25 of 82 vision models):
+Reviewers asked (26 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -461,6 +461,34 @@ TOOLING - the review harness got audited by its own failure this round:
        a border and a 3px left edge, verified in the frame;
      - radar, and its "Orientation: north-up" label being too small: 17th report
        on the same element.
+
+26. mistralai/ministral-14b-2512 -> ZERO REAL. All five checked and measured;
+     nothing changed. Recording it because a zero is a result, not a non-event:
+         - "Speedometer black text on a dark gray background is illegible."
+           INVERTED, not merely wrong. Measured: panel 85.16, glyph maxima 238.2,
+           and #e9eff6 on the measured panel is 10.25:1. The text is the LIGHTEST
+           thing in the frame. A reviewer that cannot tell white from black on a
+           readout has not read the readout;
+         - "The preview lacks clear visual indicators for armour placement or
+           weapon mounting slots." FIFTH report of this class, and at full res
+           the crop shows a bright cyan hull, a dashed ZONE outline, two zone
+           boxes (one filled, one outlined), a nose marker and the dimension
+           line. Iterations 11 and 13 each independently demanded these;
+         - "The New Driver button lacks visual emphasis compared to Controls."
+           FIFTH report of this class on the title menu. Measured 34.26 vs 28.86
+           luma selected-vs-unselected, plus the accent wash and 3px edge;
+         - "Yellow arrows are too small ... increase by 50%." This reviewer is
+           looking at markers ALREADY DOUBLED in iteration 20, and the crop shows
+           them saturated at max_sat 1.0, unmistakably the most colourful thing
+           on the map. Second reviewer in a row to ask for a further 50% on top of
+           a doubling, which is the clearest signal yet that this specific ask has
+           saturated - the marks are now large enough that a 14B model can find
+           them instantly and still describe them as too small;
+         - radar: 18th report on the same element.
+     NO CODE CHANGED THIS ITERATION. The 26th review in a row is the first to
+     return nothing actionable, and the value of recording that is the same as
+     the value of recording a fix: it is the evidence that the loop has actually
+     moved the floor rather than endlessly re-raising the same five complaints.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
