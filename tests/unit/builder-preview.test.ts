@@ -131,6 +131,31 @@ describe('buildVehiclePreview: the rendered schematic', () => {
     return out;
   }
 
+  it('marks the zone the selected row is editing, and nothing when the row has no region', () => {
+    // The item iteration 14 queued as "constructor row->diagram linking" and
+    // seven reviews circled. Selecting "Armor: Front" now lights the front band.
+    //
+    // The second half is the part that is easy to get wrong: a row with no
+    // region on the car — Name, Body, Chassis, Plant, Tyres, Confirm — must
+    // highlight NOTHING. An arrow that points at the bonnet because you selected
+    // the tyre would teach the player the diagram lies.
+    const state: BuilderState = {
+      ...pristineState(),
+      armor: { ...makeArmorRecord(0), FRONT: 9, LEFT: 4 },
+    };
+
+    const front = buildVehiclePreview(doc, state, { facing: 'FRONT' }) as unknown as FakeElement;
+    const frontNodes = flatten(front).filter((n) => n.dataset.facing === 'FRONT');
+    expect(frontNodes).toHaveLength(1);
+    expect(frontNodes[0]!.className).toContain('sm-builder__preview-zone--selected');
+    // ...and only that one.
+    const otherSelected = flatten(front).filter((n) => n.className.includes('sm-builder__preview-zone--selected'));
+    expect(otherSelected).toHaveLength(1);
+
+    const none = buildVehiclePreview(doc, state) as unknown as FakeElement;
+    expect(flatten(none).filter((n) => n.className.includes('sm-builder__preview-zone--selected'))).toHaveLength(0);
+  });
+
   it('draws one armour band per non-zero facing, tagged with its points', () => {
     const state: BuilderState = {
       ...pristineState(),

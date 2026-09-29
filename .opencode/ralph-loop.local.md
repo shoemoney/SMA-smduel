@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 32
+iteration: 33
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (32 of 82 vision models):
+Reviewers asked (33 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -742,6 +742,52 @@ TOOLING - the review harness got audited by its own failure this round:
        "muted dashed outlines" for damaged facings (the dash is the UNFITTED
        state, and iteration 21 deliberately made it LOUDER - a fitted facing has
        a real depleting bar).
+
+33. nex-agi/nex-n2.5-mini -> 1 REAL, and it is the item queued since iteration 14
+     and circled by SEVEN previous reviews - finally stated correctly:
+     - "The car preview is a small blue outline with two unlabeled rectangles,
+       while the left list has many part rows; nothing shows which rectangle is
+       selected or how armor and weapons attach." Every earlier version of this
+       complaint was wrong about WHY. Six of them said the preview was an abstract
+       wireframe and asked for the gameplay sprite, which iteration 24 declined for
+       a settled reason: the schematic exists to show ARMOUR ZONES, which the
+       sprite physically cannot carry. This reviewer names a defect none of them
+       did - the zones were always drawn, correctly, for every facing; what was
+       missing was the LINK.
+       Selecting "Armor: Front" now lights the front band on the diagram, and a
+       weapon row lights its mount. A builder whose entire job is "where do these
+       points go" was not answering that question where the player asked it.
+       The half that is easy to get wrong is the one the test pins: a row with NO
+       region on the car - Name, Body, Chassis, Plant, Tyres, Confirm - must
+       highlight NOTHING. An arrow pointing at the bonnet because you selected the
+       tyre would teach the player the diagram lies.
+     - "The city yellow chevrons are visually noisy ... a field of roadwork signs
+       rather than a destination." Genuinely new angle on an element three reviews
+       have asked to make BIGGER, and it is fair: the marker art reads as
+       construction barrier, so enlarging it (iterations 19 and 20) made the
+       clutter worse, not better. Recorded with the tension stated plainly - the
+       two asks pull opposite ways and both reviewers were reasoning from the same
+       frame. Needs a marker REDRAW, not a size change, and that is an art task.
+     - "The condition panel is too dense to read while driving." The pristine
+       case again: on a capture every facing is unfitted, so the block is five
+       dashed chips. A fitted facing has a real fraction AND a real bar since
+       iteration 25;
+     - "The road progress bar is too abstract." FOURTH report of this class,
+       measured 8px twice with a vehicle glyph and a teal-to-blue fill;
+     - "The practice arena feels like an empty placeholder ... no cover blocks,
+       spawn points, obstacles." Fourth arena-floor claim. The floor measures
+       144 luma against 58 for the road and carries a world-fixed lattice; the
+       CONTENT ask (cover, spawn pads) is a gameplay build, and iteration 21
+       already recorded why faking it in the render layer is the wrong trade.
+     TWO TEST-DOUBLE LESSONS, both worth more than the feature:
+       - the file's class is set as a STRING via setAttribute, matching every
+         other element there, rather than through classList, which its own DOM
+         double does not model;
+       - and the class is COMPUTED and written ONCE rather than read back and
+         appended to. Two test doubles drive this file and only the richer one
+         models getAttribute, so reading an attribute back is a crash waiting for
+         a different caller. The first version of this passed the preview test
+         and crashed builder.test.ts on exactly that.
 
 DEFERRED (real, documented, not bugs):
 - City daylight grade (my 0.6 ground tint is why it reads dim), street network,

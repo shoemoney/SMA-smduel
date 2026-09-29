@@ -24,7 +24,7 @@ import type { BuildMetrics, BuildViolation, Facing, MountedWeapon, VehicleDesign
 // legality rule (see `@/sim/construct`'s file header) — its one definition
 // lives in `@/ui/hud`, which this module already sits alongside.
 import { MAX_WEAPON_ROWS as MAX_WEAPON_SLOTS } from '@/ui/hud';
-import { buildVehiclePreview } from '@/ui/builder-preview';
+import { buildVehiclePreview, type PreviewSelection } from '@/ui/builder-preview';
 import { t } from '@/ui/strings';
 
 // ---------------------------------------------------------------------------
@@ -823,7 +823,17 @@ function buildRightPane(state: BuilderState, context: BuilderContext): HTMLEleme
   // top-to-bottom as "what it costs -> what it looks like -> what is wrong
   // with it", and so the preview sits in the space that used to be empty
   // black below the two columns.
-  right.appendChild(buildVehiclePreview(document, state));
+  // Point the schematic at whatever the list has selected. The row kinds that
+  // address a physical part of the car carry the key: `facing` on armour rows and
+  // `slot` on weapon rows. Everything else (name, body, chassis) has no region
+  // on the diagram, so it highlights nothing rather than highlighting the wrong
+  // thing — an arrow pointing at the bonnet because you selected the tyre would
+  // be worse than no arrow.
+  const selectedRow = computeRows(state)[state.selectedIndex];
+  const selection: PreviewSelection = {};
+  if (selectedRow?.kind === 'armor') selection.facing = selectedRow.facing;
+  if (selectedRow?.kind === 'weapon') selection.slot = selectedRow.slot;
+  right.appendChild(buildVehiclePreview(document, state, selection));
 
   const legality = document.createElement('div');
   legality.className = 'sm-builder__legality';

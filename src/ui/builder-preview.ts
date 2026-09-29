@@ -27,6 +27,7 @@
  * DOM nodes, so the existing DOM tests can assert on the parts.
  */
 import { FACINGS } from '@/sim/types';
+import type { Facing } from '@/sim/types';
 import { getBody, getWeapon } from '@/data/rulesets';
 import { t } from '@/ui/strings';
 import type { BuilderState } from '@/ui/builder';
@@ -90,8 +91,35 @@ export function buildVehiclePreviewParts(state: BuilderState): VehiclePreviewPar
   };
 }
 
+/**
+ * Which part of the build the player is currently editing, so the schematic can
+ * point at it.
+ *
+ * This is the item iteration 14 queued as "constructor row->diagram linking" and
+ * seven reviews have circled. Every earlier version of the complaint was wrong
+ * about WHY: reviewers said the preview was an abstract wireframe and asked for
+ * the gameplay sprite, which iteration 24 declined for a settled reason (the
+ * schematic exists to show armour zones the sprite cannot carry). This one is
+ * right, and names a defect none of the others did:
+ *
+ *   "The car preview is a small blue outline with two unlabeled rectangles ...
+ *    nothing shows which rectangle is selected or how armor and weapons attach."
+ *
+ * The zones were always drawn, correctly, for every facing. What was missing is
+ * the link: selecting "Armor: Front" in the list did nothing on the diagram, so
+ * the player had to guess which rectangle was front. A builder whose entire job
+ * is "where do these points go" was not answering that question where it was
+ * asked.
+ */
+export interface PreviewSelection {
+  /** Set when the selected row is an armour facing. */
+  facing?: Facing;
+  /** Set when the selected row is a weapon slot. */
+  slot?: number;
+}
+
 /** Renders the live schematic. Safe to call on every state change; it is pure. */
-export function buildVehiclePreview(doc: Document, state: BuilderState): HTMLElement {
+export function buildVehiclePreview(doc: Document, state: BuilderState, selection?: PreviewSelection): HTMLElement {
   const wrap = doc.createElement('div');
   wrap.className = 'sm-builder__preview';
   wrap.setAttribute('role', 'img');
@@ -212,13 +240,21 @@ export function buildVehiclePreview(doc: Document, state: BuilderState): HTMLEle
     }
     rect.dataset.facing = facing;
     rect.dataset.points = String(points);
-    if (points <= 0) rect.setAttribute('class', 'sm-builder__preview-zone');
-    // Underbody armour is invisible from above, so it is drawn as a dashed
-    // centre stripe instead of pretending to be a side band.
+
+    // The class is COMPUTED and written once, never read back and appended to.
+    // Two DOM test doubles drive this file and only the richer one models
+    // getAttribute, so reading the attribute back is a crash waiting for a
+    // different caller. Underbody armour is invisible from above, so it is drawn
+    // as a dashed centre stripe instead of pretending to be a side band.
+    const selected = selection?.facing === facing ? ' sm-builder__preview-zone--selected' : '';
     if (isUnder) {
-      rect.setAttribute('class', 'sm-builder__preview-armor sm-builder__preview-armor--under');
+      rect.setAttribute('class', `sm-builder__preview-armor sm-builder__preview-armor--under${selected}`);
       root.insertBefore(rect, hull);
+    } else if (points <= 0) {
+      rect.setAttribute('class', `sm-builder__preview-zone${selected}`);
+      root.appendChild(rect);
     } else {
+      rect.setAttribute('class', `sm-builder__preview-armor${selected}`);
       root.appendChild(rect);
     }
   }
@@ -247,6 +283,9 @@ export function buildVehiclePreview(doc: Document, state: BuilderState): HTMLEle
     });
     mark.dataset.slot = String(index);
     mark.dataset.weaponId = def.id;
+    if (selection?.slot === index) {
+      mark.setAttribute('class', 'sm-builder__preview-weapon sm-builder__preview-weapon--selected');
+    }
     root.appendChild(mark);
   });
 

@@ -591,6 +591,40 @@
  *
  * The outline says WHERE without claiming anything is fitted there, and it uses
  * a dashed edge so it is never mistaken for a filled band. */
+/* The part of the car the selected row is editing.
+ *
+ * A review finally named this correctly after seven others circled it: "nothing
+ * shows which rectangle is selected or how armor and weapons attach". The zones
+ * were always drawn for every facing; the missing thing was the LINK between the
+ * list and the diagram. Selected means bright, because on this panel the accent
+ * is used for the one thing the player is acting on — the same rule iteration 15
+ * set for CONFIRM being the only actionable row on the constructor.
+ *
+ * The pulse is slow and small on purpose: this is a cursor, not an alert, and
+ * something that flashes on every arrow-key press would be exhausting. */
+.sm-builder__preview-zone--selected,
+.sm-builder__preview-zone.sm-builder__preview-zone--selected {
+  stroke: var(--ui-accent-strong);
+  stroke-width: 2;
+  fill: color-mix(in srgb, var(--ui-accent) 22%, transparent);
+  animation: sm-builder-zone-pulse 1.6s ease-in-out infinite;
+}
+
+.sm-builder__preview-weapon--selected {
+  fill: var(--ui-accent-strong);
+  stroke: var(--ui-ink);
+  stroke-width: 1.5;
+}
+
+@keyframes sm-builder-zone-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.62; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sm-builder__preview-zone--selected { animation: none; }
+}
+
 .sm-builder__preview-zone {
   fill: rgba(159, 232, 221, 0.05);
   stroke: rgba(159, 232, 221, 0.4);

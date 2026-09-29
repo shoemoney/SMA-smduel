@@ -1,0 +1,75 @@
+{
+  "model": "nex-agi/nex-n2.5-mini",
+  "modelLabel": "nex-agi/nex-n2.5-mini",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T18:22:35.166Z",
+  "usage": {
+    "prompt_tokens": 4363,
+    "completion_tokens": 6870,
+    "total_tokens": 11233,
+    "cost": 0.000796075,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.000796075,
+      "upstream_inference_prompt_cost": 0.000109075,
+      "upstream_inference_completions_cost": 0.000687
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6856,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Condition panel is too dense to read while driving",
+      "where": "Road and arena, top-right HUD",
+      "problem": "The armour and tyre data is compressed into a narrow panel; armour faces are tiny square placeholders and tyre bars are thin, so damage state is not readable at a glance.",
+      "why": "During driving or combat, the player needs to know whether the car is failing without scanning a dense panel; tiny monochrome boxes feel like a debug readout.",
+      "fix": "Replace the armour rows with four large colored bars or segments labelled FRONT, REAR, LEFT, and RIGHT, use red/amber/green thresholds, and put tyre status in a wider horizontal strip."
+    },
+    {
+      "title": "Constructor preview does not map parts to the car",
+      "where": "Constructor, right-side top-view preview",
+      "problem": "The car preview is a small blue outline with two unlabeled rectangles, while the left list has many part rows; nothing shows which rectangle is selected or how armor and weapons attach.",
+      "why": "The build screen becomes a spreadsheet; players cannot read the consequences of selecting Body, Chassis, Armor, or Weapons.",
+      "fix": "Label the body, chassis, power-plant, weapon, and armor slots on the preview, highlight the selected row's slot, and show colored overlays for armor and weapon mounts."
+    },
+    {
+      "title": "City yellow chevrons are visually noisy",
+      "where": "City, scattered around building entrances and road edges",
+      "problem": "Many identical yellow chevron barriers fill the map, including ones away from the car, so they compete with the cyan objective arrow and building entrances.",
+      "why": "At a glance, the player sees a field of roadwork signs rather than a destination; important interactions get buried in decorative clutter.",
+      "fix": "Reduce non-essential barriers, dim them to a neutral construction color, and reserve bright yellow or glowing markers for actual interactable entrances and objectives."
+    },
+    {
+      "title": "Road progress bar is too abstract",
+      "where": "Road, top-center above the car",
+      "problem": "The route indicator is a thin black line with a small white dot and no destination icon, mile markers, or filled progress.",
+      "why": "During courier driving, the player cannot quickly understand progress or direction; the bar feels like a debug slider rather than a readable navigation tool.",
+      "fix": "Add a destination chevron at the right end, a bright progress fill, mile markers every 25 miles, and a route arrow pointing toward Albany."
+    },
+    {
+      "title": "Practice arena feels like an empty placeholder",
+      "where": "Arena, center field and boundaries",
+      "problem": "The arena is a large featureless tiled floor with only the car, HUD, and a notification; there are no cover blocks, spawn points, obstacles, or enemy markers.",
+      "why": "The arena should communicate combat readiness, but this reads as a test map and weakens the fantasy of a vehicular combat space.",
+      "fix": "Add visible boundary lighting, cover blocks, spawn pads, enemy silhouettes or markers, and a few hazards or lane markings to give the space combat identity."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Condition panel is too dense to read while driving\",\n    \"where\": \"Road and arena, top-right HUD\",\n    \"problem\": \"The armour and tyre data is compressed into a narrow panel; armour faces are tiny square placeholders and tyre bars are thin, so damage state is not readable at a glance.\",\n    \"why\": \"During driving or combat, the player needs to know whether the car is failing without scanning a dense panel; tiny monochrome boxes feel like a debug readout.\",\n    \"fix\": \"Replace the armour rows with four large colored bars or segments labelled FRONT, REAR, LEFT, and RIGHT, use red/amber/green thresholds, and put tyre status in a wider horizontal strip.\"\n  },\n  {\n    \"title\": \"Constructor preview does not map parts to the car\",\n    \"where\": \"Constructor, right-side top-view preview\",\n    \"problem\": \"The car preview is a small blue outline with two unlabeled rectangles, while the left list has many part rows; nothing shows which rectangle is selected or how armor and weapons attach.\",\n    \"why\": \"The build screen becomes a spreadsheet; players cannot read the consequences of selecting Body, Chassis, Armor, or Weapons.\",\n    \"fix\": \"Label the body, chassis, power-plant, weapon, and armor slots on the preview, highlight the selected row's slot, and show colored overlays for armor and weapon mounts.\"\n  },\n  {\n    \"title\": \"City yellow chevrons are visually noisy\",\n    \"where\": \"City, scattered around building entrances and road edges\",\n    \"problem\": \"Many identical yellow chevron barriers fill the map, including ones away from the car, so they compete with the cyan objective arrow and building entrances.\",\n    \"why\": \"At a glance, the player sees a field of roadwork signs rather than a destination; important interactions get buried in decorative clutter.\",\n    \"fix\": \"Reduce non-essential barriers, dim them to a neutral construction color, and reserve bright yellow or glowing markers for actual interactable entrances and objectives.\"\n  },\n  {\n    \"title\": \"Road progress bar is too abstract\",\n    \"where\": \"Road, top-center above the car\",\n    \"problem\": \"The route indicator is a thin black line with a small white dot and no destination icon, mile markers, or filled progress.\",\n    \"why\": \"During courier driving, the player cannot quickly understand progress or direction; the bar feels like a debug slider rather than a readable navigation tool.\",\n    \"fix\": \"Add a destination chevron at the right end, a bright progress fill, mile markers every 25 miles, and a route arrow pointing toward Albany.\"\n  },\n  {\n    \"title\": \"Practice arena feels like an empty placeholder\",\n    \"where\": \"Arena, center field and boundaries\",\n    \"problem\": \"The arena is a large featureless tiled floor with only the car, HUD, and a notification; there are no cover blocks, spawn points, obstacles, or enemy markers.\",\n    \"why\": \"The arena should communicate combat readiness, but this reads as a test map and weakens the fantasy of a vehicular combat space.\",\n    \"fix\": \"Add visible boundary lighting, cover blocks, spawn pads, enemy silhouettes or markers, and a few hazards or lane markings to give the space combat identity.\"\n  }\n]"
+}
