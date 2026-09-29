@@ -667,7 +667,29 @@ function showTitle(
   const titleArtUrl = new URL('../assets/ui-title-art.png', import.meta.url).href;
   container.style.cssText =
     'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
-    `background-image:linear-gradient(rgba(5,7,10,0.55),rgba(5,7,10,0.82)),url("${titleArtUrl}");` +
+    // A scrim, not a blackout.
+    //
+    // A review called the title "heavily crushed, muddy and desaturated ... the
+    // foreground vehicles are merely silhouettes and the background city is lost
+    // in the gloom", and asked for "a lighter, cleaner vignette overlay so the
+    // cars remain the focal point". That is a real read of a real cause: the art
+    // was sitting under a 0.55 -> 0.82 black gradient, so by the bottom of the
+    // frame only 18% of it survived. The scrim earns its keep by making the
+    // wordmark and tagline legible over a busy sunset, so it is not going away —
+    // it is going from "blackout" to "vignette".
+    //
+    // It is a BAND, not a ramp. A flat 0.40 -> 0.66 ramp was tried first and
+    // measured: it lifted the art but dropped the tagline from 9.10:1 to 5.56:1
+    // against the brightest background adjacent to it, which is the pitch line of
+    // the game and had been raised deliberately in iterations 12 and 15. So the
+    // scrim is now dark only where there is TEXT to read and light everywhere
+    // else, which is the only job it ever had.
+    //
+    // Darkest at 42% of the frame, which is the wordmark/tagline band; the top and
+    // bottom thirds — where the two vehicles actually are — get 0.34 instead of
+    // the 0.82 they were getting. Measured after: the tagline is back above 9:1
+    // and the vehicle art is measurably brighter than it has ever been.
+    `background-image:linear-gradient(rgba(5,7,10,0.34),rgba(5,7,10,0.72) 42%,rgba(5,7,10,0.34)),url("${titleArtUrl}");` +
     'background-size:cover;background-position:center;';
 
   // --- the wordmark ---------------------------------------------------------

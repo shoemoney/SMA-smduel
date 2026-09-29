@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 26
+iteration: 27
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (26 of 82 vision models):
+Reviewers asked (27 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -489,6 +489,52 @@ TOOLING - the review harness got audited by its own failure this round:
      return nothing actionable, and the value of recording that is the same as
      the value of recording a fix: it is the evidence that the loop has actually
      moved the floor rather than endlessly re-raising the same five complaints.
+
+27. qwen/qwen3.6-27b -> 1 BIG REAL (the title art, finally), 3 FALSE that
+     measurement contradicts, 1 marginal:
+     - "The background render is heavily crushed, muddy and desaturated ... the
+       foreground vehicles are merely silhouettes and the background city is lost
+       in the gloom ... use a lighter, cleaner vignette overlay so the cars
+       remain the focal point." REAL, and the cause was a single number nobody
+       had questioned in 27 iterations: the title art has sat under a
+       linear-gradient(rgba(5,7,10,0.55), rgba(5,7,10,0.82)) scrim since it
+       shipped, so by the bottom of the frame only 18% of the art survived. The
+       reviewer asked for a lighter overlay and was right.
+       The obvious fix was WRONG and measurement caught it: a flat 0.40 -> 0.66
+       ramp lifted the art but dropped the tagline from 9.10:1 to 5.56:1 against
+       the brightest background adjacent to it. The scrim exists to make the
+       wordmark and tagline legible; lightening it globally trades away the only
+       job it has.
+       So the scrim became a BAND instead of a ramp - 0.34 at the top and bottom
+       where the vehicles actually are, 0.72 at 42% which is the wordmark/tagline
+       band. Result, measured on the real frame: vehicle art 33.41 -> 63.65 luma
+       (91% brighter, and the skyline and cracked ground are now visible at all),
+       and the tagline IMPROVED to 9.48:1 from 9.10:1. Both axes at once, which
+       is the whole reason to measure instead of adjusting a number until a
+       screenshot looks nicer.
+       THE LONGEST-RUNNING DEFERRED ITEM IN THE LOG, now closed: "title-art
+       palette mismatch", carried since iteration 14.
+     - "The buildings, the road, and the cracked ground share the EXACT same
+       brightness value and colour." FALSE. Measured: building 119.8 vs ground
+       102.2 (gap 17.6), second building 110.3 vs ground 102.4 (gap 7.9). The
+       suggestion - "darken the ground and significantly brighten the building
+       materials" - would reverse iterations 16 and 17 outright, one of which
+       built the grade and the other rebuilt the separation it cost.
+     - "The asphalt blends too closely with the off-road pavement ... very little
+       vertical contrast." FALSE, and it is describing the fix from iteration 18
+       as a defect: measured 81.55 asphalt vs 101.46 verge, a gap of 19.9 where
+       it was 5.4 before that iteration. The suggested fix ("darken the asphalt",
+       "brighten the lane markers") would push a surface that is ALREADY 20
+       points darker than its neighbour further from it.
+     - "The arena floor is a flat beige noise texture ... it feels like an empty
+       dirt patch or a missing texture." FALSE: arena ground measures 144 luma
+       against 58 for the road and 101 for the city - it is the BRIGHTEST floor
+       in the game by 43, and it carries a world-fixed slab lattice. This is the
+       third arena-floor claim contradicted by the same measurement.
+     - "The component list is incredibly dense ... thin, small grey text."
+       Partly addressed in iteration 17 (section edge, dim-italic unfilled rows);
+       the remaining ask is a bolder weight, which would fight the value/name
+       column alignment the 0-9 typing depends on. Recorded, not changed.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
