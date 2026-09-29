@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 50
+iteration: 51
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (50 of 82 vision models):
+Reviewers asked (51 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1580,6 +1580,99 @@ TOOLING - the review harness got audited by its own failure this round:
      five solved complaints with fresh wording, and the most valuable output of
      a late round is the evidence that there is nothing left to fix — plus, this
      round, a much better way to tell a real finding from a bad measurement.
+
+51. google/gemini-2.5-pro -> ZERO REAL, and the review that finally got an
+   answer from the model that returned an EMPTY body in iteration 15. The
+   harness fix held: 16000 max_tokens plus a prompt that demands the reply START
+   with "[". Worth stating plainly, because "this model is broken" would have
+   been a reasonable conclusion from iteration 15 and would have cost a real
+   reviewer for the rest of the run.
+     This is also the first review in the pool to arrive with a coherent THEME
+     rather than five element-level defects, and all five of its findings are
+     the same three positions, so it is worth taking as a whole:
+     - "The UI is flat, opaque, dark rectangles with clean modern fonts ... it
+       clashes with the textured, gritty pixel-art style ... use a distressed
+       font, worn metal or cracked-CRT textures, bolted frames, scanlines."
+     - "The title menu is a basic, dark, semi-transparent rectangle with plain
+       white text ... frame it to look like a rusty metal plate, add a
+       scanline flicker."
+     - "Replace the condition list with a top-down vehicle schematic
+       colour-coded green to red."
+     These are the same two asks the loop has already declined on stated
+     grounds — the menu is the EIGHTH report of "generic rectangle" (near-opaque
+     since iteration 20, real fill on the selected row since 32) and the
+     schematic is the seventh-plus report of "make the diagram a picture"
+     (declined because the diagram exists to show armour zones the gameplay
+       sprite cannot carry). The THIRD position is new, and it is the honest
+       top-down "damage the parts" condition display, which iterations 25 and 29
+       answered incrementally with real depleting bars rather than by rebuilding
+       the panel around a picture.
+       What this round changes is the STATUS of the theme item, not the item
+       itself. Iteration 32 recorded that the scanline/bevel ask "needs
+       concreteness before acting"; iteration 47 supplied a recipe and it was
+       still held back as a theme decision; this model supplies a second,
+       independent, full recipe. Two concrete recipes from two unrelated models
+       is the point at which "we are choosing a visual language" becomes "the
+       pool keeps asking for this language" — and the honest note is that the
+       two are different questions. The panels are legible, grouped and
+       consistent today. Restyling them is a decision about what SMDUEL looks
+       like, it is not a defect, and it belongs to whoever is art-directing
+       rather than to a defect list. Recorded as the top THEME candidate with
+       both recipes attached, which is a materially better place for it to sit
+       than the 49th repetition of "the menu is a plain box";
+     - "The ground is a small, obviously repeating tile texture ... break up the
+       repetition, use a texture atlas or shader blending to mix in variations."
+       FALSE as a description and the proposed remedy is the one this codebase
+       already TRIED and MEASURED as worse. `src/render/ground.ts` argues exactly
+       that in its own header: a per-cell grid of different textures meeting at
+       hard edges produces "a visible grid of seams — measurably worse than the
+       repetition it was meant to fix", and the current design is one quad with
+       world-space `fract()` UVs so there is no interior boundary for a variation
+       to show along. Repetition is already broken the seam-free way: a second
+       non-commensurate detail scale cross-faded in 9m patches, plus the post
+       pass's grain. Every pool names exactly ONE base frame, deliberately, and
+       the module says so. Measured ground spread is 25.56 (road), 13.25 (arena),
+       10.26 (city) — the city is the flattest, which is a fair reading, and the
+       city's usable second frame does not exist: `tile-citypave` and
+       `ground-arena-a` are both rejected in place, for good reasons (a manhole
+       and a painted circle are FEATURES, and a strong feature in a tile that
+       repeats every few metres stamps itself across the whole map). A real fix
+       is new ART, not a code change, and is recorded as such;
+     - "The constructor schematic is a static, abstract line drawing that does
+       not visually change as the player selects or adds parts." FALSE, twice
+       over, and the second half was proved in iteration 42: the schematic is
+       GENERATED from the chosen part, so changing body already changes its
+       proportions, hull, wheelbase and every zone band, and iteration 33 added
+       the selected-row-to-zone LINK. A static capture cannot show what happens
+       on selection, which is the same limitation that has made this claim
+       unfalsifiable for eight reviews.
+
+     ONE REAL FINDING, and it is documentation rather than pixels. Chasing the
+     repetition claim led to the one place in the repo that explains WHY the
+     ground is a single quad — and it no longer matches the code. Four
+     comments across three files still describe a per-cell grid architecture
+     that was deleted:
+       - `src/render/ground.ts` credits the seam-free de-repetition to
+         "`valueJitter`, a per-cell brightness offset (see `groundField`)".
+         Neither `valueJitter` nor `groundField` exists anywhere in the repo;
+       - the same file's argument for one-frame pools leaned on a mechanism
+         that had been removed, so the strongest comment in the module was
+         citing a phantom;
+       - `src/app.ts` sized ground capacity "see `groundFieldCellCount`" and
+         described the ground as "a varied field whose extent is whatever covers
+         the visible area" — there is no field, and no such function;
+       - and `cityGroundTileCount`'s own docblock claimed it was "the exact
+         ground-cell count `groundField` emits ... delegates to
+         `groundFieldCellCount`", TWO LINES BELOW a constant stating the city
+         ground is "a single quad ... so its layer-0 capacity is 1". A comment
+         that contradicts the line above it is worse than no comment.
+     All four now describe what the code does: one quad, no cells, and the real
+     seam-free levers (the non-commensurate detail scale, the post-pass grain).
+     This is worth doing on its own merits, but the reason it came up is the
+     finding: a reviewer proposed changing how the ground varies, and the file
+     you would open to do that confidently described an architecture that had
+     been gone for many iterations. Stale docs do not fail a build, and this
+     review is the second in a row to propose work in this exact area.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

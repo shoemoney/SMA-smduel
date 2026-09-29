@@ -1,0 +1,75 @@
+{
+  "model": "google/gemini-2.5-pro",
+  "modelLabel": "google/gemini-2.5-pro",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:38:38.092Z",
+  "usage": {
+    "prompt_tokens": 1673,
+    "completion_tokens": 3849,
+    "total_tokens": 5522,
+    "cost": 0.04058125,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.04058125,
+      "upstream_inference_prompt_cost": 0.00209125,
+      "upstream_inference_completions_cost": 0.03849
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2761,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Inconsistent UI Style",
+      "where": "All in-game screens (Arena, Road, City) and the Constructor screen. Affects all UI panels like the Condition panel, Radar, Speedometer, and info pop-ups.",
+      "problem": "The UI elements are flat, opaque, dark rectangles with sharp edges and clean, modern fonts. This style clashes jarringly with the textured, gritty, pixel-art style of the game world and vehicles.",
+      "why": "This breaks visual cohesion and immersion, making the UI feel like a temporary, un-styled developer overlay rather than a deliberate part of the game's world. It makes the game look unfinished and cheapens the art style of the core gameplay assets.",
+      "fix": "Redesign UI panels to match the game's post-apocalyptic, vehicular aesthetic. Use a pixelated or distressed font. Replace flat color backgrounds with textures of worn metal, cracked CRT screens, or military canvas. Add thematic borders, like bolted metal frames or digital scanlines."
+    },
+    {
+      "title": "Unscannable Condition Panel",
+      "where": "Top-right corner of the Arena and Road screens.",
+      "problem": "Vehicle status is presented as a dense list of text, numbers, and abstract symbols (dashes, dots, brackets). Key information like armor health is not visually distinct and requires reading.",
+      "why": "During high-speed driving or combat, players need to assess vehicle status in a fraction of a second. This design forces them to stop playing and read a list, making it useless for quick, at-a-glance feedback and hindering reactive play.",
+      "fix": "Replace the text list with a simple vehicle schematic (a top-down silhouette of a car). Use this schematic to display the health of major sections (front, rear, sides, tires) via color-coding (e.g., green -> yellow -> red) or by having parts of the schematic appear damaged. This provides instant, language-independent feedback."
+    },
+    {
+      "title": "Repetitive, Lifeless Ground Textures",
+      "where": "The ground surface across the Arena, Road, and City screens.",
+      "problem": "The ground is rendered with a small, obviously repeating tile texture. The arena is a uniform grey grid, the road is a perfect repeating asphalt pattern, and the city ground is a monotonous cracked pattern.",
+      "why": "This makes the environments feel flat, artificial, and visually boring. It lacks a sense of place and history. In the city and arena, it removes potential environmental storytelling and navigational landmarks.",
+      "fix": "Break up the repetition. Use a texture atlas or shader blending to mix in variations like dirt, rubble, oil stains, and tire tracks. Add bespoke decals for details like manhole covers, painted lines, or significant cracks to create visual interest and make areas feel unique."
+    },
+    {
+      "title": "Generic Title Screen Menu",
+      "where": "The bottom-left menu ('New Driver', 'Controls') and top-left button ('Arcade') on the Title screen.",
+      "problem": "The menu is a basic, dark, semi-transparent rectangle with plain white text. Its clean, default-looking design is completely disconnected from the epic, atmospheric background art and the game's theme.",
+      "why": "The title screen is the player's first impression. A generic menu makes the game feel low-budget or incomplete from the moment it loads, undermining the quality of the splash art and setting low expectations for the game's overall polish.",
+      "fix": "Integrate the menu into the world's fiction. Frame it to look like a rusty metal plate, a car's dashboard computer, or a military interface. Use a more thematic font (e.g., a stencil, blocky, or distressed typeface). Add a subtle animation to the selection, like a flickering light or a scanline effect."
+    },
+    {
+      "title": "Abstract Vehicle Constructor",
+      "where": "The Constructor screen, specifically the relationship between the parts list on the left and the vehicle schematic on the right.",
+      "problem": "Building a vehicle is a process of changing text and numbers in a list. The vehicle schematic is a static, abstract line drawing that does not visually change as the player selects or adds parts.",
+      "why": "This makes the customization process feel like filling out a spreadsheet, not building a war machine. It's unsatisfying and disconnected from the core fantasy. The player gets no immediate visual feedback for their choices, making it harder to feel invested in their creation.",
+      "fix": "Make the vehicle schematic dynamic. When a part is selected from the list, update the schematic to show a visual representation of that part being added or changed. For example, adding a 'heavy cannon' should make a cannon sprite appear on the schematic; changing tires should alter the appearance of the wheels. This provides crucial visual feedback and makes building the car more tangible and rewarding."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Inconsistent UI Style\",\n    \"where\": \"All in-game screens (Arena, Road, City) and the Constructor screen. Affects all UI panels like the Condition panel, Radar, Speedometer, and info pop-ups.\",\n    \"problem\": \"The UI elements are flat, opaque, dark rectangles with sharp edges and clean, modern fonts. This style clashes jarringly with the textured, gritty, pixel-art style of the game world and vehicles.\",\n    \"why\": \"This breaks visual cohesion and immersion, making the UI feel like a temporary, un-styled developer overlay rather than a deliberate part of the game's world. It makes the game look unfinished and cheapens the art style of the core gameplay assets.\",\n    \"fix\": \"Redesign UI panels to match the game's post-apocalyptic, vehicular aesthetic. Use a pixelated or distressed font. Replace flat color backgrounds with textures of worn metal, cracked CRT screens, or military canvas. Add thematic borders, like bolted metal frames or digital scanlines.\"\n  },\n  {\n    \"title\": \"Unscannable Condition Panel\",\n    \"where\": \"Top-right corner of the Arena and Road screens.\",\n    \"problem\": \"Vehicle status is presented as a dense list of text, numbers, and abstract symbols (dashes, dots, brackets). Key information like armor health is not visually distinct and requires reading.\",\n    \"why\": \"During high-speed driving or combat, players need to assess vehicle status in a fraction of a second. This design forces them to stop playing and read a list, making it useless for quick, at-a-glance feedback and hindering reactive play.\",\n    \"fix\": \"Replace the text list with a simple vehicle schematic (a top-down silhouette of a car). Use this schematic to display the health of major sections (front, rear, sides, tires) via color-coding (e.g., green -> yellow -> red) or by having parts of the schematic appear damaged. This provides instant, language-independent feedback.\"\n  },\n  {\n    \"title\": \"Repetitive, Lifeless Ground Textures\",\n    \"where\": \"The ground surface across the Arena, Road, and City screens.\",\n    \"problem\": \"The ground is rendered with a small, obviously repeating tile texture. The arena is a uniform grey grid, the road is a perfect repeating asphalt pattern, and the city ground is a monotonous cracked pattern.\",\n    \"why\": \"This makes the environments feel flat, artificial, and visually boring. It lacks a sense of place and history. In the city and arena, it removes potential environmental storytelling and navigational landmarks.\",\n    \"fix\": \"Break up the repetition. Use a texture atlas or shader blending to mix in variations like dirt, rubble, oil stains, and tire tracks. Add bespoke decals for details like manhole covers, painted lines, or significant cracks to create visual interest and make areas feel unique.\"\n  },\n  {\n    \"title\": \"Generic Title Screen Menu\",\n    \"where\": \"The bottom-left menu ('New Driver', 'Controls') and top-left button ('Arcade') on the Title screen.\",\n    \"problem\": \"The menu is a basic, dark, semi-transparent rectangle with plain white text. Its clean, default-looking design is completely disconnected from the epic, atmospheric background art and the game's theme.\",\n    \"why\": \"The title screen is the player's first impression. A generic menu makes the game feel low-budget or incomplete from the moment it loads, undermining the quality of the splash art and setting low expectations for the game's overall polish.\",\n    \"fix\": \"Integrate the menu into the world's fiction. Frame it to look like a rusty metal plate, a car's dashboard computer, or a military interface. Use a more thematic font (e.g., a stencil, blocky, or distressed typeface). Add a subtle animation to the selection, like a flickering light or a scanline effect.\"\n  },\n  {\n    \"title\": \"Abstract Vehicle Constructor\",\n    \"where\": \"The Constructor screen, specifically the relationship between the parts list on the left and the vehicle schematic on the right.\",\n    \"problem\": \"Building a vehicle is a process of changing text and numbers in a list. The vehicle schematic is a static, abstract line drawing that does not visually change as the player selects or adds parts.\",\n    \"why\": \"This makes the customization process feel like filling out a spreadsheet, not building a war machine. It's unsatisfying and disconnected from the core fantasy. The player gets no immediate visual feedback for their choices, making it harder to feel invested in their creation.\",\n    \"fix\": \"Make the vehicle schematic dynamic. When a part is selected from the list, update the schematic to show a visual representation of that part being added or changed. For example, adding a 'heavy cannon' should make a cannon sprite appear on the schematic; changing tires should alter the appearance of the wheels. This provides crucial visual feedback and makes building the car more tangible and rewarding.\"\n  }\n]\n"
+}

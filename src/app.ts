@@ -1786,11 +1786,11 @@ interface RenderResources extends PostTemplate {
  * Ground capacity for the arena/road/event screens.
  *
  * Was `FLOOR_TILES_PER_SIDE ** 2` (81) because the old floor was a fixed 9x9
- * grid of one repeated frame. The ground is now a varied field whose extent is
- * whatever covers the visible area, so the count is derived, not a square — see
- * `groundFieldCellCount`. 2048 is a hard ceiling that covers a 1440x900 viewport
- * at 5m cells with margin; `writeInstanceBuffer` does not bounds-check, and
- * overrunning a storage buffer is a WebGPU validation error, not a clamp.
+ * grid of one repeated frame. The ground is now ONE quad whose extent is
+ * whatever covers the visible area, so the count is 1 — see `groundQuad`. 2048
+ * is the ceiling every ground-using screen still sizes against;
+ * `writeInstanceBuffer` does not bounds-check, and overrunning a storage buffer
+ * is a WebGPU validation error, not a clamp.
  */
 const TILE_INSTANCE_CAPACITY = 2048;
 const SPRITE_INSTANCE_CAPACITY = 64;
@@ -3788,13 +3788,16 @@ const CITY_ACTOR_INSTANCE_CAPACITY = 4;
 const CITY_GROUND_INSTANCE_COUNT = 1;
 
 /**
- * Exact ground-cell count `@/ui/city-view`'s own `groundField` call emits.
+ * Ground-instance count `@/ui/city-view`'s `cityStaticInstances` emits.
  *
- * Delegates to `groundFieldCellCount` rather than re-deriving the loop bounds,
- * because these two must agree exactly: the instance buffer is sized from this
- * number once, and `writeInstanceBuffer` does not bounds-check, so a cell count
- * that drifts even one row high overflows a storage buffer — which is a WebGPU
- * validation error, not a clamp.
+ * This used to delegate to `groundFieldCellCount` over a grid of cells, back
+ * when the city drew a 9x9 grid of one repeated ground frame. It now returns a
+ * constant, because the ground is a single quad (see `groundQuad`): there are no
+ * cells to count and no loop bounds to agree on. The function is kept rather
+ * than inlined so the layer-0 capacity contract stays in one named place — the
+ * count is sized into a fixed storage buffer once, and `writeInstanceBuffer`
+ * does not bounds-check, so anything that changes the number of ground
+ * instances has to change this.
  */
 function cityGroundTileCount(_layout: CityLayout): number {
   return CITY_GROUND_INSTANCE_COUNT;

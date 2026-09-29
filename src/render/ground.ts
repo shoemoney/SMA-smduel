@@ -81,13 +81,22 @@ export interface GroundEntry {
  * repetition it was meant to fix. (That is exactly what a first pass of this
  * work did, and the screenshot said so immediately.)
  *
- * A single base frame repeated is *seamless by construction* — neighbouring
- * cells show the same continuous texture, so there is no edge to see. The
- * repetition is broken up instead by things that do not create a seam:
+ * A single base frame repeated is *seamless by construction* — the ground is
+ * one quad with world-space `fract()` UVs, so it has no interior boundary at
+ * all for a variation to show up along (see the ground branch in
+ * `sprite.wgsl`). The repetition is broken up instead by things that create no
+ * seam:
  *
- *   - `valueJitter`, a per-cell brightness offset (see `groundField`)
+ *   - the second, non-commensurate detail scale, cross-faded in 9m patches
  *   - the post pass's grain and split-tone
  *   - the 4-way-mirror cross, which is now gone (see the packer)
+ *
+ * An earlier revision of this module DID emit a grid of per-cell quads with a
+ * per-cell brightness offset — `groundField` / `groundFieldCellCount`, both now
+ * removed, along with the per-cell frame/rotation/flip field. That is the
+ * arrangement this paragraph argues against, and `CITY_GROUND_INSTANCE_COUNT`
+ * in `src/app.ts` is the residue: the city still calls a `cityGroundTileCount`
+ * that returns the constant 1.
  *
  * So a pool names exactly one base frame. `GroundEntry.weight` is retained only
  * so a future variant that genuinely CAN be blended (a shader-side two-layer

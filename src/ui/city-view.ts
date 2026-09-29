@@ -878,7 +878,7 @@ export interface CityViewSnapshot {
  * (layer 2). Pure: reads `snapshot` and `atlasIndex`, never writes either.
  *
  * COUNT CONTRACT (`src/app.ts` sizes three fixed instance buffers from this):
- *  - layer 0: `groundFieldCellCount(CITY_GROUND_CENTER_M, CITY_GROUND_HALF_EXTENT_M, CITY_GROUND_CELL_SIZE_M)` cells
+ *  - layer 0: exactly 1 — the ground is a single quad, not a cell grid
  *  - layer 1: `cityLayer1InstanceCount(layout)` — see that export
  *  - layer 2: at most 3 (on-foot player + a parked car + that car's shadow)
  */
