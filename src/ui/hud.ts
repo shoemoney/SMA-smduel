@@ -488,7 +488,11 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
         {
           class: 'hud-armor-facing',
           'data-state': unfitted ? 'unfitted' : state,
-          'aria-label': t('ui.hud.facingArmor', { facing, current, max }),
+          // The accessible name always carries the full meaning, whatever the
+          // visible cell says.
+          'aria-label': unfitted
+            ? t('ui.hud.facingArmorUnfitted', { facing })
+            : t('ui.hud.facingArmor', { facing, current, max }),
         },
         unfitted ? `${facing}: ${t('ui.hud.notFitted')}` : `${facing}: ${damageLabel(current, max)}`,
       ),

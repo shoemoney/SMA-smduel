@@ -1,0 +1,74 @@
+{
+  "model": "qwen/qwen3-vl-8b-instruct",
+  "modelLabel": "qwen/qwen3-vl-8b-instruct",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T15:59:46.129Z",
+  "usage": {
+    "prompt_tokens": 5374,
+    "completion_tokens": 644,
+    "total_tokens": 6018,
+    "cost": 0.000921778,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.000921778,
+      "upstream_inference_prompt_cost": 0.000628758,
+      "upstream_inference_completions_cost": 0.00029302
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Title Screen Text Overload",
+      "where": "title screen, center",
+      "problem": "The tagline 'One car. Sixteen cities. A highway that wants you dead.' is too small and low-contrast against the background, making it illegible at a glance.",
+      "why": "It undermines the title's impact and fails to communicate core themes quickly, reducing player immersion and leaving the game’s identity unclear during first impressions.",
+      "fix": "Increase font size and contrast of the tagline to match the title, using a bold, saturated color (e.g., bright cyan or white) against the dark overlay."
+    },
+    {
+      "title": "Radar UI Lacks Feedback",
+      "where": "arena and road screens, bottom-left",
+      "problem": "The radar is a static black circle with no visible sweep arc or target indicators — it reads as broken or inert rather than as an active instrument.",
+      "why": "Players cannot gauge direction, detect threats, or orient themselves in real-time, which breaks immersion and makes navigation feel unintuitive or broken.",
+      "fix": "Add a glowing sweep arc animating clockwise and faint green dots for detected targets, even if none are present, to signal active functionality."
+    },
+    {
+      "title": "HUD Overlap on Road Screen",
+      "where": "road screen, top-center",
+      "problem": "The mission text bar overlaps directly with the road’s lane markings, visually obscuring critical gameplay information during motion.",
+      "why": "This creates visual clutter and reduces legibility during high-speed play, forcing players to pause or squint, which disrupts flow and can cause missed objectives.",
+      "fix": "Move the HUD bar to the top edge of the screen with padding, or use a semi-transparent background to prevent overlap with road geometry."
+    },
+    {
+      "title": "Condition Panel Misaligned Labels",
+      "where": "arena, road, city screens, right side",
+      "problem": "Labels like 'FRONT: - not fitted' are misaligned vertically and lack consistent spacing, causing visual confusion when scanning for vehicle status.",
+      "why": "Inconsistent alignment forces players to reorient their eyes, slowing reaction time and increasing cognitive load when checking equipment status under pressure.",
+      "fix": "Standardize label alignment using left-aligned text with uniform padding and line height, ensuring all rows start at the same vertical baseline."
+    },
+    {
+      "title": "Constructor UI Confusing Layout",
+      "where": "constructor screen, left column",
+      "problem": "The weapon slots are labeled 'Weapon 1' through 'Weapon 10' but have no visual indicator showing which slot is selected or editable, creating ambiguity during setup.",
+      "why": "Without clear selection feedback, players waste time guessing which row to edit, leading to frustration and errors when configuring vehicles.",
+      "fix": "Highlight the currently selected row with a glow or underline, and add a small icon next to each slot indicating its state (empty, mounted, locked)."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Title Screen Text Overload\",\n    \"where\": \"title screen, center\",\n    \"problem\": \"The tagline 'One car. Sixteen cities. A highway that wants you dead.' is too small and low-contrast against the background, making it illegible at a glance.\",\n    \"why\": \"It undermines the title's impact and fails to communicate core themes quickly, reducing player immersion and leaving the game’s identity unclear during first impressions.\",\n    \"fix\": \"Increase font size and contrast of the tagline to match the title, using a bold, saturated color (e.g., bright cyan or white) against the dark overlay.\"\n  },\n  {\n    \"title\": \"Radar UI Lacks Feedback\",\n    \"where\": \"arena and road screens, bottom-left\",\n    \"problem\": \"The radar is a static black circle with no visible sweep arc or target indicators — it reads as broken or inert rather than as an active instrument.\",\n    \"why\": \"Players cannot gauge direction, detect threats, or orient themselves in real-time, which breaks immersion and makes navigation feel unintuitive or broken.\",\n    \"fix\": \"Add a glowing sweep arc animating clockwise and faint green dots for detected targets, even if none are present, to signal active functionality.\"\n  },\n  {\n    \"title\": \"HUD Overlap on Road Screen\",\n    \"where\": \"road screen, top-center\",\n    \"problem\": \"The mission text bar overlaps directly with the road’s lane markings, visually obscuring critical gameplay information during motion.\",\n    \"why\": \"This creates visual clutter and reduces legibility during high-speed play, forcing players to pause or squint, which disrupts flow and can cause missed objectives.\",\n    \"fix\": \"Move the HUD bar to the top edge of the screen with padding, or use a semi-transparent background to prevent overlap with road geometry.\"\n  },\n  {\n    \"title\": \"Condition Panel Misaligned Labels\",\n    \"where\": \"arena, road, city screens, right side\",\n    \"problem\": \"Labels like 'FRONT: - not fitted' are misaligned vertically and lack consistent spacing, causing visual confusion when scanning for vehicle status.\",\n    \"why\": \"Inconsistent alignment forces players to reorient their eyes, slowing reaction time and increasing cognitive load when checking equipment status under pressure.\",\n    \"fix\": \"Standardize label alignment using left-aligned text with uniform padding and line height, ensuring all rows start at the same vertical baseline.\"\n  },\n  {\n    \"title\": \"Constructor UI Confusing Layout\",\n    \"where\": \"constructor screen, left column\",\n    \"problem\": \"The weapon slots are labeled 'Weapon 1' through 'Weapon 10' but have no visual indicator showing which slot is selected or editable, creating ambiguity during setup.\",\n    \"why\": \"Without clear selection feedback, players waste time guessing which row to edit, leading to frustration and errors when configuring vehicles.\",\n    \"fix\": \"Highlight the currently selected row with a glow or underline, and add a small icon next to each slot indicating its state (empty, mounted, locked).\"\n  }\n]"
+}

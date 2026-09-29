@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 9
+iteration: 10
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (9 of 82 vision models):
+Reviewers asked (10 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -49,6 +49,13 @@ every HUD panel - caught in a screenshot, reverted, redone as weight-only.
      This review estimated colours and contrast ratios instead of measuring
      them. Recorded, not acted on: the loop's value includes knowing when NOT
      to change things.
+
+10. qwen/qwen3-vl-8b-instruct -> REAL: my "— not fitted" label wrapped to 2 lines in
+     the 2-col grid and misaligned the rows (FIXED: label shortened to a dash,
+     full meaning moved to aria-label). Rest: radar sweep (5th false report),
+     road bar overlap, constructor selected-row indicator (all present).
+     NOTE: first pick from a re-filtered pool - content-safety/classifier models
+     were excluded; they answer safety questions, not design ones.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
