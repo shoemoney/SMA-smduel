@@ -556,6 +556,26 @@
 
 /* Underbody spans the full width: it is the one facing that is not a corner, so
    giving it a single cell would make the grid read as a 2x3 block. */
+.hud-armor-bar {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--ui-surface-3, rgba(255, 255, 255, 0.09));
+  overflow: hidden;
+}
+
+.hud-armor-bar__fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  border-radius: inherit;
+  /* Inherits the row's state colour, so the bar and the number can never
+   * disagree about whether a facing is healthy, damaged or destroyed. */
+  background: currentColor;
+}
+
 .hud-armor-list .hud-armor-facing:last-child {
   grid-column: 1 / -1;
 }

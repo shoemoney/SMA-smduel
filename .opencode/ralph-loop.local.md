@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 24
+iteration: 25
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (24 of 82 vision models):
+Reviewers asked (25 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -424,6 +424,43 @@ TOOLING - the review harness got audited by its own failure this round:
        and iteration 16 spent an iteration making them grey ON PURPOSE so they
        read as one environment instead of a collage. Markers were enlarged twice
        (iterations 19 and 20) and are now the most saturated thing on the map.
+
+25. openai/o4-mini-high -> 1 REAL (4th ask, reframed correctly), 4 FALSE:
+     - "Each armor slot is depicted as an empty dashed box with no fill or
+       values, making it look like a placeholder ... replace with filled
+       horizontal bars scaled to current vs max." The FRAMING was wrong and the
+       ASK was right, and that combination is worth separating. The framing: on a
+       PRISTINE build every facing genuinely is unfitted, so a dashed box is the
+       honest rendering - the review was describing iteration 21s fix as a missing
+       feature, four reviews running. The ask: a bars LENGTH is the pre-attentive
+       read that four numbers in a 2-column grid cannot give under pressure, and a
+       damaged car is the case that matters in a combat arena. So fitted facings
+       now carry a bar scaled to current/max, coloured by CURRENTCOLOR so the bar
+       and the number can never disagree about health, and guarded against a
+       zero/negative/over-max ratio (a NaN scaleX collapses the whole row, not just
+       the bar - caught by writing the test before trusting it). Unfitted facings
+       still get the chip, because a zero-length bar is 0/0 in a different
+       costume. 2 tests: exact scales, and the clamp.
+       WORTH RECORDING: the first test run produced FOUR NaN scales and the guard
+       I had written was on the wrong side of the divide. The test fixture used
+       lowercase facing keys while FACING_ORDER is UPPERCASE, so current was
+       undefined and the clamp correctly turned NaN into 0 - the guard worked and
+       the FIXTURE was wrong. Found it by printing the attributes, not by
+       re-reading the guard.
+     FALSE: "the selected menu item is indicated only by a 1px neon outline with
+       no fill" - measured 34.26 vs 28.86 luma for selected vs unselected, and
+       the row carries an accent wash plus a 3px left edge. This is the FOURTH
+       report of this class on the title menu (iterations 16, 20, 22, 25) and the
+       first that has never looked at the actual rendered row;
+     - "the tagline has no outline or drop shadow" - it carries a two-layer
+       shadow from iteration 15, and the band measures 9.10:1 against the
+       brightest adjacent background (67.5 luma) and 10.99:1 against mid. The
+       claim of NO shadow is simply false about the stylesheet;
+     - "all rows are identical in weight and the editable row has no distinct
+       background or cursor indicator" - the selected Name row has an accent wash,
+       a border and a 3px left edge, verified in the frame;
+     - radar, and its "Orientation: north-up" label being too small: 17th report
+       on the same element.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

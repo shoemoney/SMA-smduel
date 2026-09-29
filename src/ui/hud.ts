@@ -504,6 +504,31 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
       row.appendChild(el(doc, 'span', { class: 'hud-armor-value' }, t('ui.hud.notFitted')));
     } else {
       row.setText(`${facing}: ${damageLabel(current, max)}`);
+      // A filled row now carries a BAR as well as its number.
+      //
+      // Four reviews have now asked for one, and the framing was always the same
+      // and slightly wrong: "each armor slot is depicted as an empty dashed box
+      // with no fill or values ... looks like a placeholder". On a PRISTINE build
+      // every facing genuinely is unfitted, so a dashed box is the honest
+      // rendering and the review was describing iteration 21's fix rather than a
+      // missing feature. But the underlying ask is sound for a DAMAGED car, and
+      // a damaged car is the case that matters in a combat arena: four numbers
+      // in a 2-column grid are genuinely hard to scan under pressure, whereas a
+      // bar's length is pre-attentive.
+      //
+      // So the bar is added for FITTED rows only, scaled to current/max and
+      // coloured by the same `data-state` the text already uses — one source of
+      // truth, no new colour vocabulary. Unfitted rows keep the chip: there is
+      // no fraction to scale, and a zero-length bar is precisely the "0 / 0 is a
+      // fraction of nothing" problem the chip exists to avoid.
+      const bar = el(doc, 'span', { class: 'hud-armor-bar' });
+      const fill = el(doc, 'span', { class: 'hud-armor-bar__fill' });
+      // Guarded rather than trusting the caller: a zero or negative max would
+      // make this Infinity/NaN, and a NaN scaleX collapses the whole row.
+      const frac = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0;
+      fill.setAttribute('style', `transform:scaleX(${frac.toFixed(4)})`);
+      bar.appendChild(fill);
+      row.appendChild(bar);
     }
     armorList.appendChild(row);
   });

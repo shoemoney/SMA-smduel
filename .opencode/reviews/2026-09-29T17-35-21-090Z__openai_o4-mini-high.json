@@ -1,0 +1,75 @@
+{
+  "model": "openai/o4-mini-high",
+  "modelLabel": "openai/o4-mini-high",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T17:35:21.092Z",
+  "usage": {
+    "prompt_tokens": 8984,
+    "completion_tokens": 2106,
+    "total_tokens": 11090,
+    "cost": 0.0191488,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0191488,
+      "upstream_inference_prompt_cost": 0.0098824,
+      "upstream_inference_completions_cost": 0.0092664
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 1280,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Weak Menu Highlight",
+      "where": "Title screen, center menu box around “New Driver”",
+      "problem": "The selected menu item is indicated only by a 1px neon outline with no fill, making it hard to distinguish from the unselected item when glancing.",
+      "why": "Players need an immediate visual cue for the current selection; a thin outline lacks weight and can be lost against the busy background, reducing menu usability.",
+      "fix": "Increase the selected-item border to at least 3px, add a semi-transparent cyan fill (e.g. rgba(0,255,255,0.1)), and darken the unselected item’s background to amplify the contrast."
+    },
+    {
+      "title": "Tagline Contrast Loss",
+      "where": "Title screen, the line “One car. Sixteen cities. A highway that wants you dead.” directly under the logo",
+      "problem": "The white tagline text sits directly over bright and mid-tone areas of the background image with no outline or drop shadow, causing legibility issues.",
+      "why": "Critical flavour text must be readable at first glance; poor contrast against a variable image distracts players and undermines the game’s tone setting.",
+      "fix": "Add a 1px dark drop shadow (100% opacity, offset 0,2px) to the tagline or place it on a 70%-opacity black rectangle behind the text to guarantee consistent contrast."
+    },
+    {
+      "title": "Unreadable Armor Indicators",
+      "where": "Arena and Road screens, top-right Condition panel under “Armour”",
+      "problem": "Each armor slot is depicted as an empty dashed box with no fill or values, making it look like a placeholder rather than a real status indicator.",
+      "why": "Players must instantly understand how much armor remains on each side; abstract dashed outlines invite confusion and slow decision-making in combat or survival situations.",
+      "fix": "Replace dashed boxes with filled horizontal bars scaled to current vs max armor, use green for healthy, yellow/red for damage, and overlay numeric percentages (e.g. “Front: 75%”)."
+    },
+    {
+      "title": "Flat Radar Display",
+      "where": "Arena and Road screens, bottom-left “Radar” window",
+      "problem": "Radar is a dark static circle with a faint grid and no visible sweep or contact blips; the label “Orientation: north-up” is extremely small and low-contrast.",
+      "why": "Players rely on radar to detect off-screen threats; a non-interactive, poorly labeled radar feels decorative rather than functional and diminishes situational awareness.",
+      "fix": "Animate a green rotating sweep line at 2 seconds per revolution, draw incoming object blips in bright yellow, and increase the orientation label to 12px semi-bold white for readability."
+    },
+    {
+      "title": "Constructor UI Lacks Focus",
+      "where": "Vehicle constructor screen, left-side list of fields and values",
+      "problem": "All text rows (Name, Body, Chassis, Weapon slots) are identical in weight and color, and the currently editable row has no distinct background or cursor indicator.",
+      "why": "Without clear input affordance or hierarchy, players may not realize where to enter data or how to navigate the list, leading to onboarding friction.",
+      "fix": "Highlight the active row with a 4px tall cyan bar behind the text, change editable fields to light-grey backgrounds, and bold category headers (Body, Suspension, Tires) to create a visual hierarchy."
+    }
+  ],
+  "parseError": null,
+  "raw": "[  \n  {  \n    \"title\": \"Weak Menu Highlight\",  \n    \"where\": \"Title screen, center menu box around “New Driver”\",  \n    \"problem\": \"The selected menu item is indicated only by a 1px neon outline with no fill, making it hard to distinguish from the unselected item when glancing.\",  \n    \"why\": \"Players need an immediate visual cue for the current selection; a thin outline lacks weight and can be lost against the busy background, reducing menu usability.\",  \n    \"fix\": \"Increase the selected-item border to at least 3px, add a semi-transparent cyan fill (e.g. rgba(0,255,255,0.1)), and darken the unselected item’s background to amplify the contrast.\"  \n  },  \n  {  \n    \"title\": \"Tagline Contrast Loss\",  \n    \"where\": \"Title screen, the line “One car. Sixteen cities. A highway that wants you dead.” directly under the logo\",  \n    \"problem\": \"The white tagline text sits directly over bright and mid-tone areas of the background image with no outline or drop shadow, causing legibility issues.\",  \n    \"why\": \"Critical flavour text must be readable at first glance; poor contrast against a variable image distracts players and undermines the game’s tone setting.\",  \n    \"fix\": \"Add a 1px dark drop shadow (100% opacity, offset 0,2px) to the tagline or place it on a 70%-opacity black rectangle behind the text to guarantee consistent contrast.\"  \n  },  \n  {  \n    \"title\": \"Unreadable Armor Indicators\",  \n    \"where\": \"Arena and Road screens, top-right Condition panel under “Armour”\",  \n    \"problem\": \"Each armor slot is depicted as an empty dashed box with no fill or values, making it look like a placeholder rather than a real status indicator.\",  \n    \"why\": \"Players must instantly understand how much armor remains on each side; abstract dashed outlines invite confusion and slow decision-making in combat or survival situations.\",  \n    \"fix\": \"Replace dashed boxes with filled horizontal bars scaled to current vs max armor, use green for healthy, yellow/red for damage, and overlay numeric percentages (e.g. “Front: 75%”).\"  \n  },  \n  {  \n    \"title\": \"Flat Radar Display\",  \n    \"where\": \"Arena and Road screens, bottom-left “Radar” window\",  \n    \"problem\": \"Radar is a dark static circle with a faint grid and no visible sweep or contact blips; the label “Orientation: north-up” is extremely small and low-contrast.\",  \n    \"why\": \"Players rely on radar to detect off-screen threats; a non-interactive, poorly labeled radar feels decorative rather than functional and diminishes situational awareness.\",  \n    \"fix\": \"Animate a green rotating sweep line at 2 seconds per revolution, draw incoming object blips in bright yellow, and increase the orientation label to 12px semi-bold white for readability.\"  \n  },  \n  {  \n    \"title\": \"Constructor UI Lacks Focus\",  \n    \"where\": \"Vehicle constructor screen, left-side list of fields and values\",  \n    \"problem\": \"All text rows (Name, Body, Chassis, Weapon slots) are identical in weight and color, and the currently editable row has no distinct background or cursor indicator.\",  \n    \"why\": \"Without clear input affordance or hierarchy, players may not realize where to enter data or how to navigate the list, leading to onboarding friction.\",  \n    \"fix\": \"Highlight the active row with a 4px tall cyan bar behind the text, change editable fields to light-grey backgrounds, and bold category headers (Body, Suspension, Tires) to create a visual hierarchy.\"  \n  }  \n]"
+}

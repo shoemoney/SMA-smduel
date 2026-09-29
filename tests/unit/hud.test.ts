@@ -483,6 +483,49 @@ describe('vehicle condition panel', () => {
     expect(tires).toHaveLength(4);
   });
 
+  it('scales the armour bar to current/max, and gives an UNFITTED facing no bar at all', () => {
+    // A bar whose length is current/max is the pre-attentive read a 2-column
+    // grid of numbers cannot give under pressure — but only for a facing that
+    // has armour to lose. A zero-max facing gets the dashed chip instead,
+    // because "0 / 0" is a fraction of nothing and a zero-length bar is the same
+    // lie in a different costume.
+    const fitted = baseVehicle(
+      { armorDP: { FRONT: 3, REAR: 1, LEFT: 4, RIGHT: 0, UNDERBODY: 2 } },
+      [],
+    );
+    // The design's max is the source of "is anything fitted", so zero it on one
+    // facing rather than only zeroing the damage pool.
+    (fitted.design as { armor: Record<string, number> }).armor = { FRONT: 4, REAR: 4, LEFT: 4, RIGHT: 0, UNDERBODY: 4 };
+    const { root } = render(baseSnapshot({ vehicle: fitted }));
+
+    const bars = byClass(root, 'hud-armor-bar__fill');
+    // Four fitted facings, one unfitted (right, max 0).
+    expect(bars).toHaveLength(4);
+    const scales = bars.map((b) => Number(/scaleX\(([\d.]+)\)/.exec(b.attrs.get('style') ?? '')?.[1])).sort((a, b) => a - b);
+    // 1/4 (rear), 2/4 (underbody), 3/4 (front), 4/4 (left). RIGHT is max 0, so
+    // it is unfitted and contributes no bar at all.
+    expect(scales).toEqual([0.25, 0.5, 0.75, 1]);
+    for (const scale of scales) {
+      expect(Number.isFinite(scale)).toBe(true);
+    }
+  });
+
+  it('clamps a damaged bar instead of trusting current/max to be in range', () => {
+    // A negative or over-max current would make the scale NaN or >1, and a NaN
+    // scaleX collapses the entire row rather than just the bar.
+    const { root } = render(
+      baseSnapshot({ vehicle: baseVehicle({ armorDP: { FRONT: 9, REAR: -2, LEFT: 1, RIGHT: 0, UNDERBODY: 0 } }, []) }),
+    );
+    const scales = byClass(root, 'hud-armor-bar__fill').map((b) =>
+      Number(/scaleX\(([\d.]+)\)/.exec(b.attrs.get('style') ?? '')?.[1]),
+    );
+    for (const scale of scales) {
+      expect(Number.isFinite(scale)).toBe(true);
+      expect(scale).toBeGreaterThanOrEqual(0);
+      expect(scale).toBeLessThanOrEqual(1);
+    }
+  });
+
   it('renders cargo integrity as its own raw magnitude, not a fabricated percentage of an invented max', () => {
     // No ruleset table defines a cargo integrity max, and sim/damage.ts's
     // applyCargoDamage subtracts raw weapon DP straight off it — a "%" sign
