@@ -686,27 +686,78 @@ export interface CityViewSnapshot {
  *  - layer 1: `cityLayer1InstanceCount(layout)` — see that export
  *  - layer 2: at most 3 (on-foot player + a parked car + that car's shadow)
  */
-export function buildCityInstances(snapshot: CityViewSnapshot, atlasIndex: AtlasIndex): SpriteInstanceInput[] {
-  const { layout, player, vehicle } = snapshot;
+/**
+ * The city's STATIC layers (ground + everything on layer 1), memoised per
+ * layout.
+ *
+ * ## Why this exists
+ *
+ * `showCity` calls `buildCityInstances` once per rendered frame and then filters
+ * the result into three per-layer arrays. But everything on layer 0 and layer 1
+ * — the ground quad, the wall ring, streetlights, barriers, the decorative
+ * infill, every facility, the gate and every doormarker — is derived purely from
+ * `layout`, which is built ONCE at screen entry from a fixed
+ * `(cityId, sessionSeed)` pair and never changes. Only the actor layer (the
+ * player and at most one vehicle) moves.
+ *
+ * So the old path re-derived ~90% of the instance list and re-allocated four
+ * arrays per frame, 60 times a second, to produce a byte-identical result. The
+ * budget it was defending (`cityLayer1InstanceCount` sizes the storage buffer)
+ * is a function of the layout alone, so caching the result cannot desync it.
+ *
+ * Keyed by layout identity in a `WeakMap`, so a discarded layout is collectable
+ * rather than pinned for the life of the page. `buildCityInstances` still exists
+ * and still recomputes from scratch — the tests call it directly, and that is
+ * the honest un-memoised path worth testing. The cached pair is the render
+ * path's optimisation, layered on top of the same logic, not a second
+ * implementation that can drift from it.
+ */
+const staticCityLayerCache = new WeakMap<CityLayout, { readonly ground: SpriteInstanceInput[]; readonly buildings: SpriteInstanceInput[] }>();
 
-  const instances: SpriteInstanceInput[] = [...groundInstances(atlasIndex)];
+/** The static layer-0 and layer-1 instances for a layout, computed once. */
+export function cityStaticLayers(
+  layout: CityLayout,
+  atlasIndex: AtlasIndex,
+): { readonly ground: SpriteInstanceInput[]; readonly buildings: SpriteInstanceInput[] } {
+  const hit = staticCityLayerCache.get(layout);
+  if (hit !== undefined) return hit;
 
-  instances.push(...furnitureInstances(layout, atlasIndex));
+  const staticInstances: SpriteInstanceInput[] = [...groundInstances(atlasIndex)];
+  staticInstances.push(...furnitureInstances(layout, atlasIndex));
   // Fillers are emitted BEFORE the facilities so a facility's footprint and its
   // doormarker always paint over the infill, never the other way round.
-  instances.push(...fillerInstances(layout, atlasIndex));
-  for (const doorway of layout.doorways) instances.push(...buildingInstances(layout, doorway, atlasIndex));
-  instances.push(...gateInstances(layout, layout.gate, atlasIndex));
-  instances.push(...doormarkerInstances(layout, atlasIndex));
+  staticInstances.push(...fillerInstances(layout, atlasIndex));
+  for (const doorway of layout.doorways) staticInstances.push(...buildingInstances(layout, doorway, atlasIndex));
+  staticInstances.push(...gateInstances(layout, layout.gate, atlasIndex));
+  staticInstances.push(...doormarkerInstances(layout, atlasIndex));
 
-  if (vehicle !== null && !player.inVehicle) instances.push(...vehicleInstances(vehicle, atlasIndex));
+  const layers = {
+    ground: staticInstances.filter((i) => i.layer === 0),
+    buildings: staticInstances.filter((i) => i.layer === 1),
+  };
+  staticCityLayerCache.set(layout, layers);
+  return layers;
+}
+
+/**
+ * The city's ACTOR layer: the player, and at most one vehicle (its contact
+ * shadow plus its sprite). This is the only part that changes between frames.
+ */
+export function buildCityActorInstances(snapshot: CityViewSnapshot, atlasIndex: AtlasIndex): SpriteInstanceInput[] {
+  const { player, vehicle } = snapshot;
+  const out: SpriteInstanceInput[] = [];
+  if (vehicle !== null && !player.inVehicle) out.push(...vehicleInstances(vehicle, atlasIndex));
   if (player.inVehicle && vehicle !== null) {
-    instances.push(...vehicleInstances({ ...vehicle, position: player.position, headingRad: player.headingRad }, atlasIndex));
+    out.push(...vehicleInstances({ ...vehicle, position: player.position, headingRad: player.headingRad }, atlasIndex));
   } else {
-    instances.push(playerInstance(player, atlasIndex));
+    out.push(playerInstance(player, atlasIndex));
   }
+  return out;
+}
 
-  return instances;
+export function buildCityInstances(snapshot: CityViewSnapshot, atlasIndex: AtlasIndex): SpriteInstanceInput[] {
+  const staticLayers = cityStaticLayers(snapshot.layout, atlasIndex);
+  return [...staticLayers.ground, ...staticLayers.buildings, ...buildCityActorInstances(snapshot, atlasIndex)];
 }
 
 /**

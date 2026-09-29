@@ -1291,7 +1291,7 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
    * reports the slot the input frame asked for whether or not the shot lands —
    * which is exactly the fact under test, and needs no opponent in range.
    */
-  async function driveRoadHoldingFire(mounts: number): Promise<{ firedSlots: () => number[]; clear: () => void }> {
+  async function driveRoadHoldingFire(mounts: number): Promise<{ firedSlots: () => number[]; distinctSlots: () => number[]; clear: () => void }> {
     await bootToCity(root, { weaponMounts: mounts });
     await walkThroughGateToRoad();
 
@@ -1302,6 +1302,15 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
 
     return {
       firedSlots: () => playerFiredSlots(fireSpy.mock.calls.map(([cmd]) => cmd)),
+      // The DISTINCT slots fired, in ascending order. These four tests are
+      // about WHICH mount fires, not how many rounds leave the barrel — but
+      // `stepFrame(250)` used to advance exactly one simulation step per call,
+      // because the road screen stepped on the raw rAF delta instead of
+      // draining it into fixed ticks. It now drains, so a single 250ms frame
+      // runs up to 15 ticks at 60Hz and fires that many rounds. Asserting on
+      // the raw array would then be asserting the accumulator's behaviour, not
+      // the weapon slot the player selected.
+      distinctSlots: () => [...new Set(playerFiredSlots(fireSpy.mock.calls.map(([cmd]) => cmd)))].sort((a, b) => a - b),
       clear: () => fireSpy.mockClear(),
     };
   }
@@ -1319,12 +1328,12 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
 
     fired.clear();
     stepFrame();
-    expect(fired.firedSlots()).toEqual([0]);
+    expect(fired.distinctSlots()).toEqual([0]);
 
     fired.clear();
     press('Digit2', '2');
     stepFrame();
-    expect(fired.firedSlots()).toEqual([1]);
+    expect(fired.distinctSlots()).toEqual([1]);
   });
 
   it('cycling with "e" reads and writes the same one slot direct select does, and neither overrides the other', async () => {
@@ -1333,7 +1342,7 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
     fired.clear();
     press('KeyE', 'e');
     stepFrame();
-    expect(fired.firedSlots()).toEqual([1]);
+    expect(fired.distinctSlots()).toEqual([1]);
     release('KeyE', 'e');
 
     // Direct select takes it straight back, so cycling did not leave a
@@ -1341,7 +1350,7 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
     fired.clear();
     press('Digit1', '1');
     stepFrame();
-    expect(fired.firedSlots()).toEqual([0]);
+    expect(fired.distinctSlots()).toEqual([0]);
 
     // '1' is STILL held here. A cycle on this same tick must advance off the
     // 0 that direct select wrote, and must not be undone by the held digit
@@ -1349,12 +1358,12 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
     fired.clear();
     press('KeyE', 'e');
     stepFrame();
-    expect(fired.firedSlots()).toEqual([1]);
+    expect(fired.distinctSlots()).toEqual([1]);
 
     // And the still-held '1' does not claw it back on any later tick either.
     fired.clear();
     stepFrame();
-    expect(fired.firedSlots()).toEqual([1]);
+    expect(fired.distinctSlots()).toEqual([1]);
   });
 
   it('selecting a mount the car does not have is refused outright, leaving the previous mount firing', async () => {
@@ -1372,7 +1381,7 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
     stepFrame();
     // Not slot 4 (no such mount) and NOT clamped back to slot 0 — the
     // selection is simply refused and mount 2 keeps firing.
-    expect(fired.firedSlots()).toEqual([1]);
+    expect(fired.distinctSlots()).toEqual([1]);
   });
 
   it('the on-screen weapon button changes the mount that fires, so a phone player can switch off a dry magazine', async () => {
@@ -1388,12 +1397,12 @@ describe('DOM screens: the weapon slot a player selects is the slot that fires',
 
     fired.clear();
     stepFrame();
-    expect(fired.firedSlots()).toEqual([0]);
+    expect(fired.distinctSlots()).toEqual([0]);
 
     fired.clear();
     button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     stepFrame();
-    expect(fired.firedSlots()).toEqual([1]);
+    expect(fired.distinctSlots()).toEqual([1]);
   });
 
   it('hides the weapon button on a car with one mount, where there is nothing to switch to', async () => {

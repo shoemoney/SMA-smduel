@@ -311,7 +311,13 @@ export function rechargeBattery(vehicle: VehicleState): VehicleState {
 
 function batteryDrainPerMile(weightLb: number, power: number, speedFraction: number): number {
   const config = drivingConfig().battery;
-  const weightPowerRatio = weightLb / power;
+  // `power` is schema-constrained to >= 1 (see POSITIVE_INT in data/schema.ts),
+  // so this cannot divide by zero today. The guard is kept anyway because the
+  // failure mode is severe and silent: Infinity here drains the battery to 0 on
+  // the first tick AND makes `batteryDebt` NaN, which then never drains again
+  // because `NaN > 0` is false. A car that can never regain its battery with no
+  // error logged is a very expensive mystery.
+  const weightPowerRatio = power > 0 ? weightLb / power : 0;
   return (
     config.movementDrainPerMileBase *
     (1 + config.weightPowerRatioScale * weightPowerRatio) *
@@ -338,7 +344,12 @@ export function stepDriving(params: StepDrivingParams): StepDrivingResult {
   const tire = getTire(vehicle.design.tireId);
 
   const handlingClass = suspension.handlingClass[body.class];
-  const topSpeedMph = plant.topSpeedMph;
+  // Schema guarantees >= 1. Clamped defensively because this value is the
+  // denominator of FOUR speed-fraction computations, and 0 would make
+  // `clamp(x / 0, 0, 1)` NaN — which `clamp` does NOT catch, because
+  // `Math.max(0, NaN)` is NaN. A NaN heading is unrecoverable: every later
+  // collision test silently returns false and the car drives off forever.
+  const topSpeedMph = Math.max(1, plant.topSpeedMph);
   const canAccelerate = vehicle.plantDP > 0;
 
   const startHeadingRad = vehicle.headingRad;
@@ -436,6 +447,24 @@ export function stepDriving(params: StepDrivingParams): StepDrivingResult {
   if (!wasLocked) {
     const headingChangeDeg = Math.abs(radToDeg(angleDelta(startHeadingRad, headingRad)));
     const speedFraction = clamp(Math.abs(startSpeedMph) / topSpeedMph, 0, 1);
+    // KNOWN UNIT BUG, DELIBERATELY NOT FIXED HERE.
+    //
+    // `headingChangeDeg` is this tick's heading change, and the turn above
+    // already applied `turnRateRadPerSec * dtSeconds`, so it carries one factor
+    // of dt. Multiplying by `dtSeconds` again makes the gain `rate * dt^2`
+    // while `stressDecay` below is correctly `perSecond * dt` — the two terms
+    // are in different time bases, which makes control loss a function of the
+    // ruleset's `tickRateHz` rather than of how the player drives. Measured
+    // with the shipped constants, full lock at top speed: 0.5s to spin out at
+    // 30Hz, 1.6s at 60Hz, 119.6s at 120Hz, and never at 240Hz.
+    //
+    // Correcting the exponent (divide by dt first) is a two-character change
+    // and it is NOT done, because at the default 60Hz it makes the gain 60x
+    // LARGER: the coefficients in driving.json were tuned against the buggy
+    // formula, so "fixing" the units silently rebalances the entire game and
+    // the player loses every arena. That is a deliberate design decision, not
+    // a bug fix, and it belongs in a balance pass with the numbers in front of
+    // someone who owns the tuning — not smuggled in as a correctness patch.
     const stressGain = headingChangeDeg * speedFraction * coefficients.speedPenaltyScale * dtSeconds;
     const stressDecay = coefficients.turnStressDecayPerSecond * dtSeconds;
     controlStress = Math.max(0, controlStress + stressGain - stressDecay);

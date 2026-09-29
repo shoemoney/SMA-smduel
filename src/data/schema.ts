@@ -35,6 +35,27 @@ const BOOL: SchemaObject = { type: 'boolean' };
 const STR: SchemaObject = { type: 'string' };
 const NON_EMPTY_STR: SchemaObject = { type: 'string', minLength: 1 };
 const NON_NEG_INT: SchemaObject = { type: 'integer', minimum: 0 };
+/**
+ * An integer that must be STRICTLY positive, for every field that ends up as a
+ * denominator.
+ *
+ * `NON_NEG_INT` is right for a cost or a capacity, and wrong for anything the
+ * sim divides by. Three such fields were schema-legal at 0 and each produced a
+ * permanent, unrecoverable NaN:
+ *   - `plants.topSpeedMph: 0` -> `Math.abs(0)/0` in the speed-fraction maths ->
+ *     `clamp(NaN, 0, 1)` (which returns NaN, since Math.max(0, NaN) is NaN) ->
+ *     turn rate NaN -> `headingRad` and `position` NaN forever, after which
+ *     every collision test returns false and the vehicle cannot be recovered.
+ *   - `plants.power: 0` -> `weightLb / power` is Infinity -> the battery drains
+ *     to 0 on the first tick and `batteryDebt` becomes NaN.
+ *   - `weapons.maxDP: 0` -> `state.dp / state.maxDP` is 0/0, and in `pickBest`
+ *     every comparison against NaN is false, so the weapon silently vanishes
+ *     from the AI's entire decision tree with no error anywhere.
+ *
+ * Rejecting 0 at the schema is the fix that makes all three impossible rather
+ * than individually guarded at each use site.
+ */
+const POSITIVE_INT: SchemaObject = { type: 'integer', minimum: 1 };
 const NON_NEG_NUM: SchemaObject = { type: 'number', minimum: 0 };
 const ID: SchemaObject = { type: 'string', pattern: '^[a-z0-9-]+$' };
 
@@ -134,9 +155,13 @@ export const plantsSchema: SchemaObject = obj({
       price: NON_NEG_INT,
       weightLb: NON_NEG_INT,
       spaces: NON_NEG_INT,
-      maxDP: NON_NEG_INT,
-      power: NON_NEG_INT,
-      topSpeedMph: NON_NEG_INT,
+      maxDP: POSITIVE_INT,
+      // Divides weightLb (see POSITIVE_INT): 0 would make the power/weight
+      // ratio Infinity and drain the battery on the first tick.
+      power: POSITIVE_INT,
+      // The denominator of the speed-fraction clamp: 0 would make a vehicle's
+      // heading and position NaN permanently.
+      topSpeedMph: POSITIVE_INT,
       radarFailureThreshold: NON_NEG_INT,
     }),
     { minItems: 1 },
@@ -251,7 +276,9 @@ export const weaponsSchema: SchemaObject = obj(
           price: NON_NEG_INT,
           weightLb: NON_NEG_INT,
           spaces: NON_NEG_INT,
-          maxDP: NON_NEG_INT,
+          // Denominator of `state.dp / state.maxDP` in @/sim/ai's evaluateWeapon;
+          // 0 makes the score NaN, which drops the weapon from pickBest entirely.
+          maxDP: POSITIVE_INT,
           ammoCost: NON_NEG_INT,
           ammoWeightLb: NON_NEG_INT,
           ammoCapacity: NON_NEG_INT,

@@ -412,7 +412,13 @@ function evaluateWeapon(ctx: AIContext, target: VehicleState, index: number, sta
   if (bearsNow) score += 1;
   if (inRange) score += 1;
   if (losClear) score += 1;
-  score += state.dp / state.maxDP;
+  // Schema guarantees maxDP >= 1 (POSITIVE_INT in data/schema.ts). Guarded
+  // anyway because a NaN here is uniquely destructive: in `pickBest` every
+  // `s > bestScore` and `s === bestScore` is FALSE for NaN, so `bests` stays
+  // empty, the function returns null, and the weapon disappears from the AI's
+  // entire decision tree with no error and no log line. The opponent silently
+  // degrades to PURSUE and nobody can tell why.
+  score += state.maxDP > 0 ? state.dp / state.maxDP : 0;
   if (def.ammoCapacity > 0) score += Math.min(1, state.ammo / def.ammoCapacity);
 
   return { index, state, facing: state.facing, bearsNow, inRange, losClear, readyToFire, score };

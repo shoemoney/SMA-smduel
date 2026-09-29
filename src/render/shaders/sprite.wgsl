@@ -3,14 +3,25 @@
 // pipeline's blend state and the atlas texture/bind group differ per pass).
 //
 // Instance layout MUST match FLOATS_PER_INSTANCE / INSTANCE_FIELD_FLOAT_OFFSETS
-// in src/render/sprite.ts (16 floats / 64 bytes per instance, four vec4<f32>
+// in src/render/sprite.ts (20 floats / 80 bytes per instance, five vec4<f32>
 // slots so every field lands on a 16-byte boundary):
 //   transform0: vec4<f32>  xy = world position (m), z = rotation (rad), w = layer
 //   transform1: vec4<f32>  xy = size (m, full width/height),
-//                            z = shadow softness (0 = not a shadow),
-//                            w = shadow opacity multiplier
+//                            zw = OVERLOADED, see `extra.x`
 //   uvRect:     vec4<f32>  x0,y0 = atlas UV top-left, z,w = atlas UV bottom-right
 //   tint:       vec4<f32>  r,g,b,a multiply tint
+//   extra:      vec4<f32>  x = SPRITE_KIND tag, yzw = reserved (zero)
+//
+// `transform1.zw` is overloaded because both consumers fit in two floats, and
+// which one is present is decided by `extra.x` — the authoritative tag:
+//   kind 0 PLAIN  : zw unused
+//   kind 1 SHADOW : z = softness, w = opacity
+//   kind 2 GROUND : z = tile metres, w = detail scale
+//
+// This header said "16 floats / 64 bytes, four slots" and never mentioned
+// `extra` at all, while the struct below it had been five slots for some time.
+// The field table is the cross-file contract; a stale one silently misleads
+// anyone porting between the packer and the shader.
 //
 // The unit quad (-0.5..0.5 in local space) is expanded procedurally from
 // @builtin(vertex_index) — no vertex buffer is bound for this pipeline.
@@ -44,18 +55,28 @@ struct VertexOut {
   // varying is close to free and it keeps the ground out of the instance
   // format entirely.
   @location(3) worldPos: vec2<f32>,
-  // The instance's atlas UV rect, un-interpolated. The ground path needs the
-  // RECT (to wrap inside it with fract()), not the interpolated uv — passing
-  // the interpolated value is a real bug: it varies per pixel, so `rect.zw -
-  // rect.xy` is a per-pixel delta and every ground pixel samples somewhere
-  // arbitrary in the sheet.
-  @location(4) uvRect: vec4<f32>,
-  // The instance's kind tag, un-interpolated. `transform1.zw` is overloaded
-  // between a shadow's (softness, opacity) and a ground quad's (tileMetres,
-  // detailScale), so the fragment stage cannot tell them apart by value — a
-  // ground quad with a detail scale above 1.0 reads as a shadow. The tag is
-  // the only reliable discriminator.
-  @location(5) kind: f32,
+  // The instance's atlas UV rect. MUST be flat-interpolated: the ground path
+  // needs the RECT (to wrap inside it with fract()), not the interpolated uv —
+  // passing the interpolated value is a real bug: it varies per pixel, so
+  // `rect.zw - rect.xy` becomes a per-pixel delta and every ground pixel
+  // samples somewhere arbitrary in the sheet.
+  //
+  // `@interpolate(flat)` is not an optimisation here, it is a correctness
+  // requirement. All three vertices happen to carry the same value, so a
+  // smooth interpolation would reproduce it today — but nothing in the
+  // language or the pipeline enforces that, and reduced-precision interpolation
+  // of a vec4 delta is enough to put the ground's tile UVs slightly wrong.
+  @location(4) @interpolate(flat) uvRect: vec4<f32>,
+  // The instance's kind tag. `transform1.zw` is overloaded between a shadow's
+  // (softness, opacity) and a ground quad's (tileMetres, detailScale), so the
+  // fragment stage cannot tell them apart by value — a ground quad with a
+  // detail scale above 1.0 reads as a shadow. The tag is the only reliable
+  // discriminator, and `fs_main` branches on it by EXACT float equality
+  // (`kind == 1.0`, `kind == 2.0`), which only holds if the value is delivered
+  // un-interpolated. A tag that drifted off 1.0/2.0 would fall through to the
+  // plain-sprite path and draw a ground quad as a raw atlas sub-rect, with no
+  // error anywhere.
+  @location(5) @interpolate(flat) kind: f32,
 }
 
 const UNIT_QUAD_CORNERS = array<vec2<f32>, 6>(
@@ -119,8 +140,17 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     // shadow can reuse any frame's UV rect.
     let d = length(in.params.xy) * 2.0;
     // z = 0 is a hard-edged disc, 1 a very soft blob.
-    let falloff = pow(clamp(1.0 - d, 0.0, 1.0), 1.0 + in.params.z * 3.0);
-    color = vec4<f32>(0.0, 0.0, 0.0, falloff * in.params.w);
+    //
+    // The BASE is clamped to [0,1] (the classic missing-clamp-before-pow trap);
+    // the EXPONENT is not, and it comes straight off an optional public field
+    // (`SpriteInstanceInput.shadowSoftness`) with no documented range. Below
+    // -1/3 the exponent goes negative and `pow(0.0, negative)` is
+    // indeterminate in WGSL, which yields NaN — and NaN fails the `color.a <=
+    // 0.001` discard below, because every comparison against NaN is false. The
+    // result is a fragment written with a NaN alpha instead of being dropped.
+    // Clamping the softness at zero makes the exponent always >= 1.
+    let falloff = pow(clamp(1.0 - d, 0.0, 1.0), 1.0 + max(in.params.z, 0.0) * 3.0);
+    color = vec4<f32>(0.0, 0.0, 0.0, falloff * max(in.params.w, 0.0));
   } else if (in.kind == 2.0) {
     // NOTE: every texture read in this branch must be `textureSampleLevel`.
     // `textureSample` requires uniform control flow, and the branch condition
@@ -139,7 +169,22 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     // sampler would bleed neighbouring cells into this one.
     let rect = in.uvRect;
     let size = rect.zw - rect.xy;
-    let wuv = in.worldPos / max(in.params.z, 0.001);
+    // Y is NEGATED here, and that is load-bearing rather than cosmetic.
+    //
+    // The world convention is X right / Y up (see src/render/camera.ts: world
+    // +Y is screen-up), but a UvRect's v axis runs the other way: v1 > v0
+    // means increasing `v` walks DOWN the image. So feeding world Y straight
+    // into `v` mirrors the ground vertically. Every current GROUND_POOLS frame
+    // is deliberately featureless (the pool docs reject `ground-arena-a`
+    // precisely because its painted circle is a FEATURE, not a texture), and a
+    // mirrored featureless tile is indistinguishable from an unmirrored one —
+    // so this has been latent so far. The first ground frame with a lane
+    // marking, a drain or a kerb would have come out mirrored.
+    //
+    // post.wgsl already handles the identical flip for the whole scene
+    // ("without this the grade pass renders the scene upside down"), which is
+    // why nobody caught it here.
+    let wuv = vec2<f32>(in.worldPos.x, -in.worldPos.y) / max(in.params.z, 0.001);
 
     let base = rect.xy + fract(wuv) * size;
     var g = textureSampleLevel(atlasTexture, atlasSampler, base, 0.0).rgb;
@@ -152,16 +197,33 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     if (in.params.w > 0.0) {
       let detail = rect.xy + fract(wuv * in.params.w) * size;
       let d = textureSampleLevel(atlasTexture, atlasSampler, detail, 0.0).rgb;
-      // Blend in patches several tiles across rather than per pixel, which
-      // would only read as noise. The mask is quantised coarsely on purpose:
-      // a fine mask interleaves the two scales at a scale the eye reads as
-      // vertical banding, which looked like rain on the road. Coarse patches
-      // read as genuinely different ground.
-      let cell = floor(wuv * 0.11);
+      // Blend in PATCHES rather than per pixel, which would only read as noise.
+      //
+      // The patch grid is sized in METRES off `worldPos`, not off `wuv`. The
+      // previous code used `floor(wuv * 0.11)`, and `wuv` is in TILE units, so
+      // each mask cell spanned 1/0.11 = 9.09 tiles — 272m at the arena's 30m
+      // tile. A 1440px frame at 30 px/m is only 48m wide, so the whole visible
+      // ground covered 0.18 of a mask cell: the mask never changed value on
+      // screen, the cross-fade weight was effectively constant, and the
+      // "patches" this comment describes simply did not happen. It still looked
+      // acceptable because a fixed mix of two non-commensurate scales does break
+      // the grid — which is why the bug survived a screenshot review.
+      //
+      // 9m gives ~5 patches across that same 48m view: coarse enough to read as
+      // genuinely different ground, fine enough to be visible without turning
+      // into a checkerboard.
+      let cell = floor(in.worldPos / 9.0);
       let m = fract(sin(dot(cell, vec2<f32>(12.9898, 78.233))) * 43758.5453);
       g = mix(g, d, smoothstep(0.30, 0.70, m) * 0.6);
     }
-    color = vec4<f32>(g, in.tint.a);
+    // The ground takes the tint's RGB too. It used to keep only `tint.a`, which
+    // silently dropped any tint the caller supplied — dormant only because
+    // every current ground caller passes white, which is the same failure shape
+    // as the `extra.x` tag that was added to stop ground quads being mistaken
+    // for shadows: an input the public type declares and the shader ignores.
+    // A night grade, a capture-zone tint, or a desaturation all read as "no
+    // effect" until someone debugs the shader.
+    color = vec4<f32>(g * in.tint.rgb, in.tint.a);
   }
 
   if (color.a <= 0.001) {

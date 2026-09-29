@@ -27,9 +27,20 @@
 // ---------------------------------------------------------------------------
 
 struct PostUniforms {
-  // xy = 1/resolution, zw = 1/resolution again, kept as vec2 pairs so the
-  // struct stays 16-byte aligned without a manual padding field.
-  resolutionAndTime: vec4<f32>, // xy = size in px, z = time seconds, w = vignette strength
+  // xy = composite size in DEVICE pixels, z = time seconds, w = vignette
+  // strength. Note these are raw pixels, NOT a reciprocal: the aspect
+  // correction and the grain both need real pixel counts. Anything that wants
+  // a texel SIZE in UV space must take the reciprocal itself — see `texel`
+  // in fs_main, which is exactly the bug this comment now exists to prevent.
+  //
+  // The comment above this field used to claim "xy = 1/resolution" while the
+  // packer (packPostUniforms in src/render/sprite.ts) wrote raw pixels, and
+  // `brightPass` was handed the field directly as a UV offset. At 2880x1800
+  // that is a radius of (14400, 9000) in UV, which clamp-to-edge collapses to
+  // the same border texel on all eight taps: bloom became a constant added to
+  // every pixel, or — when the frame edge was dark — a silent no-op. A stale
+  // comment about a unit was the whole bug.
+  resolutionAndTime: vec4<f32>,
   // x = bloom strength, y = grain amount, z = saturation, w = contrast
   grade: vec4<f32>,
   // x = warm/cool split-tone amount, y = lift, z = global exposure, w = unused
@@ -95,6 +106,10 @@ fn igNoise(pixel: vec2<f32>, frame: f32) -> f32 {
  * ground) one ring reads correctly and costs nine samples instead of dozens.
  */
 fn brightPass(uv: vec2<f32>, texel: vec2<f32>) -> vec3<f32> {
+  // `texel` is the reciprocal of the resolution, i.e. ONE texel expressed in
+  // UV space, so multiplying it by a radius is a UV offset. See the note on
+  // `PostUniforms.resolutionAndTime` for what went wrong when this was the
+  // raw pixel size instead.
   let radius = texel * 5.0;
   var sum = vec3<f32>(0.0);
   var offsets = array<vec2<f32>, 8>(
@@ -123,7 +138,10 @@ fn brightPass(uv: vec2<f32>, texel: vec2<f32>) -> vec3<f32> {
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-  let texel = params.resolutionAndTime.xy;
+  // Reciprocal of the size in px, giving one texel in UV space. Everything that
+  // offsets by a texel (the bloom ring) needs THIS; everything that needs a
+  // real pixel count (aspect, grain) reads `.xy` directly and is unaffected.
+  let texel = vec2<f32>(1.0) / max(params.resolutionAndTime.xy, vec2<f32>(1.0));
   var color = textureSampleLevel(sourceTexture, sourceSampler, in.uv, 0.0).rgb;
 
   // 1. bloom

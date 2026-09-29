@@ -371,8 +371,38 @@ export function createInstanceStorageBuffer(device: GPUDevice, capacityInstances
 }
 
 /** Uploads a packed instance `data` array (from `packInstances`) into `buffer`. */
-export function writeInstanceBuffer(device: GPUDevice, buffer: GPUBuffer, data: Float32Array<ArrayBuffer>): void {
+/**
+ * Writes packed instances into a storage buffer, refusing to overrun it.
+ *
+ * ## Why the capacity check exists
+ *
+ * `queue.writeBuffer` past the end of a buffer is a WebGPU VALIDATION ERROR and
+ * the write is DROPPED — it does not clamp, and it does not throw. The symptom
+ * is therefore a frame that silently renders with stale or zero instance data:
+ * a missing car, a ground quad in the wrong place, or an empty screen, with
+ * nothing in the console unless something is listening for validation errors.
+ * That is precisely the failure the capacity constants exist to prevent, so
+ * the guard belongs at the one place every write passes through.
+ *
+ * A silent overrun is a data bug, so this throws rather than truncating. A
+ * truncated write would keep rendering, just wrongly, and would hide the cause.
+ */
+export function writeInstanceBuffer(
+  device: GPUDevice,
+  buffer: GPUBuffer,
+  data: Float32Array<ArrayBuffer>,
+  capacityInstances?: number,
+): void {
   if (data.length === 0) return;
+  if (capacityInstances !== undefined) {
+    const count = data.length / FLOATS_PER_INSTANCE;
+    if (count > capacityInstances) {
+      throw new RangeError(
+        `writeInstanceBuffer: ${count} instances exceeds capacity ${capacityInstances} ` +
+          `(${data.length} floats into a ${capacityInstances * FLOATS_PER_INSTANCE}-float buffer)`,
+      );
+    }
+  }
   device.queue.writeBuffer(buffer, 0, data);
 }
 
@@ -422,7 +452,27 @@ export function createAtlasBindGroup(
   });
 }
 
-/** A sampler suitable for `sprite.wgsl` atlases: clamped, so adjacent atlas cells never bleed into each other. */
+/**
+ * A sampler suitable for `sprite.wgsl` atlases: clamped, so adjacent atlas cells never bleed into each other.
+ *
+ * ## Why NEAREST, given the ground is the biggest thing on screen
+ *
+ * It is tempting to make this linear because the ground — one quad filling the
+ * whole frame — is sampled through this same sampler, and nearest filtering
+ * makes its `fract()` wraps read as hard texel steps. Linear is the wrong fix
+ * here for a structural reason: the ground samples INSIDE an atlas sub-rect
+ * (`rect.xy + fract(wuv) * (rect.zw - rect.xy)`), and the atlas has no gutters.
+ * With linear filtering, any fragment near a tile's edge blends with the
+ * NEIGHBOURING cell's texels, so every ground tile would carry a coloured
+ * fringe from whatever is packed next to it. That is strictly worse than a
+ * slightly blocky wrap, and it would look like a rendering bug rather than a
+ * tuning choice.
+ *
+ * Doing it properly means giving the ground its OWN texture with linear +
+ * repeat addressing, sampled through a second binding. That is a real change
+ * (a new texture, a new bind group entry, repacking) and it is the right
+ * follow-up, but it is not a one-line edit and it is not what is done here.
+ */
 export function createAtlasSampler(device: GPUDevice): GPUSampler {
   return device.createSampler({
     label: 'atlas-sampler',
@@ -433,7 +483,23 @@ export function createAtlasSampler(device: GPUDevice): GPUSampler {
   });
 }
 
-/** A sampler suitable for `tile.wgsl` textures: repeat addressing is what makes tiled UVs wrap seamlessly. */
+/**
+ * A LINEAR + REPEAT sampler, for a standalone tiling texture.
+ *
+ * ## UNUSED BY PRODUCTION CODE — kept only because a test asserts its shape
+ *
+ * `tile.wgsl` is dead (see the file header), and the live ground path samples
+ * through {@link createAtlasSampler} because it reads inside an atlas sub-rect,
+ * where linear filtering would bleed the neighbouring cell. So nothing in
+ * `src/` calls this.
+ *
+ * It is left in place rather than deleted because it documents the correct
+ * answer to "what sampler should the ground use", which is the open question
+ * {@link createAtlasSampler}'s own comment raises. When the ground is given its
+ * own texture — the real fix for the blocky wrap — this is the sampler to use.
+ *
+ * The alternative was deleting it and losing the only written-down answer.
+ */
 export function createTileSampler(device: GPUDevice): GPUSampler {
   return device.createSampler({
     label: 'tile-sampler',

@@ -419,7 +419,13 @@ describe('arena-event opponents: real spawn, real decideAI, real fire pipeline',
     expect(competentWins).toBeLessThanOrEqual(Math.round(SEEDS * 0.85));
     // And the careless entrant still loses, so the two are really different.
     expect({ naiveWins }).toEqual({ naiveWins: 0 });
-  });
+    // This one simulates 80 full matches (40 seeds x 2 policies) through the
+    // real systems. Alone it takes ~2.7s; running alongside the rest of the
+    // suite it exceeded vitest's 5s DEFAULT timeout and failed intermittently,
+    // which reads as a balance regression and is really just a loaded machine.
+    // The budget is set explicitly so the failure mode stays "the numbers
+    // changed", not "the box was busy".
+  }, 60_000);
 
   // An on-ramp won in four seconds teaches nothing. Measured on the victory
   // seed, where the sweep lands at a median of tick 744 (about 12 seconds), so

@@ -80,6 +80,37 @@ function armorPointsForCalc(armor: VehicleDesign['armor']): number {
   );
 }
 
+/**
+ * Memo for {@link computeBuild}, keyed on the design object by identity.
+ *
+ * `computeBuild` does five `has*` lookups, five `get*` lookups, `resolveWeapons`
+ * and then validation loops over every weapon and every armour facing before the
+ * weight/cost arithmetic. That is a whole build evaluation, and it is pure: the
+ * result depends only on `design` and the ruleset, both of which are fixed for
+ * the life of a match.
+ *
+ * It was being called once per rendered FRAME on two screens purely to read
+ * `accelMphPerSec` for the HUD — 60 full build evaluations per second to render
+ * a number that cannot change while the match runs. A `WeakMap` keyed on the
+ * design object is exactly the right shape here: the key is the thing the
+ * result is derived from, and holding it weakly means a discarded design is
+ * collectable rather than pinned in a cache forever.
+ *
+ * A cache keyed on the design's FIELD VALUES (rather than its identity) would be
+ * wrong, because callers legitimately pass fresh but structurally equal objects
+ * each tick, and a value key would then never hit.
+ */
+const computeBuildCache = new WeakMap<BuildDesign, BuildMetrics>();
+
+/** {@link computeBuild}, memoised per design object. See {@link computeBuildCache}. */
+export function computeBuildCached(design: BuildDesign): BuildMetrics {
+  const hit = computeBuildCache.get(design);
+  if (hit !== undefined) return hit;
+  const metrics = computeBuild(design);
+  computeBuildCache.set(design, metrics);
+  return metrics;
+}
+
 export function computeBuild(design: BuildDesign): BuildMetrics {
   const violations: BuildViolation[] = [];
 

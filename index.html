@@ -28,6 +28,108 @@
          and base type BEFORE the module graph runs — no white flash during
          boot. hud.css also @imports it, so the HUD is never styled without it. -->
     <link rel="stylesheet" href="./src/ui/tokens.css" />
+    <!-- The loading splash's own styles are INLINE and deliberately not in
+         tokens.css. The splash has to be on screen before the module graph has
+         even started executing — a linked stylesheet is a render-blocking
+         request, so waiting for one here would defeat the entire point of
+         having a splash. Inline costs ~1KB and paints on the first frame. -->
+    <style>
+      /* Shown from the first paint until src/ui/loading-screen.ts takes over and
+         removes the element. aria-busy marks it as transient; the progress bar
+         is a real <progress>-shaped role so a screen reader is told it is
+         indeterminate-then-determinate rather than being shown a mystery div. */
+      .sm-boot {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: radial-gradient(120% 90% at 50% 15%, #0d1520 0%, #05070a 62%, #030405 100%);
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        transition: opacity 320ms ease;
+      }
+      .sm-boot[hidden] { display: none; }
+      .sm-boot--out { opacity: 0; pointer-events: none; }
+
+      .sm-boot__logo {
+        width: min(168px, 34vw);
+        height: auto;
+        filter: drop-shadow(0 6px 26px rgba(79, 214, 196, 0.28));
+        animation: sm-boot-pulse 2.6s ease-in-out infinite;
+      }
+      @keyframes sm-boot-pulse {
+        0%, 100% { opacity: 0.82; transform: translateY(0); }
+        50%      { opacity: 1;    transform: translateY(-4px); }
+      }
+      /* Respect the OS setting: a pulsing logo on a reduced-motion machine is
+         a vestibular trigger, and this is decorative motion. */
+      @media (prefers-reduced-motion: reduce) {
+        .sm-boot__logo { animation: none; opacity: 1; }
+        .sm-boot { transition: none; }
+      }
+
+      .sm-boot__bar {
+        position: relative;
+        width: min(420px, 74vw);
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.09);
+        overflow: hidden;
+      }
+      /* The FILL is the real progress value. It is a scaleX transform rather
+         than a width so it animates on the compositor and never triggers
+         layout on every update. */
+      .sm-boot__fill {
+        position: absolute;
+        inset: 0;
+        transform-origin: left center;
+        transform: scaleX(0);
+        border-radius: inherit;
+        background: linear-gradient(90deg, #4fd6c4 0%, #63a8ff 55%, #ffffff 100%);
+        transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      /* A slow sheen while the bar is not yet at 100%, so a long load still
+         reads as "alive" rather than frozen. Removed once progress completes. */
+      .sm-boot__bar::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%);
+        transform: translateX(-100%);
+        animation: sm-boot-sheen 1.5s ease-in-out infinite;
+      }
+      .sm-boot__bar--done::after { animation: none; opacity: 0; }
+      @keyframes sm-boot-sheen {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sm-boot__bar::after { animation: none; }
+        .sm-boot__fill { transition: none; }
+      }
+
+      .sm-boot__status {
+        min-height: 1.2em;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(215, 224, 234, 0.72);
+      }
+      .sm-boot__brand {
+        position: absolute;
+        bottom: max(22px, env(safe-area-inset-bottom));
+        font-size: 11px;
+        letter-spacing: 0.26em;
+        text-transform: uppercase;
+        color: rgba(215, 224, 234, 0.4);
+        text-align: center;
+        padding: 0 16px;
+      }
+      .sm-boot__brand strong { color: rgba(215, 224, 234, 0.66); font-weight: 600; }
+    </style>
   </head>
   <body>
     <a class="arcade-home-link" href="https://arcade.shoemoney.com/" aria-label="ShoeMoney Arcade">
@@ -35,6 +137,27 @@
       <span class="arcade-home-label">Arcade</span>
     </a>
     <div id="app"></div>
+    <!-- The loading splash. Present in the HTML rather than created by JS so it
+         exists on the first paint: by the time any module runs, the browser has
+         already spent real time parsing and fetching the graph, and showing a
+         blank page for that stretch is exactly what a splash is for.
+         Removed by src/ui/loading-screen.ts once the first screen is ready. -->
+    <div class="sm-boot" id="sm-boot" role="status" aria-live="polite" aria-busy="true">
+      <img class="sm-boot__logo" src="./assets/shoemoney-logo.png" alt="" width="512" height="414" />
+      <div
+        class="sm-boot__bar"
+        id="sm-boot-bar"
+        role="progressbar"
+        aria-label="Loading"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      >
+        <div class="sm-boot__fill" id="sm-boot-fill"></div>
+      </div>
+      <p class="sm-boot__status" id="sm-boot-status">Warming up</p>
+      <p class="sm-boot__brand">A <strong>ShoeMoney</strong> AI Labs Game</p>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

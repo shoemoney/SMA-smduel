@@ -664,12 +664,36 @@ export function stepRoadTrip(
   const displacement: Vec2 = { x: vehicle.position.x - state.startPosition.x, y: vehicle.position.y - state.startPosition.y };
   const progressMiles = (displacement.x * axis.x + displacement.y * axis.y) / drivingConfig().metersPerMile;
 
-  const contacts = state.contacts
-    .map((contact) => updateContactForProgress(contact, progressMiles))
-    .map((contact) => {
-      const damageFraction = contactDamage.get(contact.id);
-      return damageFraction === undefined ? contact : updateContactFlight(contact, damageFraction);
-    });
+  // Single pass, and allocation-free unless a contact actually changed.
+  //
+  // This was two chained `.map()`s, so every tick allocated an intermediate
+  // array plus the result array to hold at most `state.contacts.length` entries
+  // — 60 times a second, on the screen that is already the busiest. Both
+  // updates are identity functions for the overwhelming majority of contacts
+  // (`updateContactForProgress` returns its input unless the contact is past its
+  // faction's break-off range; `updateContactFlight` returns its input unless it
+  // took damage this tick), so the intermediate array was nearly always a
+  // byte-for-byte copy of the input.
+  //
+  // The output buffer is only copied on the FIRST change, so a tick in which
+  // nothing changed allocates nothing at all and `contacts` stays referentially
+  // identical to `state.contacts` — which lets a consumer short-circuit on an
+  // identity check instead of re-scanning the list.
+  let contacts: RoadContact[] = state.contacts as RoadContact[];
+  let mutated = false;
+  for (let i = 0; i < state.contacts.length; i++) {
+    const original = state.contacts[i]!;
+    const progressed = updateContactForProgress(original, progressMiles);
+    const damageFraction = contactDamage.get(progressed.id);
+    const updated = damageFraction === undefined ? progressed : updateContactFlight(progressed, damageFraction);
+    if (updated !== original) {
+      if (!mutated) {
+        contacts = state.contacts.slice();
+        mutated = true;
+      }
+      contacts[i] = updated;
+    }
+  }
 
   const nextState: RoadTripState = { ...state, vehicle, clock, dayDebt, wrecks, hazards, contacts, progressMiles };
   return { state: nextState, arrived: hasReachedDestination(nextState), daysAdvanced };

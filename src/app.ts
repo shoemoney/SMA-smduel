@@ -18,7 +18,16 @@ import '@/ui/menu.css';
 import '@/ui/hud.css';
 import '@/ui/touch.css';
 
-import { citiesConfig, drivingConfig, economy, getPlant, getTire, getWeapon, skillsConfig, RAW_RULESETS } from '@/data/rulesets';
+import {
+  citiesConfig,
+  drivingConfig,
+  economy,
+  getPlant,
+  getTire,
+  getWeapon,
+  skillsConfig,
+  RAW_RULESETS,
+} from '@/data/rulesets';
 import { validateRulesets } from '@/data/schema';
 import { arcadeScoringEnabled, submitArcadeScore, type ArcadeSubmitFailure } from '@/arcade/client';
 import { buildArcadePayload, shouldSubmitArcadeScore, type ArcadeScorePayload } from '@/arcade/score';
@@ -57,8 +66,11 @@ import {
   tickCooldowns,
   type FireCommand,
   type ProjectileState,
+  triggerMine,
+  triggerSpikes,
+  type DeployableState,
 } from '@/sim/combat';
-import { computeBuild } from '@/sim/construct';
+import { computeBuildCached } from '@/sim/construct';
 import {
   createCityPlayerState,
   generateCityLayout,
@@ -108,7 +120,7 @@ import {
   type Fleet,
   type FleetVehicle,
 } from '@/sim/fleet';
-import type { DayPhase, DriverState, RouteDef, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
+import type { DayPhase, DriverState, RouteDef, SkillName, Vec2, VehicleDesign, VehicleState, WeaponDef } from '@/sim/types';
 import { FACINGS } from '@/sim/types';
 import { createWorld, type World } from '@/sim/world';
 import { createRng, type Rng } from '@/util/rng';
@@ -155,7 +167,8 @@ import { mountBuilder, type BuilderConfirmedBuild } from '@/ui/builder';
 import { mountFacility, type ArenaEntryResult, type BuildingContext, type MountedFacility } from '@/ui/buildings';
 import { leaveAction, LEAVE_ACTION_ID, mountBuildingPanel, type RumorId } from '@/ui/buildings/shared';
 import {
-  buildCityInstances,
+  buildCityActorInstances,
+  cityStaticLayers,
   cityLayer1InstanceCount,
   type CityVehicleView,
   type CityViewSnapshot,
@@ -167,6 +180,12 @@ import { isCoarsePointer, mountTouchControls, type TouchCommandSpec, type TouchC
 import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
 
 import { initGpu, type GpuContext } from '@/render/gpu';
+import {
+  LOADING_PHASE,
+  preloadImage,
+  titleArtUrl,
+  type LoadingScreen,
+} from '@/ui/loading-screen';
 import { loadAtlasIndex, type AtlasIndex } from '@/render/atlas';
 import { createCamera, type Camera } from '@/render/camera';
 import { groundQuad, GROUND_TILE_METRES } from '@/render/ground';
@@ -187,6 +206,7 @@ import {
   createShaderModule,
   encodePostPass,
   encodeSpritePass,
+  cullInstances,
   packInstances,
   packPostUniforms,
   writeCameraUniform,
@@ -450,25 +470,69 @@ function attachCodeTracking(codesDown: Set<string>): { detach(): void } {
   function onKeyUp(ev: KeyboardEvent): void {
     codesDown.delete(ev.code);
   }
+  /**
+   * Releases every held key when the window loses focus.
+   *
+   * `keyup` is only delivered to a focused window, so alt-tabbing or clicking
+   * away while holding throttle/keyboard-steer leaves those codes latched in
+   * `codesDown` FOREVER — there is no event that will ever clear them. The
+   * symptom is the car driving off on its own at full lock the moment the
+   * player comes back, which reads as a physics or input bug and is neither.
+   *
+   * `visibilitychange` is handled too, because on mobile the page can be
+   * backgrounded without a `blur` ever firing, and because a hidden tab can be
+   * restored with a different focus state than it lost.
+   */
+  function releaseAll(): void {
+    codesDown.clear();
+  }
+  function onVisibilityChange(): void {
+    if (document.visibilityState !== 'visible') releaseAll();
+  }
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('blur', releaseAll);
+  document.addEventListener('visibilitychange', onVisibilityChange);
   return {
     detach(): void {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', releaseAll);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     },
   };
 }
 
 const NO_TOUCH_BUTTONS: ReadonlySet<string> = new Set();
+/**
+ * Shared empty mouse/gamepad collections.
+ *
+ * `rawInputFrom` is called once per rendered frame on the city and road screens
+ * and once per SIM TICK via `sampleInput` on the arena screens. It was
+ * allocating two fresh `Set`s and a fresh array for the mouse, gamepad-button
+ * and gamepad-axis channels on every one of those calls, to carry values that
+ * are permanently empty: no mouse or gamepad listener is wired up anywhere, so
+ * those three channels have never had anything in them.
+ *
+ * These are frozen-empty and shared, so a caller that mutated one would be
+ * corrupting every other caller — which is the point. `RawInputState` declares
+ * all three as `readonly` (`ReadonlySet` / `readonly number[]`), so a mutation
+ * is already a type error; making the shared instance actually immutable turns
+ * a silent cross-contamination bug into a loud one. When real gamepad support
+ * lands, these are replaced by whatever the gamepad poller owns, and this note
+ * goes with them.
+ */
+const NO_MOUSE_BUTTONS: ReadonlySet<number> = Object.freeze(new Set<number>());
+const NO_GAMEPAD_BUTTONS: ReadonlySet<number> = Object.freeze(new Set<number>());
+const NO_GAMEPAD_AXES: readonly number[] = Object.freeze([]);
 
 function rawInputFrom(codesDown: ReadonlySet<string>, touch: TouchControls | null): RawInputState {
   return {
     keysDown: codesDown,
-    mouseButtonsDown: new Set(),
-    gamepadButtonsDown: new Set(),
-    gamepadAxes: [],
-    touchAxes: touch?.axes() ?? [],
+    mouseButtonsDown: NO_MOUSE_BUTTONS,
+    gamepadButtonsDown: NO_GAMEPAD_BUTTONS,
+    gamepadAxes: NO_GAMEPAD_AXES,
+    touchAxes: touch?.axes() ?? NO_GAMEPAD_AXES,
     touchButtonsDown: touch?.buttonsDown() ?? NO_TOUCH_BUTTONS,
   };
 }
@@ -1022,7 +1086,75 @@ export const projectilesSystem: SystemFn = (world, _input, dtSeconds) => {
 
 export const cleanupSystem: SystemFn = (world) => {
   world.entities.projectiles = world.entities.projectiles.filter((projectile) => !projectileExpired(projectile));
+
+  // --- deployables ----------------------------------------------------------
+  // Trigger mines and spike strips against any live vehicle inside their radius,
+  // then consume the deployable. A deployable fires ONCE: it is dropped in the
+  // same pass that triggered it, so a vehicle parked on a mine is hit once rather
+  // than once per frame.
+  //
+  // This is the consumer `@sim/combat`'s `triggerMine` / `triggerSpikes` were
+  // always written for. Until now nothing pushed to
+  // `world.entities.deployables`, so both were unreachable outside their own
+  // unit test and `minedropper` / `spikedropper` did nothing at all.
+  //
+  // SCOPE, stated plainly: this makes the two CONTACT deployables real. The
+  // other three (`smokescreen`, `paintsprayer`, `oiljet`) are CLOUD and SLICK
+  // deployables, whose effects run through `driving`'s `SurfaceEffect` model and
+  // the AI's line-of-sight — a chain that additionally needs cloud lifetimes and
+  // a live `HazardInstance` list built from the cloud entities. They are now
+  // spawned and retained, but still have no effect; wiring them is a feature,
+  // not a fix, and is not smuggled in as one.
+  if (world.entities.deployables.length === 0) return;
+  const survivors: DeployableState[] = [];
+  for (const deployable of world.entities.deployables) {
+    const def = deployable.deployable;
+    // Only MINE and SPIKES have a contact trigger; CLOUD and SLICK are carried
+    // through untouched.
+    if (def.kind !== 'MINE' && def.kind !== 'SPIKES') {
+      survivors.push(deployable);
+      continue;
+    }
+    const radiusM = def.triggerRadiusM;
+    let consumed = false;
+    for (let i = 0; i < world.entities.vehicles.length; i++) {
+      const vehicle = world.entities.vehicles[i];
+      if (vehicle === undefined || vehicle.destroyed) continue;
+      if (Math.hypot(vehicle.position.x - deployable.position.x, vehicle.position.y - deployable.position.y) > radiusM) continue;
+      // Damage is drawn from the WORLD's own seeded RNG, so triggering a mine is
+      // deterministic per match like every other combat roll. The two-step
+      // withWorldRng dance is how this file already borrows a draw without
+      // duplicating the stream.
+      const { vehicle: hurt } = withWorldRng(world, (rng) =>
+        def.kind === 'MINE'
+          ? triggerMine(vehicle, def, deployableDamagePoints(getWeapon(deployable.weaponId)), rng)
+          : triggerSpikes(vehicle, getTire(vehicle.design.tireId), deployableDamagePoints(getWeapon(deployable.weaponId)), rng),
+      );
+      world.entities.vehicles[i] = hurt;
+      consumed = true;
+      break;
+    }
+    if (!consumed) survivors.push(deployable);
+  }
+  world.entities.deployables = survivors;
 };
+
+/**
+ * The damage a mine or spike strip inflicts: the laying weapon's own
+ * `damagePerDeployable`-equivalent is not a field, so this reads the weapon's
+ * RANGE damage band and takes its maximum.
+ *
+ * Taking the maximum is the conservative reading of "a mine hurts as much as
+ * the weapon that laid it" — a mine laid by a rocket launcher should hurt like a
+ * rocket, and `rng.int(min, max)` here would make that a coin flip on every
+ * trigger. If weapons.json ever grows an explicit per-deployable damage field,
+ * this is the single place to read it.
+ */
+function deployableDamagePoints(weapon: WeaponDef): number {
+  if (weapon.damage.kind === 'NONE') return 0;
+  if (weapon.damage.kind === 'RANGE') return weapon.damage.max;
+  return weapon.damage.maxPerCheck * weapon.damage.checks;
+}
 
 // ---------------------------------------------------------------------------
 // Arena-event opponents: real spawn, real `decideAI`, real fire pipeline.
@@ -1185,16 +1317,44 @@ function resolveVehicleCollisions(vehicles: readonly VehicleState[]): VehicleSta
   const mphPerMps = 3600 / drivingCfg.metersPerMile;
   const out = vehicles.map((v) => v);
   for (let i = 0; i < out.length; i++) {
-    const a = out[i];
-    if (a === undefined || a.destroyed) continue;
     for (let j = i + 1; j < out.length; j++) {
+      // Re-read BOTH entries inside the inner loop. They used to be captured
+      // once per `i`, so with three mutually overlapping cars the j=i+1 and
+      // j=i+2 pairs each wrote `out[i]`'s separation from the ORIGINAL `a` and
+      // the second write silently discarded the first. A three-car pile-up
+      // therefore separated by one nudge rather than two and could stay wedged
+      // across ticks — the exact outcome this function exists to prevent.
+      const a = out[i];
+      if (a === undefined || a.destroyed) break;
       const b = out[j];
       if (b === undefined || b.destroyed) continue;
       if (!orientedRectsOverlap(vehicleOrientedRect(a), vehicleOrientedRect(b))) continue;
 
-      const impactSpeedMph = Math.max(a.speedMps, b.speedMps) * mphPerMps;
+      // Impact speed must be the CLOSING speed along the line of centres, not
+      // the larger of two signed speeds.
+      //
+      // `speedMps` is signed (negative = reversing, see sim/driving.ts), so
+      // `Math.max(a, b)` was wrong in all three regimes:
+      //   - reversing into a stationary car: max(-20, 0) = 0, so ramming in
+      //     reverse did NO damage at any speed, which made reverse ram-tactics
+      //     strictly dominant;
+      //   - head-on at +30 into -30: max(30, -30) = 30, reported as 67mph when
+      //     the true closing speed is 134mph — every head-on under-reported by
+      //     exactly half;
+      //   - same direction, 30 and 10: reported 67mph against a real 45mph gap
+      //     closure... i.e. over-reported.
+      // Projecting each body's signed velocity onto the separation axis and
+      // adding the components gives the rate at which the gap is closing, and
+      // taking the absolute value covers approach from either side.
       const distanceM = vecLength(subtractVec(b.position, a.position));
-      const awayFromA = distanceM > 0 ? { x: (b.position.x - a.position.x) / distanceM, y: (b.position.y - a.position.y) / distanceM } : { x: 1, y: 0 };
+      const awayFromA =
+        distanceM > 0
+          ? { x: (b.position.x - a.position.x) / distanceM, y: (b.position.y - a.position.y) / distanceM }
+          : { x: 1, y: 0 };
+      // `a` moves away from the contact along -awayFromA; `b` moves away along
+      // +awayFromA. Sum of the two projections is the closing rate.
+      const closingMps = Math.abs(-a.speedMps * awayFromA.x - a.speedMps * awayFromA.y + b.speedMps * awayFromA.x + b.speedMps * awayFromA.y);
+      const impactSpeedMph = closingMps * mphPerMps;
       const nudgeM = drivingCfg.collision.vehicleSeparationM / 2;
 
       const collidedA = stopAtObstacle(applyCollision(a, impactSpeedMph));
@@ -1349,6 +1509,14 @@ export function makeArenaWeaponsSystem(
       if (result.spawn?.kind === 'PROJECTILE') {
         world.entities.projectiles.push(result.spawn.projectile);
         if (bearingTarget !== null) projectileTargets.set(spawnedEntityId, bearingTarget.id);
+        if (isPlayer) log('hit', t('ui.weapon.fired', { weapon: weaponDef.name }));
+      } else if (result.spawn?.kind === 'DEPLOYABLE') {
+        // Deployables were previously DROPPED on the floor: the weapon consumed
+        // its ammo, the cooldown was set, and the `DeployableState` went out of
+        // scope. Nothing ever pushed to `world.entities.deployables`, which left
+        // `combat.triggerMine` / `triggerSpikes` unreachable from any
+        // production path and made five of thirteen weapons inert.
+        world.entities.deployables.push(result.spawn.deployable);
         if (isPlayer) log('hit', t('ui.weapon.fired', { weapon: weaponDef.name }));
       }
     });
@@ -1508,6 +1676,20 @@ interface PostTemplate {
   readonly postSampler: GPUSampler;
   /** Kept so `writePostFrame` can rebuild the bind group without recreating the layout. */
   readonly postLayout: GPUBindGroupLayout;
+  /**
+   * Releases every GPU object this template owns.
+   *
+   * Pipelines, bind group LAYOUTS and samplers are device-owned and go away with
+   * the device, but BUFFERS and TEXTURES are not: they hold real memory and must
+   * be destroyed explicitly. Without this, every device-loss recovery cycle
+   * abandons a complete set — including a full-size copy of the 2048x2048
+   * atlas texture — and repeated cycling (a real event on a laptop that
+   * switches GPUs) accumulates until the adapter reports out-of-memory.
+   *
+   * This exists because the recovery path assigned `resources = rebuilt` and let
+   * the old set fall out of scope, which is a leak, not a cleanup.
+   */
+  destroy(): void;
 }
 
 /** A `PostTemplate` with this frame's bind group, bound to the current scene texture. */
@@ -1524,6 +1706,8 @@ interface RenderResources extends PostTemplate {
   readonly spriteInstanceBuffer: GPUBuffer;
   readonly spriteBindGroup: GPUBindGroup;
   readonly texture: GPUTexture;
+  /** Destroys the buffers and the atlas texture. See PostTemplate.destroy. */
+  destroy(): void;
 }
 
 /**
@@ -1735,6 +1919,7 @@ async function buildRenderResources(
   const spriteInstanceBuffer = createInstanceStorageBuffer(device, SPRITE_INSTANCE_CAPACITY);
   const spriteBindGroup = createAtlasBindGroup(device, atlasLayout, spriteInstanceBuffer, sampler, textureView);
 
+  const post = buildPostResources(gpuCtx, postShaderSource);
   return {
     pipeline,
     cameraBuffer,
@@ -1744,7 +1929,21 @@ async function buildRenderResources(
     spriteInstanceBuffer,
     spriteBindGroup,
     texture,
-    ...buildPostResources(gpuCtx, postShaderSource),
+    ...post,
+    // Declared after the spread so it wins: the template's own destroy would
+    // only release the post uniform buffer, and this set owns the atlas texture
+    // and two instance buffers on top of it. Both post fields are still
+    // destructured in via the spread.
+    destroy(): void {
+      // Each of these is real device memory that dropping the reference does NOT
+      // free. Losing them is what made repeated device-loss recovery leak a full
+      // 2048x2048 atlas texture plus buffers per cycle.
+      texture.destroy();
+      cameraBuffer.destroy();
+      tileInstanceBuffer.destroy();
+      spriteInstanceBuffer.destroy();
+      post.postUniformBuffer.destroy();
+    },
   };
 }
 
@@ -1764,6 +1963,7 @@ function buildPostResources(gpuCtx: GpuContext, postShaderSource: string): PostT
   const device = gpuCtx.getDevice();
   const postLayout = createPostBindGroupLayout(device);
   const postShaderModule = createShaderModule(device, 'post-shader', postShaderSource);
+  const postUniformBuffer = createPostUniformBuffer(device);
   return {
     postPipeline: createPostPipeline({
       device,
@@ -1773,7 +1973,12 @@ function buildPostResources(gpuCtx: GpuContext, postShaderSource: string): PostT
       label: 'post-grade',
     }),
     postSampler: createPostSampler(device),
-    postUniformBuffer: createPostUniformBuffer(device),
+    postUniformBuffer,
+    destroy(): void {
+      // Only the buffer holds device memory. The pipeline, sampler and layout
+      // are device-owned and reclaimed with the device itself.
+      postUniformBuffer.destroy();
+    },
     postLayout,
   };
 }
@@ -2171,7 +2376,7 @@ function showArena(
     const player = findPlayer(world);
     if (player === undefined) return;
     const plant = getPlant(player.design.plantId);
-    const accelMphPerSec = computeBuild(player.design).accelMphPerSec;
+    const accelMphPerSec = computeBuildCached(player.design).accelMphPerSec;
     const snapshot: HudSnapshot = {
       vehicle: player,
       activeWeaponIndex: weaponSelection.active(),
@@ -2233,6 +2438,13 @@ function showArena(
 
     gpuCtx.onRecovered(() => {
       void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, postShaderSource).then((rebuilt) => {
+        // Destroy the set being replaced BEFORE dropping it. Assigning over the
+        // reference releases the old atlas texture and buffers to the garbage
+        // collector, but GC does not free GPU memory — only `.destroy()` does.
+        // Without this, every device-loss recovery leaked a full 2048x2048
+        // atlas texture plus four buffers, and a laptop that cycles GPUs a few
+        // times would eventually fail to allocate.
+        resources?.destroy();
         resources = rebuilt;
       });
     });
@@ -2265,9 +2477,18 @@ function showArena(
       Math.max(visible.x, visible.y) + GROUND_MARGIN_M,
       'arena',
     );
-    const spriteInstances = [vehicleShadowInstance(player, atlasIndex), vehicleSpriteInstance(player, atlasIndex)];
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances));
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
+    // Cull to the camera's visible bounds. The arena is a bounded pit, so this
+    // is mostly insurance today, but it is the same call the road needs (its
+    // opponent list is built from live contacts and grows with engagement), and
+    // it means neither screen depends on `SPRITE_INSTANCE_CAPACITY` being
+    // large enough for a data change. Shadows and their casters share a
+    // position and size, so culling either keeps or drops both together.
+    const spriteInstances = cullInstances(
+      [vehicleShadowInstance(player, atlasIndex), vehicleSpriteInstance(player, atlasIndex)],
+      camera.getVisibleBounds(),
+    ).visible;
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances), TILE_INSTANCE_CAPACITY);
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
 
     const { sceneView, post } = writePostFrame(gpuCtx, resources, ARENA_GRADE, nowSeconds);
     encodeGradedFrame(
@@ -2308,6 +2529,12 @@ function showArena(
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
     touch?.destroy();
+    // Release the per-screen GPU set before the context goes. `destroy()` on
+    // the context tears down the managed scene texture only; the atlas texture,
+    // instance buffers and post uniform are owned by `resources` and leak on
+    // every screen change without this.
+    resources?.destroy();
+    resources = undefined;
     gpuCtx?.destroy();
   }
 
@@ -3037,7 +3264,7 @@ function showArenaEvent(
     const player = findPlayer(world);
     if (player === undefined) return;
     const plant = getPlant(player.design.plantId);
-    const accelMphPerSec = computeBuild(player.design).accelMphPerSec;
+    const accelMphPerSec = computeBuildCached(player.design).accelMphPerSec;
     const snapshot: HudSnapshot = {
       vehicle: player,
       activeWeaponIndex: weaponSelection.active(),
@@ -3101,6 +3328,13 @@ function showArenaEvent(
 
     gpuCtx.onRecovered(() => {
       void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, postShaderSource).then((rebuilt) => {
+        // Destroy the set being replaced BEFORE dropping it. Assigning over the
+        // reference releases the old atlas texture and buffers to the garbage
+        // collector, but GC does not free GPU memory — only `.destroy()` does.
+        // Without this, every device-loss recovery leaked a full 2048x2048
+        // atlas texture plus four buffers, and a laptop that cycles GPUs a few
+        // times would eventually fail to allocate.
+        resources?.destroy();
         resources = rebuilt;
       });
     });
@@ -3128,11 +3362,18 @@ function showArenaEvent(
     const opponents = world.entities.vehicles.filter((vehicle) => vehicle.id !== player.id && !vehicle.destroyed);
     // A shadow per vehicle, emitted immediately before the vehicle it belongs
     // to, so the painter's algorithm keeps each shadow under its own caster.
-    const spriteInstances = [
-      vehicleShadowInstance(player, atlas),
-      vehicleSpriteInstance(player, atlas),
-      ...opponents.flatMap((vehicle) => [vehicleShadowInstance(vehicle, atlas), vehicleSpriteInstance(vehicle, atlas)]),
-    ];
+    // Culled to the camera's visible bounds before packing: a shadow and its
+    // caster share a position and size, so culling keeps or drops both together
+    // and a vehicle can never keep its shadow after losing itself. This is what
+    // keeps `SPRITE_INSTANCE_CAPACITY` from being a silent cliff edge.
+    const spriteInstances = cullInstances(
+      [
+        vehicleShadowInstance(player, atlas),
+        vehicleSpriteInstance(player, atlas),
+        ...opponents.flatMap((vehicle) => [vehicleShadowInstance(vehicle, atlas), vehicleSpriteInstance(vehicle, atlas)]),
+      ],
+      camera.getVisibleBounds(),
+    ).visible;
 
     const visible = cameraVisibleHalfExtentM(camera);
     const groundInstances = buildGroundQuad(
@@ -3141,8 +3382,8 @@ function showArenaEvent(
       Math.max(visible.x, visible.y) + GROUND_MARGIN_M,
       'arena',
     );
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances));
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances), TILE_INSTANCE_CAPACITY);
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
 
     const { sceneView, post } = writePostFrame(gpuCtx, resources, ARENA_GRADE, nowSeconds);
     encodeGradedFrame(
@@ -3293,6 +3534,12 @@ function showArenaEvent(
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
     touch?.destroy();
+    // Release the per-screen GPU set before the context goes. `destroy()` on
+    // the context tears down the managed scene texture only; the atlas texture,
+    // instance buffers and post uniform are owned by `resources` and leak on
+    // every screen change without this.
+    resources?.destroy();
+    resources = undefined;
     gpuCtx?.destroy();
   }
 
@@ -3334,6 +3581,10 @@ interface CityRenderResources extends PostTemplate {
   readonly pipeline: GPURenderPipeline;
   readonly cameraBuffer: GPUBuffer;
   readonly cameraBindGroup: GPUBindGroup;
+  /** Capacities, kept so every `writeInstanceBuffer` call can be bounds-checked. */
+  readonly groundCapacity: number;
+  readonly buildingCapacity: number;
+  readonly actorCapacity: number;
   readonly groundInstanceBuffer: GPUBuffer;
   readonly groundBindGroup: GPUBindGroup;
   readonly buildingInstanceBuffer: GPUBuffer;
@@ -3343,8 +3594,18 @@ interface CityRenderResources extends PostTemplate {
   readonly texture: GPUTexture;
 }
 
-/** The player on foot plus, at most, one parked-or-ridden car - the two actor-layer instances `@/ui/city-view`'s `buildCityInstances` can ever emit in one frame. */
-const CITY_ACTOR_INSTANCE_CAPACITY = 3;
+/**
+ * City actor-layer instance capacity.
+ *
+ * `@/ui/city-view`'s `buildCityInstances` emits at most 3 today: the parked
+ * car's contact shadow, the car, and the on-foot player. This was 3 — exactly
+ * the live count, i.e. zero headroom — so the one extra instance a second
+ * parked car or a lone shadow would add would overrun the buffer, which
+ * `queue.writeBuffer` handles by DROPPING the write and rendering stale data.
+ * 4 costs 80 bytes and removes the cliff edge; the exact-count assertion in
+ * `tests/unit/city.test.ts` is what keeps the two honest.
+ */
+const CITY_ACTOR_INSTANCE_CAPACITY = 4;
 
 /** The city's ground is a single quad like every other screen's, so its layer-0 capacity is 1. */
 const CITY_GROUND_INSTANCE_COUNT = 1;
@@ -3408,11 +3669,19 @@ async function buildCityRenderResources(
   const buildingBindGroup = createAtlasBindGroup(device, atlasLayout, buildingInstanceBuffer, sampler, textureView);
   const actorInstanceBuffer = createInstanceStorageBuffer(device, CITY_ACTOR_INSTANCE_CAPACITY);
   const actorBindGroup = createAtlasBindGroup(device, atlasLayout, actorInstanceBuffer, sampler, textureView);
+  const post = buildPostResources(gpuCtx, postShaderSource);
 
   return {
     pipeline,
     cameraBuffer,
     cameraBindGroup,
+    // Capacities are kept on the resource set so every write can be checked
+    // against the buffer it is going into. `writeInstanceBuffer` throws on an
+    // overrun because `queue.writeBuffer` past the end is a validation error
+    // that DROPS the write and keeps rendering — a silent, wrong frame.
+    groundCapacity,
+    buildingCapacity,
+    actorCapacity: CITY_ACTOR_INSTANCE_CAPACITY,
     groundInstanceBuffer,
     groundBindGroup,
     buildingInstanceBuffer,
@@ -3420,7 +3689,16 @@ async function buildCityRenderResources(
     actorInstanceBuffer,
     actorBindGroup,
     texture,
-    ...buildPostResources(gpuCtx, postShaderSource),
+    ...post,
+    // After the spread, so it wins over the template's own narrower destroy.
+    destroy(): void {
+      texture.destroy();
+      cameraBuffer.destroy();
+      groundInstanceBuffer.destroy();
+      buildingInstanceBuffer.destroy();
+      actorInstanceBuffer.destroy();
+      post.postUniformBuffer.destroy();
+    },
   };
 }
 
@@ -3879,6 +4157,9 @@ function showCity(root: HTMLElement, state: CityRunState): void {
 
     gpuCtx.onRecovered(() => {
       void buildCityRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, postShaderSource, groundCapacity, buildingCapacity).then((rebuilt) => {
+        // See the note in showArena's onRecovered: a dropped reference does not
+        // free GPU memory, only `.destroy()` does.
+        resources?.destroy();
         resources = rebuilt;
       });
     });
@@ -3905,14 +4186,18 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     camera.setCenter(player.position);
     writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
 
-    const instances = buildCityInstances(citySnapshot(), atlasIndex);
     // @/ui/city-view's own layer scheme: 0 = ground, 1 = building/gate, 2 = actor (player/vehicle).
-    const ground = instances.filter((i) => i.layer === 0);
-    const buildings = instances.filter((i) => i.layer === 1);
-    const actors = instances.filter((i) => i.layer === 2);
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.groundInstanceBuffer, packInstances(ground));
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.buildingInstanceBuffer, packInstances(buildings));
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.actorInstanceBuffer, packInstances(actors));
+    //
+    // Layers 0 and 1 are memoised per layout inside city-view, because they are
+    // a pure function of a layout that is built once and never changes — the old
+    // path rebuilt the whole list and re-filtered it into three arrays every
+    // frame, 60 times a second, for a byte-identical result. Only the actor
+    // layer is rebuilt here, which is the part that actually moves.
+    const staticLayers = cityStaticLayers(layout, atlasIndex);
+    const actors = buildCityActorInstances(citySnapshot(), atlasIndex);
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.groundInstanceBuffer, packInstances(staticLayers.ground), resources.groundCapacity);
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.buildingInstanceBuffer, packInstances(staticLayers.buildings), resources.buildingCapacity);
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.actorInstanceBuffer, packInstances(actors), resources.actorCapacity);
 
     const { sceneView, post } = writePostFrame(gpuCtx, resources, CITY_GRADE, nowSeconds);
     encodeGradedFrame(
@@ -3923,8 +4208,8 @@ function showCity(root: HTMLElement, state: CityRunState): void {
       gpuCtx.getContext().getCurrentTexture().createView(),
       resources.cameraBindGroup,
       [
-        { bindGroup: resources.groundBindGroup, instanceCount: ground.length },
-        { bindGroup: resources.buildingBindGroup, instanceCount: buildings.length },
+        { bindGroup: resources.groundBindGroup, instanceCount: staticLayers.ground.length },
+        { bindGroup: resources.buildingBindGroup, instanceCount: staticLayers.buildings.length },
         { bindGroup: resources.actorBindGroup, instanceCount: actors.length },
       ],
     );
@@ -3967,6 +4252,12 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     touch?.destroy();
+    // Release the per-screen GPU set before the context goes. `destroy()` on
+    // the context tears down the managed scene texture only; the atlas texture,
+    // instance buffers and post uniform are owned by `resources` and leak on
+    // every screen change without this.
+    resources?.destroy();
+    resources = undefined;
     gpuCtx?.destroy();
   }
 
@@ -4062,8 +4353,37 @@ export function roadOpponentVehicleId(contactId: string): string {
 }
 
 /** The one place a defeated road opponent becomes a real `@/sim/road` `RoadWreck` — the fixed `wreck-${unit.id}` id convention `showRoad`'s own `stepCombat` uses, exported so a headless test can drive the exact same production seam instead of a parallel reimplementation. */
-export function createRoadWreckFromDefeat(unit: EncounterUnit, position: Vec2, dayIndex: number): RoadWreck {
-  return createWreck(`wreck-${unit.id}`, position, dayIndex, false);
+export function createRoadWreckFromDefeat(unit: EncounterUnit, position: Vec2, dayIndex: number, burned = false): RoadWreck {
+  return createWreck(`wreck-${unit.id}`, position, dayIndex, burned);
+}
+
+/**
+ * Rolls a destroyed vehicle's wreck against the killing weapon's `IGNITE_WRECK`
+ * effect.
+ *
+ * ## Why this exists
+ *
+ * `weapons.json`'s `effects` array is schema-REQUIRED on every weapon, and its
+ * `IGNITE_WRECK` variant is the only one with a consumer already waiting:
+ * `@/sim/economy`'s `burnedYieldsNothing` and `searchWreck` both honour a
+ * `burned` flag on a wreck, and `salvageChance` applies a flat penalty for it.
+ * But nothing ever set that flag — `createRoadWreckFromDefeat` hardcoded
+ * `false` — so a weapon that sets `"IGNITE_WERCK"` with a 20% chance was
+ * declared in the ruleset, validated at boot, and then did nothing at all.
+ *
+ * Returns a boolean rather than mutating: the caller owns the `RoadTripState`
+ * and decides whether to rebuild it.
+ *
+ * A weapon with no `IGNITE_WRECK` effect, or whose kill came from a source with
+ * no weapon def at all (a hazard, a collision), yields `false`.
+ */
+export function rollsIgniteWreck(weapon: WeaponDef | null, rng: Rng): boolean {
+  if (weapon === null) return false;
+  for (const effect of weapon.effects) {
+    if (effect.type !== 'IGNITE_WRECK') continue;
+    if (rng.chance(effect.chance)) return true;
+  }
+  return false;
 }
 
 /**
@@ -4159,6 +4479,41 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   const dtSecondsFixed = dtSecondsFromTickRate(drivingConfig().tickRateHz);
   const playerVehicleId = trip.vehicle.id;
 
+  /**
+   * Unconsumed real time, drained into whole `dtSecondsFixed` steps.
+   *
+   * The road screen used to step the player's car on the RAW rAF delta while
+   * stepping every opponent in the same `combatWorld` at the fixed tick rate.
+   * That is not a rounding difference, it is two different positions for the
+   * same object in the same frame: `makeArenaDrivingSystem` produced a
+   * `playerAfter` that `stepCombat` then discarded the position/heading/speed
+   * of, keeping only armor/tire/plant/weapons. AI targeting, projectile
+   * intersection and vehicle collision all ran against whichever of the two the
+   * consumer happened to read.
+   *
+   * It also made the road non-deterministic across machines: `stepDriving`
+   * draws from the seeded RNG per call, so the same seed and the same inputs
+   * produced different fights at 60Hz and at 144Hz. The arena screens route
+   * through `createGameLoop` precisely to avoid this.
+   */
+  let roadAccumulator = 0;
+  /**
+   * Ceiling on catch-up ticks in a single frame.
+   *
+   * This must be comfortably ABOVE the number of ticks a single legitimate frame
+   * can owe, or the loop silently runs the game in slow motion. The frame delta
+   * is clamped to 0.25s, which at the default 60Hz tick rate is 15 ticks — so a
+   * cap of 8 halved the simulation speed on every slow frame. That is not a
+   * harmless safety valve: it made the sim advance at a different rate than
+   * wall-clock, and it made a short engagement window fall between two sampled
+   * frames entirely, so a real contact could be stepped straight past.
+   *
+   * 20 covers a full 0.25s clamped frame with headroom, and still bounds a
+   * pathological stall (a multi-second GC pause, a backgrounded tab) so the
+   * backlog is discarded rather than carried into an ever-growing catch-up.
+   */
+  const ROAD_MAX_CATCHUP_TICKS = 20;
+
   // --- combat overlay: real spawned opponents for every currently-engaged
   // hostile/retaliating contact, driven by the exact same @/sim/ai + fire()
   // pipeline the arena screens use (see this function's own doc comment). ---
@@ -4179,6 +4534,23 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
 
   function logNotice(text: string): void {
     notice.textContent = text;
+    // Also feed the HUD message feed. The road screen gained a full HUD
+    // (radar, speed, condition) but its `roadMessages` array was declared,
+    // passed to the snapshot and NEVER written to, so the feed region rendered
+    // permanently empty while every message went to a single line of `notice`
+    // text. Two callers of `logNotice` exist and both are player-facing events
+    // worth keeping in the log, so this is the single place both channels
+    // diverge and it is the right place to join them.
+    //
+    // `info` is the right kind: these are notices, not hits or kills, and the
+    // feed styles each kind differently.
+    // `tick` is documented as the generation tick, used only for feed ordering,
+    // so the combat world's tick is the right monotonic source here. `Clock` has
+    // no minute field (it is just dayIndex + phase), so inventing one here
+    // would have been a number nothing else agreed with.
+    roadMessages.push({ id: `road-msg-${roadMessageCounter}`, kind: 'info', text, tick: combatWorld.tick });
+    roadMessageCounter += 1;
+    if (roadMessages.length > 20) roadMessages.shift();
   }
 
   // Message feed + weapon cycling for the road HUD. Both are created here rather
@@ -4186,6 +4558,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   // the road's world is the transient `combatWorld`, so the arena's
   // `findPlayer(world)`-based selectors have nothing to select from.
   const roadMessages: HudMessage[] = [];
+  let roadMessageCounter = 0;
 
   function engagementRangeM(): number {
     return drivingConfig().radar.visualRangeM;
@@ -4242,30 +4615,74 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   }
 
   /** One combat tick against every currently-engaged opponent: real AI, real driving, real fire, real damage — the same systems the arena screens run, minus arena's own match bookkeeping (`makeRoadDamageSystem` instead of `makeArenaDamageSystem`). Any opponent it defeats becomes a real `RoadWreck` at the position it died. */
+  /**
+   * The road's six combat systems, built ONCE at screen setup.
+   *
+   * `make*System` returns a `SystemFn` — a closure over its arguments. Calling
+   * all five inside `stepCombat` allocated five functions and five closure
+   * environments on every animation frame, to re-derive systems whose inputs
+   * never change identity for the life of the screen. `showArenaEvent` builds
+   * its systems exactly once at setup; this is the same shape, and it also
+   * makes the call ORDER in `stepCombat` explicit and reviewable instead of
+   * implicit in statement order.
+   *
+   * `roadDriverRef` is hoisted for the same reason and is re-synced from `driver`
+   * at the top of every tick, so a driver swap (a wreck search that costs
+   * health) is still visible to the systems on the next tick.
+   */
+  const roadDriverRef = { current: driver };
+  const roadSystems = {
+    // The road has no fixed arena floor, so the AI is bounded on a box that
+    // FOLLOWS the player. This reads the live world each tick, so it must stay
+    // a callback rather than a value captured now.
+    ai: makeArenaAISystem(playerVehicleId, opponents, aiInputs, (w) => {
+      const p = w.entities.vehicles.find((v) => v.id === playerVehicleId);
+      return roadBounds(p?.position ?? { x: 0, y: 0 });
+    }),
+    driving: makeArenaDrivingSystem(roadDriverRef, playerVehicleId, opponents, aiInputs),
+    weapons: makeArenaWeaponsSystem(roadDriverRef, playerVehicleId, opponents, aiInputs, projectileTargets, spawnCounter, () => {}),
+    projectiles: projectilesSystem,
+    damage: makeRoadDamageSystem(playerVehicleId, roadDriverRef, opponents, projectileTargets),
+    cleanup: cleanupSystem,
+  };
+
   function stepCombat(playerInput: InputFrame, dtSeconds: number): void {
     combatWorld.tick += 1;
     combatWorld.entities.vehicles = [trip.vehicle, ...opponentVehicles.values()];
+    roadDriverRef.current = driver;
 
-    const driverRef = { current: driver };
-    // The road has no fixed floor: bound the AI on a box that FOLLOWS the player.
-    makeArenaAISystem(playerVehicleId, opponents, aiInputs, (w) => {
-      const p = w.entities.vehicles.find((v) => v.id === playerVehicleId);
-      return roadBounds(p?.position ?? { x: 0, y: 0 });
-    })(combatWorld, playerInput, dtSeconds);
-    makeArenaDrivingSystem(driverRef, playerVehicleId, opponents, aiInputs)(combatWorld, playerInput, dtSeconds);
-    makeArenaWeaponsSystem(driverRef, playerVehicleId, opponents, aiInputs, projectileTargets, spawnCounter, () => {})(
-      combatWorld,
-      playerInput,
-      dtSeconds,
-    );
-    projectilesSystem(combatWorld, playerInput, dtSeconds);
-    makeRoadDamageSystem(playerVehicleId, driverRef, opponents, projectileTargets)(combatWorld, playerInput, dtSeconds);
-    cleanupSystem(combatWorld, playerInput, dtSeconds);
-    driver = driverRef.current;
+    // ORDER MATTERS, and this screen had it backwards. `makeArenaAISystem`'s own
+    // contract (see its doc block) is that it runs AFTER this tick's
+    // movement/fire/damage have resolved, so an opponent decides what to do
+    // starting the FOLLOWING tick — which is how a human reacts to what it just
+    // saw. Here it ran FIRST, so every road opponent chose its target and its
+    // hazards against LAST frame's positions while every arena opponent chose
+    // against this frame's. On a fast-moving target that is the AI seeing
+    // through walls, and the road was the only screen where it happened.
+    roadSystems.driving(combatWorld, playerInput, dtSeconds);
+    roadSystems.weapons(combatWorld, playerInput, dtSeconds);
+    roadSystems.projectiles(combatWorld, playerInput, dtSeconds);
+    roadSystems.damage(combatWorld, playerInput, dtSeconds);
+    roadSystems.cleanup(combatWorld, playerInput, dtSeconds);
+    // Last, per the contract above.
+    roadSystems.ai(combatWorld, playerInput, dtSeconds);
+    driver = roadDriverRef.current;
 
-    // Merge combat-relevant fields back onto the authoritative `trip.vehicle`
-    // (position/heading/speed/odometer/battery stay `stepRoadTrip`'s alone —
-    // this system's own redundant movement of the player entry is discarded).
+    // Merge combat-relevant fields back onto the authoritative `trip.vehicle`.
+    // Position/heading/speed/odometer stay `stepRoadTrip`'s alone — this
+    // system's own redundant movement of the player entry is discarded.
+    //
+    // `battery` is NOT one of those, and omitting it was a live bug: `fire()`
+    // decrements `battery` for a `usesBattery` weapon (weapons.json's `laser`
+    // costs 1 per shot), the decrement landed on `playerAfter`, and the merge
+    // dropped it — so on the road the laser cost nothing at any rate of fire.
+    // The arena screens were unaffected because `makeArenaDamageSystem` writes
+    // the whole vehicle back.
+    //
+    // Merging it is not a clobber of `stepRoadTrip`'s own drain: `stepCombat`
+    // rebuilds `combatWorld.entities.vehicles` from the CURRENT `trip.vehicle`
+    // at the top of the tick, so `playerAfter` already starts from the
+    // post-drain value and carries both the drain and the shot cost.
     const playerAfter = combatWorld.entities.vehicles.find((v) => v.id === playerVehicleId);
     if (playerAfter !== undefined) {
       trip = {
@@ -4275,6 +4692,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
           armorDP: playerAfter.armorDP,
           tireDP: playerAfter.tireDP,
           plantDP: playerAfter.plantDP,
+          battery: playerAfter.battery,
           weapons: playerAfter.weapons,
           destroyed: playerAfter.destroyed,
           statusEffects: playerAfter.statusEffects,
@@ -4297,7 +4715,25 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
       contactByVehicleId.delete(vehicleId);
       resolvedContactIds.add(unit.id);
       if (deadVehicle !== undefined) {
-        const wreck: RoadWreck = createRoadWreckFromDefeat(unit, deadVehicle.position, trip.clock.dayIndex);
+        // The killing weapon's `IGNITE_WERCK` effect, if it has one, burns the
+        // wreck it leaves behind — the flag `searchWreck` and `salvageChance`
+        // already honour. Rolling from the trip's own seeded stream keeps this
+        // deterministic, exactly like every other draw on this screen.
+        const wreck: RoadWreck = createRoadWreckFromDefeat(
+          unit,
+          deadVehicle.position,
+          trip.clock.dayIndex,
+          // The player's currently-mounted weapon, which is the one that
+          // resolved the killing shot. Deliberately NOT `unit.design`'s mount:
+          // that is the OPPONENT's hardware, and igniting their wreck with their
+          // own weapon's effect would be nonsense.
+          rollsIgniteWreck(
+            trip.vehicle.weapons[weaponSelection.active() ?? NO_WEAPON_SLOT] !== undefined
+              ? getWeapon(trip.vehicle.weapons[weaponSelection.active() ?? NO_WEAPON_SLOT]!.weaponId)
+              : null,
+            state.rng,
+          ),
+        );
         trip = { ...trip, wrecks: [...trip.wrecks, wreck] };
       }
       logNotice(t('ui.road.contactDefeated', { faction: unit.faction }));
@@ -4360,6 +4796,13 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
 
     gpuCtx.onRecovered(() => {
       void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, postShaderSource).then((rebuilt) => {
+        // Destroy the set being replaced BEFORE dropping it. Assigning over the
+        // reference releases the old atlas texture and buffers to the garbage
+        // collector, but GC does not free GPU memory — only `.destroy()` does.
+        // Without this, every device-loss recovery leaked a full 2048x2048
+        // atlas texture plus four buffers, and a laptop that cycles GPUs a few
+        // times would eventually fail to allocate.
+        resources?.destroy();
         resources = rebuilt;
       });
     });
@@ -4397,7 +4840,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     const snapshot: HudSnapshot = {
       vehicle,
       activeWeaponIndex: weaponSelection.active(),
-      accelMphPerSec: computeBuild(vehicle.design).accelMphPerSec,
+      accelMphPerSec: computeBuildCached(vehicle.design).accelMphPerSec,
       radar: {
         enabled: !isRadarDisabled(vehicle.plantDP, plant.radarFailureThreshold),
         contacts: liveOpponents.map((v) => ({
@@ -4439,21 +4882,29 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
 
     const atlas = atlasIndex;
     const opponents = [...opponentVehicles.values()].filter((v) => !v.destroyed);
-    const spriteInstances = [
-      vehicleShadowInstance(trip.vehicle, atlas),
-      vehicleSpriteInstance(trip.vehicle, atlas),
-      ...opponents.flatMap((v) => [vehicleShadowInstance(v, atlas), vehicleSpriteInstance(v, atlas)]),
-    ];
+    // Cull to the camera's visible bounds before packing. The road's opponent
+    // list is grown by `updateEngagement` from live route contacts, so its size
+    // is a property of the data rather than of the renderer — culling is what
+    // keeps `SPRITE_INSTANCE_CAPACITY` from being a silent cliff edge.
+    const spriteInstances = cullInstances(
+      [
+        vehicleShadowInstance(trip.vehicle, atlas),
+        vehicleSpriteInstance(trip.vehicle, atlas),
+        ...opponents.flatMap((v) => [vehicleShadowInstance(v, atlas), vehicleSpriteInstance(v, atlas)]),
+      ],
+      camera.getVisibleBounds(),
+    ).visible;
 
-    // The road is an unbounded world, so the field is sized to the visible
-    // area and re-centred on the player each frame. Cells are hashed off their
-    // own world coordinates (`groundField`), so panning reuses the same cells
-    // and the ground does not crawl or re-randomise under the car.
+    // The road is an unbounded world, so the ground quad is sized to the
+    // visible area and re-centred on the player each frame. There is no cell
+    // grid and nothing is hashed from world coordinates any more — the tiling
+    // is a world-space `fract()` in the fragment shader, so panning cannot make
+    // the ground crawl or re-randomise under the car.
     const visible = cameraVisibleHalfExtentM(camera);
     const half = Math.max(visible.x, visible.y) + GROUND_MARGIN_M;
     const groundInstances = buildGroundQuad(atlas, trip.vehicle.position, half, 'road');
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances));
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances), TILE_INSTANCE_CAPACITY);
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
 
     const { sceneView, post } = writePostFrame(gpuCtx, resources, ROAD_GRADE, nowSeconds);
     encodeGradedFrame(
@@ -4480,6 +4931,12 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     inputTracking.detach();
     window.removeEventListener('keydown', onSearchKey);
     touch?.destroy();
+    // Release the per-screen GPU set before the context goes. `destroy()` on
+    // the context tears down the managed scene texture only; the atlas texture,
+    // instance buffers and post uniform are owned by `resources` and leak on
+    // every screen change without this.
+    resources?.destroy();
+    resources = undefined;
     gpuCtx?.destroy();
   }
 
@@ -4572,7 +5029,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
 
   function frame(nowMs: number): void {
     if (stopped) return;
-    const dtSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
+    const frameDeltaSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
 
     const raw = rawInputFrom(codesDown, touch);
@@ -4585,15 +5042,49 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
       weaponSlot: weaponSelection.active() ?? NO_WEAPON_SLOT,
     };
 
-    const result = stepRoadTrip(trip, { stick: { x: playerInput.moveX, y: playerInput.moveY } }, dtSeconds, state.rng, drivingSkill, 'normal', contactDamageThisTick());
-    trip = result.state;
-    updateEngagement();
-    stepCombat(playerInput, dtSecondsFixed);
-
-    if (trip.vehicle.destroyed) {
-      finishDestroyed();
+    // Fixed-timestep stepping, exactly as `@/sim/loop`'s `createGameLoop` does
+    // for the arena screens. See ROAD_MAX_CATCHUP_TICKS for why this screen
+    // used to differ, and why that was a real bug rather than an inconsistency:
+    // it stepped the player's car on the raw rAF delta while every opponent in
+    // the SAME `combatWorld` stepped at `dtSecondsFixed`, so one frame produced
+    // two different player positions, and the road's outcome depended on the
+    // display's refresh rate.
+    roadAccumulator += frameDeltaSeconds;
+    let ticks = 0;
+    let arrived = false;
+    let destroyed = false;
+    while (roadAccumulator >= dtSecondsFixed) {
+      const result = stepRoadTrip(
+        trip,
+        { stick: { x: playerInput.moveX, y: playerInput.moveY } },
+        dtSecondsFixed,
+        state.rng,
+        drivingSkill,
+        'normal',
+        contactDamageThisTick(),
+      );
+      trip = result.state;
+      updateEngagement();
+      stepCombat(playerInput, dtSecondsFixed);
+      roadAccumulator -= dtSecondsFixed;
+      ticks += 1;
+      if (result.arrived) { arrived = true; break; }
+      if (trip.vehicle.destroyed) { destroyed = true; break; }
+      // Stop dropping ticks on the floor. Past the cap the backlog is discarded
+      // rather than carried, or catching up takes longer than real time and
+      // every following frame is further behind than the last.
+      if (ticks >= ROAD_MAX_CATCHUP_TICKS) { roadAccumulator = 0; break; }
+    }
+    // A frame that ran zero ticks must still redraw, or the game freezes on any
+    // display whose refresh rate is faster than the sim's tick rate.
+    if (ticks === 0) {
+      renderFrame(nowMs / 1000);
+      renderRoadHudFrame();
+      rafHandle = window.requestAnimationFrame(frame);
       return;
     }
+
+    if (destroyed) { finishDestroyed(); return; }
 
     const remainingMiles = Math.max(0, Math.round(trip.resolved.route.lengthMiles - trip.progressMiles));
     status.textContent = t(isCoarsePointer() ? 'ui.road.statusTouch' : 'ui.road.status', {
@@ -4607,10 +5098,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     touch?.setCommandVisible('searchWreck', wreckNearby);
     renderFrame(nowMs / 1000);
     renderRoadHudFrame();
-    if (result.arrived) {
-      finish();
-      return;
-    }
+    if (arrived) { finish(); return; }
     rafHandle = window.requestAnimationFrame(frame);
   }
 
@@ -4624,6 +5112,13 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
 // Boot entry point
 // ---------------------------------------------------------------------------
 
+/** A loading sink that does nothing, for tests and the `?screen=` jump. */
+const NOOP_LOADING_SCREEN: LoadingScreen = {
+  report: () => {},
+  dismiss: () => {},
+  dismissed: true,
+};
+
 export interface BootOptions {
   /** Defaults to `window.location.search`. Overridable for testing without a DOM `location`. */
   readonly search?: string;
@@ -4631,10 +5126,29 @@ export interface BootOptions {
   readonly randomSeed?: () => string;
   /** Defaults to opening the real IndexedDB save database. Overridable for testing. */
   readonly openDb?: () => Promise<IDBDatabase>;
+  /**
+   * Progress sink for the loading splash. Defaults to a no-op, which is what
+   * tests and the `?screen=` visual-verification jump get: neither has a splash
+   * in the document, and a missing element must never be able to fail boot.
+   *
+   * Every value reported here is a step that genuinely completed — see
+   * `src/ui/loading-screen.ts`. There is deliberately no timer anywhere in the
+   * chain, so a slow machine shows a slow bar and a stuck load shows a stuck
+   * bar, rather than both showing a confident 100%.
+   */
+  readonly loading?: LoadingScreen;
 }
 
 export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Promise<void> {
+  const loading: LoadingScreen = bootOptions.loading ?? NOOP_LOADING_SCREEN;
+  loading.report(LOADING_PHASE.booted, 'Warming up');
+
+  // The ruleset parse + invariant sweep is the first genuinely heavy
+  // synchronous block, so it is reported as its own phase: it is the step most
+  // likely to be slow on a cold cache, and it is the step that fails first on a
+  // bad ruleset, which is exactly when a player needs to see a label.
   validateAllRulesets();
+  loading.report(LOADING_PHASE.validated, 'Loading rules');
 
   const search = bootOptions.search ?? window.location.search;
   const openDb = bootOptions.openDb ?? (() => openSaveDatabase());
@@ -4744,12 +5258,32 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
 
   async function start(): Promise<void> {
     const existing = await loadExistingSave();
+    loading.report(LOADING_PHASE.saved, 'Restoring session');
+    // The title screen's background is a 1.7MB image referenced from a CSS
+    // `background-image`, which the browser fetches lazily and paints whenever
+    // it happens to finish — so without this the menu can appear with the art
+    // missing and then silently gain it a second later. Preloading and
+    // DECODING it first is what makes the bar mean anything, and it is the
+    // single largest asset reachable at boot.
+    //
+    // Gated on `!loading.dismissed`, which reads as an odd way to ask "is there
+    // a splash?" until you know what it means: the wait exists ONLY to cover
+    // the gap the splash occupies. With no splash (every test, and the
+    // `?screen=` jump) there is nothing to hide the load behind, so making
+    // boot block on a 1.7MB decoration would be pure cost — and a test suite
+    // would pay a 15s preload timeout per test.
+    if (!loading.dismissed) {
+      await preloadImage(titleArtUrl());
+      loading.report(LOADING_PHASE.artwork, 'Loading artwork');
+    }
     showTitle(root, {
       onNewDriver: () => startNewSession(),
       ...(existing !== null
         ? { onContinue: () => resumeSession(existing), hasWonVictory: hasWonVictory(existing.game.quests) }
         : {}),
     });
+    loading.report(LOADING_PHASE.ready, 'Ready');
+    loading.dismiss();
   }
 
   // `?screen=<name>` boots straight into one named screen with a deterministic
@@ -4870,6 +5404,11 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
   const screenTarget = screenFromSearch(search);
   if (screenTarget !== null && startScreenJump(screenTarget)) {
     console.info(`smduel: screen jump to "${screenTarget}"`);
+    // A visual-verification jump has no splash: it is a tooling path, it goes
+    // straight to a screen that loads its own assets, and leaving a progress bar
+    // on top of the capture would be both misleading and a pixel the harness
+    // would screenshot. Dismiss unconditionally so the injection is total.
+    loading.dismiss();
     return;
   }
 
