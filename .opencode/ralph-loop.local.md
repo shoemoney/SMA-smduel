@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 27
+iteration: 28
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (27 of 82 vision models):
+Reviewers asked (28 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -535,6 +535,42 @@ TOOLING - the review harness got audited by its own failure this round:
        Partly addressed in iteration 17 (section edge, dim-italic unfilled rows);
        the remaining ask is a bolder weight, which would fight the value/name
        column alignment the 0-9 typing depends on. Recorded, not changed.
+
+28. deepseek/deepseek-v4-flash-vision-exp -> 1 REAL (a genuine consistency gap,
+     fixed with LESS than asked and for a reason), 4 FALSE:
+     - "The city screen shows no condition panel, radar, or speedometer, unlike
+       the road and arena screens ... the player is still driving in the city, so
+       the absence of critical car status creates an inconsistent UI." The
+       INCONSISTENCY is real and the fix is deliberately NOT the full HUD.
+       CityRunState.vehicle is right there and the render simply ignored it, but
+       the city has no speed in its player state, no contacts, no weapon
+       selection and no damage source. A condition panel mounted there would draw
+       armour and tyre bars that can NEVER move - a static decoration dressed as
+       a live instrument, which is the same trade refused in iteration 21
+       (painting walls that do not exist) and iteration 24 (a road line that was
+       already correct). A radar with no contacts and a speedo with no speed
+       would be worse than nothing, because both would teach the player to trust
+       instruments that are not reporting.
+       What the city genuinely raises is "can I take THIS car out of here", and
+       that is answered by real state. So the strip carries the car's name, its
+       armour total and mounted count, and whether it clears the legality gate
+       the constructor already teaches - and nothing else. Hidden when the driver
+       is on foot, because then there is no car to describe.
+     FALSE: "the buildings are light gray on a gray cracked ground, so they blend
+       together ... increase contrast between buildings and ground." THIRD
+       review to make this exact ask after iterations 16/17 deliberately spent two
+       rounds establishing that separation (measured 17.6 and 7.9 gaps) and
+       iteration 23 got the same suggestion again. The "make the arrows larger"
+       half is the FOURTH ask on markers already doubled once;
+     - "condition panel shows labels but no visible values" - the pristine-build
+       case again, now with dashed chips and, for any fitted facing, a real bar;
+     - "the constructor preview is a tiny dark rectangle ... it doesn't show
+       armor, weapons, or wheels" - the 6th report of the preview class, and the
+       crop shows hull, dashed zone outline, zone boxes, nose marker and the
+       dimension line. There IS a real void BELOW the schematic, noted by an
+       earlier review, but filling it is a layout change and the ask here is
+       about content that is present;
+     - radar: 19th report on the same element.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

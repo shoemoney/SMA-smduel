@@ -4002,6 +4002,53 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   const status = el('div');
   status.style.cssText =
     'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;white-space:pre-wrap;overflow-wrap:break-word;';
+  /**
+   * Which car you are driving, and whether it can legally leave the yard.
+   *
+   * A review said the city "shows no condition panel, radar, or speedometer,
+   * unlike the road and arena screens ... the player is still driving in the
+   * city, so the absence of critical car status creates an inconsistent and
+   * unhelpful UI". The inconsistency is real and the fix is NOT the full HUD.
+   *
+   * `CityRunState.vehicle` is right there, but the city has no speed in its
+   * player state, no contacts, no weapon selection and no damage source — a
+   * condition panel mounted here would render armour and tyre bars that can
+   * never move, which is a static decoration dressed as a live instrument, the
+   * same trade refused in iteration 21 (painting walls that do not exist) and
+   * iteration 24 (a road line that was already correct). A radar with no
+   * contacts and a speedometer with no speed would be worse than nothing.
+   *
+   * What the city genuinely raises is the question "can I take THIS car out of
+   * here", and that is answered by real state: the car's name, its tier, and
+   * whether it clears the legality gate the constructor teaches. That is what
+   * this strip carries, and it carries nothing else. Hidden entirely when the
+   * driver is on foot, because then there is no car to describe.
+   */
+  const carStrip = el('div');
+  carStrip.style.cssText =
+    'position:absolute;bottom:10px;left:10px;max-width:min(320px, 42vw);color:#c9d6e4;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-left:3px solid var(--ui-accent-strong, #4fd6c4);border-radius:6px;padding:6px 9px;pointer-events:none;';
+  if (state.vehicle !== null) {
+    const v = state.vehicle;
+    const armourTotal = FACINGS.reduce<number>((sum, f) => sum + (v.design.armor[f] ?? 0), 0);
+    const hasWeapon = v.design.weapons.length > 0;
+    const named = v.design.name.length > 0;
+    const ready = armourTotal > 0 && hasWeapon && named;
+    carStrip.innerHTML = '';
+    const nameLine = document.createElement('div');
+    nameLine.style.cssText = 'font-weight:600;letter-spacing:0.04em;';
+    nameLine.textContent = named ? v.design.name : t('ui.city.stripUnnamed');
+    carStrip.appendChild(nameLine);
+    const statLine = document.createElement('div');
+    statLine.style.cssText = 'color:#9fb0c2;margin-top:2px;';
+    statLine.textContent = t('ui.city.stripStats', { armour: armourTotal, weapons: v.design.weapons.length });
+    carStrip.appendChild(statLine);
+    const gateLine = document.createElement('div');
+    gateLine.style.cssText = `margin-top:3px;font-weight:600;color:${ready ? '#5ce6a4' : '#ffb454'};`;
+    gateLine.textContent = ready ? t('ui.city.stripReady') : t('ui.city.stripNotReady');
+    carStrip.appendChild(gateLine);
+  } else {
+    carStrip.style.display = 'none';
+  }
   const deviceNotice = el('div');
   deviceNotice.style.cssText =
     'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ff6b6b;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
@@ -4012,6 +4059,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   panelHost.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,7,10,0.55);';
   container.appendChild(canvas);
   container.appendChild(status);
+  container.appendChild(carStrip);
   container.appendChild(deviceNotice);
   container.appendChild(retryBtn);
   container.appendChild(panelHost);
