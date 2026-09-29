@@ -145,7 +145,11 @@ const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     // Temperature is left at the provider default. We want this model's actual
     // opinion, not a sampled one; and the JSON contract in the prompt is tight
     // enough that a low temperature buys nothing.
-    max_tokens: 4000,
+    // DeepSeek's iteration-4 reply was cut off mid-string inside the fifth
+    // object at 4000 tokens, which made the whole review unparseable. 5 detailed
+    // findings plus a preamble is a lot of text; 9000 leaves room for a model
+    // that thinks out loud before it answers.
+    max_tokens: 9000,
   }),
 });
 

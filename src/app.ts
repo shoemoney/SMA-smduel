@@ -4619,8 +4619,29 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   const retryBtn = el('button');
   retryBtn.style.cssText =
     'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
+
+  // --- route progress -------------------------------------------------------
+  // A vision review asked for "a thicker, high-contrast progress bar with a
+  // filled portion and a vehicle marker". It is a real ask: the objective line
+  // says how many miles REMAIN, which is the same number every frame, so on a
+  // 150-mile run it looks static for a long time and the player has no way to
+  // see they are getting closer. A bar fills as the odometer advances.
+  //
+  // Deliberately built with two stacked elements and a `transform: scaleX` fill
+  // rather than a `width`: the fill then animates on the compositor and never
+  // triggers layout on a value that changes every frame.
+  const progress = el('div', 'sm-road-progress');
+  progress.setAttribute('role', 'progressbar');
+  progress.setAttribute('aria-valuemin', '0');
+  progress.setAttribute('aria-valuemax', '100');
+  progress.setAttribute('aria-label', t('ui.road.progressLabel'));
+  const progressFill = el('div', 'sm-road-progress__fill');
+  const progressCar = el('div', 'sm-road-progress__car');
+  progress.appendChild(progressFill);
+  progress.appendChild(progressCar);
   container.appendChild(canvas);
   container.appendChild(status);
+  container.appendChild(progress);
   container.appendChild(notice);
   container.appendChild(retryBtn);
   clearAndAppend(root, container);
@@ -5251,6 +5272,20 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
       day: trip.clock.dayIndex,
       phase: t(PHASE_LABEL_KEY[trip.clock.phase]),
     });
+    // Route progress, from the odometer rather than from "miles remaining", so
+    // the bar is monotonic across the trip. Clamped because a truck that
+    // overshoots the destination would otherwise overflow the track.
+    const routeFraction = trip.resolved.route.lengthMiles > 0
+      ? Math.max(0, Math.min(1, trip.progressMiles / trip.resolved.route.lengthMiles))
+      : 0;
+    progressFill.style.transform = `scaleX(${routeFraction})`;
+    progressCar.style.left = `${(routeFraction * 100).toFixed(2)}%`;
+    progress.setAttribute('aria-valuenow', String(Math.round(routeFraction * 100)));
+    progress.setAttribute('aria-valuetext', t('ui.road.progressValue', {
+      percent: Math.round(routeFraction * 100),
+      miles: remainingMiles,
+    }));
+
     const wreckNearby = nearbySearchableWreck() !== undefined;
     if (wreckNearby) logNotice(t('ui.road.wreckHint'));
     touch?.setCommandVisible('searchWreck', wreckNearby);

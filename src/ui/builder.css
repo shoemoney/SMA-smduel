@@ -443,3 +443,25 @@
   color: var(--ui-ink-muted);
   text-align: center;
 }
+
+/* Fixed car parts. Present unconditionally so a PRISTINE build still reads as a
+   car — a review of the real frame correctly said the preview was "only a
+   rounded cyan rectangle outline ... it does not resemble a car", which is
+   exactly what a build with zero armour and zero weapons looks like. */
+.sm-builder__preview-wheel {
+  fill: #0b1118;
+  stroke: rgba(159, 232, 221, 0.55);
+  stroke-width: 1.5;
+}
+
+.sm-builder__preview-cabin {
+  fill: rgba(159, 232, 221, 0.14);
+  stroke: rgba(159, 232, 221, 0.5);
+  stroke-width: 1.5;
+}
+
+.sm-builder__preview-bonnet {
+  fill: rgba(143, 208, 255, 0.12);
+  stroke: rgba(143, 208, 255, 0.45);
+  stroke-width: 1.5;
+}

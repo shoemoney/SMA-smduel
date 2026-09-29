@@ -123,6 +123,29 @@ export function buildVehiclePreview(doc: Document, state: BuilderState): HTMLEle
   const halfW = (parts.data.widthM * PX_PER_M) / 2;
   const halfL = (parts.data.lengthM * PX_PER_M) / 2;
 
+  // --- wheels ---------------------------------------------------------------
+  // Drawn FIRST so the hull paints over their inner edge, which is what makes
+  // them read as wheels tucked under the body rather than four loose rectangles.
+  //
+  // A review of the real frame said the preview was "only a rounded cyan
+  // rectangle outline with a small triangle at the front" and "does not
+  // resemble a car" — which is exactly right for a PRISTINE build, where every
+  // armour point and every weapon slot is empty and so nothing but the outline
+  // is drawn. The fixed parts of a car (wheels, cabin, bonnet) have to be
+  // present unconditionally, or the panel is blank exactly when a player first
+  // looks at it.
+  const wheelW = halfW * 0.3;
+  const wheelL = halfL * 0.26;
+  for (const [wx, wy] of [
+    [cx - halfW, cy - halfL * 0.56],
+    [cx + halfW - wheelW, cy - halfL * 0.56],
+    [cx - halfW, cy + halfL * 0.56 - wheelL],
+    [cx + halfW - wheelW, cy + halfL * 0.56 - wheelL],
+  ] as const) {
+    const wheel = svg(doc, 'rect', { x: wx, y: wy, width: wheelW, height: wheelL, rx: 3, class: 'sm-builder__preview-wheel' });
+    root.appendChild(wheel);
+  }
+
   // --- the hull -------------------------------------------------------------
   // Rounded so it reads as a vehicle silhouette rather than a box, with a
   // visible outline so it is legible on the dark pane background.
@@ -135,6 +158,31 @@ export function buildVehiclePreview(doc: Document, state: BuilderState): HTMLEle
     class: 'sm-builder__preview-hull',
   });
   root.appendChild(hull);
+
+  // --- cabin and bonnet -----------------------------------------------------
+  // Two inset panels breaking up the hull, so the silhouette has a front, a
+  // cabin and a boot rather than being one continuous rounded slab. Proportions
+  // come from the body's real length, so a longer body gets a longer cabin.
+  const cabin = svg(doc, 'rect', {
+    x: cx - halfW * 0.62,
+    y: cy - halfL * 0.2,
+    width: halfW * 1.24,
+    height: halfL * 0.46,
+    rx: 6,
+    class: 'sm-builder__preview-cabin',
+  });
+  cabin.dataset.role = 'cabin';
+  root.appendChild(cabin);
+  const bonnet = svg(doc, 'rect', {
+    x: cx - halfW * 0.5,
+    y: cy - halfL * 0.78,
+    width: halfW * 1.0,
+    height: halfL * 0.4,
+    rx: 5,
+    class: 'sm-builder__preview-bonnet',
+  });
+  bonnet.dataset.role = 'bonnet';
+  root.appendChild(bonnet);
 
   // --- armour bands ---------------------------------------------------------
   // One band per facing, THICKNESS proportional to the points on that facing,

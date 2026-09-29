@@ -581,9 +581,32 @@ function buildMessageFeed(doc: HudDocument, messages: readonly HudMessage[]): Hu
   const list = el(doc, 'ul', { class: 'hud-message-list', role: 'log', 'aria-live': 'polite', 'aria-atomic': 'false' });
 
   const recent = [...messages].sort((a, b) => a.tick - b.tick).slice(-MESSAGE_FEED_CAP);
+
+  // An EMPTY feed is a dark rounded pill with nothing in it, floating under the
+  // screen's status banner. On the road that is the first thing under the
+  // objective line, and a vision review of the frame read it as a broken
+  // progress bar — which is not what it is, but it is a fair description of
+  // how it looks: a meaningless horizontal bar directly beneath the objective.
+  //
+  // So an empty feed renders nothing at all. The region is still built (the
+  // live-region announcement behaviour does not change), it simply carries no
+  // visible box, and the first message that arrives is the first thing seen.
   recent.forEach((message) => {
     list.appendChild(el(doc, 'li', { class: `hud-message hud-message--${message.kind}`, 'data-kind': message.kind }, message.text));
   });
+
+  // The list is ALWAYS attached, empty or not: it is the `aria-live="polite"`
+  // region a screen reader announces new messages into, and dropping it when
+  // empty would remove the very element that has to exist before there is
+  // anything to announce. An earlier version returned early on empty, which
+  // silently took the live region with it.
+  //
+  // The `data-empty` flag only hides the BOX. See hud.css.
+  //
+  // The HudElement abstraction has no classList, so the state is carried by a
+  // data attribute and the stylesheet keys off it — the same mechanism the rest
+  // of the HUD uses for `data-state`.
+  if (recent.length === 0) panel.setAttribute('data-empty', 'true');
 
   panel.appendChild(list);
   return panel;

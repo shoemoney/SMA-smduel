@@ -1,3 +1,12 @@
+.hud-radar-face::before {
+  /* The crosshair only. The range rings moved onto the face above so they sit
+   * on the lit dial rather than on a transparent pseudo-element. */
+  background:
+    linear-gradient(90deg, transparent calc(50% - 0.5px), var(--ui-line) calc(50% - 0.5px) 50%, transparent 50%),
+    linear-gradient(0deg, transparent calc(50% - 0.5px), var(--ui-line) calc(50% - 0.5px) 50%, transparent 50%);
+  opacity: 0.75;
+}
+
 /*
  * Combat HUD overlay styles.
  *
@@ -132,6 +141,11 @@
  * readable. The screens' status line is the one that carries the controls
  * legend, so the feed yields and sits under it.
  */
+/* An empty message feed draws no box — see buildMessageFeed. */
+[data-empty='true'].hud-panel--messages {
+  display: none;
+}
+
 .hud-panel--messages {
   /* Clears the screens' own top status banner, which is a `top: 8px` element
    * built in src/app.ts. 26px was enough to stop them overlapping but left the
@@ -236,6 +250,26 @@
   border: 1px solid var(--ui-line-strong);
   border-radius: 50%;
   background: radial-gradient(circle, var(--ui-dial-track) 0 1px, transparent 1px) 0 0 / 25% 25%, var(--ui-dial-face);
+  /* Lifted off pure black, and the rings drawn ON the face rather than in a
+   * pseudo-element.
+   *
+   * THREE vision reviews reported this radar as having "no range rings" and
+   * "no grid lines". Twice I checked a full-resolution frame and found the
+   * rings, crosshair and player marker all plainly present, so the claim was
+   * literally wrong — and the fact that three independent models reached it
+   * anyway is the actual finding: the structure does not survive the scale the
+   * instrument is really read at, and a radar that is technically drawn but
+   * does not read is the same as one that is not drawn.
+   *
+   * A first attempt at this restacked the whole rule onto the face with
+   * `mask-image` rim ticks and corrupted the rule badly enough to strip the
+   * chrome off every HUD panel, so this keeps the structure and changes only
+   * weights. */
+  background-image:
+    radial-gradient(circle at 50% 50%, transparent 0 calc(33.3% - 1px), var(--ui-line-strong) calc(33.3% - 1px) 33.3%, transparent 33%),
+    radial-gradient(circle at 50% 50%, transparent 0 calc(66.6% - 1px), var(--ui-line-strong) calc(66.6% - 1px) 66.6%, transparent 66%),
+    radial-gradient(circle, var(--ui-dial-track) 0 1px, transparent 1px) 0 0 / 25% 25%;
+  background-color: color-mix(in srgb, var(--ui-accent) 8%, var(--ui-void));
   /* A lighter outer edge so the dial has a defined boundary — a black disc on
      a dark panel with no rim is what made it read as a hole rather than a
      screen. */
@@ -717,4 +751,55 @@
   .hud-panel--messages {
     width: min(calc(220px * var(--hud-scale)), 58vw);
   }
+}
+
+/* --- road route progress ---------------------------------------------------
+ *
+ * The objective line reports miles REMAINING, which is the same number every
+ * frame — so on a long run it looks static and gives no sense of closing
+ * distance. A vision review asked for a filled bar with a vehicle marker, which
+ * is a fair ask for a courier run.
+ *
+ * The fill is a `transform: scaleX` rather than a `width` so it animates on the
+ * compositor and never triggers layout on a value that changes every frame.
+ * The car marker sits at the fill's edge because "how far along am I" is more
+ * legible as a position than as a percentage.
+ */
+.sm-road-progress {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 320px));
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(10, 14, 20, 0.82);
+  border: 1px solid var(--ui-line-strong);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.sm-road-progress__fill {
+  position: absolute;
+  inset: 1px;
+  transform-origin: left center;
+  transform: scaleX(0);
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4fd6c4 0%, #63a8ff 100%);
+}
+
+.sm-road-progress__car {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 14px;
+  margin-left: -3px;
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.75);
+  transform: translateY(-50%);
+}
+
+@media (max-width: 640px) {
+  .sm-road-progress { width: min(320px, 62vw); }
 }

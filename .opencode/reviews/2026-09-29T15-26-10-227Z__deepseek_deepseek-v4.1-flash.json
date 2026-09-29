@@ -1,0 +1,74 @@
+{
+  "model": "deepseek/deepseek-v4.1-flash",
+  "modelLabel": "deepseek/deepseek-v4.1-flash",
+  "screens": [
+    "title",
+    "city",
+    "arena",
+    "road",
+    "constructor"
+  ],
+  "at": "2026-09-29T15:26:10.228Z",
+  "usage": {
+    "prompt_tokens": 2029,
+    "completion_tokens": 6330,
+    "total_tokens": 8359,
+    "cost": 0.003117786,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.003117786,
+      "upstream_inference_prompt_cost": 0.000231306,
+      "upstream_inference_completions_cost": 0.00288648
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5345,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Radar reads as an empty placeholder",
+      "where": "Arena and road screens, bottom-left HUD panel",
+      "problem": "The radar is a black disc containing only a faint green wedge and a single dot, with no range rings, azimuth ticks, contact blips, or sweep line; the only labels are 'RADAR' and 'Orientation: north-up'. It looks like a broken or disabled instrument rather than a live sensor.",
+      "why": "Players rely on the radar for spatial awareness in combat and on the highway. With no scale, contacts, or visible sweep, it provides no actionable information and makes the HUD look unfinished, reducing trust in nearby feedback.",
+      "fix": "Add visible range rings and cardinal/azimuth ticks; animate a sweeping scan line with brief afterglow; render distinct contact blips for nearby vehicles, obstacles, and buildings with edge clamping; show a clear 'NO CONTACTS' state only when appropriate, not as the default look."
+    },
+    {
+      "title": "City ground texture drowns out landmarks",
+      "where": "City screen, entire playfield",
+      "problem": "The world is covered by one tiling gray cracked-concrete texture with uniformly high-contrast cracks; buildings, the road ring, and the player car all sit in the same noisy value range. Buildings read as tiny schematic footprints rather than places.",
+      "why": "The player cannot quickly distinguish roads, blocks, or objectives from the ground, so the city feels like a debug tilemap instead of a navigable place. This hurts orientation and the sense of driving through a real city.",
+      "fix": "Reduce crack contrast and scale, tint or decal distinct street/block zones, give buildings stronger roof silhouettes with outline/shadow separation, and use a darker or smoother road material so the circular route and intersections are legible at a glance."
+    },
+    {
+      "title": "Constructor car preview is a blank rectangle",
+      "where": "Constructor screen, right-side 'SUBCOMPACT — TOP VIEW' panel",
+      "problem": "The vehicle preview is only a rounded cyan rectangle outline with a small triangle at the front. It shows no wheels, chassis rails, armor plates, hardpoints, or weapon silhouettes, and does not resemble a car.",
+      "why": "The core fantasy is building a car; a blank rectangle makes the process feel abstract and unfinished. Players cannot visually connect part choices to the vehicle's shape or know where weapons and armor will appear on the finished car.",
+      "fix": "Draw a top-down car with visible wheels, body panels, and component slots; update it live as chassis/tires/armor/weapons change; show hardpoint icons for mounted weapons and hover/selection highlights that correspond to the selected row in the parts list."
+    },
+    {
+      "title": "Road/arena driving surfaces lack speed and boundary cues",
+      "where": "Arena and road screens, entire playfield",
+      "problem": "The playable area is an unbounded flat gray plane or road with almost no scenery, edge markers, road texture variation, or parallax reference. In the arena there are no walls or floor boundary; on the road there are only sparse white dashes on an otherwise featureless surface.",
+      "why": "Without boundary markers and visual reference points, the car appears to float and speed is illegible. The arena feels like a test room rather than a combat space, and the highway feels empty and unfinished.",
+      "fix": "Add clear arena edge walls/barriers and out-of-bounds contrast; add roadside props, guardrails, signs, and terrain variation with distance-based parallax; increase road-surface detail with subtle tire tracks, patches, and shoulder treatment so motion is readable at speed."
+    },
+    {
+      "title": "Mission progress bar is nearly invisible",
+      "where": "Road screen, top center below 'En route to Albany — 150mi remaining'",
+      "problem": "Route progress is represented by a very thin, dark horizontal line on a gray road background. It has no label, no marker, no contrast, and is easy to miss completely.",
+      "why": "The courier run's core goal is reaching Albany; if players cannot see progress, the trip feels static and unrewarding. At a glance they cannot tell whether they are advancing or how close they are.",
+      "fix": "Replace the line with a thicker, high-contrast progress bar using a filled color portion and a vehicle-position marker; add an 'Albany' endpoint label and mileage text; place it on a subtle dark backing plate so it remains readable over road texture."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Radar reads as an empty placeholder\",\n    \"where\": \"Arena and road screens, bottom-left HUD panel\",\n    \"problem\": \"The radar is a black disc containing only a faint green wedge and a single dot, with no range rings, azimuth ticks, contact blips, or sweep line; the only labels are 'RADAR' and 'Orientation: north-up'. It looks like a broken or disabled instrument rather than a live sensor.\",\n    \"why\": \"Players rely on the radar for spatial awareness in combat and on the highway. With no scale, contacts, or visible sweep, it provides no actionable information and makes the HUD look unfinished, reducing trust in nearby feedback.\",\n    \"fix\": \"Add visible range rings and cardinal/azimuth ticks; animate a sweeping scan line with brief afterglow; render distinct contact blips for nearby vehicles, obstacles, and buildings with edge clamping; show a clear 'NO CONTACTS' state only when appropriate, not as the default look.\"\n  },\n  {\n    \"title\": \"City ground texture drowns out landmarks\",\n    \"where\": \"City screen, entire playfield\",\n    \"problem\": \"The world is covered by one tiling gray cracked-concrete texture with uniformly high-contrast cracks; buildings, the road ring, and the player car all sit in the same noisy value range. Buildings read as tiny schematic footprints rather than places.\",\n    \"why\": \"The player cannot quickly distinguish roads, blocks, or objectives from the ground, so the city feels like a debug tilemap instead of a navigable place. This hurts orientation and the sense of driving through a real city.\",\n    \"fix\": \"Reduce crack contrast and scale, tint or decal distinct street/block zones, give buildings stronger roof silhouettes with outline/shadow separation, and use a darker or smoother road material so the circular route and intersections are legible at a glance.\"\n  },\n  {\n    \"title\": \"Constructor car preview is a blank rectangle\",\n    \"where\": \"Constructor screen, right-side 'SUBCOMPACT — TOP VIEW' panel\",\n    \"problem\": \"The vehicle preview is only a rounded cyan rectangle outline with a small triangle at the front. It shows no wheels, chassis rails, armor plates, hardpoints, or weapon silhouettes, and does not resemble a car.\",\n    \"why\": \"The core fantasy is building a car; a blank rectangle makes the process feel abstract and unfinished. Players cannot visually connect part choices to the vehicle's shape or know where weapons and armor will appear on the finished car.\",\n    \"fix\": \"Draw a top-down car with visible wheels, body panels, and component slots; update it live as chassis/tires/armor/weapons change; show hardpoint icons for mounted weapons and hover/selection highlights that correspond to the selected row in the parts list.\"\n  },\n  {\n    \"title\": \"Road/arena driving surfaces lack speed and boundary cues\",\n    \"where\": \"Arena and road screens, entire playfield\",\n    \"problem\": \"The playable area is an unbounded flat gray plane or road with almost no scenery, edge markers, road texture variation, or parallax reference. In the arena there are no walls or floor boundary; on the road there are only sparse white dashes on an otherwise featureless surface.\",\n    \"why\": \"Without boundary markers and visual reference points, the car appears to float and speed is illegible. The arena feels like a test room rather than a combat space, and the highway feels empty and unfinished.\",\n    \"fix\": \"Add clear arena edge walls/barriers and out-of-bounds contrast; add roadside props, guardrails, signs, and terrain variation with distance-based parallax; increase road-surface detail with subtle tire tracks, patches, and shoulder treatment so motion is readable at speed.\"\n  },\n  {\n    \"title\": \"Mission progress bar is nearly invisible\",\n    \"where\": \"Road screen, top center below 'En route to Albany — 150mi remaining'\",\n    \"problem\": \"Route progress is represented by a very thin, dark horizontal line on a gray road background. It has no label, no marker, no contrast, and is easy to miss completely.\",\n    \"why\": \"The courier run's core goal is reaching Albany; if players cannot see progress, the trip feels static and unrewarding. At a glance they cannot tell whether they are advancing or how close they are.\",\n    \"fix\": \"Replace the line with a thicker, high-contrast progress bar using a filled color portion and a vehicle-position marker; add an 'Albany' endpoint label and mileage text; place it on a subtle dark backing plate so it remains readable over road texture.\"\n  }\n]"
+}
