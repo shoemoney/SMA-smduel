@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 20
+iteration: 21
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (20 of 82 vision models):
+Reviewers asked (21 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -274,6 +274,51 @@ TOOLING - the review harness got audited by its own failure this round:
        the remaining honest ask is tying it to the player's colour, queued);
        convert the weapon list to a 2-column grid (rows are index-addressed, and
        iteration 17 already applied the lighter fix that does not move a row).
+
+21. bytedance-seed/seed-2-1-turbo -> 1 REAL, 1 FALSE, 1 built-and-measured-then-declined:
+     - "All five armor facings show only -- with no numeric value, bar, or status
+       indicator, unlike Tyres and Plant which use a dot + fraction format ... the
+       section looks broken or unimplemented." REAL, and the THIRD report on this
+       item. Every previous answer was "a dash is semantically correct" - and it
+       is, which is exactly why the complaint never went away: a bare faint dash is
+       correct AND unreadable, and the previous treatment made it WORSE by dimming
+       it to 0.72 opacity on already-dim ink, so the empty value receded into the
+       panel and the block read as an area that failed to render. The fix is to
+       make the empty state LOUDER, not quieter: the dash now sits in a dashed
+       chip at full opacity, so it is visibly a slot with nothing in it. Still
+       not a number - "0 / 0" is a fraction of nothing, and a green dot on a zero
+       is the exact bug this state exists to prevent. Built as ELEMENTS, not a
+       markup string, because el() sets text through setText and a "<span>"
+       string would have rendered as literal tag characters.
+     - "The section header bar is vertically undersized so its text is partially
+       clipped." FALSE - there is no header bar. What it found is the section
+       RULE added in iteration 17 above Weapon 1, which renders as a thin
+       horizontal line with no text in it and nothing clipped. First false report
+       of this class (a described element that does not exist).
+     - "The arena has no boundaries or spatial reference." Built three variants
+       and MEASURED each rather than shipping the first plausible one:
+         1. perimeter wall / barriers - declined without building; the arena is an
+            unbounded field with no collision, so a painted wall lies and
+            non-colliding props are things the player drives through;
+         2. a ring at the REAL spawnRingRadiusM (45m) - honest but the camera
+            shows ~24m, so it changed 0.54% of the frame;
+         3. a 10m dotted circle + radial ticks - VISIBLE, and still wrong twice:
+            world-fixed it was nearly off screen again (the player spawns away
+            from the origin), and player-centred it travelled with the car, which
+            destroys the whole point of a reference (a reference that moves with
+            you says nothing about your motion).
+       SHIPPED NONE. The arena already has world-fixed reference: the ground
+       tiles by fract(worldPos), so its slab-joint lattice is anchored to the
+       world. The real fix is a gameplay change - arena bounds with collision,
+       or props that genuinely block - and faking either in the render layer to
+       make a screenshot look finished is the wrong trade.
+       WORTH RECORDING AS A PROCESS FAILURE: variant 3 first rendered ZERO
+       pixels, and every check stayed green. The cause was that I wired the call
+       into showArenaEvent while the capture is showArena - a real call, in the
+       wrong function. Found only by diffing the frame against the baseline and
+       noticing the pixel count was IDENTICAL to the unrelated armour-chip change.
+     FALSE: radar (13th report on the same element); the tagline contrast, which
+       already carries a two-layer shadow from iteration 15.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

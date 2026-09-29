@@ -1,0 +1,75 @@
+{
+  "model": "bytedance-seed/seed-2-1-turbo",
+  "modelLabel": "bytedance-seed/seed-2-1-turbo",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T17:11:29.395Z",
+  "usage": {
+    "prompt_tokens": 6753,
+    "completion_tokens": 5261,
+    "total_tokens": 12014,
+    "cost": 0.016529,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.016529,
+      "upstream_inference_prompt_cost": 0.0033765,
+      "upstream_inference_completions_cost": 0.0131525
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4413,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Clipped unreadable section header in vehicle constructor",
+      "where": "Vehicle constructor screen, bottom-left area, directly above the 'select row · change · type value' help text",
+      "problem": "The section header bar is vertically undersized, so its text is partially clipped, showing only the top edges of characters with no legible content.",
+      "why": "This makes the constructor screen feel buggy and unfinished, and players cannot identify what this section is supposed to label.",
+      "fix": "Increase the height of the header bar to fully contain its text, or reduce the text size to fit within the existing bar bounds, and add 4px of vertical spacing between the header and the help text below it."
+    },
+    {
+      "title": "Armor status values display as empty dashes",
+      "where": "Arena and Road screens, top-right CONDITION panel, ARMOUR section",
+      "problem": "All five armor facing stats (Front, Rear, Left, Right, Underbody) show only '--' with no numeric value, bar, or status indicator, unlike the Tyres and Plant & Driver sections which use a clear dot + fraction format.",
+      "why": "Players cannot read their current armor status at a glance, and the section looks broken or unimplemented rather than showing a 0 armor value.",
+      "fix": "Replace the '--' placeholder with the same dot + numeric fraction format used for Tyres (e.g. '0 / 5') to match the rest of the panel's visual language, even when the armor value is 0."
+    },
+    {
+      "title": "Radar panel appears empty and non-functional",
+      "where": "Arena and Road screens, bottom-left RADAR panel",
+      "problem": "The radar shows only a faint sweep effect and a tiny center triangle, with no visible contacts, road edges, or reference markers. Almost the entire radar disc is solid dark green.",
+      "why": "Players will assume the radar is broken, as it provides no usable spatial information and wastes a large area of gameplay screen space.",
+      "fix": "Add a bright, distinct player marker at the center, render nearby vehicles/objects as high-contrast white/red dots, draw road edge lines on the road mode radar, and add a range label to indicate the radar's coverage distance."
+    },
+    {
+      "title": "Title screen tagline has low contrast against background art",
+      "where": "Title screen, directly below the SMDUEL logo",
+      "problem": "The white tagline text sits directly over the dark, detailed silhouettes of the two armored cars, creating low contrast that makes the text hard to read at a glance.",
+      "why": "The game's core pitch is hard for new players to parse, and the title screen feels unpolished as a first impression.",
+      "fix": "Add a 2px soft dark drop shadow to the tagline text, or shift the text down 20px so it sits over the lighter dusty ground between the two cars instead of over the dark vehicle bodies."
+    },
+    {
+      "title": "Arena play space has no visible boundaries or reference points",
+      "where": "Arena screen, full main play area",
+      "problem": "The entire arena floor is a uniform faded tiled surface with no walls, edge markers, or environmental props to define the arena bounds or give spatial reference while driving.",
+      "why": "Players cannot tell where the arena edges are, and lose spatial orientation quickly when moving at speed, making combat feel unmoored and the space feel unfinished.",
+      "fix": "Add a clear, high-contrast painted boundary line or low barrier wall around the full perimeter of the arena, and place a small number of distinct props (tire stacks, concrete barriers) at intervals to use as movement reference points."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n    {\n        \"title\": \"Clipped unreadable section header in vehicle constructor\",\n        \"where\": \"Vehicle constructor screen, bottom-left area, directly above the 'select row · change · type value' help text\",\n        \"problem\": \"The section header bar is vertically undersized, so its text is partially clipped, showing only the top edges of characters with no legible content.\",\n        \"why\": \"This makes the constructor screen feel buggy and unfinished, and players cannot identify what this section is supposed to label.\",\n        \"fix\": \"Increase the height of the header bar to fully contain its text, or reduce the text size to fit within the existing bar bounds, and add 4px of vertical spacing between the header and the help text below it.\"\n    },\n    {\n        \"title\": \"Armor status values display as empty dashes\",\n        \"where\": \"Arena and Road screens, top-right CONDITION panel, ARMOUR section\",\n        \"problem\": \"All five armor facing stats (Front, Rear, Left, Right, Underbody) show only '--' with no numeric value, bar, or status indicator, unlike the Tyres and Plant & Driver sections which use a clear dot + fraction format.\",\n        \"why\": \"Players cannot read their current armor status at a glance, and the section looks broken or unimplemented rather than showing a 0 armor value.\",\n        \"fix\": \"Replace the '--' placeholder with the same dot + numeric fraction format used for Tyres (e.g. '0 / 5') to match the rest of the panel's visual language, even when the armor value is 0.\"\n    },\n    {\n        \"title\": \"Radar panel appears empty and non-functional\",\n        \"where\": \"Arena and Road screens, bottom-left RADAR panel\",\n        \"problem\": \"The radar shows only a faint sweep effect and a tiny center triangle, with no visible contacts, road edges, or reference markers. Almost the entire radar disc is solid dark green.\",\n        \"why\": \"Players will assume the radar is broken, as it provides no usable spatial information and wastes a large area of gameplay screen space.\",\n        \"fix\": \"Add a bright, distinct player marker at the center, render nearby vehicles/objects as high-contrast white/red dots, draw road edge lines on the road mode radar, and add a range label to indicate the radar's coverage distance.\"\n    },\n    {\n        \"title\": \"Title screen tagline has low contrast against background art\",\n        \"where\": \"Title screen, directly below the SMDUEL logo\",\n        \"problem\": \"The white tagline text sits directly over the dark, detailed silhouettes of the two armored cars, creating low contrast that makes the text hard to read at a glance.\",\n        \"why\": \"The game's core pitch is hard for new players to parse, and the title screen feels unpolished as a first impression.\",\n        \"fix\": \"Add a 2px soft dark drop shadow to the tagline text, or shift the text down 20px so it sits over the lighter dusty ground between the two cars instead of over the dark vehicle bodies.\"\n    },\n    {\n        \"title\": \"Arena play space has no visible boundaries or reference points\",\n        \"where\": \"Arena screen, full main play area\",\n        \"problem\": \"The entire arena floor is a uniform faded tiled surface with no walls, edge markers, or environmental props to define the arena bounds or give spatial reference while driving.\",\n        \"why\": \"Players cannot tell where the arena edges are, and lose spatial orientation quickly when moving at speed, making combat feel unmoored and the space feel unfinished.\",\n        \"fix\": \"Add a clear, high-contrast painted boundary line or low barrier wall around the full perimeter of the arena, and place a small number of distinct props (tire stacks, concrete barriers) at intervals to use as movement reference points.\"\n    }\n]"
+}

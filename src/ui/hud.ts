@@ -481,22 +481,31 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
     // So the DAMAGE classification is untouched and a separate visual state
     // carries "nothing fitted": neutral grey, a dash, and no green.
     const unfitted = max <= 0;
-    armorList.appendChild(
-      el(
-        doc,
-        'li',
-        {
-          class: 'hud-armor-facing',
-          'data-state': unfitted ? 'unfitted' : state,
-          // The accessible name always carries the full meaning, whatever the
-          // visible cell says.
-          'aria-label': unfitted
-            ? t('ui.hud.facingArmorUnfitted', { facing })
-            : t('ui.hud.facingArmor', { facing, current, max }),
-        },
-        unfitted ? `${facing}: ${t('ui.hud.notFitted')}` : `${facing}: ${damageLabel(current, max)}`,
-      ),
-    );
+    const row = el(doc, 'li', {
+      class: 'hud-armor-facing',
+      'data-state': unfitted ? 'unfitted' : state,
+      // The accessible name always carries the full meaning, whatever the
+      // visible cell says.
+      'aria-label': unfitted
+        ? t('ui.hud.facingArmorUnfitted', { facing })
+        : t('ui.hud.facingArmor', { facing, current, max }),
+    });
+    if (unfitted) {
+      // Built as ELEMENTS, not as a markup string. `el()` sets text through
+      // `setText`, so a string containing "<span>" would have been rendered as
+      // literal tag characters on screen.
+      //
+      // Only the unfitted cell is split, because only it needs to be contained:
+      // a dash inside a dashed chip is unmistakably a slot with nothing in it,
+      // where a bare faint dash reads as an area that failed to render. Fitted
+      // rows keep their existing flat text, so the normal case is untouched, and
+      // the concatenated text content ("FRONT: —") is unchanged either way.
+      row.appendChild(el(doc, 'span', {}, `${facing}: `));
+      row.appendChild(el(doc, 'span', { class: 'hud-armor-value' }, t('ui.hud.notFitted')));
+    } else {
+      row.setText(`${facing}: ${damageLabel(current, max)}`);
+    }
+    armorList.appendChild(row);
   });
   // The group label goes BEFORE the rows it names. It was first inserted after
   // the list was appended, which put "ARMOUR" underneath the armour and made

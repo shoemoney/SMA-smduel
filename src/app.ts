@@ -4595,6 +4595,40 @@ const ROAD_DASH_PERIOD_M = 10;
  * with its hard shoulder, and it gives the white lines something to sit inside
  * rather than marking a boundary between two identical greys.
  */
+/**
+ * Arena spatial reference: investigated, measured, and deliberately NOT shipped.
+ *
+ * A review said the arena is "a uniform faded tiled surface with no walls, edge
+ * markers, or environmental props to define the arena bounds or give spatial
+ * reference while driving", and suggested a perimeter wall plus scattered
+ * barriers. Three variants were built and measured rather than guessed at:
+ *
+ *  1. Perimeter wall / scattered barriers — DECLINED without building them. The
+ *     arena is an unbounded, camera-locked field with no collision geometry, so
+ *     a painted perimeter is a visible lie about walls that do not exist, and
+ *     non-colliding barriers are props the player drives straight through.
+ *  2. A painted ring at the REAL `spawnRingRadiusM` (45m) — honest (opponents do
+ *     spawn there) and useless: the practice camera shows ~24m of half-height,
+ *     so the ring fell outside the view and changed 0.54% of the frame. Marking
+ *     something true in a place the player cannot see is still not an answer.
+ *  3. A dotted centre circle and radial ticks at ~10m — this one DID render and
+ *     was plainly visible, and it was still wrong, twice over. Centred on the
+ *     world origin it was nearly off screen again (the player spawns away from
+ *     it, ~300 changed pixels), and centred on the PLAYER it travelled with the
+ *     car, which destroys the entire point: a reference that moves with you
+ *     carries no information about your motion.
+ *
+ * So the arena keeps no added markings. It already has world-fixed reference —
+ * the ground tiles by `fract(worldPos)`, so its slab-joint lattice is anchored to
+ * the world and does give the eye something fixed to judge motion against, which
+ * is what variant 3 was trying to add on top of.
+ *
+ * The real answer to this review is a GAMEPLAY change, not a decoration: give
+ * the arena actual bounds with collision, or place props that genuinely block.
+ * Both belong in the sim, and neither should be faked in the render layer to make
+ * a screenshot look finished.
+ */
+
 function roadSurfaceQuad(
   atlasIndex: AtlasIndex,
   center: Vec2M,

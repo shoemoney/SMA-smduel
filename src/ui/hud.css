@@ -846,11 +846,39 @@
   color: var(--ui-ink-dim);
 }
 
-.hud-root [data-state='unfitted']::before,
-.hud-armor-facing[data-state='unfitted'] {
+.hud-root [data-state='unfitted']::before {
   opacity: 0.72;
 }
 
+/* The dash is an INTENTIONAL EMPTY SLOT, and it has to look like one.
+ *
+ * Three reviews have now reported the armour block as broken rather than as
+ * "no armour here" — "show only '--' with no numeric value, bar, or status
+ * indicator ... the section looks broken or unimplemented". The armour rows had
+ * been dimmed to 0.72 opacity on top of already-dim ink and given a dashed left
+ * border, which is the worst of both: fading an empty value made it recede into
+ * the panel, so the row lost whatever weight it had left and the block read as
+ * an area that failed to render.
+ *
+ * The fix is to make the empty state LOUDER, not quieter, and to contain it: the
+ * dash sits in a dashed chip, at full opacity, so it is visibly a slot with
+ * nothing in it. A dash inside a dashed outline is unmistakably deliberate,
+ * where a bare faint dash is not. Deliberately still not a number — "0 / 0" would
+ * be a fraction of nothing and reads as a bug, and a green dot on a zero is the
+ * exact bug this state was introduced to fix in the first place. */
 .hud-armor-facing[data-state='unfitted'] {
   border-left-style: dashed;
+  opacity: 1;
+  color: var(--ui-ink-muted);
+}
+
+.hud-armor-facing[data-state='unfitted'] .hud-armor-value {
+  display: inline-block;
+  min-width: 2.2em;
+  padding: 0 0.35em;
+  text-align: center;
+  border: 1px dashed var(--ui-line-strong);
+  border-radius: var(--ui-radius-sm, 3px);
+  color: var(--ui-ink-muted);
+  font-style: normal;
 }
