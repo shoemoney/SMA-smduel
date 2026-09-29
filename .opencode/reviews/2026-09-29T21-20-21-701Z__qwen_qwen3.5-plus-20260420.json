@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3.5-plus-20260420",
+  "modelLabel": "qwen/qwen3.5-plus-20260420",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T21:20:21.702Z",
+  "usage": {
+    "prompt_tokens": 5404,
+    "completion_tokens": 3455,
+    "total_tokens": 8859,
+    "cost": 0.0078402,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0078402,
+      "upstream_inference_prompt_cost": 0.0016212,
+      "upstream_inference_completions_cost": 0.006219
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2802,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Low Contrast Main Menu",
+      "where": "Title Screen, bottom left corner",
+      "problem": "The menu container is a semi-transparent dark box placed directly over the dark, shadowed cracks of the road texture.",
+      "why": "The primary call-to-action ('New Driver') competes with the background noise, making the UI feel recessive and potentially hard to click quickly.",
+      "fix": "Add a solid, slightly lighter background color to the menu panel or apply a strong outer glow/stroke to the container to separate it from the environment."
+    },
+    {
+      "title": "Illegible Radar Instrument",
+      "where": "Arena and Road screens, bottom left corner",
+      "problem": "The radar face is nearly black with a very faint green sweep; there are no visible grid lines or distinct contact blips.",
+      "why": "In a vehicular combat game, situational awareness is critical. Currently, the instrument looks broken or inactive rather than providing tactical data.",
+      "fix": "Increase the brightness of the radar grid and sweep line, and ensure enemy contacts render as high-contrast, solid dots (e.g., bright red) rather than faint pixels."
+    },
+    {
+      "title": " Invisible Objective Tracker",
+      "where": "Road screen, top center",
+      "problem": "The progress bar is a single-pixel white line floating directly over the noisy, grey asphalt texture without a backing panel.",
+      "why": "The player cannot gauge their progress or distance to the goal because the indicator blends into the road surface.",
+      "fix": "Place the progress bar inside a semi-transparent dark panel (matching the text box below it) or add a heavy drop shadow to the line to force separation from the ground."
+    },
+    {
+      "title": "Flat Environmental Palette",
+      "where": "City screen, entire background",
+      "problem": "The cracked pavement ground texture and the grey concrete building roofs share nearly identical brightness and saturation values.",
+      "why": "This lack of value separation creates visual noise, making it difficult for the player to instantly distinguish drivable space from obstacles or buildings.",
+      "fix": "Darken the ground texture significantly or lighten the building roofs to create clear figure-ground separation, ensuring the 'walkable' area pops."
+    },
+    {
+      "title": "Faint Vehicle Schematic",
+      "where": "Constructor screen, middle right panel",
+      "problem": "The wireframe outline of the car ('Subcompact - Top View') is a thin, low-opacity cyan line against a dark blue background.",
+      "why": "Players need to see exactly where they are mounting armor and weapons. The current 'ghostly' appearance feels imprecise and hard to read.",
+      "fix": "Increase the opacity and line weight of the chassis outline, and fill the mounting slots with a slightly lighter, solid color to clearly indicate available attachment points."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Low Contrast Main Menu\",\n    \"where\": \"Title Screen, bottom left corner\",\n    \"problem\": \"The menu container is a semi-transparent dark box placed directly over the dark, shadowed cracks of the road texture.\",\n    \"why\": \"The primary call-to-action ('New Driver') competes with the background noise, making the UI feel recessive and potentially hard to click quickly.\",\n    \"fix\": \"Add a solid, slightly lighter background color to the menu panel or apply a strong outer glow/stroke to the container to separate it from the environment.\"\n  },\n  {\n    \"title\": \"Illegible Radar Instrument\",\n    \"where\": \"Arena and Road screens, bottom left corner\",\n    \"problem\": \"The radar face is nearly black with a very faint green sweep; there are no visible grid lines or distinct contact blips.\",\n    \"why\": \"In a vehicular combat game, situational awareness is critical. Currently, the instrument looks broken or inactive rather than providing tactical data.\",\n    \"fix\": \"Increase the brightness of the radar grid and sweep line, and ensure enemy contacts render as high-contrast, solid dots (e.g., bright red) rather than faint pixels.\"\n  },\n  {\n    \"title\": \" Invisible Objective Tracker\",\n    \"where\": \"Road screen, top center\",\n    \"problem\": \"The progress bar is a single-pixel white line floating directly over the noisy, grey asphalt texture without a backing panel.\",\n    \"why\": \"The player cannot gauge their progress or distance to the goal because the indicator blends into the road surface.\",\n    \"fix\": \"Place the progress bar inside a semi-transparent dark panel (matching the text box below it) or add a heavy drop shadow to the line to force separation from the ground.\"\n  },\n  {\n    \"title\": \"Flat Environmental Palette\",\n    \"where\": \"City screen, entire background\",\n    \"problem\": \"The cracked pavement ground texture and the grey concrete building roofs share nearly identical brightness and saturation values.\",\n    \"why\": \"This lack of value separation creates visual noise, making it difficult for the player to instantly distinguish drivable space from obstacles or buildings.\",\n    \"fix\": \"Darken the ground texture significantly or lighten the building roofs to create clear figure-ground separation, ensuring the 'walkable' area pops.\"\n  },\n  {\n    \"title\": \"Faint Vehicle Schematic\",\n    \"where\": \"Constructor screen, middle right panel\",\n    \"problem\": \"The wireframe outline of the car ('Subcompact - Top View') is a thin, low-opacity cyan line against a dark blue background.\",\n    \"why\": \"Players need to see exactly where they are mounting armor and weapons. The current 'ghostly' appearance feels imprecise and hard to read.\",\n    \"fix\": \"Increase the opacity and line weight of the chassis outline, and fill the mounting slots with a slightly lighter, solid color to clearly indicate available attachment points.\"\n  }\n]"
+}

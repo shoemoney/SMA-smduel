@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 73
+iteration: 74
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (73 of 82 vision models):
+Reviewers asked (74 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -3284,6 +3284,55 @@ TOOLING - the review harness got audited by its own failure this round:
        does not restructure the screen or break the 0-9 index addressing.
      ONE REAL, FOUR FALSE, and the real one was a two-digit drift between two
      numbers that were never compared to each other.
+
+74. qwen/qwen3.5-plus-20260420 -> ZERO REAL. Nothing changed, and every one of
+     the five is checkable in a single place — which is the strongest statement
+     this log can make about a review, because a claim that survives one grep
+     never needed the frame to refute it:
+     - "The menu container is a semi-transparent dark box placed directly over
+       the dark shadowed cracks of the road texture ... add a solid background
+       or a strong outer glow to separate it from the environment." The ELEVENTH
+       report of the menu class, against a panel that has been near-opaque since
+       iteration 20 (a 0.92-alpha stack with a top-lit inner highlight). The
+       glow remedy is the competing-boxes treatment iteration 32 removed once
+       the fill became visible without it;
+     - "The radar face is nearly black with a very faint green sweep; no visible
+       grid lines or distinct contact blips." FORTY-SIXTH report. The rings,
+       crosshair, sweep and `▲` player marker are all in the frame, and the
+       contact blips remain the fabrication declined seventeen times;
+     - "The progress bar is a single-pixel white line floating directly over the
+       noisy grey asphalt WITHOUT A BACKING PANEL." FALSE, and the backing is
+       right there in the stylesheet:
+         .sm-road-progress {
+           height: 8px;
+           background: rgba(10, 14, 20, 0.82);
+           border: 1px solid var(--ui-line-strong);
+           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+         }
+       A dark 0.82 track, a 1px border and a drop shadow — described as no
+       backing at all. What the reviewer is actually seeing is the CAR GLYPH: the
+       fill is `transform: scaleX(routeFraction)`, which is 0 on a fresh 150-mile
+       run, so the only thing visible inside the 8px track is the small light
+       marker at its head. That is the static-frame class for the FIFTH time
+       (iterations 22, 46, 53, 58, 72) and it is worth noting that iteration 24
+       already raised the STATUS PILL to 0.86 for exactly this reason — the pill
+       is fixed and the bar was never the thing being read;
+     - "The cracked pavement and the grey concrete roofs share nearly identical
+       brightness and saturation." The collage class, FOURTEENTH report, against
+       measured building/ground gaps of 17.2 and 18.7 luma (iteration 16/17), and
+       the remedy — "darken the ground texture significantly" — is the direct
+       reversal of the fix that established cohesion in the first place;
+     - "The wireframe outline of the car is a thin, low-opacity cyan line
+       against a dark blue background ... increase the opacity and line
+       weight." STALE, and precisely stale: iteration 13 exists BECAUSE a review
+       called this schematic too faint, and raised the chassis to bright cyan on
+       navy. This is the twelfth report of the preview class and the first to
+       quote the pre-iteration-13 state as if it were current.
+     NO CODE CHANGED. Worth naming what five greps in a row adds up to: this is
+     the first review where EVERY finding was falsifiable from source without
+     opening a single screenshot. A review that can be refuted that cheaply has
+     not engaged with the build, and the correct response to it is to weight it
+     rather than answer it.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
