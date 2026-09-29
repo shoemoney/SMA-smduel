@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 45
+iteration: 46
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (45 of 82 vision models):
+Reviewers asked (46 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1309,6 +1309,53 @@ TOOLING - the review harness got audited by its own failure this round:
      cheapest possible check in the whole loop — one look at the frame answers it
      — and it is exactly the kind of claim that gets actioned anyway when a
      review is long and confident.
+
+46. mistralai/ministral-3b-2512 -> ZERO REAL. Nothing changed. The first finding
+     is aimed squarely at iteration 43's own change, three reviews after it, and
+     is wrong:
+     - "The small UI panel (New Driver/Controls) is positioned too close to the
+       bottom edge, making it hard to read due to cropping and lack of contrast."
+       FALSE on both counts, and the crop settles it. The menu is pinned at
+       `bottom: clamp(20px, 5vh, 56px)` — 45px clear of the edge at this
+       viewport, with the panel's whole bottom border and rounded corner visible
+       and well clear of the frame. Nothing is cropped. And it is not low
+       contrast: near-opaque body (0.92-alpha stack since iteration 20), a
+       top-lit inner highlight, a slate border, and the selected row carrying a
+       teal fill that measured 34.26 against 28.86 luma in iteration 26. The
+       text is crisp at 1:1.
+       Worth recording as a pattern: three reviews after moving the menu out of
+       the centre, a reviewer has now reported a problem with the move itself
+       without evidence for it. The move was measured against the frame then
+       (the art became visible for the first time) and re-measured after
+       (tagline 9.48:1 -> 9.00:1, bought knowingly). A later reviewer noticing
+       a number is not the same as that number being wrong;
+     - "Speedometer reads 0 mph in all screenshots, making it appear broken."
+       Every capture in this loop is a static frame of a vehicle at REST, and
+       0 mph is the honest reading of a car that is not moving. The gauge has
+       reported 0.0 mi on every capture since iteration 1, and the alternative
+       this asks for — a spinning needle while the vehicle is stationary — is
+       decoration that contradicts the simulation;
+     - "Radar sweep indicator ... no visible sweep arc." TWENTY-NINTH report on
+       that element. The sweep, the concentric rings, the crosshair and the
+       player marker are all in the capture, and the suggested remedy is the
+       placeholder-contact fabrication declined eight times;
+     - "Armour stats are all 0/0 with no visual distinction." EIGHTH report.
+       Two errors in one sentence: the panel does not print 0/0 for an unfitted
+       facing, it prints a dash inside a dashed chip — iteration 21 made that
+       state deliberately LOUDER precisely because a faint dash read as missing
+       data; and the two states ARE distinguished, by that chip against a real
+       number and a real depleting bar;
+     - "All armour slots are empty with no visual indication of where to place
+       armour points or what they represent." NINTH report, and it describes
+       three separate features that exist: the dashed ZONE outline for every
+       facing regardless of points bought (iteration 11), the brightness
+       increase (iteration 13), and the selected-row-to-zone LINK (iteration 33),
+       which is exactly "a cursor highlight on the armour slot you are editing".
+     NO CODE CHANGED. Five zero-real reviews in the last twelve is the shape of
+     the curve now: the defects worth finding were found in the first twenty
+     iterations, and the pool has been re-reporting the same five solved
+     complaints ever since. The most useful thing left to do with a review is
+     check whether it is looking at the shipped build.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

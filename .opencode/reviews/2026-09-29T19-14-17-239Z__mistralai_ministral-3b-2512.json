@@ -1,0 +1,75 @@
+{
+  "model": "mistralai/ministral-3b-2512",
+  "modelLabel": "mistralai/ministral-3b-2512",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:14:17.240Z",
+  "usage": {
+    "prompt_tokens": 7209,
+    "completion_tokens": 706,
+    "total_tokens": 7915,
+    "cost": 0.0007915,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0007915,
+      "upstream_inference_prompt_cost": 0.0007209,
+      "upstream_inference_completions_cost": 0.0000706
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Radar Sweep Invisibility",
+      "where": "Arena, Radar panel (bottom-left)",
+      "problem": "Radar sweep indicator is a solid green circle with no visible sweep arc or contact markers, making it appear as a static instrument rather than an active sensor.",
+      "why": "Players expect radar to show sweep progress and contacts; lack of feedback makes the UI feel incomplete and breaks immersion in combat.",
+      "fix": "Add a subtle, animated sweep arc (e.g., semi-transparent radial lines) and highlight contacts as small, distinct dots with a distinct color (e.g., red/yellow) when detected."
+    },
+    {
+      "title": "Speedometer Zero State",
+      "where": "Arena, Road, Speedometer (center-right)",
+      "problem": "Speedometer reads 0 mph in all screenshots, with no visual distinction between idle and active states (e.g., needle at center vs. spinning), making it appear broken.",
+      "why": "Zero mph is ambiguous; players assume active gameplay should show movement, and a broken gauge feels like a game bug rather than a design choice.",
+      "fix": "Add a subtle spinning animation to the speedometer needle when the vehicle is moving (e.g., slight blur or flicker) and ensure idle state is clearly marked with a static needle at center."
+    },
+    {
+      "title": "Armor Panel Unreadable",
+      "where": "Arena, Road, Condition Panel (top-right)",
+      "problem": "Armor stats (Front/Rear/Left/Right/Underbody) are all 0/0, with no visual distinction between armor points and unassigned slots, making it appear irrelevant.",
+      "why": "Players expect armor stats to be visible and meaningful; lack of feedback makes the vehicle feel underprepared for combat or city jobs.",
+      "fix": "Replace all 0/0 armor slots with a placeholder icon (e.g., empty armor plate) and add a faint outline around unassigned slots to indicate they can be upgraded."
+    },
+    {
+      "title": "Title Screen UI Overlap",
+      "where": "Title Screen, Bottom-left UI panel",
+      "problem": "The small UI panel (New Driver/Controls) is positioned too close to the bottom edge, making it hard to read due to cropping and lack of contrast against the dark background.",
+      "why": "Players may dismiss the UI as unintentional or poorly designed; contrast and hierarchy are lost when UI elements are too close to screen edges.",
+      "fix": "Move the UI panel up by 50px and increase its contrast by adding a faint glow or border to separate it from the background."
+    },
+    {
+      "title": "Vehicle Constructor Armor Confusion",
+      "where": "Constructor Screen, Armor Slots",
+      "problem": "All armor slots (Front/Rear/Left/Right/Underbody) are empty (0/0) with no visual indication of where to place armor points or what they represent.",
+      "why": "Players cannot understand how to customize armor, leading to confusion and frustration in building vehicles for combat or jobs.",
+      "fix": "Replace empty slots with a placeholder icon (e.g., a small armor plate) and add a tooltip or cursor highlight when hovering over slots to show available armor points."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n    {\n        \"title\": \"Radar Sweep Invisibility\",\n        \"where\": \"Arena, Radar panel (bottom-left)\",\n        \"problem\": \"Radar sweep indicator is a solid green circle with no visible sweep arc or contact markers, making it appear as a static instrument rather than an active sensor.\",\n        \"why\": \"Players expect radar to show sweep progress and contacts; lack of feedback makes the UI feel incomplete and breaks immersion in combat.\",\n        \"fix\": \"Add a subtle, animated sweep arc (e.g., semi-transparent radial lines) and highlight contacts as small, distinct dots with a distinct color (e.g., red/yellow) when detected.\"\n    },\n    {\n        \"title\": \"Speedometer Zero State\",\n        \"where\": \"Arena, Road, Speedometer (center-right)\",\n        \"problem\": \"Speedometer reads 0 mph in all screenshots, with no visual distinction between idle and active states (e.g., needle at center vs. spinning), making it appear broken.\",\n        \"why\": \"Zero mph is ambiguous; players assume active gameplay should show movement, and a broken gauge feels like a game bug rather than a design choice.\",\n        \"fix\": \"Add a subtle spinning animation to the speedometer needle when the vehicle is moving (e.g., slight blur or flicker) and ensure idle state is clearly marked with a static needle at center.\"\n    },\n    {\n        \"title\": \"Armor Panel Unreadable\",\n        \"where\": \"Arena, Road, Condition Panel (top-right)\",\n        \"problem\": \"Armor stats (Front/Rear/Left/Right/Underbody) are all 0/0, with no visual distinction between armor points and unassigned slots, making it appear irrelevant.\",\n        \"why\": \"Players expect armor stats to be visible and meaningful; lack of feedback makes the vehicle feel underprepared for combat or city jobs.\",\n        \"fix\": \"Replace all 0/0 armor slots with a placeholder icon (e.g., empty armor plate) and add a faint outline around unassigned slots to indicate they can be upgraded.\"\n    },\n    {\n        \"title\": \"Title Screen UI Overlap\",\n        \"where\": \"Title Screen, Bottom-left UI panel\",\n        \"problem\": \"The small UI panel (New Driver/Controls) is positioned too close to the bottom edge, making it hard to read due to cropping and lack of contrast against the dark background.\",\n        \"why\": \"Players may dismiss the UI as unintentional or poorly designed; contrast and hierarchy are lost when UI elements are too close to screen edges.\",\n        \"fix\": \"Move the UI panel up by 50px and increase its contrast by adding a faint glow or border to separate it from the background.\"\n    },\n    {\n        \"title\": \"Vehicle Constructor Armor Confusion\",\n        \"where\": \"Constructor Screen, Armor Slots\",\n        \"problem\": \"All armor slots (Front/Rear/Left/Right/Underbody) are empty (0/0) with no visual indication of where to place armor points or what they represent.\",\n        \"why\": \"Players cannot understand how to customize armor, leading to confusion and frustration in building vehicles for combat or jobs.\",\n        \"fix\": \"Replace empty slots with a placeholder icon (e.g., a small armor plate) and add a tooltip or cursor highlight when hovering over slots to show available armor points.\"\n    }\n]"
+}
