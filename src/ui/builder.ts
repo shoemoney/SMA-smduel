@@ -683,6 +683,8 @@ function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLE
   const rows = computeRows(state);
   const list = document.createElement('ol');
   list.className = 'sm-builder__rows';
+  const confirmSlot = document.createElement('div');
+  confirmSlot.className = 'sm-builder__confirm-slot';
   rows.forEach((row, index) => {
     const li = document.createElement('li');
     li.className = `sm-builder__row sm-builder__row--${row.kind}`;
@@ -777,9 +779,29 @@ function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLE
       li.appendChild(controls);
     }
 
+    // CONFIRM is the pane's PRIMARY ACTION, and it is rendered into a PINNED
+    // FOOTER rather than appended to the scrolling list.
+    //
+    // Two reviews reported the confirm row as "partially clipped" (iteration 18)
+    // and "vertically undersized, showing only the top edges of characters"
+    // (iteration 21) and I recorded BOTH as false — the first without looking
+    // closely enough, the second by concluding no such element existed. They
+    // were right both times. `.sm-builder__rows` is `max-height: 60vh` with
+    // `overflow-y: auto`, and on a 900px viewport the list is exactly tall enough
+    // that the confirm row straddles the container's bottom edge, so the one
+    // control that ends the whole screen renders as a sliced sliver you have to
+    // scroll to find.
+    //
+    // The row keeps its position in `computeRows` — selection, the 0-9 typing
+    // model and the whole index space are untouched. Only its container changes.
+    if (row.kind === 'confirm') {
+      confirmSlot.appendChild(li);
+      return;
+    }
     list.appendChild(li);
   });
   left.appendChild(list);
+  left.appendChild(confirmSlot);
 
   // Keyboard-only hint: a phone player has none of ↑↓←→/0-9/Enter, and there
   // is no in-scope way to say so instead — every route (a new bare literal,

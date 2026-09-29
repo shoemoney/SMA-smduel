@@ -170,6 +170,7 @@ import {
   buildCityActorInstances,
   cityStaticLayers,
   cityLayer1InstanceCount,
+  facilityMarkerTint,
   type CityVehicleView,
   type CityViewSnapshot,
   WALL_SETBACK_M as CITY_WALL_SETBACK_M,
@@ -4049,6 +4050,40 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   } else {
     carStrip.style.display = 'none';
   }
+  /**
+   * The key to the entrance-marker colours.
+   *
+   * Iteration 37 colour-coded the facility markers by what each building IS FOR,
+   * which fixed eight rounds of "the city is an undifferentiated grey field" —
+   * and a review immediately pointed out the obvious hole: four saturated
+   * colours with nothing to learn them from. Colour that carries information is
+   * only information once the mapping is discoverable, and a player driving past
+   * a cyan chevron has no way to know cyan means "job" rather than "clinic".
+   *
+   * A legend is the cheapest possible way to close that, and it costs no
+   * instances in a buffer that is exactly full.
+   */
+  const legend = el('div');
+  legend.style.cssText =
+    'position:absolute;bottom:10px;right:10px;display:flex;gap:10px;align-items:center;color:#9fb0c2;font-family:system-ui,sans-serif;font-size:11px;background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-radius:6px;padding:5px 9px;pointer-events:none;';
+  for (const [label, tint] of [
+    [t('ui.city.legendFight'), facilityMarkerTint('arena')],
+    [t('ui.city.legendBuild'), facilityMarkerTint('garage')],
+    [t('ui.city.legendCare'), facilityMarkerTint('medical')],
+    [t('ui.city.legendJobs'), facilityMarkerTint('truckstop')],
+  ] as const) {
+    const key = el('span');
+    key.style.cssText = 'display:inline-flex;align-items:center;gap:4px;';
+    const swatch = el('span');
+    // The swatch is the marker art's own hue, so the key and the map cannot
+    // drift apart: both read `facilityMarkerTint`.
+    swatch.style.cssText = `width:9px;height:9px;border-radius:2px;background:rgb(${Math.round(Math.min(1, tint.r) * 200)},${Math.round(Math.min(1, tint.g) * 200)},${Math.round(Math.min(1, tint.b) * 200)});`;
+    const text = el('span');
+    text.textContent = label;
+    key.appendChild(swatch);
+    key.appendChild(text);
+    legend.appendChild(key);
+  }
   const deviceNotice = el('div');
   deviceNotice.style.cssText =
     'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ff6b6b;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
@@ -4060,6 +4095,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   container.appendChild(canvas);
   container.appendChild(status);
   container.appendChild(carStrip);
+  container.appendChild(legend);
   container.appendChild(deviceNotice);
   container.appendChild(retryBtn);
   container.appendChild(panelHost);

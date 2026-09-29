@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 38
+iteration: 39
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (38 of 82 vision models):
+Reviewers asked (39 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -995,6 +995,59 @@ TOOLING - the review harness got audited by its own failure this round:
      first twenty did - the five complaints that used to recur every round have
      either been fixed or, more often, turned out to be measurements I had
      already taken and should have kept in front of me.
+
+39. google/gemini-3.7-flash -> 2 REAL, and the first is a bug TWO REVIEWERS WERE
+     RIGHT ABOUT AND I LOGGED AS FALSE TWICE:
+     - "The configuration list overflows its bottom container boundary and
+       partially clips the 'CONFIRM' action text ... clipped UI elements look
+       visibly broken." TRUE, and it is the third reviewer to report it —
+       iteration 18 said "CONFIRM clipped by the help line" and iteration 21
+       said "the section header bar is vertically undersized, showing only the
+       top edges of characters". I recorded BOTH as false. The first I waved off
+       without looking closely enough; the second I dismissed by concluding no
+       such element existed, because I was looking at the section RULE from
+       iteration 17 rather than at the confirm row.
+       Root cause, once actually looked at: `.sm-builder__rows` is
+       `max-height: 60vh; overflow-y: auto`, and on a 900px viewport the list is
+       exactly tall enough that the confirm row STRADDLES the container's bottom
+       edge. The control that ends the entire screen was rendering as a sliced
+       sliver that has to be scrolled to find. CONFIRM now renders into a pinned
+       footer outside the scroll region, so it cannot be scrolled away however
+       long the loadout gets. The row keeps its index in `computeRows`, so
+       selection, the 0-9 typing model and the whole index space are untouched —
+       only its container changed.
+       THE LESSON, and it is the sharpest one in this log: I dismissed two
+       correct reports using two DIFFERENT bad methods — one by not looking, one
+       by looking at the wrong element. A claim that recurs from independent
+       reviewers is evidence about MY CHECK, not about the claim. "I checked and
+       it was fine" has to mean "I looked at the thing they named".
+     - "Every building entrance is marked by a generic saturated chevron in raw
+       primary colours with no semantic labels or icons to explain what each
+       structure does." TRUE, and it is aimed squarely at iteration 37's work,
+       which is exactly right: colour that carries information is only
+       information once the mapping is discoverable, and a player driving past a
+       cyan chevron had no way to know cyan means "job" rather than "clinic".
+       Four saturated colours and nothing to learn them from is just four
+       saturated colours. The city now carries a key — Fight / Build / Care /
+       Jobs — whose swatches read `facilityMarkerTint` itself, so the legend and
+       the map cannot drift apart. It adds no instances, which matters in a
+       buffer that is exactly full at 95/95.
+     FALSE: the ground shows "severe macro-pixelation and harsh square tile
+       seams" — the documented NEAREST-sampler consequence, damped in iterations
+       31 and 34 by separating the high-frequency and low-frequency asks;
+     - "The city is a monochromatic value wash ... zero depth hierarchy." NINTH
+       review of that class. Measured building/ground gaps are 17.2 and 18.7, and
+       the suggested fix — "darken the ground, add strong directional contact
+       shadows" — is iterations 16 and 17 run backwards;
+     - "Accessibility toggles pinned permanently to viewport corners." A fair
+       observation and a genuine design tradeoff, recorded rather than acted on:
+       those toggles are one-key reachable precisely because they are on screen,
+       and hiding them behind a menu removes access for the players who need them
+       mid-run. Corner placement with a panel background is the compromise already
+       in place;
+     - "Replace the flat rounded rectangle with a top-down vehicle rendering."
+       The same ask as iterations 13, 16, 24, 26 and 37, declined for the settled
+       reason: the schematic exists to show armour zones the sprite cannot carry.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

@@ -1,0 +1,75 @@
+{
+  "model": "google/gemini-3.7-flash",
+  "modelLabel": "google/gemini-3.7-flash",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T18:51:12.198Z",
+  "usage": {
+    "prompt_tokens": 5843,
+    "completion_tokens": 2804,
+    "total_tokens": 8647,
+    "cost": 0.01489725,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.01489725,
+      "upstream_inference_prompt_cost": 0.00438225,
+      "upstream_inference_completions_cost": 0.010515
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 1932,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Ground texture blockiness and resolution mismatch",
+      "where": "Arena and Road screens (entire ground surface)",
+      "problem": "The terrain surfaces (arena concrete tiles and road asphalt/dirt shoulders) show severe macro-pixelation, harsh square tile seams, and blurry noise artifacts that clash directly with the vehicle's crisper pixel scale.",
+      "why": "It flattens the world, breaks material believability, and makes the game look like an untextured tech demo or stretched placeholder asset rather than a finished road surface.",
+      "fix": "Increase base texture texel density, implement smooth alpha-blended transition masks between road shoulders and terrain, and add detail decals like asphalt cracks, oil slicks, and tire marks to break up repetitive tiling."
+    },
+    {
+      "title": "Cryptic chevron markers and building legibility",
+      "where": "City screen (inside the circular perimeter wall)",
+      "problem": "Every building entrance is marked by a generic, saturated rectangular chevron icon in raw primary colors (orange, green, cyan, red) with no semantic labels or icons to explain what each structure does.",
+      "why": "The player cannot decipher which building is a garage, shop, clinic, or courier depot at a glance, forcing blind trial-and-error while creating high-contrast visual clutter against the muted environment.",
+      "fix": "Replace identical chevrons with legible functional iconography (e.g., wrench for garage, crosshair for armory, crate for cargo contracts) and ground-projected bay markers with clear hover tooltips."
+    },
+    {
+      "title": "UI clipping and disconnected wireframe in constructor",
+      "where": "Vehicle Constructor screen (bottom-left list and right vehicle preview)",
+      "problem": "The configuration list overflows its bottom container boundary and partially clips the 'CONFIRM' action text, while the right side displays a primitive schematic rectangle surrounded by dead space instead of showing the actual vehicle model.",
+      "why": "Clipped UI elements look visibly broken, and the abstract 2D wireframe fails to communicate the visual impact of equipping new chassis, armor plates, and heavy weapons on the car.",
+      "fix": "Fix CSS container overflow to prevent button clipping, collapse empty weapon rows into an expandable list, and replace the flat rounded rectangle with a top-down visual vehicle rendering that dynamically displays equipped chassis, armor plating, and mounted guns."
+    },
+    {
+      "title": "Monochromatic value flattening in open world city",
+      "where": "City screen (ground terrain, buildings, and perimeter wall)",
+      "problem": "The cracked ground terrain, road tracks, buildings, and wall structures all share almost identical mid-gray tonal values and flat ambient lighting with minimal shadow casting.",
+      "why": "There is virtually zero depth hierarchy; the player vehicle, drivable paths, and structures blend into a single gray wash, draining the settlement of atmosphere and making spatial navigation muddy.",
+      "fix": "Darken the cracked wasteland ground to create contrast against buildings, render strong directional contact shadows under buildings and walls, and add warm local light sources (such as building entrance lights or street lanterns) to establish focal points."
+    },
+    {
+      "title": "Debug-style HUD clutter and fragmented gauges",
+      "where": "Arena, Road, and City screens (screen corners and HUD frames)",
+      "problem": "Settings toggles ('Reduced flash: off', 'Reduced shake: off', 'Arcade') sit permanently pinned to viewport corners, while vehicle telemetry is split into disjointed generic gray cards with ASCII-style text brackets ('[---]') for armor.",
+      "why": "The persistent debug/accessibility buttons dilute immersion and crowd screen corners, while text-bracket gauges are slow to read during high-speed combat compared to immediate graphical health bars.",
+      "fix": "Move accessibility toggles into a dedicated pause/options menu, and redesign the condition monitor with segmented visual armor bars around a central car silhouette for instant damage readability."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Ground texture blockiness and resolution mismatch\",\n    \"where\": \"Arena and Road screens (entire ground surface)\",\n    \"problem\": \"The terrain surfaces (arena concrete tiles and road asphalt/dirt shoulders) show severe macro-pixelation, harsh square tile seams, and blurry noise artifacts that clash directly with the vehicle's crisper pixel scale.\",\n    \"why\": \"It flattens the world, breaks material believability, and makes the game look like an untextured tech demo or stretched placeholder asset rather than a finished road surface.\",\n    \"fix\": \"Increase base texture texel density, implement smooth alpha-blended transition masks between road shoulders and terrain, and add detail decals like asphalt cracks, oil slicks, and tire marks to break up repetitive tiling.\"\n  },\n  {\n    \"title\": \"Cryptic chevron markers and building legibility\",\n    \"where\": \"City screen (inside the circular perimeter wall)\",\n    \"problem\": \"Every building entrance is marked by a generic, saturated rectangular chevron icon in raw primary colors (orange, green, cyan, red) with no semantic labels or icons to explain what each structure does.\",\n    \"why\": \"The player cannot decipher which building is a garage, shop, clinic, or courier depot at a glance, forcing blind trial-and-error while creating high-contrast visual clutter against the muted environment.\",\n    \"fix\": \"Replace identical chevrons with legible functional iconography (e.g., wrench for garage, crosshair for armory, crate for cargo contracts) and ground-projected bay markers with clear hover tooltips.\"\n  },\n  {\n    \"title\": \"UI clipping and disconnected wireframe in constructor\",\n    \"where\": \"Vehicle Constructor screen (bottom-left list and right vehicle preview)\",\n    \"problem\": \"The configuration list overflows its bottom container boundary and partially clips the 'CONFIRM' action text, while the right side displays a primitive schematic rectangle surrounded by dead space instead of showing the actual vehicle model.\",\n    \"why\": \"Clipped UI elements look visibly broken, and the abstract 2D wireframe fails to communicate the visual impact of equipping new chassis, armor plates, and heavy weapons on the car.\",\n    \"fix\": \"Fix CSS container overflow to prevent button clipping, collapse empty weapon rows into an expandable list, and replace the flat rounded rectangle with a top-down visual vehicle rendering that dynamically displays equipped chassis, armor plating, and mounted guns.\"\n  },\n  {\n    \"title\": \"Monochromatic value flattening in open world city\",\n    \"where\": \"City screen (ground terrain, buildings, and perimeter wall)\",\n    \"problem\": \"The cracked ground terrain, road tracks, buildings, and wall structures all share almost identical mid-gray tonal values and flat ambient lighting with minimal shadow casting.\",\n    \"why\": \"There is virtually zero depth hierarchy; the player vehicle, drivable paths, and structures blend into a single gray wash, draining the settlement of atmosphere and making spatial navigation muddy.\",\n    \"fix\": \"Darken the cracked wasteland ground to create contrast against buildings, render strong directional contact shadows under buildings and walls, and add warm local light sources (such as building entrance lights or street lanterns) to establish focal points.\"\n  },\n  {\n    \"title\": \"Debug-style HUD clutter and fragmented gauges\",\n    \"where\": \"Arena, Road, and City screens (screen corners and HUD frames)\",\n    \"problem\": \"Settings toggles ('Reduced flash: off', 'Reduced shake: off', 'Arcade') sit permanently pinned to viewport corners, while vehicle telemetry is split into disjointed generic gray cards with ASCII-style text brackets ('[---]') for armor.\",\n    \"why\": \"The persistent debug/accessibility buttons dilute immersion and crowd screen corners, while text-bracket gauges are slow to read during high-speed combat compared to immediate graphical health bars.\",\n    \"fix\": \"Move accessibility toggles into a dedicated pause/options menu, and redesign the condition monitor with segmented visual armor bars around a central car silhouette for instant damage readability.\"\n  }\n]"
+}

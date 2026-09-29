@@ -146,6 +146,20 @@
   font-style: italic;
 }
 
+/* The pinned footer that holds the primary action, OUTSIDE the scrolling list.
+ *
+ * `.sm-builder__rows` is `max-height: 60vh; overflow-y: auto`, and at a 900px
+ * viewport the confirm row lands straddling that boundary — so the control that
+ * ends the entire screen was rendering as a sliced sliver below the fold. Two
+ * reviews reported it as clipped and were right; it had been logged as false
+ * twice. The action is now outside the scroll region entirely, so it cannot be
+ * scrolled away no matter how long the loadout gets. */
+.sm-builder__confirm-slot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
 .sm-builder__row--confirm {
   margin-top: var(--ui-space-5);
   /* A PRIMARY ACTION, not another data row.
