@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 15
+iteration: 16
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (15 of 82 vision models):
+Reviewers asked (16 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -125,6 +125,38 @@ every HUD panel - caught in a screenshot, reverted, redone as weight-only.
      - the model picker also returned google/gemini-3-pro-image-preview, an
        image GENERATION model, because the exclusion pattern was `-image$` and
        that id ends in -preview. The pattern now matches the substring anywhere.
+
+16. qwen/qwen3.5-plus-02-15 -> 1 REAL (the long-standing city-cohesion item):
+     - "The building sprites appear to be photographic cutouts with varying
+       lighting directions and perspectives, clashing with the flat, stylized
+       car and map. It makes the world look like a collage of unrelated
+       assets." CONFIRMED at full res - the buildings really were mixed-source
+       art each carrying its own colour identity, scattered on a cool grey map.
+       A multiply TINT cannot fix this: multiplying by a colour only darkens and
+       shifts hue, and the mismatched SATURATION is exactly what survives. So
+       there is now a real GRADED fragment path (SPRITE_KIND 3): desaturate,
+       then pull toward the ground's cool slate AT THE SAME LUMINANCE, keeping
+       each building's own light-to-dark modelling. Actors, the waypoint beacon
+       and doormarkers stay ungraded so the orange car still reads as the focal
+       point. 2 new tests pin the kind routing and the overloaded-slot packing.
+     FALSE: "schematic lines very low contrast" - at full res the chassis is
+       bright cyan on navy, which is the fix iteration 13 made. Perception class.
+     Recorded: dashes on unfitted armour read as null data (a pristine build has
+       no armour, so a dash is correct - an explicit caption would be clearer);
+       the condition panel occupies road real estate (deliberate HUD choice).
+
+TOOLING - the review harness got audited by its own failure this round:
+     - the iteration-15 picker fix had been applied in an AD-HOC shell snippet,
+       not in tools/review.mjs, so two copies of the filter already existed and
+       had drifted. The filter now lives in ONE exported function that both
+       --list and --pick call, and the tool marks what has been asked.
+     - --pick's "already asked" set is parsed from the loop log, and the
+       function THROWS if it cannot parse any ids. It shipped briefly as a
+       try/catch returning [] around an unimported readFileSync, which reported
+       "0 models asked" as if it were fact - the picker would then re-ask used
+       models forever while looking perfectly healthy. The only safe response to
+       "I do not know what has been asked" is to stop.
+     - 75 models in the pool, 61 not yet asked.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

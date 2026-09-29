@@ -26,8 +26,10 @@
  * usage:
  *   node tools/review.mjs --model google/gemini-3.8-flash
  *   node tools/review.mjs --model z-ai/glm-5.3-flash --screens arena,city
- *   node tools/review.mjs --list          # show the model pool
+ *   node tools/review.mjs --list          # show the pool, marking what is asked
+ *   node tools/review.mjs --pick          # a random eligible model not yet asked
  */
+import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -64,35 +66,79 @@ function arg(name, fallback) {
   return next === undefined || next.startsWith('--') ? true : next;
 }
 
-if (arg('list', false) !== false) {
-  const pool = await fetchPool();
-  console.log(`${pool.length} vision models in the pool:`);
-  for (const id of pool) console.log(`  ${id}`);
-  process.exit(0);
+const LOOP_LOG = new URL('../.opencode/ralph-loop.local.md', import.meta.url);
+
+/**
+ * The eligible-reviewer filter, in ONE place.
+ *
+ * Iteration 15 picked `google/gemini-3-pro-image-preview` — an image
+ * GENERATION model, not a critic — because the exclusion pattern was `-image$`
+ * and that id ends in `-preview`. It got fixed, but in an ad-hoc shell snippet
+ * rather than here, so two copies of the filter existed and had already drifted.
+ * There is now exactly one, and both `--list` and `--pick` call it.
+ *
+ * Excluded, with reasons:
+ *  - not image-input          : cannot look at a screenshot at all
+ *  - `:batch` / leading `~`   : aliases and pinned snapshots, not distinct models
+ *  - image generation         : returns art, not an opinion
+ *  - speech / audio           : not reviewers
+ *  - safety / guard / censor  : these answer "is this safe", not "is this good"
+ *                               (they answered a safety question when asked for a
+ *                               design one, and it had to be thrown away)
+ *  - `:free`                  : free tiers get silently re-pointed and throttle
+ */
+function isReviewerCandidate(m) {
+  const id = m.id;
+  if (m.architecture?.input_modalities?.includes('image') !== true) return false;
+  if (id.includes(':batch') || id.startsWith('~')) return false;
+  if (/image-gen|-image|image-|tts|whisper|stable-diffusion|flux|sd3|dall|ideogram|recraft|safety|guard|moderation|censor/i.test(id)) return false;
+  if (id.endsWith(':free')) return false;
+  return /flash|mini|lite|glm|gemini-3|qwen3|step|seed|mimo|nemotron|granite|ministral/.test(id);
 }
 
-async function fetchPool() {
+async function fetchModels() {
   const res = await fetch('https://openrouter.ai/api/v1/models', {
     headers: { Authorization: `Bearer ${KEY}` },
   });
-  const json = await res.json();
-  return json.data
-    .filter((m) => {
-      const id = m.id;
-      if (!m.architecture?.input_modalities?.includes('image')) return false;
-      if (id.includes(':batch') || id.startsWith('~')) return false;
-      // Image GENERATION models are not vision-language models; asking one to
-      // critique a screenshot returns art, not an opinion.
-      // Image GENERATION models are not vision-language models: asking one to
-    // critique a screenshot returns art, not an opinion. The original pattern
-    // was `-image$`, which missed `gemini-3-pro-image-preview` because that id
-    // ends in `-preview` — so the substring match is on the whole id instead.
-    if (/image-gen|tts|whisper|stable-diffusion|flux|sd3|dall|ideogram|recraft|-image|image-|safety|guard|moderation|censor/i.test(id)) return false;
-    if (id.endsWith(':free')) return false;
-      return /flash|mini|lite|glm|gemini-3|qwen3|step|seed|mimo|nemotron|granite/.test(id);
-    })
-    .map((m) => m.id)
-    .sort();
+  if (!res.ok) throw new Error(`review: OpenRouter /models returned ${res.status}`);
+  return (await res.json()).data;
+}
+
+/** Model ids already asked, parsed from the loop log so the two cannot drift. */
+function readReviewedIds() {
+  // Deliberately NOT wrapped in a try/catch that returns []. That shape is how
+  // this function shipped a ReferenceError for an unimported `readFileSync` and
+  // reported "0 models asked so far" as if it were the truth — the picker would
+  // then cheerfully re-ask models the loop had already used, forever, while
+  // looking perfectly healthy. An unreadable log is a hard error here, because
+  // the only safe response to "I don't know what has been asked" is to stop.
+  const text = readFileSync(LOOP_LOG, 'utf8');
+  const ids = text
+    .split('\n')
+    .filter((l) => /^\s*\d+\.\s/.test(l))
+    .map((l) => /(\d+)\.\s+([\w./:-]+)/.exec(l)?.[2])
+    .filter(Boolean);
+  if (ids.length === 0) {
+    throw new Error(`review: no reviewer ids parsed from ${LOOP_LOG.pathname} — refusing to pick`);
+  }
+  return ids;
+}
+
+if (arg('pick', false) !== false) {
+  const reviewed = new Set(readReviewedIds());
+  const eligible = (await fetchModels()).filter((m) => isReviewerCandidate(m) && !reviewed.has(m.id));
+  if (eligible.length === 0) throw new Error('review: every eligible model has already been asked');
+  console.log(eligible[Math.floor(Math.random() * eligible.length)].id);
+  process.exit(0);
+}
+
+if (arg('list', false) !== false) {
+  const reviewed = new Set(readReviewedIds());
+  const eligible = (await fetchModels()).filter(isReviewerCandidate);
+  const fresh = eligible.filter((m) => !reviewed.has(m.id));
+  console.log(`${eligible.length} vision models in the pool (${fresh.length} not yet asked):`);
+  for (const m of eligible) console.log(`  ${reviewed.has(m.id) ? '[x]' : '[ ]'} ${m.id}`);
+  process.exit(0);
 }
 
 /** Resizes a capture to review size so the model reads composition, not pixels. */
@@ -125,7 +171,7 @@ Hard rules:
 Return ONLY a JSON array of exactly 5 objects with keys: title, where, problem, why, fix. No prose, no markdown fence, no preamble, no explanation before or after the array. Start your reply with the character [.`;
 
 const model = String(arg('model', ''));
-if (model === '') throw new Error('review: --model is required (see --list)');
+if (model === '') throw new Error('review: --model is required (see --list, or use --pick)');
 const screens = String(arg('screens', DEFAULT_SCREENS.join(',')))
   .split(',')
   .map((s) => s.trim())

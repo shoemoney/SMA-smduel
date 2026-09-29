@@ -127,6 +127,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
   //   kind 1 (shadow): zw = (softness, opacity)   -- analytic, no texture read
   //   kind 2 (ground): zw = (tileMetres, detailScale)
   //   kind 0 (plain):  sampled * tint
+//   kind 3 (graded): zw = (desaturate, tone)  -- unify a mismatched art set
   if (in.kind == 1.0) {
     // --- contact shadow -----------------------------------------------------
     // The scene has no lighting of any kind - this shader is the entire
@@ -151,6 +152,24 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     // Clamping the softness at zero makes the exponent always >= 1.
     let falloff = pow(clamp(1.0 - d, 0.0, 1.0), 1.0 + max(in.params.z, 0.0) * 3.0);
     color = vec4<f32>(0.0, 0.0, 0.0, falloff * max(in.params.w, 0.0));
+  } else if (in.kind == 3.0) {
+    // --- palette grade -------------------------------------------------------
+    // Desaturate, then pull toward the scene's cool slate at the SAME
+    // luminance, so the sprite keeps its own light-to-dark modelling and only
+    // loses the hue that made it look like it came from somewhere else.
+    //
+    // This exists because a multiply tint cannot do it. A review of the city
+    // said the buildings "look like a collage of unrelated assets" with
+    // "varying lighting directions and perspectives", and the suggested fix was
+    // exactly this: "apply a unified color grade ... to match the cool, neutral
+    // lighting of the ground plane". Multiplying by a cool colour only darkens
+    // and shifts; the mismatched saturation survives, because that is the part
+    // a multiply cannot touch.
+    let lum = dot(color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722));
+    let grey = vec3<f32>(lum);
+    color = vec4<f32>(mix(color.rgb, grey, clamp(in.params.z, 0.0, 1.0)), color.a);
+    let slate = vec3<f32>(0.44, 0.49, 0.57) * lum;
+    color = vec4<f32>(mix(color.rgb, slate, clamp(in.params.w, 0.0, 1.0)), color.a);
   } else if (in.kind == 2.0) {
     // NOTE: every texture read in this branch must be `textureSampleLevel`.
     // `textureSample` requires uniform control flow, and the branch condition

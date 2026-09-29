@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { applyMatrix, buildOrthoMatrix, createCamera } from '@/render/camera';
+import { SPRITE_KIND, resolveSpriteKind } from '@/render/sprite';
 import {
   BYTES_PER_INSTANCE,
   FLOATS_PER_INSTANCE,
@@ -1179,5 +1180,47 @@ describe('sprite.wgsl / tile.wgsl: instance struct matches the packer', () => {
     expect(clean).toContain('var sourceTexture: texture_2d<f32>');
     const body = extractFunctionBody(clean, 'fn vs_main(');
     expect(body).toMatch(/\[\s*vertexIndex\s*%\s*3u\s*\]/);
+  });
+});
+
+describe('palette grade: a new fragment path that a multiply tint cannot express', () => {
+  const base = {
+    atlasId: '0',
+    position: { x: 0, y: 0 },
+    rotationRad: 0,
+    sizeM: { x: 1, y: 1 },
+    uvRect: { u0: 0, v0: 0, u1: 1, v1: 1 },
+    tint: { r: 1, g: 1, b: 1, a: 1 },
+    layer: 1,
+  } as const;
+
+  it('routes a graded sprite to the GRADED kind, and leaves every other kind alone', () => {
+    // Grading exists because multiplying by a colour can only darken or shift
+    // hue — it cannot desaturate, so mixed-source art stays a collage however
+    // cool the multiply is. A review of the city called exactly that out.
+    expect(resolveSpriteKind({ ...base, gradeDesaturate: 0.55, gradeTone: 0.42 })).toBe(SPRITE_KIND.GRADED);
+    expect(resolveSpriteKind(base)).toBe(SPRITE_KIND.PLAIN);
+    // A graded sprite with no shadow must NOT be mistaken for a shadow, and a
+    // ground quad must still win over the grade.
+    expect(resolveSpriteKind({ ...base, gradeDesaturate: 0.55, shadowOpacity: 0.4 })).toBe(SPRITE_KIND.SHADOW);
+    expect(
+      resolveSpriteKind({ ...base, gradeDesaturate: 0.55, uvRepeatMetres: 4 }),
+    ).toBe(SPRITE_KIND.GROUND);
+  });
+
+  it('packs both grade amounts into the two slots the shadow path would have used', () => {
+    // These slots are OVERLOADED (see the byte-layout table in sprite.ts), so
+    // the grade has to land in exactly the two floats the shader reads as
+    // params.z and params.w — and a plain sprite must keep writing zeros there,
+    // or the grade branch would pick up another sprite's numbers.
+    const graded = packInstances([{ ...base, gradeDesaturate: 0.55, gradeTone: 0.42 }]);
+    expect(graded[6]).toBeCloseTo(0.55, 6);
+    expect(graded[7]).toBeCloseTo(0.42, 6);
+    expect(graded[16]).toBe(SPRITE_KIND.GRADED);
+
+    const plain = packInstances([base]);
+    expect(plain[6]).toBe(0);
+    expect(plain[7]).toBe(0);
+    expect(plain[16]).toBe(SPRITE_KIND.PLAIN);
   });
 });

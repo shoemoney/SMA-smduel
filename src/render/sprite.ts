@@ -114,6 +114,15 @@ export interface SpriteInstanceInput {
   readonly uvRepeatMetres?: number;
   /** Ground only: second sampling scale, as a multiple of `uvRepeatMetres`. 0 disables the blend. */
   readonly uvDetailScale?: number;
+  /**
+   * Graded only: how far to pull this sprite toward greyscale, 0..1. Combined
+   * with {@link gradeTone} it exists because a multiply `tint` CANNOT desaturate
+   * — multiplying by a colour only ever darkens or shifts hue, so the only way
+   * to unify a set of mismatched source art is a real fragment path.
+   */
+  readonly gradeDesaturate?: number;
+  /** Graded only: how far to pull this sprite toward the scene's cool slate, 0..1. */
+  readonly gradeTone?: number;
 }
 
 /**
@@ -124,6 +133,7 @@ export interface SpriteInstanceInput {
 export function resolveSpriteKind(inst: SpriteInstanceInput): SpriteKind {
   if (inst.uvRepeatMetres !== undefined && inst.uvRepeatMetres > 0) return SPRITE_KIND.GROUND;
   if (inst.shadowOpacity !== undefined && inst.shadowOpacity > 0) return SPRITE_KIND.SHADOW;
+  if (inst.gradeDesaturate !== undefined && inst.gradeDesaturate > 0) return SPRITE_KIND.GRADED;
   return SPRITE_KIND.PLAIN;
 }
 
@@ -140,6 +150,8 @@ export const SPRITE_KIND = {
   SHADOW: 1,
   /** World-space `fract()`-tiled ground quad with a second detail scale. */
   GROUND: 2,
+  /** Desaturated toward a shared tone, so one art set reads as one palette. */
+  GRADED: 3,
 } as const;
 
 export type SpriteKind = (typeof SPRITE_KIND)[keyof typeof SPRITE_KIND];
@@ -177,8 +189,20 @@ export function packInstances(instances: readonly SpriteInstanceInput[]): Float3
     // authoritative tag saying which — see resolveSpriteKind.
     const kind = resolveSpriteKind(inst);
     const isGround = kind === SPRITE_KIND.GROUND;
-    out[base + 6] = isGround ? (inst.uvRepeatMetres ?? 0) : (inst.shadowSoftness ?? 0);
-    out[base + 7] = isGround ? (inst.uvDetailScale ?? 0) : (inst.shadowOpacity ?? 0);
+    // A graded sprite has no shadow and no tiling parameters, so BOTH of the
+    // overloaded slots are free and carry its two grade amounts. The shader
+    // reads them as `params.z` and `params.w`.
+    const isGraded = kind === SPRITE_KIND.GRADED;
+    out[base + 6] = isGround
+      ? (inst.uvRepeatMetres ?? 0)
+      : isGraded
+        ? (inst.gradeDesaturate ?? 0)
+        : (inst.shadowSoftness ?? 0);
+    out[base + 7] = isGround
+      ? (inst.uvDetailScale ?? 0)
+      : isGraded
+        ? (inst.gradeTone ?? 0)
+        : (inst.shadowOpacity ?? 0);
     out[base + 8] = inst.uvRect.u0;
     out[base + 9] = inst.uvRect.v0;
     out[base + 10] = inst.uvRect.u1;

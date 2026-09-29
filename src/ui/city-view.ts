@@ -413,12 +413,26 @@ function shadowInstance(
   };
 }
 
+/**
+ * How hard the palette grade pulls a sprite toward the scene.
+ *
+ * A review of the city said the buildings "appear to be photographic cutouts
+ * with varying lighting directions and perspectives, clashing with the flat,
+ * stylized car and map", and made it "look like a collage of unrelated assets".
+ * The buildings are genuinely mixed-source art, so the fix is not to replace
+ * them but to stop them each carrying their own colour identity: desaturate,
+ * then pull the remainder toward the ground's cool slate. They keep their own
+ * light-to-dark modelling, which is what actually reads as "building".
+ */
+const CITY_PROP_GRADE = { desaturate: 0.55, tone: 0.42 } as const;
+
 function spriteInstance(
   frame: { readonly atlasIndex: number; readonly uv: SpriteInstanceInput['uvRect'] },
   position: Vec2,
   rotationRad: number,
   sizeM: Vec2,
   layer: number,
+  grade?: { desaturate: number; tone: number },
 ): SpriteInstanceInput {
   return {
     atlasId: String(frame.atlasIndex),
@@ -428,6 +442,7 @@ function spriteInstance(
     uvRect: frame.uv,
     tint: WHITE_TINT,
     layer,
+    ...(grade === undefined ? {} : { gradeDesaturate: grade.desaturate, gradeTone: grade.tone }),
   };
 }
 
@@ -515,7 +530,7 @@ function fillerInstances(layout: CityLayout, atlasIndex: AtlasIndex): SpriteInst
   for (const p of fillerPlacements(layout)) {
     const frame = atlasIndex.frame(p.frame);
     out.push(shadowInstance(frame, p.position, p.rotationRad, p.sizeM, BUILDING_SHADOW_SOFTNESS, BUILDING_SHADOW_OPACITY, LAYER_BUILDING));
-    out.push(spriteInstance(frame, p.position, p.rotationRad, p.sizeM, LAYER_BUILDING));
+    out.push(spriteInstance(frame, p.position, p.rotationRad, p.sizeM, LAYER_BUILDING, CITY_PROP_GRADE));
   }
   return out;
 }
@@ -611,7 +626,9 @@ function fillerPlacements(layout: CityLayout): PropPlacement[] {
 }
 
 function furnitureInstances(layout: CityLayout, atlasIndex: AtlasIndex): SpriteInstanceInput[] {
-  return furniturePlacements(layout).map((p) => spriteInstance(atlasIndex.frame(p.frame), p.position, p.rotationRad, p.sizeM, LAYER_BUILDING));
+  return furniturePlacements(layout).map((p) =>
+    spriteInstance(atlasIndex.frame(p.frame), p.position, p.rotationRad, p.sizeM, LAYER_BUILDING, CITY_PROP_GRADE),
+  );
 }
 
 /**
@@ -627,7 +644,7 @@ function buildingInstances(layout: CityLayout, doorway: Doorway, atlasIndex: Atl
   const sizeM: Vec2 = { x: layout.tileSizeM, y: layout.tileSizeM };
   return [
     shadowInstance(frame, doorway.position, 0, sizeM, BUILDING_SHADOW_SOFTNESS, BUILDING_SHADOW_OPACITY, LAYER_BUILDING),
-    spriteInstance(frame, doorway.position, 0, sizeM, LAYER_BUILDING),
+    spriteInstance(frame, doorway.position, 0, sizeM, LAYER_BUILDING, CITY_PROP_GRADE),
   ];
 }
 
@@ -704,7 +721,7 @@ function gateInstances(layout: CityLayout, gate: Gate, atlasIndex: AtlasIndex): 
   const sizeM: Vec2 = { x: layout.tileSizeM, y: layout.tileSizeM };
   return [
     shadowInstance(frame, gate.position, 0, sizeM, BUILDING_SHADOW_SOFTNESS, BUILDING_SHADOW_OPACITY, LAYER_BUILDING),
-    spriteInstance(frame, gate.position, 0, sizeM, LAYER_BUILDING),
+    spriteInstance(frame, gate.position, 0, sizeM, LAYER_BUILDING, CITY_PROP_GRADE),
   ];
 }
 
