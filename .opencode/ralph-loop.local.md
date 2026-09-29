@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 29
+iteration: 30
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (29 of 82 vision models):
+Reviewers asked (30 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -614,6 +614,41 @@ TOOLING - the review harness got audited by its own failure this round:
      - "Collapse the ten weapon rows into a summary." Fifth/sixth report of this
        class; the rows are addressed by index and 0-9 typing, so collapsing them
        would break selection and mounting.
+
+30. qwen/qwen3-vl-32b-instruct -> 2 REAL, one of them a first-impression
+     critique of a panel I shipped ONE ITERATION AGO, 3 FALSE:
+     - "The bottom-left vehicle status box blends into the cracked ground texture
+       with no clear border or elevation." That box is the city car strip added in
+       iteration 28, and the critique is fair and immediate - it had a border and an
+       accent edge but sat FLAT on the ground with no lift, so it read as a decal
+       rather than a panel. Drop shadow plus an inset top highlight, which is what
+       every other panel in the game already had. The fastest possible turnaround
+       on a review of my own work, and the most useful kind: a reviewer looking at
+       a fresh element and immediately seeing what it is missing.
+     - "The Name input is a plain rectangle with no cursor, placeholder text, or
+       active state indicator - it looks like a disabled or empty label." REAL.
+       The row's own value label says "(unnamed)", but that renders as the row's
+       VALUE, not inside the input, so the box the player is being invited to type
+       into was genuinely empty and genuinely looked inert. It now carries a
+       placeholder, set as an ATTRIBUTE and never as a value - a placeholder must
+       never be submitted as a name, and this input is the one place a stray
+       default could silently become the car's name. Styled dimmer than real text
+       AND italic, so an untouched build cannot be misread as a car actually
+       called "Name your car".
+       WORTH RECORDING AS A NEAR-MISS: after adding it, a 260px crop showed the
+       input still empty and it was tempting to conclude the fix had not worked.
+       The input is full-width and RIGHT-aligned (text-align: right), so the
+       placeholder renders at its far edge and a narrow crop simply cannot see it.
+       Re-cropped wide, it is there. That is the third time a crop has nearly
+       misled me in this loop, and the rule that falls out of all three is the
+       same: a crop that disagrees with the code is evidence about the CROP until
+       proven otherwise.
+     FALSE: the title menu is low contrast against the background (SIXTH report of
+       that class; the panel fill has been near-opaque since iteration 20 and the
+       selected row measured 34.26 vs 28.86 luma in iteration 26);
+     - "the road progress bar is extremely thin" - THIRD report, measured twice
+       now at 8px including borders;
+     - radar: 21st report on the same element.
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

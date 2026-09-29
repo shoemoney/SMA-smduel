@@ -204,6 +204,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The placeholder must read as a hint, not as a value. It is deliberately
+ * dimmer than the real text AND italic, so a screenshot of an untouched build
+ * cannot be mistaken for a car actually called "Name your car" — the exact
+ * failure the placeholder risks the moment it is styled like content. */
+.sm-builder__row-input::placeholder {
+  color: var(--ui-ink-dim);
+  font-style: italic;
+  opacity: 0.85;
+}
+
 .sm-builder__row-input {
   flex: 1 1 auto;
   min-width: 0;

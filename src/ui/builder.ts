@@ -709,6 +709,18 @@ function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLE
       input.maxLength = skillsConfig().driver.nameMaxLength;
       input.value = state.name;
       input.setAttribute('aria-label', 'Car name');
+      // A placeholder, because the box is genuinely EMPTY on a pristine build
+      // and an empty bordered rectangle next to a label reads as a disabled
+      // field. A review called it exactly that — "a plain rectangle with no
+      // cursor, placeholder text, or active state indicator ... it looks like a
+      // disabled or empty label" — and it is fair: the row's own value label
+      // says "(unnamed)", but that is rendered as the row's VALUE, not inside
+      // the input, so what the player is being invited to type into looks inert.
+      //
+      // Set through the attribute rather than as `value`, because a placeholder
+      // must never be submitted as a name — and this input is the one place a
+      // stray default could silently become the car's name.
+      input.setAttribute('placeholder', t('ui.builder.namePlaceholder'));
       // A real, focusable input is the whole fix (see this file's header):
       // it's what lets a phone's on-screen keyboard open at all. Its own
       // `keydown` must not bubble up to the container's listener below —

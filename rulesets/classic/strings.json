@@ -70,6 +70,7 @@
     "ui.title.tagline": "One car. Sixteen cities. A highway that wants you dead.",
     "ui.builder.previewTitleSuffix": "— top view",
     "ui.builder.previewCaption": "{lengthM} m × {widthM} m · {armor} armour · {weapons} mounted",
+    "ui.builder.namePlaceholder": "Name your car",
     "ui.builder.legalityPrompt": "Name your car, then fit armour and at least one weapon to make it road-legal.",
     "ui.builder.legalityStepName": "Type a name in the Name row at the top.",
     "ui.builder.legalityStepArmor": "Add armour points to any facing on the left.",

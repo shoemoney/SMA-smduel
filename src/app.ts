@@ -4026,7 +4026,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
    */
   const carStrip = el('div');
   carStrip.style.cssText =
-    'position:absolute;bottom:10px;left:10px;max-width:min(320px, 42vw);color:#c9d6e4;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-left:3px solid var(--ui-accent-strong, #4fd6c4);border-radius:6px;padding:6px 9px;pointer-events:none;';
+    'position:absolute;bottom:10px;left:10px;max-width:min(320px, 42vw);color:#c9d6e4;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-left:3px solid var(--ui-accent-strong, #4fd6c4);border-radius:6px;padding:6px 9px;pointer-events:none;box-shadow:0 3px 14px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset;';
   if (state.vehicle !== null) {
     const v = state.vehicle;
     const armourTotal = FACINGS.reduce<number>((sum, f) => sum + (v.design.armor[f] ?? 0), 0);
