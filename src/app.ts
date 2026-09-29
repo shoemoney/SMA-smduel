@@ -1921,9 +1921,36 @@ const CITY_FIT_PAD_M = 3;
  * camera: the car is the largest, clearest object on screen, and the ground and
  * shadow work is finally visible enough to judge.
  */
-const ARENA_ZOOM_PX_PER_M = 30;
-/** Road zoom. Tighter than the arena was, but a little wider than the arena for road ahead. */
-const ROAD_ZOOM_PX_PER_M = 28;
+const ARENA_ZOOM_PX_PER_M = 40;
+/**
+ * Road zoom. Tighter than the arena was, but a little wider than the arena for
+ * road ahead.
+ *
+ * Raised 28 -> 34, and deliberately NOT by the same factor as the arena. The
+ * arena went 30 -> 40 (+33%) because two independent reviewers asked for it and
+ * there is provably nothing out there to see: the arena is an unbounded field
+ * (iteration 21 declined to fake boundaries into it) with no lanes, no props and
+ * no landmarks, so every pixel past the car is empty floor, and the review that
+ * asked for it measured the car at ~8% of frame width and named that as the
+ * single biggest reason the game looks unfinished in motion.
+ *
+ * The road gets a smaller bump on purpose. Its zoom is wider than the arena's
+ * for a stated reason — road AHEAD, so oncoming traffic is visible before it
+ * arrives — and contacts on this screen are placed by remaining route-miles, so
+ * cropping the view shortens the warning a player gets. A 1.5x jump would take
+ * visible road from 32m to 21m, which is a third of the reaction distance given
+ * away for a framing gain. 34 keeps 26.5m of it.
+ *
+ * Neither change can hide anything that was previously visible-and-load-bearing,
+ * because awareness on both screens is the RADAR's job and it is unchanged:
+ * `driving.json` sets `radar.visualRangeM` to 160m, so a contact is plottable at
+ * more than three times the camera's width in either configuration. The camera
+ * shows what you are driving; the radar tells you what is out there.
+ *
+ * Both stay under MAX_ZOOM_PX_PER_M (64), which exists precisely so the ceiling
+ * binds as the scene zooms in rather than being decorative.
+ */
+const ROAD_ZOOM_PX_PER_M = 34;
 
 /**
  * Creates (or re-creates, on resize and on device-loss recovery, via

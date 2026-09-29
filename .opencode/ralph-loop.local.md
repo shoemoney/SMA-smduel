@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 62
+iteration: 63
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (62 of 82 vision models):
+Reviewers asked (63 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2343,7 +2343,7 @@ TOOLING - the review harness got audited by its own failure this round:
        declined because they are content the simulation does not have. A camera
        change is neither: it is honest, it is reversible, and it attacks the
        actual complaint (an unbounded field shown too small in frame) rather than
-       dressing it. Recorded as the top open visual item. NOT actioned blind,
+       dressing it. Recorded as the top open visual item — EXECUTED in iteration 63 (arena 30->40 px/m, road 28->34). NOT actioned blind,
        because the arena and road share a camera scale and the change needs to be
        measured across both screens rather than guessed;
      - "The preview is an outlined rounded rectangle containing two flat grey
@@ -2486,6 +2486,77 @@ TOOLING - the review harness got audited by its own failure this round:
      silent, both costing a reviewer — which is a worse ratio than the review
      itself, and worth watching: the loop's own tooling is now a bigger source of
      lost signal than the pool's weakest models.
+
+63. xiaomi/mimo-v2.6-pro -> 1 REAL and it is the most-supported open item in the
+     log, now EXECUTED. 4 FALSE:
+     - **THE CAMERA IS TOO WIDE — DONE.** "The player car is a small speck
+       dead-centre, the vehicle occupies roughly 8% of the frame width ... at
+       highway speed this reads as a parked car on a placeholder floor ... it is
+       the single biggest reason the game looks unfinished in motion. Zoom the
+       driving camera in ~1.5x (car at ~15-18% of frame width)."
+       This is the item iteration 60 recorded as "the first arena-emptiness ask
+       whose remedy is NOT a fake boundary" and deliberately did not action
+       blind, because "the arena and road share a camera scale and the change
+       needs to be measured across both screens rather than guessed". A second
+       independent model has now asked for it with a concrete target, so it is
+       measured rather than guessed.
+       What the measurement found is that the arena had ALREADY been fixed once
+       for this reason and the fix was documented and then half-lost: the arena
+       zoom was raised 17 -> 30 px/m precisely because "at the old 17 px/m the
+       player's own car was 54 x 88 device px inside a 1440x900 frame — about 4%
+       of the width. That reads as a postage stamp." 4% -> 10.8% is a real
+       improvement, but this reviewer is measuring the result and still calling
+       the car a speck at ~8-11%, so 30 was not enough.
+         ARENA 30 -> 40 px/m   car 156px -> 208px   10.8% -> 14.4% of width
+         ROAD  28 -> 34 px/m   car 146px -> 177px   10.1% -> 12.3% of width
+       The road gets a SMALLER bump on purpose, and the asymmetry is the
+       interesting part. Its zoom is wider than the arena's for a stated reason
+       — road AHEAD, so oncoming traffic is visible before it arrives — and
+       contacts on this screen are placed by remaining route-miles, so cropping
+       the view shortens the player's warning. A uniform 1.5x would take visible
+       road from 32m to 21m, giving away a third of the reaction distance for a
+       framing gain. 34 keeps 26.5m of it.
+       And neither change can hide anything load-bearing, which is the check that
+       made this safe to do at all: awareness on both screens is the RADAR's job
+       and it is untouched. `driving.json` sets `radar.visualRangeM` to 160m, so
+       a contact is plottable at more than THREE TIMES the camera's width in
+       either configuration (36m and 42m). The camera shows what you are driving;
+       the radar tells you what is out there. Both values stay under
+       MAX_ZOOM_PX_PER_M (64), which was raised from 40 for exactly this reason —
+       so the ceiling binds rather than being decorative.
+       Verified in the frames, not just the arithmetic: the car is visibly larger,
+       the lane dashes and the arena's slab lattice both read more strongly, and
+       the HUD panels are DOM overlays so no panel moved;
+     - "The teal SMDUEL wordmark sits over the brightest part of the sun haze and
+       the small white tagline's right half nearly disappears into the sky; add a
+       radial scrim behind the lockup." The tagline was measured at 9.00:1 in
+       iteration 44 and at 9.48:1 before the composition move, against the
+       BRIGHTEST background adjacent to it, with a two-layer shadow. A reviewer
+       asserting one END of the line is unreadable is a specific spatial claim and
+       it was not checked here, so it is recorded as UNVERIFIED rather than
+       false — the one item in this review still open;
+     - "The city is a gray-box: buildings are flat grey cubes with no cast
+       shadows, no streets." FALSE on shadows: buildings have carried analytic
+       contact shadows since iteration 17, tightened to 0.3/0.62 so separation
+       does not ride on the art, and iteration 53 gave the entrance markers their
+       own. "Paint real streets" is the city street-network ART item, carried
+       since iteration 14. "Clamp or bias the hub camera so chevrons never leave
+       the frame" asks the impossible of a scrolling world — the city is larger
+       than the viewport by design — and its own premise ("several buildings are
+       cropped away entirely") describes a driving world working correctly;
+     - radar: THIRTY-NINTH report, and the remedy is the fabricated-contacts fix
+       declined fourteen times, plus "show an explicit 'NO CONTACTS' label
+       instead of a black void" — which inverts iteration 29's settled position
+       that a fixed-weight instrument honestly reporting nothing is better than
+       an instrument that changes state;
+     - "Armour rows use unreadable bracket glyphs '|:--:|' at ~9px ... the tyre
+       and plant rows use a different green-dot-plus-bar language." THE PRISTINE
+       CASE, twelfth-plus report: those glyphs are the dashed CHIP from
+       iteration 21, made deliberately loud so an unfitted slot cannot read as an
+       area that failed to render, and there is no bar because bars are
+       fitted-only (iteration 25) — there is no fraction to scale. The claim that
+       tyres use a different language is describing iteration 21's state;
+       iteration 29 moved them onto the same bar.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
