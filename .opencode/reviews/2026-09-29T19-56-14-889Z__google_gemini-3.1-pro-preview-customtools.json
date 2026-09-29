@@ -1,0 +1,75 @@
+{
+  "model": "google/gemini-3.1-pro-preview-customtools",
+  "modelLabel": "google/gemini-3.1-pro-preview-customtools",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:56:14.890Z",
+  "usage": {
+    "prompt_tokens": 5844,
+    "completion_tokens": 3091,
+    "total_tokens": 8935,
+    "cost": 0.04878,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.04878,
+      "upstream_inference_prompt_cost": 0.011688,
+      "upstream_inference_completions_cost": 0.037092
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2368,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Mismatched Asset Resolutions",
+      "where": "Arena, Road, and City screens (background textures)",
+      "problem": "The ground textures are heavily pixelated and blurry, while the central car sprite and UI elements are rendered at a much higher, crisp resolution.",
+      "why": "It shatters visual cohesion. The background looks like a zoomed-in, low-resolution placeholder or a texture-streaming bug, making the game look broken rather than intentionally retro.",
+      "fix": "Replace the ground textures with assets that match the native texel density of the car sprite, or apply a pixelation shader to the car to unify the visual style."
+    },
+    {
+      "title": "Dead Radar Instrument",
+      "where": "Arena and Road screens (bottom-left HUD)",
+      "problem": "The radar background is a near-black, featureless disc with very faint concentric rings and no sweep line, crosshair, or prominent grid.",
+      "why": "It fails to read as a functional, active instrument. At a glance, the lack of contrast and animation makes it look like an empty void or a broken UI element rather than a spatial awareness tool.",
+      "fix": "Brighten the concentric grid lines, add an intersecting crosshair for the center axis, and include a semi-transparent sweeping radial gradient to simulate an active scan."
+    },
+    {
+      "title": "Broken Scale Hierarchy",
+      "where": "City screen (central play area)",
+      "problem": "The player's car sprite is visually larger than the surrounding industrial buildings and warehouses.",
+      "why": "It destroys the fantasy and spatial logic of navigating an open-world city. When the vehicle is larger than a factory, the player feels like they are driving on a miniature board game map rather than exploring a dangerous wasteland.",
+      "fix": "Drastically scale down the car sprite while in the city view to roughly 15% of its current size so it fits realistically alongside or inside the building assets."
+    },
+    {
+      "title": "Flat Typographic Hierarchy",
+      "where": "Constructor screen (entire UI)",
+      "problem": "Every piece of text—labels, stat values, headers, and instructions—uses the exact same monospace font size and weight, relying only on layout and thin borders for structure.",
+      "why": "The player's eye has no clear path to follow. Important actionable elements like the 'CONFIRM' button blend in completely with static, repetitive lists like 'Weapon 1 (empty)', slowing down the vehicle building process.",
+      "fix": "Increase the font size and weight of major category headers ('COST', 'LEGALITY') and the 'CONFIRM' button. Drop the opacity of all non-actionable '(empty)' text to 40%."
+    },
+    {
+      "title": "Low Contrast Warning Text",
+      "where": "Arena and Road screens (top-right HUD, 'Plant & Driver' panel)",
+      "problem": "The status text 'Body armor: x 0/3' is rendered in a dark, saturated red against a dark gray background.",
+      "why": "It fails baseline contrast standards, making it nearly invisible in peripheral vision. In a high-speed combat game, critical negative status indicators must be instantly readable at a glance.",
+      "fix": "Change the warning text to a brighter, more luminous color—like safety orange or a bright pastel red—or keep it white and place a bright red warning icon next to it."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Mismatched Asset Resolutions\",\n    \"where\": \"Arena, Road, and City screens (background textures)\",\n    \"problem\": \"The ground textures are heavily pixelated and blurry, while the central car sprite and UI elements are rendered at a much higher, crisp resolution.\",\n    \"why\": \"It shatters visual cohesion. The background looks like a zoomed-in, low-resolution placeholder or a texture-streaming bug, making the game look broken rather than intentionally retro.\",\n    \"fix\": \"Replace the ground textures with assets that match the native texel density of the car sprite, or apply a pixelation shader to the car to unify the visual style.\"\n  },\n  {\n    \"title\": \"Dead Radar Instrument\",\n    \"where\": \"Arena and Road screens (bottom-left HUD)\",\n    \"problem\": \"The radar background is a near-black, featureless disc with very faint concentric rings and no sweep line, crosshair, or prominent grid.\",\n    \"why\": \"It fails to read as a functional, active instrument. At a glance, the lack of contrast and animation makes it look like an empty void or a broken UI element rather than a spatial awareness tool.\",\n    \"fix\": \"Brighten the concentric grid lines, add an intersecting crosshair for the center axis, and include a semi-transparent sweeping radial gradient to simulate an active scan.\"\n  },\n  {\n    \"title\": \"Broken Scale Hierarchy\",\n    \"where\": \"City screen (central play area)\",\n    \"problem\": \"The player's car sprite is visually larger than the surrounding industrial buildings and warehouses.\",\n    \"why\": \"It destroys the fantasy and spatial logic of navigating an open-world city. When the vehicle is larger than a factory, the player feels like they are driving on a miniature board game map rather than exploring a dangerous wasteland.\",\n    \"fix\": \"Drastically scale down the car sprite while in the city view to roughly 15% of its current size so it fits realistically alongside or inside the building assets.\"\n  },\n  {\n    \"title\": \"Flat Typographic Hierarchy\",\n    \"where\": \"Constructor screen (entire UI)\",\n    \"problem\": \"Every piece of text—labels, stat values, headers, and instructions—uses the exact same monospace font size and weight, relying only on layout and thin borders for structure.\",\n    \"why\": \"The player's eye has no clear path to follow. Important actionable elements like the 'CONFIRM' button blend in completely with static, repetitive lists like 'Weapon 1 (empty)', slowing down the vehicle building process.\",\n    \"fix\": \"Increase the font size and weight of major category headers ('COST', 'LEGALITY') and the 'CONFIRM' button. Drop the opacity of all non-actionable '(empty)' text to 40%.\"\n  },\n  {\n    \"title\": \"Low Contrast Warning Text\",\n    \"where\": \"Arena and Road screens (top-right HUD, 'Plant & Driver' panel)\",\n    \"problem\": \"The status text 'Body armor: x 0/3' is rendered in a dark, saturated red against a dark gray background.\",\n    \"why\": \"It fails baseline contrast standards, making it nearly invisible in peripheral vision. In a high-speed combat game, critical negative status indicators must be instantly readable at a glance.\",\n    \"fix\": \"Change the warning text to a brighter, more luminous color—like safety orange or a bright pastel red—or keep it white and place a bright red warning icon next to it.\"\n  }\n]"
+}

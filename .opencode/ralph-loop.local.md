@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 54
+iteration: 55
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (54 of 82 vision models):
+Reviewers asked (55 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1916,6 +1916,82 @@ TOOLING - the review harness got audited by its own failure this round:
        and iteration 34 (high-frequency-only compression), both measured. The
        vignette is a post-pass effect and a theme decision rather than a defect,
        recorded alongside the HUD-restyle theme item with the same status.
+
+55. google/gemini-3.1-pro-preview-customtools -> ZERO REAL. Nothing changed.
+     The finding worth the round is not one of the five: it CONTRADICTS the
+     reviewer before it on the same axis, one round apart.
+     - "The player's car sprite is visually larger than the surrounding
+       industrial buildings ... scale the car down to roughly 15% of its current
+       size so it fits realistically alongside the building assets." LAST ROUND,
+       a different model, said the opposite about the same frame: "the building
+       sprites are disproportionately small compared to the vehicle ... increase
+       the scale of building clusters by 1.5x." One says the car is too big, the
+       other says the buildings are too small, and they are reasoning from the
+       SAME capture. Both cannot be satisfied, and the reason is that BOTH sides
+       are pinned to real units:
+         the car's drawn size is its collider dimensions from driving.json
+           (subcompact 3.8m, midsized 4.8m, luxury 5.3m);
+         a building's drawn size is `layout.tileSizeM`, which `generateCityLayout`
+           assigns `interactionRadiusM` — the ground in which the player can
+           actually interact with it.
+       So shrinking the car 15% would make it stop matching its own collision
+       box and the road it drives on, and growing the buildings 1.5x would make
+       them claim 2.25x the area they respond to (which is why last round's ask
+       was declined). Neither is a styling knob; both are a lie about an
+       affordance. That is the trade declined in iterations 21 and 28, and this
+       pair of reviews is the clearest evidence yet that the CITY SCALE is
+       under-determined in the frame: the player has no reference for real size
+       there, so the pool reads the same picture as "too big" or "too small"
+       depending on which object it starts from.
+       The fix is a REFERENCE, not a rescale — the same shape of answer as the
+       arena's declined boundary markings and the road's declined compass. That
+       is a layout and gameplay question, not a review finding, and it is
+       recorded as the top open design item rather than actioned;
+     - "The ground textures are heavily pixelated and blurry while the car
+       sprite and UI are crisp at a much higher resolution ... it shatters
+       visual cohesion." The observation is fair and it is the NEAREST-sampler
+       class arriving with its best framing yet: not "the ground is ugly" but
+       "the ground and the focal object are at different resolutions". The cause
+       is unchanged and documented — the ground reads inside an atlas sub-rect,
+       so linear filtering would bleed the neighbouring cell. The first remedy
+       (match the ground's texel density to the car) is the dedicated
+       linear+repeat texture this log has deferred since iteration 6 and it is
+       an ART task, not a code one. The second remedy — "apply a pixelation
+       shader to the car to unify the style" — is declined outright, because the
+       car is the focal object of every frame and degrading it to match its own
+       background is the wrong direction to unify in;
+     - "'Body armor' is rendered in a dark, saturated red against a dark gray
+       background ... nearly invisible ... fails baseline contrast." FALSE, and
+       worth the measurement: the plant and driver rows render in
+       (90, 212, 111) — GREEN — at 9.76:1 against the panel's (16, 20, 24). The
+       most saturated red anywhere in that region is (255, 85, 112) at 5.98:1,
+       which is `--ui-critical` and clears AA. There is no dark saturated red
+       and nothing nearly invisible. Iteration 23 made the same global
+       "insufficient contrast" claim, iteration 38 measured `--ui-critical` at
+       8.08:1, and iteration 41 traced this exact chain after suspecting the
+       iteration-32 silent-CSS shape. It is worth being blunt about the pattern:
+       a review that names a specific string and a specific colour is still
+       describing a colour it did not sample;
+     - "The radar is a near-black, featureless disc with very faint concentric
+       rings and no sweep line, crosshair, or prominent grid." THIRTY-THIRD
+       report, and this one asks for "brighten the concentric grid lines, add an
+       intersecting crosshair for the center axis" — describing the rings and
+       crosshair that iteration 2 added, which every capture since has shown;
+     - "Every piece of text uses the exact same monospace size and weight ...
+       CONFIRM blends in completely." FALSE, and it is the ELEVENTH report of
+       the CONFIRM class. It is a filled accent-bordered primary button
+       (iteration 15) in a pinned footer outside the scroll region (iteration
+       39), inside a type scale running 10/11/12/13/15px with distinct section
+       weights. Its companion ask — "drop the opacity of all non-actionable
+       '(empty)' text to 40%" — is the ELEVENTH report of that class too, and
+       now the third in three rounds to ask for the OPPOSITE direction:
+       iterations 49 and 52 wanted the empty slots brighter, this one wants them
+       dimmer, and iteration 17 settled it at `--ui-ink-dim` + italic so the
+       fitted state stays loud.
+     NO CODE CHANGED. And the round's real product is the contradiction itself:
+     two reviewers, one frame apart, disagreeing about which half of the city to
+     shrink. That is a more useful signal than either finding alone, because it
+     locates the problem in a missing reference rather than in either sprite.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
