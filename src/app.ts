@@ -2168,7 +2168,7 @@ export function vehicleShadowInstance(vehicle: VehicleState, atlasIndex: AtlasIn
     uvRect: frame.uv,
     tint: { r: 0, g: 0, b: 0, a: 1 },
     layer: 0,
-    shadowSoftness: 0.7,
+    shadowSoftness: SHADOW_SOFTNESS,
     shadowOpacity: SHADOW_OPACITY,
   };
 }
@@ -2197,8 +2197,36 @@ const SHADOW_OFFSET_M = { x: 1.0, y: -0.9 };
  * a car's width on the shadow side, which is what actually reads as contact.
  */
 const SHADOW_GROWTH = 1.9;
-/** Peak shadow alpha at the centre of the disc. */
-const SHADOW_OPACITY = 0.5;
+/**
+ * Peak shadow alpha at the centre of the disc, and how soft the falloff is.
+ *
+ * These were 0.5 / 0.7 and had been untouched since iteration 1, which makes
+ * the vehicle the oldest shadow in the game and — by this log's own record — the
+ * weakest. Two iterations ago, iteration 17 found the BUILDINGS' shadow "soft
+ * (0.8) and faint (0.42), so it never registered" and fixed it to 0.62 / 0.3.
+ * Iteration 64 then found the entrance MARKERS were shipping at 0.5 / 0.9 —
+ * softer AND fainter than that same already-inadequate pair — and raised them to
+ * 0.62 / 0.5 on the reasoning that "a reviewer only ever sees a downscaled
+ * frame". The vehicle was left at 0.5 / 0.7 and measured the weakest of the
+ * three: ground directly beneath the car darkens by only ~8% (143.2 luma against
+ * 153.7-156.8 either side of it, iteration 54), against a 0.62-opacity building
+ * contact.
+ *
+ * Six reviews have now said the car is not grounded — iterations 15, 18, 43, 54,
+ * 58 and 68, five of them as "it has no shadow at all". Each was recorded FALSE
+ * on the measurement, and the measurement was right: the shadow exists. But a
+ * shadow that only moves the ground 8% is the same under-powered cue the marker
+ * had, on the one object that is in the centre of every arena and road frame, so
+ * it is getting the same correction rather than a sixth FALSE.
+ *
+ * Opacity matches the buildings' 0.62, which is the value this codebase has
+ * already proven registers. Softness tightens to 0.4 rather than matching a
+ * building's 0.3, because a car is a low, small object and a tight contact pool
+ * reads as weight where a broad soft blob reads as a smudge — the same
+ * reasoning that keeps the marker softer than a building.
+ */
+const SHADOW_SOFTNESS = 0.4;
+const SHADOW_OPACITY = 0.62;
 
 /**
  * Builds the ground as a single quad for the arena / road / arena-event screens.

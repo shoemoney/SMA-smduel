@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 67
+iteration: 68
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (67 of 82 vision models):
+Reviewers asked (68 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2836,6 +2836,76 @@ TOOLING - the review harness got audited by its own failure this round:
      NO CODE CHANGED. The colour-semantics collision is the first finding in
      sixty-seven rounds that is about the PALETTE rather than any single element,
      and it is worth keeping for that reason.
+
+68. google/gemini-3.1-flash-lite -> ZERO REAL as written, but the review
+     contained the evidence for the fix this round actually made, and it is the
+     last shadow in the game to be under-powered:
+     - "The ground texture is a repetitive, low-contrast grayscale tile pattern
+       ... it creates a 'floating' effect where the car and buildings don't feel
+       grounded in the world." The tiling half is the ART item and the ground is
+       NOT repetitive: one quad, world-space fract, a non-commensurate detail
+       scale cross-faded in 9m patches, measured spread 25.56 road / 13.25
+       arena / 10.26 city. But "the car ... doesn't feel grounded" is the SIXTH
+       report in that family (iterations 15, 18, 43, 54, 58, 68), five of them
+       as "it has no shadow at all", and every one was recorded FALSE on the
+       measurement. The measurement was right every time — the shadow exists and
+       has existed since iteration 1.
+       It should not have ended there. Iteration 54 measured the car's shadow
+       darkening the ground by only ~8%, and did not ask what that number meant.
+       Meanwhile this log contains its own standard for what it means:
+         iteration 17  buildings  0.8 / 0.42 -> 0.3 / 0.62  ("never registered")
+         iteration 64  markers    0.9 / 0.5  -> 0.5 / 0.62  (same defect, one
+                                                                layer down)
+         THE VEHICLE   0.7 / 0.5, untouched since iteration 1 — softer AND
+                       fainter than the pair iteration 17 already documented as
+                       inadequate.
+       The vehicle was the oldest shadow in the game and the weakest, on the one
+       object at the centre of every arena and road frame. Six reviews said the
+       car was not grounded; the measurement said the car had a shadow; nobody
+       reconciled the two, and the honest reconciliation is that a shadow which
+       only moves the ground 14% is the same under-powered cue the marker had.
+         VEHICLE_SHADOW  0.7 / 0.5  ->  0.4 / 0.62
+       Opacity matches the buildings' 0.62, the value this codebase has already
+       proven registers. Softness tightens to 0.4 rather than a building's 0.3,
+       because a car is a low small object and a tight contact pool reads as
+       weight where a broad soft blob reads as a smudge — the same reasoning
+       that keeps the marker softer than a building. The city screen's vehicle
+       shadow moved with it so the player's car is grounded identically in both
+       places.
+       MEASURED, locating the car first and comparing the band just below it
+       against empty ground in the same rows:
+         before  14.2% darker
+         after   19.9% darker      (car bbox byte-identical in both captures, so
+                                    the only variable is the shadow)
+       Checked in the frame as well as the number: a visibly tighter, darker pool
+       hugging the lower-right edge, reading as weight rather than a smudge, with
+       the car art unchanged.
+       WORTH NAMING, because it is the third time this exact shape has produced a
+       fix and the first time it was caught by ADDING UP two earlier rounds
+       instead of by re-measuring from scratch: the building shadow (17), the
+       marker shadow (64) and the vehicle shadow are the same class, and the
+       class is "a cue that is present, measurable, and below the threshold of a
+       downscaled frame". A reviewer cannot see it; a measurement confirms it
+       exists; neither fact implies it is strong enough. Six 'the car has no
+       shadow' reports were each individually correct to dismiss and collectively
+       wrong to dismiss;
+     - "Radar is a completely featureless black circle." FORTY-THIRD report;
+     - "The Condition and Tyres panels use thin, low-contrast bars that blend
+       into the panel background ... use a brighter colour like yellow or white."
+       Measured 24-55:1 for the panel's ink on its composited surface, and
+       iteration 54 — five reviews ago — already answered the thickness half by
+       taking the bars from 4px/3px to 6px/5px. Recommending yellow for a status
+       readout inverts the state colour-coding iteration 9 verified end to end;
+     - "The constructor list is a uniform white-on-dark block with no separation
+       between categories ... add header dividers." There IS a section rule above
+       Weapon 1 (iteration 17), and the requirement rails (iteration 48) draw the
+       category boundary the reviewer is describing;
+     - "The 'New Driver' and 'Controls' buttons are dark-teal-on-dark-gray and
+       lack the luminance to pop." The tenth report of the menu class. The
+       selected row has carried a real 52%->30% cyan gradient since iteration 32
+       and the panel has been near-opaque since iteration 20; "apply an outer
+       glow to the active button" is the competing-boxes remedy that iteration 32
+       removed after the fill became visible without it.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

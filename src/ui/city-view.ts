@@ -253,8 +253,8 @@ const BUILDING_SHADOW_OPACITY = 0.62;
  */
 const DOORMARKER_SHADOW_SOFTNESS = 0.5;
 const DOORMARKER_SHADOW_OPACITY = 0.62;
-const VEHICLE_SHADOW_SOFTNESS = 0.7;
-const VEHICLE_SHADOW_OPACITY = 0.5;
+const VEHICLE_SHADOW_SOFTNESS = 0.4;
+const VEHICLE_SHADOW_OPACITY = 0.62;
 
 // ---------------------------------------------------------------------------
 // Ring geometry
