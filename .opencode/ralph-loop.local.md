@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 46
+iteration: 47
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (46 of 82 vision models):
+Reviewers asked (47 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1356,6 +1356,61 @@ TOOLING - the review harness got audited by its own failure this round:
      iterations, and the pool has been re-reporting the same five solved
      complaints ever since. The most useful thing left to do with a review is
      check whether it is looking at the shipped build.
+
+47. google/gemini-3.5-flash -> 1 REAL (a precise critique of iteration 43's own
+     change), 1 REAL-but-declined tension, 3 in known classes:
+     - "The menu box is surrounded by an overly thick, bright cyan outline with
+       asymmetric padding around the raw list elements, leaving a massive empty
+       dark-teal block below the second option." BOTH halves true, and both are
+       consequences of the iteration-43 move, which is exactly the kind of thing a
+       later review of my own change is for.
+       The outline is `:focus-visible` — and because the menu is focused the
+       instant the title screen mounts, that ring is on screen PERMANENTLY. A 2px
+       cyan ring at a 4px offset therefore stopped being a focus indicator and
+       became the panel's visible border, which is precisely the "unstyled HTML
+       div" complaint three earlier reviews had already raised. It is still the
+       only thing telling a keyboard player where they are, so it is stepped down
+       rather than removed: 1px, 2px offset, and mixed to 55% so the strongest cyan
+       on the screen stays on the SELECTED ROW rather than the frame around it.
+       The dead space was real too — the panel's padding was sized for the taller
+       in-run menus, so a two-row title menu carried a band of unexplained dark
+       teal below its last option. Padding tightened for the short case;
+     - "The building markers are flat, highly-saturated neon chevrons clashing
+       with the desaturated grungy background ... style them as holographic
+       projections or rusted physical signposts." This is the OPPOSITE ask to the
+       one that created them. Iterations 19, 20 and 26 each asked for these
+       markers to be BIGGER and more visible because they were being lost against
+       the ground; iteration 37 gave them function and a legend; now the complaint
+       is that they are too loud. That is not a contradiction in the game — it is
+       the marker being asked to do two opposite jobs at once, be findable from a
+       moving car AND sit inside a grimy world. The honest resolution is a marker
+       that reads as a worn painted sign rather than a neon UI chip, which is an
+       ART task and not a CSS one, exactly as iteration 33 recorded for the same
+       element. Recorded with the tension stated rather than acted on by swinging
+       the value back, which would simply re-open the iteration-20 problem;
+     - "Ground textures display severe blocky pixelation and harsh unblended
+       tile edges." FOURTH report of this class. The cause is the NEAREST sampler,
+       which is required because the ground reads inside an atlas sub-rect where
+       linear filtering would bleed the neighbouring cell. The suggested remedy
+       (anisotropic filtering, a multi-texture blend shader) is the load-time
+       change this loop's own deferred note predicted, and iterations 31/34 got
+       most of the perceptual benefit without it by damping only the high
+       frequencies;
+     - "The preview is a primitive flat-shaded blue rounded rectangle with two
+       plain squares." SEVENTH report of the preview class, declined for the
+       settled reason: the schematic exists to show ARMOUR ZONES, which the
+       gameplay sprite cannot carry. Note that this reviewer asks for the OPPOSITE
+       of iteration 43's — there it wanted the real sprite, here it wants
+       "line-art illustration of the actual subcompact chassis" — and both are
+       the same request to make a diagram into a picture, which is not what the
+       screen is for;
+     - "The speedometer and radar are flat opaque dark-gray boxes with raw
+       monospaced text ... add scanlines, bevels, segment digits." This is the
+       item iteration 32 recorded as needing concreteness before acting, and this
+       is the concreteness — an explicit recipe. Still not actioned: the panels
+       are legible, grouped and consistent, and restyling them is a theme decision
+       rather than a defect, so it belongs to whoever is choosing the game's
+       visual language rather than to a defect list.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an

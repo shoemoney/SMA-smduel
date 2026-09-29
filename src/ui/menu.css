@@ -39,7 +39,11 @@
      clinic, not by a test. */
   width: min(680px, 100%);
   margin: 0 auto;
-  padding: var(--ui-space-7) var(--ui-space-8);
+  /* Tightened from space-7/space-8: the title menu carries only two rows,
+   * so the taller padding left a dead band of empty panel below the last one —
+   * visible as a block of unexplained dark teal. The in-run menus are taller and
+   * lose nothing by this. */
+  padding: var(--ui-space-5) var(--ui-space-6);
   color: var(--ui-ink);
   /* A designed SURFACE, not a bordered box.
    *
@@ -71,8 +75,19 @@
 /* mountMenu focuses the CONTAINER (which owns keydown), not a row — so this is
    the menu's focus ring, and it is the only one a keyboard user ever sees. */
 .sm-menu-root:focus-visible {
-  outline: 2px solid var(--ui-focus);
-  outline-offset: 4px;
+  /* A focus ring, not a picture frame.
+   *
+   * The menu is focused the moment the title screen mounts, so this outline is
+   * on screen permanently — which made a 2px cyan ring at a 4px offset read as
+   * a heavy debug border around the panel, exactly the "unstyled HTML div"
+   * complaint three reviews have already raised. It is still a real, unmissable
+   * focus indicator (it is the only thing telling a keyboard player where they
+   * are), so it is stepped down rather than removed: thinner, tighter to the
+   * panel, and dimmer than the selected row's own accent so the strongest cyan
+   * on the screen stays where the player's attention belongs.
+   */
+  outline: 1px solid color-mix(in srgb, var(--ui-focus) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .sm-menu-root:not(:focus-visible) {
