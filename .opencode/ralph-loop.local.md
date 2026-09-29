@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 6
+iteration: 7
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (6 of 82 vision models):
+Reviewers asked (7 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -25,9 +25,14 @@ Fixed at source by raising review captures 900px -> 1280px.
 A first radar fix (mask-image rim ticks) corrupted CSS and stripped chrome off
 every HUD panel - caught in a screenshot, reverted, redone as weight-only.
 
+7. bytedance-seed/seed-1.6-flash -> constructor onboarding copy too quiet (FIXED, 3 steps);
+                                  banner "cut off" (WRONG - reads in full)
+                                  CARRIED: city has no waypoint to the exit
+
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
   bleed). Real fix = dedicated linear+repeat ground texture (load-time change).
+- CITY WAYPOINT: no indication of which building is the exit (top item, iteration 8)
 - City daylight grade (my 0.6 ground tint is why it reads dim), street network,
   title-menu composition, 10 empty weapon rows.
 

@@ -631,6 +631,63 @@ function buildingInstances(layout: CityLayout, doorway: Doorway, atlasIndex: Atl
   ];
 }
 
+/**
+ * The city exit beacon, floating above the gate.
+ *
+ * ## Why this exists
+ *
+ * A vision review found the city has "no visual markers ... to indicate route to
+ * Albany; only a vague circle", and that "navigation is unclear, making it
+ * difficult for players to understand their objective". That is accurate: the
+ * gate is drawn, but it is drawn at exactly the same size, on the same layer,
+ * in the same ring as the fifteen facilities, so nothing distinguishes "this
+ * one is the way out" from "this one is a bar you can visit".
+ *
+ * The city screen's whole job is choosing a building, and the exit is the one
+ * building a player MUST find, so it is the one that gets a marker.
+ *
+ * Drawn on its OWN layer above the buildings (not on LAYER_BUILDING) so it is
+ * never painted over by an infill block, and so the painter's-algorithm order
+ * is explicit rather than dependent on emission order.
+ *
+ * The frame itself is neutral white: the atlas chroma keyer removes a
+ * warm-tinted transparent decal entirely, so the accent colour is a tint here
+ * rather than baked into the art.
+ */
+const WAYPOINT_FRAME = 'decal-waypoint';
+const WAYPOINT_TINT = { r: 0.35, g: 0.88, b: 0.82, a: 0.95 } as const;
+/** Metres the beacon floats above the gate's footprint. */
+const WAYPOINT_LIFT_M = 2.6;
+/**
+ * The beacon rides on LAYER_BUILDING, not on a layer of its own.
+ *
+ * It was first given `LAYER_WAYPOINT = 3` "so it is never painted over by an
+ * infill block" — and was therefore silently invisible. The city renderer packs
+ * exactly three layer buckets into three separate instance buffers (ground,
+ * buildings, actors) and draws those three bind groups; a layer 3 instance is
+ * packed into nothing and never drawn, with no error, because the layer number
+ * is just an integer and there is no buffer to overrun.
+ *
+ * Within a bucket the painter's algorithm preserves emission order, and the
+ * beacon is emitted after every facility and filler, so it does still paint
+ * over them. That is the ordering guarantee actually wanted, obtained without
+ * inventing a bucket the renderer does not have.
+ */
+const LAYER_WAYPOINT = LAYER_BUILDING;
+
+function waypointInstance(gate: Gate, atlasIndex: AtlasIndex): SpriteInstanceInput {
+  const frame = atlasIndex.frame(WAYPOINT_FRAME);
+  return {
+    atlasId: String(frame.atlasIndex),
+    position: { x: gate.position.x, y: gate.position.y + WAYPOINT_LIFT_M },
+    rotationRad: 0,
+    sizeM: { x: 3.0, y: 3.8 },
+    uvRect: frame.uv,
+    tint: WAYPOINT_TINT,
+    layer: LAYER_WAYPOINT,
+  };
+}
+
 function gateInstances(layout: CityLayout, gate: Gate, atlasIndex: AtlasIndex): SpriteInstanceInput[] {
   const frame = atlasIndex.frame(GATE_FRAME);
   const sizeM: Vec2 = { x: layout.tileSizeM, y: layout.tileSizeM };
@@ -747,6 +804,7 @@ export function cityStaticLayers(
   staticInstances.push(...fillerInstances(layout, atlasIndex));
   for (const doorway of layout.doorways) staticInstances.push(...buildingInstances(layout, doorway, atlasIndex));
   staticInstances.push(...gateInstances(layout, layout.gate, atlasIndex));
+  staticInstances.push(waypointInstance(layout.gate, atlasIndex));
   staticInstances.push(...doormarkerInstances(layout, atlasIndex));
 
   const layers = {
@@ -792,8 +850,23 @@ export function buildCityInstances(snapshot: CityViewSnapshot, atlasIndex: Atlas
 export function cityLayer1InstanceCount(layout: CityLayout): number {
   // furniture: 1 instance each. fillers: 2 each (shadow + building).
   // doorways: 2 each (shadow + building) + 1 doormarker. gate: 2 (shadow + building).
-  // The `+ 2` is the gate pair.
-  return furniturePlacements(layout).length + fillerPlacements(layout).length * 2 + layout.doorways.length * 3 + 2;
+  // The `+ 2` is the gate pair; the `+ 1` is the exit beacon, which rides on
+  // this layer.
+  //
+  // This exact-count function is load-bearing in the way the correctness pass
+  // made load-bearing: the city actor buffer was sized to the live count with
+  // zero headroom, and adding the beacon without counting it here produced
+  // "95 instances exceeds capacity 94" — the bounds check added to
+  // `writeInstanceBuffer` doing exactly the job it was written for. Without
+  // that check this would have been a silently dropped write and an invisible
+  // beacon, which is how the beacon was invisible on its FIRST attempt.
+  return (
+    furniturePlacements(layout).length +
+    fillerPlacements(layout).length * 2 +
+    layout.doorways.length * 3 +
+    2 + // gate shadow + gate
+    1 // exit beacon
+  );
 }
 
 // ---------------------------------------------------------------------------

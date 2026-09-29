@@ -67,21 +67,27 @@ function fixtureAtlasIndex() {
     kind,
     rotationOffsetDeg: 0,
   });
-  const kindOf = (name: string): string =>
-    name.startsWith('building-')
-      ? 'building'
-      : name.startsWith('prop-')
-        ? 'prop'
-        : name.startsWith('car-')
-          ? 'car'
-          : name.startsWith('cycle-')
-            ? 'cycle'
-            : 'tile';
+  /**
+   * The atlas `kind` for a frame name, derived from its prefix.
+   *
+   * The scan above now matches ANY `<prefix>-<name>` literal, so this has to
+   * know every kind `src/render/atlas.ts`'s ASSET_KINDS declares — otherwise a
+   * `decal-` frame silently lands in the 'tile' bucket and the fixture stops
+   * representing the real manifest.
+   */
+  const kindOf = (name: string): string => {
+    const prefix = name.slice(0, name.indexOf('-'));
+    return (['tile', 'building', 'prop', 'car', 'wreck', 'cycle', 'fx', 'decal', 'ui'] as const).includes(
+      prefix as never,
+    )
+      ? prefix
+      : 'tile';
+  };
   const sources = ['../../src/ui/city-view.ts', '../../src/render/ground.ts']
     .map((rel) => readFileSync(new URL(rel, import.meta.url), 'utf8'))
     .join('\n');
   const frames: Record<string, ReturnType<typeof frame>> = {};
-  for (const match of sources.matchAll(/'(building-[a-z-]+|prop-[a-z-]+|tile-[a-z-]+|cycle-[a-z-]+|car-[a-z-]+)'/g)) {
+  for (const match of sources.matchAll(/'([a-z]+-[a-z0-9-]+)'/g)) {
     const name = match[1]!;
     frames[name] = frame(kindOf(name));
   }
@@ -116,7 +122,7 @@ it('every frame the city view asks for exists in the real manifest', () => {
   const sources = ['../../src/ui/city-view.ts', '../../src/render/ground.ts']
     .map((rel) => readFileSync(new URL(rel, import.meta.url), 'utf8'))
     .join('\n');
-  const asked = [...new Set([...sources.matchAll(/'(building-[a-z-]+|prop-[a-z-]+|tile-[a-z-]+|cycle-[a-z-]+|car-[a-z-]+)'/g)].map((m) => m[1]!))];
+  const asked = [...new Set([...sources.matchAll(/'([a-z]+-[a-z0-9-]+)'/g)].map((m) => m[1]!))];
   expect(asked.filter((name) => !(name in real.frames))).toEqual([]);
 });
 

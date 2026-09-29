@@ -1018,10 +1018,23 @@
       "kind": "prop",
       "rotationOffsetDeg": 0
     },
-    "prop-hvac-cluster": {
+    "decal-waypoint": {
       "atlas": 0,
       "x": 1911,
       "y": 1162,
+      "w": 64,
+      "h": 80,
+      "trimX": 0,
+      "trimY": 0,
+      "srcW": 64,
+      "srcH": 80,
+      "kind": "decal",
+      "rotationOffsetDeg": 0
+    },
+    "prop-hvac-cluster": {
+      "atlas": 0,
+      "x": 0,
+      "y": 1260,
       "w": 96,
       "h": 68,
       "trimX": 29,
@@ -1033,7 +1046,7 @@
     },
     "fx-explosion-5": {
       "atlas": 0,
-      "x": 0,
+      "x": 98,
       "y": 1260,
       "w": 128,
       "h": 63,
@@ -1046,7 +1059,7 @@
     },
     "prop-concrete-barrier": {
       "atlas": 0,
-      "x": 130,
+      "x": 228,
       "y": 1260,
       "w": 96,
       "h": 47,
@@ -1059,7 +1072,7 @@
     },
     "prop-sandbag": {
       "atlas": 0,
-      "x": 228,
+      "x": 326,
       "y": 1260,
       "w": 96,
       "h": 28,
@@ -1072,7 +1085,7 @@
     },
     "prop-barricade": {
       "atlas": 0,
-      "x": 326,
+      "x": 424,
       "y": 1260,
       "w": 96,
       "h": 27,
@@ -1085,7 +1098,7 @@
     },
     "prop-chainlink-fence": {
       "atlas": 0,
-      "x": 424,
+      "x": 522,
       "y": 1260,
       "w": 96,
       "h": 21,
