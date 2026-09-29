@@ -5839,7 +5839,23 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
     cfg.skills.forEach((name, index) => {
       skills[name] = base + (index === cfg.skills.length - 1 ? remainder : 0);
     });
-    const created = createDriver('Screencap', skills as Parameters<typeof createDriver>[1]);
+    // The rig's driver and vehicle are named, fixed strings so captures are
+    // byte-stable across runs and any change to a screenshot is a real change.
+    //
+    // They are named IN-UNIVERSE on purpose, and that is not cosmetic. This loop
+    // feeds its captures to vision models as the whole basis for review, and a
+    // rig called "Screencap" reads to a reviewer as a development build leaking
+    // a tool name into the UI — which is exactly how a review read it: "the text
+    // reads 'Screencap Rig' ... refers to a development tool function, not a
+    // game asset ... immediately breaks immersion and signals that the UI is
+    // unfinished". No player ever sees this path (a real session goes through
+    // `showDriverCreation`), so the finding is not a player-facing bug. But it
+    // is a self-inflicted false signal in the loop's own input, and removing it
+    // costs two strings.
+    //
+    // The id `veh-screencap` below stays as it is: that one is internal, never
+    // rendered, and renaming it would churn save-key comparisons for nothing.
+    const created = createDriver('Sable', skills as Parameters<typeof createDriver>[1]);
     if (!created.ok) return false;
     const sessionSeed = resolveSessionSeed({ search, randomSeed });
     lastSessionSeed = sessionSeed;
@@ -5850,7 +5866,7 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
     }
 
     const design: VehicleDesign = {
-      name: 'Screencap Rig',
+      name: 'Duster',
       bodyId: 'subcompact',
       chassisId: 'standard',
       suspensionId: 'light',

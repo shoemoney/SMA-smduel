@@ -1,0 +1,75 @@
+{
+  "model": "qwen/qwen3.6-flash",
+  "modelLabel": "qwen/qwen3.6-flash",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:59:38.460Z",
+  "usage": {
+    "prompt_tokens": 5404,
+    "completion_tokens": 5299,
+    "total_tokens": 10703,
+    "cost": 0.006974625,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.006974625,
+      "upstream_inference_prompt_cost": 0.00101325,
+      "upstream_inference_completions_cost": 0.005961375
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4515,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Spreadsheet-style Status Panel",
+      "where": "Right side of HUD (Arena, Road screens)",
+      "problem": "The 'CONDITION' panel presents data as a dense list of text rows ('Front', 'Rear', 'FL', 'FR') with tiny progress bars. It resembles an Excel sheet more than a vehicle dashboard.",
+      "why": "At driving speeds, players cannot scan rows of small text quickly. This creates high cognitive load and obscures the viewing area, making it hard to assess vehicle health during combat.",
+      "fix": "Replace the text list with a compact visual widget. Use a central 'Hull Integrity' gauge surrounded by color-coded arcs (Green/Red) for armor sectors, or a simplified 4-quadrant status display."
+    },
+    {
+      "title": "Leaked Debug Terminology",
+      "where": "Bottom-left HUD (City screen)",
+      "problem": "The text reads 'Screencap Rig' and 'Not road-legal'. The term 'Screencap' refers to a development tool function, not a game asset.",
+      "why": "This immediately breaks immersion and signals to the player that the UI is unfinished or that development debug logs have leaked into the build.",
+      "fix": "Rename the label to 'Current Chassis' or 'Vehicle Loadout'. Ensure all UI text uses consistent in-universe terminology."
+    },
+    {
+      "title": "Disconnected Weapon Inventory",
+      "where": "Vehicle Constructor screen (left column)",
+      "problem": "Weapons are listed numerically ('Weapon 1' through '10') in a plain text list, while the car visual is isolated on the right. Additionally, a yellow vertical bar appears on the left edge of every list item, creating visual noise.",
+      "why": "Players cannot intuitively map the text list to the physical mounting locations on the car. The stray yellow bars distract from the actual content.",
+      "fix": "Remove the generic yellow bars. Implement a direct link where selecting a weapon slot highlights the corresponding physical socket on the car visualization (e.g., hover 'Weapon 1' -> highlight 'Front Mount')."
+    },
+    {
+      "title": "Indistinct Waypoint Markers",
+      "where": "Building icons (City screen)",
+      "problem": "The directional arrows indicating actions (blue, yellow, red) floating above buildings are low-opacity and blend significantly into the grey concrete floor.",
+      "why": "Objective clarity is crucial in a hub world. Faded colors reduce reaction time and make it difficult to distinguish between 'Fight', 'Build', and 'Care' stations at a glance.",
+      "fix": "Apply a bold white or black outline (stroke) to the arrows and increase their saturation/contrast to ensure they pop against the neutral environment textures."
+    },
+    {
+      "title": "Passive Radar Design",
+      "where": "Bottom-left HUD (Arena, Road screens)",
+      "problem": "The radar is a flat black circle with a faint green wedge. It lacks clear grid lines, cardinal direction markers, or high-contrast target indicators.",
+      "why": "In a combat game, threat detection must be instantaneous. A low-contrast 'monitor' aesthetic forces the player to strain to find enemies, especially if enemies are also dark or moving fast.",
+      "fix": "Draw distinct concentric rings for range and crosshairs for North/South. Use bright, pulsating distinct shapes (e.g., red squares or triangles) for enemy contacts rather than subtle dots."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Spreadsheet-style Status Panel\",\n    \"where\": \"Right side of HUD (Arena, Road screens)\",\n    \"problem\": \"The 'CONDITION' panel presents data as a dense list of text rows ('Front', 'Rear', 'FL', 'FR') with tiny progress bars. It resembles an Excel sheet more than a vehicle dashboard.\",\n    \"why\": \"At driving speeds, players cannot scan rows of small text quickly. This creates high cognitive load and obscures the viewing area, making it hard to assess vehicle health during combat.\",\n    \"fix\": \"Replace the text list with a compact visual widget. Use a central 'Hull Integrity' gauge surrounded by color-coded arcs (Green/Red) for armor sectors, or a simplified 4-quadrant status display.\"\n  },\n  {\n    \"title\": \"Leaked Debug Terminology\",\n    \"where\": \"Bottom-left HUD (City screen)\",\n    \"problem\": \"The text reads 'Screencap Rig' and 'Not road-legal'. The term 'Screencap' refers to a development tool function, not a game asset.\",\n    \"why\": \"This immediately breaks immersion and signals to the player that the UI is unfinished or that development debug logs have leaked into the build.\",\n    \"fix\": \"Rename the label to 'Current Chassis' or 'Vehicle Loadout'. Ensure all UI text uses consistent in-universe terminology.\"\n  },\n  {\n    \"title\": \"Disconnected Weapon Inventory\",\n    \"where\": \"Vehicle Constructor screen (left column)\",\n    \"problem\": \"Weapons are listed numerically ('Weapon 1' through '10') in a plain text list, while the car visual is isolated on the right. Additionally, a yellow vertical bar appears on the left edge of every list item, creating visual noise.\",\n    \"why\": \"Players cannot intuitively map the text list to the physical mounting locations on the car. The stray yellow bars distract from the actual content.\",\n    \"fix\": \"Remove the generic yellow bars. Implement a direct link where selecting a weapon slot highlights the corresponding physical socket on the car visualization (e.g., hover 'Weapon 1' -> highlight 'Front Mount').\"\n  },\n  {\n    \"title\": \"Indistinct Waypoint Markers\",\n    \"where\": \"Building icons (City screen)\",\n    \"problem\": \"The directional arrows indicating actions (blue, yellow, red) floating above buildings are low-opacity and blend significantly into the grey concrete floor.\",\n    \"why\": \"Objective clarity is crucial in a hub world. Faded colors reduce reaction time and make it difficult to distinguish between 'Fight', 'Build', and 'Care' stations at a glance.\",\n    \"fix\": \"Apply a bold white or black outline (stroke) to the arrows and increase their saturation/contrast to ensure they pop against the neutral environment textures.\"\n  },\n  {\n    \"title\": \"Passive Radar Design\",\n    \"where\": \"Bottom-left HUD (Arena, Road screens)\",\n    \"problem\": \"The radar is a flat black circle with a faint green wedge. It lacks clear grid lines, cardinal direction markers, or high-contrast target indicators.\",\n    \"why\": \"In a combat game, threat detection must be instantaneous. A low-contrast 'monitor' aesthetic forces the player to strain to find enemies, especially if enemies are also dark or moving fast.\",\n    \"fix\": \"Draw distinct concentric rings for range and crosshairs for North/South. Use bright, pulsating distinct shapes (e.g., red squares or triangles) for enemy contacts rather than subtle dots.\"\n  }\n]"
+}
