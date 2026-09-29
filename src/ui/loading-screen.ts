@@ -40,6 +40,15 @@ const PHASE = {
   ready: 1,
 } as const;
 
+/**
+ * Minimum time the splash stays on screen, in milliseconds.
+ *
+ * See the note in `dismiss()`. Measured boot on a warm cache is ~380ms, which is
+ * below the threshold at which anyone can read a logo, so without a floor this
+ * screen is invisible in practice on a fast machine.
+ */
+const MIN_DISPLAY_MS = 1100;
+
 export interface LoadingScreen {
   /** Push a real progress value (0..1) and an optional status line. */
   report(fraction: number, status?: string): void;
@@ -144,6 +153,30 @@ export function createLoadingScreen(): LoadingScreen {
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
       : false;
 
+  const createdAtMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+  /** Fades the splash out and removes it, with a timeout as the backstop. */
+  function fadeOut(): void {
+    if (root === null) return;
+    if (reducedMotion) {
+      root.remove();
+      return;
+    }
+    root.classList.add('sm-boot--out');
+    // The fade is CSS-driven; remove on transitionend so the element is not
+    // left covering the title screen, with a timeout as the backstop for the
+    // case where the transition never fires (a display:none ancestor, a
+    // backgrounded tab that skips transitions, reduced-motion overrides).
+    let removed = false;
+    const once = (): void => {
+      if (removed) return;
+      removed = true;
+      root.remove();
+    };
+    root.addEventListener('transitionend', once, { once: true });
+    window.setTimeout(once, 600);
+  }
+
   return {
     get dismissed(): boolean {
       return dismissed;
@@ -169,26 +202,32 @@ export function createLoadingScreen(): LoadingScreen {
       if (dismissed) return;
       dismissed = true;
       if (root === null) return;
-      const finish = (): void => {
-        root.remove();
-      };
-      if (reducedMotion) {
-        finish();
+
+      // --- minimum on-screen time ------------------------------------------
+      //
+      // Measured on a warm local cache, boot completes in ~380ms — so the splash
+      // was on screen for well under half a second. A branded splash that
+      // flashes past faster than a logo can be read is worse than no splash at
+      // all: it reads as a rendering glitch, and the one moment the publisher
+      // gets to say "A ShoeMoney AI Labs Game" is gone before anyone sees it.
+      //
+      // This waits out the remainder of MIN_DISPLAY_MS before fading. It does
+      // NOT touch the progress values: the bar still only ever shows work that
+      // actually completed, and it genuinely sits at 100% for the hold, because
+      // by this point the work IS done. The hold is a presentation decision
+      // about how long to show a finished state, not a claim about work
+      // outstanding — and a real slow load still reports its real, slower
+      // progress the whole way up to 100%, so this floor never hides a stall.
+      //
+      // 1100ms is long enough to read the logo and the line, and short enough
+      // that a returning player is not held.
+      const elapsedMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const remainingMs = Math.max(0, MIN_DISPLAY_MS - (elapsedMs - createdAtMs));
+      if (remainingMs > 0) {
+        window.setTimeout(() => fadeOut(), remainingMs);
         return;
       }
-      root.classList.add('sm-boot--out');
-      // The fade is CSS-driven; remove on transitionend so the element is not
-      // left covering the title screen, with a timeout as the backstop for the
-      // case where the transition never fires (a display:none ancestor, a
-      // backgrounded tab that skips transitions, reduced-motion overrides).
-      let removed = false;
-      const once = (): void => {
-        if (removed) return;
-        removed = true;
-        finish();
-      };
-      root.addEventListener('transitionend', once, { once: true });
-      window.setTimeout(once, 600);
+      fadeOut();
     },
   };
 }

@@ -264,6 +264,21 @@ async function main() {
       let status = 'ok';
       try {
         await page.goto(url, { waitUntil: 'load' });
+        // The boot splash must be GONE before capturing, or every "screen" is
+        // really a picture of the loading screen.
+        //
+        // This gate was missing until the splash gained a minimum on-screen
+        // time. With the splash holding ~1.1s and this harness only waiting 45
+        // animation frames (~750ms), all eight captures came back as the splash
+        // — and the harness still reported "0 with problems", because a splash
+        // is not a blank frame. Identical luma across all eight screens was the
+        // only tell. A capture gate has to assert the thing it is capturing, not
+        // merely that something was drawn.
+        await page
+          .waitForFunction(() => document.getElementById('sm-boot') === null, { timeout: 20_000, polling: 50 })
+          .catch(() => {
+            throw new Error('the loading splash was still on screen after 20s');
+          });
         await waitForRenderedFrames(page, 45);
       } catch (err) {
         status = `FAILED: ${String(err).slice(0, 200)}`;
@@ -311,7 +326,39 @@ async function main() {
 
   await writeFile(resolve(outDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
 
-  let bad = 0;
+  // Cross-screen duplicate detection.
+  //
+  // Two different screens cannot produce the same pixel statistics. When they
+  // do, the harness is photographing the SAME thing eight times — which is
+  // exactly what happened when the boot splash gained a minimum display time
+  // and every capture became a picture of the splash. Each screen individually
+  // looked "ok" (it was not blank), and the only symptom was eight identical
+  // numbers in a log nobody was reading.
+  //
+  // This is the difference between a check that runs and a check that can fail.
+  //
+  // The buckets are COARSE on purpose. The first version compared the raw
+  // numbers for exact equality and did not fire when it should have: the logo
+  // pulses and the post pass adds animated film grain, so two captures of the
+  // identical splash came back as 11.34 and 11.33. A check whose sensitivity is
+  // finer than its subject's own animation noise measures the animation.
+  // Rounding to ~1% of full range still separates real screens (arena 127 vs
+  // road 90 vs title 42) by a wide margin.
+  const bucket = (v, step) => Math.round(v / step);
+  const dupeGroups = new Map();
+  for (const r of report) {
+    if (r.pixels === undefined || r.status !== 'ok') continue;
+    const key = `${bucket(r.pixels.meanLuma, 2)}|${bucket(r.pixels.spread, 2)}|${bucket(r.pixels.darkFraction, 0.02)}`;
+    const group = dupeGroups.get(key) ?? [];
+    group.push(r.screen);
+    dupeGroups.set(key, group);
+  }
+  const dupes = [...dupeGroups.values()].filter((g) => g.length > 1);
+
+  let bad = dupes.length;
+  for (const group of dupes) {
+    console.log(`  ! DUPLICATE CAPTURE: ${group.join(', ')} all rendered the same thing`);
+  }
   for (const r of report) {
     const problems = r.status !== 'ok' || r.errors.length > 0 || (r.gpuErrors?.length ?? 0) > 0;
     if (problems) bad += 1;
