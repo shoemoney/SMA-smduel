@@ -387,9 +387,13 @@
 .sm-builder__preview-svg {
   display: block;
   width: 100%;
-  /* Bounded so a long body cannot push the stats panel off-screen on a short
-     viewport; the viewBox still keeps the silhouette's true proportions. */
-  max-height: min(46vh, 320px);
+  /* The first version capped this at 320px, which left a car outline floating
+   * in a large empty panel — a review of the real frame called it "a tiny car
+   * outline" in "a large amount of unused space", which was accurate. The
+   * schematic is now the visual centre of this pane, so it is allowed to grow
+   * into the space; the cap still exists so a long body cannot push the
+   * legality panel off-screen on a short viewport. */
+  max-height: min(62vh, 560px);
   overflow: visible;
 }
 

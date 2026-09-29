@@ -474,8 +474,16 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
       ),
     );
   });
+  // The group label goes BEFORE the rows it names. It was first inserted after
+  // the list was appended, which put "ARMOUR" underneath the armour and made
+  // the panel read as if the first group were unlabelled — caught by looking at
+  // the rendered frame, not by any test, because both are just sibling nodes.
+  panel.appendChild(el(doc, 'h3', { class: 'hud-condition-group' }, t('ui.hud.groupArmour')));
   panel.appendChild(armorList);
 
+  // Group labels. The panel went from "twelve rows of tiny green text" to a
+  // dashboard by making the armour a shape-matching grid AND naming the groups,
+  // so a glance tells you which system a line belongs to without reading it.
   const tireList = el(doc, 'ul', { class: 'hud-tire-list' });
   const tireMax = getTire(vehicle.design.tireId).maxDP;
   vehicle.tireDP.forEach((dp, i) => {
@@ -490,8 +498,10 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
       ),
     );
   });
+  panel.appendChild(el(doc, 'h3', { class: 'hud-condition-group' }, t('ui.hud.groupTyres')));
   panel.appendChild(tireList);
 
+  panel.appendChild(el(doc, 'h3', { class: 'hud-condition-group' }, t('ui.hud.groupSystems')));
   const plantMax = getPlant(vehicle.design.plantId).maxDP;
   const plantState = damageState(vehicle.plantDP, plantMax);
   panel.appendChild(
@@ -559,6 +569,7 @@ function buildDamageFacings(doc: HudDocument, vehicle: VehicleState, driver: Hud
         ),
       );
     });
+    panel.appendChild(el(doc, 'h3', { class: 'hud-condition-group' }, t('ui.hud.groupCargo')));
     panel.appendChild(cargoList);
   }
 

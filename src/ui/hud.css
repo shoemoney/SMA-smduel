@@ -236,31 +236,109 @@
   border: 1px solid var(--ui-line-strong);
   border-radius: 50%;
   background: radial-gradient(circle, var(--ui-dial-track) 0 1px, transparent 1px) 0 0 / 25% 25%, var(--ui-dial-face);
-  box-shadow: inset 0 0 0 1px var(--ui-void), inset 0 0 18px var(--ui-dial-vignette);
+  /* A lighter outer edge so the dial has a defined boundary — a black disc on
+     a dark panel with no rim is what made it read as a hole rather than a
+     screen. */
+  box-shadow:
+    inset 0 0 0 1px var(--ui-line-strong),
+    inset 0 0 0 3px var(--ui-void),
+    inset 0 0 22px var(--ui-dial-vignette);
   /* Belt-and-suspenders: hud.ts pre-culls contacts to the ruleset's visual
      range, but this keeps a bad value from ever escaping the circular face. */
+}
+
+/* --- the instrument, not a void -------------------------------------------
+ *
+ * The radar was a black disc with a few tiny dots and nothing else, which reads
+ * as BROKEN rather than as "nothing in range": there was no sweep, no range
+ * rings, no orientation cue, and no edge to define the dial. A vision review of
+ * the real frames put it plainly — "it does not clearly communicate as a
+ * functioning sensor" — and it is a fair reading, because the one thing that
+ * makes a radar legible is the STRUCTURE around the blips.
+ *
+ * Everything below is decoration in the strict sense: no gameplay value is read
+ * from it. It exists so that an empty radar reads as "scanning, nothing near"
+ * instead of "not working". The contacts themselves remain the only data, and
+ * their positions are still computed by hud.ts and unchanged.
+ */
+.hud-radar-face::before,
+.hud-radar-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Concentric range rings at 1/3 and 2/3 of visual range. They give the eye a
+   distance scale, so a contact near the edge reads as FAR rather than merely
+   "offset". */
+.hud-radar-face::before {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 calc(33.3% - 0.5px), var(--ui-line) calc(33.3% - 0.5px) 33.3%, transparent 33%),
+    radial-gradient(circle at 50% 50%, transparent 0 calc(66.6% - 0.5px), var(--ui-line) calc(66.6% - 0.5px) 66.6%, transparent 66%),
+    linear-gradient(90deg, transparent calc(50% - 0.5px), var(--ui-line) calc(50% - 0.5px) 50%, transparent 50%),
+    linear-gradient(0deg, transparent calc(50% - 0.5px), var(--ui-line) calc(50% - 0.5px) 50%, transparent 50%);
+  opacity: 0.55;
+}
+
+/* The sweep. A conic gradient rotating once every 3.6s, masked to the dial.
+ *
+ * `prefers-reduced-motion` stops it outright (below) — a continuously rotating
+   element is exactly the kind of motion that setting exists to suppress, and
+   unlike a decorative glow it is large, high-contrast and never stops. */
+.hud-radar-face::after {
+  background: conic-gradient(
+    from 0deg,
+    rgba(79, 214, 196, 0) 0deg,
+    rgba(79, 214, 196, 0.28) 40deg,
+    rgba(79, 214, 196, 0) 90deg
+  );
+  animation: hud-radar-sweep 3.6s linear infinite;
+}
+
+@keyframes hud-radar-sweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The sweep stops, but the RINGS stay — the range structure is information,
+   * not decoration, and it is what makes an empty dial still read as an
+   * instrument. */
+  .hud-radar-face::after { animation: none; background: none; }
 }
 
 .hud-radar-player {
   position: absolute;
   top: 50%;
   left: 50%;
+  z-index: 2;
   color: var(--ui-accent-strong);
-  font-size: var(--txs);
+  font-size: var(--tbase);
+  line-height: 1;
+  /* A dark halo so the player marker stays legible on top of a contact blip
+     that happens to land in the same place. */
+  text-shadow: 0 0 4px var(--ui-void), 0 0 4px var(--ui-void);
   transform: translate(-50%, -50%);
 }
 
 .hud-radar-contact {
   position: absolute;
+  /* Above the sweep and rings, below the player marker. */
+  z-index: 1;
   /* --hud-radar-x/y are unitless fractions of the ruleset's radar.visualRangeM
      (see hud.ts), in -1..1 — 50% is the face's radius, so a contact at the
      edge of sensor range lands exactly on the edge of the dial regardless of
      panel size. */
   top: calc(50% - var(--hud-radar-y) * 50%);
   left: calc(50% + var(--hud-radar-x) * 50%);
-  color: var(--ui-ink-muted);
-  font-size: var(--txs);
+  color: var(--ui-ink);
+  font-size: var(--tbase);
   line-height: 1;
+  /* Same halo treatment as the player marker, so a contact is readable against
+     the sweep as well as against the dial. */
+  text-shadow: 0 0 4px var(--ui-void), 0 0 4px var(--ui-void);
   transform: translate(-50%, -50%);
 }
 
@@ -389,6 +467,80 @@
   flex-direction: column;
   gap: var(--gap);
   margin-bottom: var(--gap);
+}
+
+/* --- condition panel: a dashboard, not a spreadsheet ------------------------
+ *
+ * The panel was twelve full-width rows in a single column, each with its own
+ * padding, gap and left border, in a narrow panel — so it read as a long strip
+ * of tiny text that had to be parsed line by line. A review of the real frame
+ * called it "a long stack of tiny green text lines with minimal grouping" and
+ * said the player has to "read line by line to understand damage state", which
+ * is the wrong read at combat speed, where the armour read is the most
+ * important glance in the game.
+ *
+ * The armour facings are now a 2-COLUMN grid rather than four stacked rows,
+ * because that is the shape they describe: front and rear on the first row,
+ * left and right on the second, underbody spanning beneath. A glance at the
+ * grid is a glance at the car, and a damaged corner is visible as a
+ * discontinuity in a shape rather than as the fourth line of a list.
+ *
+ * Rows are also tighter — the per-row padding and the inter-row gap were both
+ * doing a full line each, which is most of why twelve values did not fit a
+ * sensible height.
+ */
+.hud-armor-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(var(--gap) * 0.5);
+}
+
+.hud-armor-facing {
+  padding: calc(var(--gap) * 0.5) var(--gap);
+  /* The value is the point, so the label is muted and the row carries the
+     state colour — one glance gives the number AND its health at once. */
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap);
+}
+
+/* Underbody spans the full width: it is the one facing that is not a corner, so
+   giving it a single cell would make the grid read as a 2x3 block. */
+.hud-armor-list .hud-armor-facing:last-child {
+  grid-column: 1 / -1;
+}
+
+.hud-tire-list,
+.hud-cargo-list {
+  gap: calc(var(--gap) * 0.5);
+}
+
+.hud-tire,
+.hud-cargo,
+.hud-plant,
+.hud-driver-health,
+.hud-driver-armor {
+  padding: calc(var(--gap) * 0.5) var(--gap);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap);
+}
+
+/* Section labels between the groups, so the panel reads as armour / tyres /
+   cargo / systems rather than as one undifferentiated list. */
+.hud-condition-group {
+  margin: var(--gap) 0 calc(var(--gap) * 0.5);
+  font-size: var(--t2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ui-ink-dim);
+}
+
+.hud-condition-group:first-of-type {
+  margin-top: 0;
 }
 
 .hud-armor-list {

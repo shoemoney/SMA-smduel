@@ -194,11 +194,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 18px 34px 20px;
-  margin-bottom: 4px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(5, 7, 10, 0.62) 0%, rgba(5, 7, 10, 0.18) 100%);
+  gap: 4px;
+  /* No panel. The first pass put the wordmark on its own dark rounded box and
+     the review was right that the screen then had THREE competing layers —
+     glowing logo, subtitle, menu box — rather than one focal hierarchy. The
+     art already carries a strong vignette, and the wordmark now has a drop
+     shadow, so it holds contrast without a plate of its own. Removing the box
+     is what lets the logo be the only bright focal point. */
+  padding: 0 20px;
+  margin-bottom: 30px;
   position: relative;
   isolation: isolate;
 }
@@ -206,7 +210,7 @@
 .sm-title-wordmark {
   margin: 0;
   font-family: var(--ui-font-mono);
-  font-size: clamp(44px, 11vw, 92px);
+  font-size: clamp(40px, 9vw, 76px);
   font-weight: 700;
   line-height: 0.92;
   letter-spacing: 0.14em;
@@ -235,10 +239,13 @@
 
 .sm-title-tagline {
   margin: 0;
-  max-width: 34ch;
+  /* Wide enough for the tagline on ONE line: at 38ch it broke after
+     "A highway that wants" and left "you dead." orphaned on its own row,
+     which reads as two captions rather than one sentence. */
+  max-width: 52ch;
   text-align: center;
   font-family: var(--ui-font-sans);
-  font-size: clamp(12px, 1.6vw, 15px);
+  font-size: clamp(11px, 1.35vw, 13px);
   line-height: 1.4;
   letter-spacing: 0.04em;
   color: rgba(226, 236, 244, 0.86);

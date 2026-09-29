@@ -2166,7 +2166,29 @@ function buildGroundQuad(atlasIndex: AtlasIndex, center: Vec2M, halfExtentM: num
 }
 
 /** Composes a vehicle's render rotation from its simulation heading and its frame's `rotationOffsetDeg` — the exact seam a vehicle-orientation regression test drives directly, instead of reimplementing this formula (assets/ASSET-NOTES.md section 2). */
-export function vehicleSpriteInstance(vehicle: VehicleState, atlasIndex: AtlasIndex): SpriteInstanceInput {
+/**
+ * Tint applied to a rendered vehicle.
+ *
+ * The player and their opponents are drawn with the SAME sprite, at the same
+ * size, on a low-contrast ground — so at a glance the player's own car is just
+ * another car. A vision review of the city frame called it "weak player/object
+ * contrast" and said navigation "feels muddy", which is a real legibility
+ * problem in a top-down game where finding yourself instantly is the single
+ * most important visual read.
+ *
+ * The separation is a small VALUE difference, not a hue one: the player's car is
+ * lifted slightly and opponents are pushed slightly down. A saturation or hue
+ * shift would recolour the art and read as a different vehicle class, which
+ * would be a lie about the build the player chose.
+ */
+export const PLAYER_TINT = { r: 1.18, g: 1.18, b: 1.18, a: 1 } as const;
+export const OPPONENT_TINT = { r: 0.9, g: 0.9, b: 0.94, a: 1 } as const;
+
+export function vehicleSpriteInstance(
+  vehicle: VehicleState,
+  atlasIndex: AtlasIndex,
+  tint: { r: number; g: number; b: number; a: number } = PLAYER_TINT,
+): SpriteInstanceInput {
   const frame = atlasIndex.frame(`car-${vehicle.design.bodyId}`);
   return {
     atlasId: '0',
@@ -2174,7 +2196,7 @@ export function vehicleSpriteInstance(vehicle: VehicleState, atlasIndex: AtlasIn
     rotationRad: vehicle.headingRad + degToRad(frame.rotationOffsetDeg),
     sizeM: VEHICLE_SPRITE_SIZE_M,
     uvRect: frame.uv,
-    tint: { r: 1, g: 1, b: 1, a: 1 },
+    tint,
     layer: 1,
   };
 }
@@ -3412,7 +3434,7 @@ function showArenaEvent(
       [
         vehicleShadowInstance(player, atlas),
         vehicleSpriteInstance(player, atlas),
-        ...opponents.flatMap((vehicle) => [vehicleShadowInstance(vehicle, atlas), vehicleSpriteInstance(vehicle, atlas)]),
+        ...opponents.flatMap((vehicle) => [vehicleShadowInstance(vehicle, atlas), vehicleSpriteInstance(vehicle, atlas, OPPONENT_TINT)]),
       ],
       camera.getVisibleBounds(),
     ).visible;
@@ -4932,7 +4954,7 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
       [
         vehicleShadowInstance(trip.vehicle, atlas),
         vehicleSpriteInstance(trip.vehicle, atlas),
-        ...opponents.flatMap((v) => [vehicleShadowInstance(v, atlas), vehicleSpriteInstance(v, atlas)]),
+        ...opponents.flatMap((v) => [vehicleShadowInstance(v, atlas), vehicleSpriteInstance(v, atlas, OPPONENT_TINT)]),
       ],
       camera.getVisibleBounds(),
     ).visible;
