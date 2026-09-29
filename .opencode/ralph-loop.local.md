@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 59
+iteration: 60
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (59 of 82 vision models):
+Reviewers asked (60 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -2275,6 +2275,85 @@ TOOLING - the review harness got audited by its own failure this round:
      reporting every segment settled it in one pass. The rule is now paid for
      three times over: locate the element by scanning for it, never by
      remembering where it was.
+
+60. xiaomi/mimo-v2.6-flash -> ZERO REAL, but TWO GENUINELY NEW DESIGN CANDIDATES,
+     and the clearest contradiction yet on a settled decision:
+     - "The legend is ~8px grey text beside ~8px colour dots - far too small to
+       read at this resolution ... enlarge to 13px text with 12px swatches."
+       FACTUALLY WRONG, and worth checking because the same element was enlarged
+       one round ago: the legend reads `var(--ui-text-sm)` = 0.75rem = 12px with
+       10px swatches, set in iteration 52 after iteration 51 reported it as "too
+       small to quickly associate icons with actions". The marker precedent
+       ("a reviewer who has already seen the fix and still cannot find it is
+       telling you the NUMBER") does NOT transfer here, and the difference is
+       worth stating: for the markers the reviewer's claim was that they could
+       not FIND the thing, which is a perception a reviewer can report honestly
+       while estimating its size badly. Here the reviewer's estimate of the size
+       is simply wrong by a third, which makes it evidence about the estimate
+       rather than about the legibility. The legend measures 7.23:1 on its panel
+       and was verified legible in the frame. Not actioned a second time on the
+       strength of a number that is measurably not there;
+     - "Shrink the chevrons ~40% ... the oversized unlabeled arrows out-rank the
+       player's own car as the focal point." This is the SIXTH distinct ask on
+       the markers and the THIRD asking for them to be SMALLER (iterations 33 and
+       47 are the other two) against three asking for them to be larger
+       (iterations 19, 20, 26). The element is genuinely contested, and the log
+       now holds the receipts on both sides. The new observation underneath is
+       fair and is not about size at all: the markers are the most saturated
+       things on the city screen, so they DO out-rank the car for attention, and
+       the fix iteration 33 identified — a worn painted sign instead of a neon
+       chip — is the only one that satisfies both halves of the tension. Still an
+       ART task;
+     - "Move the menu to centre-screen directly under the tagline ... it reads
+       like a debug overlay rather than a main menu." THE THIRD DIRECTION the
+       menu has been asked to move in, and this one is a direct reversal of
+       iteration 43, which moved the menu OFF the centre axis because the title
+       art is built symmetrically and a centred menu sits exactly on the
+       composition's focal point. Iteration 46 asked for the opposite (too close
+       to the bottom edge), iteration 47 reported the result as fine, and now
+       this. Three reviews, three directions, same frame. The frame settles it —
+       iteration 43's change was measured before and after (vehicle art 33.41 →
+       63.65 luma, tagline 9.48 → 9.00:1) — and a review noticing a number is not
+       the same as that number being wrong;
+     - **NEW CANDIDATE, real: the highway has nothing passing the camera.**
+       "There are no barriers, delineator posts, signs, traffic or debris anywhere
+       between the top and bottom of the frame ... at driving speed the car feels
+       stationary." This is a genuine gap and the proposed mechanism is honest:
+       repeating roadside furniture is what real highways use to make speed
+       readable, and it is PLACED CONTENT rather than a painted lie, so it does
+       not run into the iteration-21 trade (a painted wall that does not exist)
+       or the iteration-54 one (a sprite claiming an interaction area it does not
+       have). Nothing in the game currently provides a speed cue on the road
+       except the lane dashes. Recorded as the strongest new gameplay-visual
+       candidate in the log.
+       Its second half is already satisfied and the reviewer inverted it: "lower
+       asphalt luminance ~20% below the shoulder so the white edge lines read as
+       an actual edge". Asphalt measures 81.5 against 101.5 for the verge — 20
+       points darker, which is the 20% the review is asking for, arrived at in
+       iteration 18 by rebuilding the road as its own rotated strip;
+     - **NEW CANDIDATE, real: the arena camera is too wide.** "The car sits
+       dead-centre at roughly 110x75px inside a 1280x800 frame, so about 95% of
+       the screen is empty floor ... tighten the camera so the car fills about
+       1/6 of the screen height." This is the first arena-emptiness ask in the log
+       whose remedy is NOT a fake boundary. Every previous one (iterations 21, 24,
+       33, 34, 40, 55) wanted walls, cover, spawn pads or painted zones — all
+       declined because they are content the simulation does not have. A camera
+       change is neither: it is honest, it is reversible, and it attacks the
+       actual complaint (an unbounded field shown too small in frame) rather than
+       dressing it. Recorded as the top open visual item. NOT actioned blind,
+       because the arena and road share a camera scale and the change needs to be
+       measured across both screens rather than guessed;
+     - "The preview is an outlined rounded rectangle containing two flat grey
+       boxes - no wheels, no body colour ... it does not react to the list."
+       The NINTH report of the preview class, and both halves are settled: the
+       schematic is GENERATED from the chosen part, so body changes alter its
+       proportions, hull, wheelbase and every zone band (proved in iteration 42
+       from `colliderLengthM`/`colliderWidthM` in driving.json), and iteration 33
+       added the selected-row-to-zone LINK. A static capture cannot show a
+       selection change — the same unfalsifiable shape iterations 51 and 56 hit.
+     NO CODE CHANGED. The two new candidates are the product of this round: the
+     first two proposals in a dozen that survive the "is this a lie about the
+     simulation?" test that killed the rest.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
