@@ -1,0 +1,75 @@
+{
+  "model": "google/gemini-3.5-flash-lite",
+  "modelLabel": "google/gemini-3.5-flash-lite",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T18:13:57.133Z",
+  "usage": {
+    "prompt_tokens": 5843,
+    "completion_tokens": 743,
+    "total_tokens": 6586,
+    "cost": 0.0036104,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0036104,
+      "upstream_inference_prompt_cost": 0.0017529,
+      "upstream_inference_completions_cost": 0.0018575
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Low-Contrast HUD Overlays on Textured Ground",
+      "where": "Arena and Road screens, bottom HUD bar and status readouts",
+      "problem": "The speedometer and status widgets float directly over the high-frequency pixelated ground and road textures with minimal backing opacity or blur.",
+      "why": "During active combat or high-speed driving, the lack of a solid dark background or backdrop blur causes the white typography and thin gauge rings to visually blend with the road markings, harming rapid player legibility.",
+      "fix": "Add a solid 80% opacity dark slate backing panel with a subtle border stroke behind the central speedometer and bottom HUD widgets to isolate them from world geometry."
+    },
+    {
+      "title": "Unreadable Dim Grey Component List",
+      "where": "Vehicle Constructor screen, left-hand panel listing Body, Chassis, Suspension, etc.",
+      "problem": "The component attribute labels and values are rendered in a low-contrast dark grey text color against the dark navy UI container.",
+      "why": "It forces the player to strain to read vehicle stats and configuration options, slowing down the garage loop and making the interface feel unpolished and inaccessible.",
+      "fix": "Increase the text brightness of the property labels to an off-white/light cyan and use a brighter accent color for current selection values."
+    },
+    {
+      "title": "Unstyled Plain-Text Tutorial Banners",
+      "where": "Arena, Road, and City screens, top center floating banners",
+      "problem": "Instructional text like 'WASD/arrows drive' and status messages are presented in stark, flat dark grey or black rounded rectangles with simple grey borders.",
+      "why": "They look like unstyled HTML debugging elements rather than diegetic or polished game HUD elements, breaking the immersive post-apocalyptic vehicular atmosphere.",
+      "fix": "Redesign notification boxes with an industrial container style: corner bracket accents, a semi-transparent amber-tinted backdrop, and high-visibility yellow-on-dark typography."
+    },
+    {
+      "title": "Bleeding Menu Selection Outline",
+      "where": "Title screen, center interactive menu box",
+      "problem": "The outer selection boundary box for 'New Driver' and 'Controls' overlaps and clashes with the tight internal border styling of the options list.",
+      "why": "It creates a messy, glitchy visual artifact right in the center of the first screen the player sees, lowering perceived production quality immediately.",
+      "fix": "Consolidate the menu item states into a single cohesive focus style, such as filling the active row with a solid translucent cyan highlight bar instead of drawing competing bounding boxes."
+    },
+    {
+      "title": "Low-Contrast Status Readouts on Dark Backdrop",
+      "where": "Arena and Road screens, top-right 'CONDITION' and 'TYRES' panel",
+      "problem": "The armor and tire status items use faint dashed lines and muted grey indicators inside a dark container panel against a dark UI theme.",
+      "why": "Critical vehicular damage states (such as armor status per facing) are hard to parse at a glance during high-intensity gameplay when seconds matter.",
+      "fix": "Invert the contrast hierarchy for damaged components: use bright high-visibility warning colors (amber/red) for compromised facings and solid fill bars instead of muted dashed outlines."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Low-Contrast HUD Overlays on Textured Ground\",\n    \"where\": \"Arena and Road screens, bottom HUD bar and status readouts\",\n    \"problem\": \"The speedometer and status widgets float directly over the high-frequency pixelated ground and road textures with minimal backing opacity or blur.\",\n    \"why\": \"During active combat or high-speed driving, the lack of a solid dark background or backdrop blur causes the white typography and thin gauge rings to visually blend with the road markings, harming rapid player legibility.\",\n    \"fix\": \"Add a solid 80% opacity dark slate backing panel with a subtle border stroke behind the central speedometer and bottom HUD widgets to isolate them from world geometry.\"\n  },\n  {\n    \"title\": \"Unreadable Dim Grey Component List\",\n    \"where\": \"Vehicle Constructor screen, left-hand panel listing Body, Chassis, Suspension, etc.\",\n    \"problem\": \"The component attribute labels and values are rendered in a low-contrast dark grey text color against the dark navy UI container.\",\n    \"why\": \"It forces the player to strain to read vehicle stats and configuration options, slowing down the garage loop and making the interface feel unpolished and inaccessible.\",\n    \"fix\": \"Increase the text brightness of the property labels to an off-white/light cyan and use a brighter accent color for current selection values.\"\n  },\n  {\n    \"title\": \"Unstyled Plain-Text Tutorial Banners\",\n    \"where\": \"Arena, Road, and City screens, top center floating banners\",\n    \"problem\": \"Instructional text like 'WASD/arrows drive' and status messages are presented in stark, flat dark grey or black rounded rectangles with simple grey borders.\",\n    \"why\": \"They look like unstyled HTML debugging elements rather than diegetic or polished game HUD elements, breaking the immersive post-apocalyptic vehicular atmosphere.\",\n    \"fix\": \"Redesign notification boxes with an industrial container style: corner bracket accents, a semi-transparent amber-tinted backdrop, and high-visibility yellow-on-dark typography.\"\n  },\n  {\n    \"title\": \"Bleeding Menu Selection Outline\",\n    \"where\": \"Title screen, center interactive menu box\",\n    \"problem\": \"The outer selection boundary box for 'New Driver' and 'Controls' overlaps and clashes with the tight internal border styling of the options list.\",\n    \"why\": \"It creates a messy, glitchy visual artifact right in the center of the first screen the player sees, lowering perceived production quality immediately.\",\n    \"fix\": \"Consolidate the menu item states into a single cohesive focus style, such as filling the active row with a solid translucent cyan highlight bar instead of drawing competing bounding boxes.\"\n  },\n  {\n    \"title\": \"Low-Contrast Status Readouts on Dark Backdrop\",\n    \"where\": \"Arena and Road screens, top-right 'CONDITION' and 'TYRES' panel\",\n    \"problem\": \"The armor and tire status items use faint dashed lines and muted grey indicators inside a dark container panel against a dark UI theme.\",\n    \"why\": \"Critical vehicular damage states (such as armor status per facing) are hard to parse at a glance during high-intensity gameplay when seconds matter.\",\n    \"fix\": \"Invert the contrast hierarchy for damaged components: use bright high-visibility warning colors (amber/red) for compromised facings and solid fill bars instead of muted dashed outlines.\"\n  }\n]"
+}

@@ -1,5 +1,5 @@
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import fs, { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import path, { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -1287,5 +1287,68 @@ describe('loadSizeConfig', () => {
   it('throws when a kind\'s maxPx exceeds MAX_CONFIGURABLE_PX', () => {
     const path = writeFixture('maxpx-too-big.json', JSON.stringify({ ...validBase, car: { maxPx: 1024 } }));
     expect(() => loadSizeConfig(path)).toThrow(/car\.maxPx \(1024\) exceeds MAX_CONFIGURABLE_PX/);
+  });
+});
+
+describe('CSS custom properties: every var() reference must resolve to a declared token', () => {
+  // `--ui-surface-2` was referenced by the accent washes in menu.css and
+  // builder.css for seventeen iterations and was never declared in tokens.css.
+  // A `color-mix()` containing an unresolvable `var()` is an INVALID colour, so
+  // the whole `background` declaration was invalid at computed-value time and
+  // computed to `transparent` — the selected menu row's accent wash rendered
+  // nothing at all, silently, with no error anywhere.
+  //
+  // It stayed invisible because selection was ALSO carried by a border, so the
+  // row still looked highlighted and every screenshot looked correct. Six
+  // reviews in a row reported that the selected item was "only a thin neon
+  // outline" — which was literally true — and six times I measured a luma
+  // average, saw a difference, and recorded the claim as false. The difference I
+  // was measuring was the border. A green test suite, a clean build, a passing
+  // capture gate and six contradicting expert reviews, all at once.
+  //
+  // This test is the fix for the CLASS, not the instance: an undeclared token is
+  // now a build failure instead of a silently transparent declaration.
+  it('has no undeclared, unfallbacked token references', () => {
+    const cssDir = fileURLToPath(new URL('../../src/', import.meta.url));
+    const cssFiles = fs
+      .readdirSync(cssDir, { recursive: true, withFileTypes: true })
+      .filter((e: fs.Dirent) => e.isFile() && e.name.endsWith('.css'))
+      .map((e: fs.Dirent) => resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src', e.parentPath, e.name));
+
+    const srcDir = fileURLToPath(new URL('../../src/', import.meta.url));
+    const declared = new Set<string>();
+    for (const file of cssFiles) {
+      for (const m of readFileSync(file, 'utf8').matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)) declared.add(m[1]!);
+    }
+    // Custom properties set at RUNTIME count as declared. `--hud-radar-x/y` are
+    // written into an element's inline style by hud.ts on every contact update, so
+    // they exist in the document without ever appearing in a stylesheet — and a
+    // test that demanded one would fail on correct code.
+    const tsFiles = fs
+      .readdirSync(srcDir, { recursive: true, withFileTypes: true })
+      .filter((e: fs.Dirent) => e.isFile() && e.name.endsWith('.ts'))
+      .map((e: fs.Dirent) => resolve(srcDir, e.parentPath, e.name));
+    for (const file of tsFiles) {
+      const text = readFileSync(file, 'utf8');
+      // `style: \`--foo:1\`` and `setProperty('--foo', ...)` are both real.
+      for (const m of text.matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)) declared.add(m[1]!);
+      for (const m of text.matchAll(/setProperty\(\s*['\`](--[a-zA-Z0-9-]+)/g)) declared.add(m[1]!);
+    }
+    expect(declared.size).toBeGreaterThan(20);
+
+    const unresolved: string[] = [];
+    for (const file of cssFiles) {
+      for (const m of readFileSync(file, 'utf8').matchAll(/var\(\s*(--[a-zA-Z0-9-]+)\s*[,)]/g)) {
+        const name = m[1]!;
+        if (declared.has(name)) continue;
+        // A reference that supplies its own fallback is safe: `var(--x, red)`
+        // resolves even when --x is undeclared. What is NOT safe is a bare
+        // reference, because the whole declaration then computes to its initial
+        // value — transparent, for a background — with no error anywhere.
+        if (m[0]!.includes(',')) continue;
+        unresolved.push(`${path.relative(cssDir, file)} -> ${name}`);
+      }
+    }
+    expect([...new Set(unresolved)].sort()).toEqual([]);
   });
 });

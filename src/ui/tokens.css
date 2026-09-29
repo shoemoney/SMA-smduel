@@ -118,6 +118,24 @@ a {
   --ui-surface: #101720;
   --ui-surface-raised: #1a2331;
   --ui-surface-sunken: #0b1017;
+  /* The mid step between sunken and raised, for fills that have to sit ON a
+   * panel rather than replace it.
+   *
+   * ADDED BECAUSE IT WAS MISSING AND NOTHING LOOKED WRONG. `--ui-surface-2` had
+   * been referenced by the accent washes in menu.css and builder.css for
+   * seventeen iterations, and it does not exist in this file. A `color-mix()`
+   * with an unresolvable var() is an INVALID colour, which makes the whole
+   * `background` declaration invalid at computed-value time — so the selected
+   * menu row's accent wash silently computed to `transparent` and rendered
+   * nothing at all. Selection has been carried entirely by its border this whole
+   * time, which is why six reviews in a row accurately reported that the
+   * selected item was "only a thin neon outline" and why I kept measuring them
+   * as false: I was sampling a luma average that the BORDER was carrying, and
+   * mistaking it for the fill the comment claimed existed. */
+  --ui-surface-2: #141d29;
+  /* The bar TRACK: recessed below surface-2 so a depleting bar reads as a
+   * channel with something in it rather than as a coloured rectangle. */
+  --ui-surface-3: #0d141d;
   /* Translucent "glass" ramp used by every panel/chrome surface in the game. */
   --ui-glass: rgba(16, 23, 32, 0.78);
   --ui-glass-raised: rgba(30, 41, 56, 0.8);
@@ -230,6 +248,8 @@ a {
 :root[data-theme='light'] {
   --ui-surface: #ffffff;
   --ui-surface-raised: #f7f9fb;
+  --ui-surface-2: #eef2f7;
+  --ui-surface-3: #dde4ec;
   --ui-surface-sunken: #e4eaf0;
   --ui-glass: rgba(255, 255, 255, 0.9);
   --ui-glass-raised: rgba(244, 248, 252, 0.94);

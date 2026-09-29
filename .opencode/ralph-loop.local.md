@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 31
+iteration: 32
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (31 of 82 vision models):
+Reviewers asked (32 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -693,9 +693,57 @@ TOOLING - the review harness got audited by its own failure this round:
      reviewer who cannot see a distinction will call it a weight problem when it
      is a grouping one - the section edge added in iteration 17 is the grouping.
 
+32. google/gemini-3.5-flash-lite -> 1 REAL, AND IT UNCOVERED A SEVENTEEN-ITERATION
+     BUG THAT MADE SIX REVIEWERS RIGHT AND ME WRONG:
+     - "The outer selection boundary box for New Driver and Controls overlaps
+       and clashes with the tight internal border styling of the options list ...
+       fill the active row with a solid translucent cyan highlight bar instead of
+       drawing competing bounding boxes." The diagnosis was right and the
+       proposed remedy did not work - and finding out why is the whole
+       iteration.
+       Removing the outline and pushing the existing accent wash from 26% to 40%
+       made the selection render INVISIBLE. That is not a tuning problem: the
+       wash is a color-mix() against --ui-surface-2, AND --ui-surface-2 HAS NEVER
+       EXISTED. A color-mix() containing an unresolvable var() is an INVALID
+       colour, so the entire background declaration was invalid at computed-value
+       time and computed to transparent. The selected row's accent fill has been
+       rendering NOTHING since iteration 15.
+       WHY NOBODY CAUGHT IT, INCLUDING ME, SIX TIMES: selection was ALSO carried
+       by a border, so the row still looked highlighted and every screenshot
+       looked correct. Six reviews in a row reported that the selected item was
+       "only a thin neon outline" - literally, exactly true - and six times I
+       sampled a luma average, saw a difference, and logged the claim FALSE. The
+       difference I was measuring WAS the border. A green suite, a clean build, a
+       passing capture gate and six contradicting expert reviews, all at once.
+       The comment above that rule has been asserting "separates by FILL as well
+       as by outline" for seventeen iterations. The fill half was a no-op.
+       FIXED: --ui-surface-2 and --ui-surface-3 are now declared (surface-3 is
+       the bar TRACK, referenced since iteration 25 with a fallback that was
+       masking the same problem). The fill is a real left-to-right cyan gradient,
+       52% to 30%, and it is now the ONLY selection cue - one box for the panel,
+       one filled row for the selection.
+       THE GUARD FOR THE CLASS, not the instance: a new test walks every
+       stylesheet, collects every declared custom property, adds the ones set at
+       RUNTIME (--hud-radar-x/y via inline style, --sm-touch-radius via
+       setProperty - a test that demanded those would fail on correct code), and
+       fails on any var() reference that resolves to neither. A reference that
+       supplies its own fallback is exempt, because var(--x, red) is safe; what is
+       not safe is a bare reference. PROVEN to fire, not assumed: injecting a
+       bogus var(--ui-bogus-token) into hud.css fails the test, and removing it
+       passes. Writing the test is not the same as knowing it works.
+     Recorded: tutorial banners are "stark flat dark rectangles ... unstyled HTML
+       debugging elements". A real critique with a real remedy (corner brackets,
+       amber tint) that no reviewer has yet made concrete enough to act on
+       without it becoming decoration.
+     FALSE: low-contrast HUD over textured ground (the status pill measured
+       11.40:1 in iteration 24 and is now 13.20:1); the constructor list is dim
+       grey (iteration 23 raised the weight, and iteration 31 recorded that the
+       remaining ask is grouping rather than weight); the condition panel uses
+       "muted dashed outlines" for damaged facings (the dash is the UNFITTED
+       state, and iteration 21 deliberately made it LOUDER - a fitted facing has
+       a real depleting bar).
+
 DEFERRED (real, documented, not bugs):
-- Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
-  bleed). Real fix = dedicated linear+repeat ground texture (load-time change).
 - City daylight grade (my 0.6 ground tint is why it reads dim), street network,
   title-menu composition, 10 empty weapon rows.
 
