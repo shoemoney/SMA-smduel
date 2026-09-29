@@ -1,0 +1,75 @@
+{
+  "model": "stepfun/step-3.7-flash",
+  "modelLabel": "stepfun/step-3.7-flash",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T19:32:18.969Z",
+  "usage": {
+    "prompt_tokens": 3752,
+    "completion_tokens": 5302,
+    "total_tokens": 9054,
+    "cost": 0.00627426,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 3584,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00627426,
+      "upstream_inference_prompt_cost": 0.00017696,
+      "upstream_inference_completions_cost": 0.0060973
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Debug Seed Text Leak",
+      "where": "Arena screen, top-left corner beneath the WEAPONS header",
+      "problem": "Debug text reading \"Seed alice5ee\" (or similar seed identifier) is visible beneath the weapons UI, appearing as unfinished debug information",
+      "why": "It breaks fourth-wall immersion and signals an unpolished/development build to the player, reducing perceived quality and professionalism",
+      "fix": "Remove the debug seed text from the UI layer in production builds, or gate it behind a developer-only flag; replace with the active weapon name or hide entirely when no weapon is selected"
+    },
+    {
+      "title": "Radar Non-Functionality",
+      "where": "Arena and road screens, bottom-left corner",
+      "problem": "The radar is rendered as a nearly black circular disc with no visible sweep line, contact dots, or grid lines, making it read as a broken or decorative element rather than a functional instrument",
+      "why": "At highway speeds, players need immediate spatial awareness of enemies/obstacles; a non-functional radar removes critical gameplay information and looks like a rendering failure",
+      "fix": "Add a bright, rotating sweep line (cyan/green), render enemy contacts as pulsing red/orange dots, and ensure the outer ring and grid have sufficient contrast (light gray on dark) to be visible"
+    },
+    {
+      "title": "Minimap Boundary Indistinctness",
+      "where": "City screen, central minimap view",
+      "problem": "The circular boundary wall is rendered in low-contrast gray against the cracked earth texture, and building interaction icons (colored arrows) are small and lack visual weight against the detailed background",
+      "why": "Players cannot quickly identify the playable area limits or distinguish interactive points of interest, causing navigation delays and visual fatigue",
+      "fix": "Increase boundary wall opacity to 80-100% with a bright white or cyan color, add a subtle outer glow/shadow to separate it from the ground texture, and scale up building icons by 20-30% with saturated colors and white borders"
+    },
+    {
+      "title": "Armour Status Confusion",
+      "where": "Arena and road screens, top-right condition panel",
+      "problem": "All armour zones (Front, Rear, Left, Right, Underbody) display \"0/0\" in red text, which visually communicates \"damaged/destroyed\" state rather than \"no armour equipped\", and the horizontal bars are empty without indicating availability",
+      "why": "Players misinterpret the red zeros as critical vehicle damage, creating false urgency and confusion about whether their car is destroyed or simply unarmoured",
+      "fix": "Render empty slots as \"--\" or \"0/0\" in neutral gray, add a dashed border or \"+\" icon to indicate the slot is available for mounting, and reserve red exclusively for actual damage states with health remaining"
+    },
+    {
+      "title": "Weapon Slot Ambiguity",
+      "where": "Constructor screen, left-hand panel weapon list",
+      "problem": "Weapon rows 1-10 display \"(empty)\" in low-contrast, muted text that is difficult to read against the dark background and appears disabled rather than available",
+      "why": "Players cannot quickly identify which mounting points are free for weapons, and the dim text suggests the slots are inaccessible rather than empty, slowing down the build process",
+      "fix": "Increase contrast of \"(empty)\" text to bright cyan or white, add a subtle left border or \"+\" indicator to signal interactivity, and ensure hover/selected states are visually distinct from the static list"
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Debug Seed Text Leak\",\n    \"where\": \"Arena screen, top-left corner beneath the WEAPONS header\",\n    \"problem\": \"Debug text reading \\\"Seed alice5ee\\\" (or similar seed identifier) is visible beneath the weapons UI, appearing as unfinished debug information\",\n    \"why\": \"It breaks fourth-wall immersion and signals an unpolished/development build to the player, reducing perceived quality and professionalism\",\n    \"fix\": \"Remove the debug seed text from the UI layer in production builds, or gate it behind a developer-only flag; replace with the active weapon name or hide entirely when no weapon is selected\"\n  },\n  {\n    \"title\": \"Radar Non-Functionality\",\n    \"where\": \"Arena and road screens, bottom-left corner\",\n    \"problem\": \"The radar is rendered as a nearly black circular disc with no visible sweep line, contact dots, or grid lines, making it read as a broken or decorative element rather than a functional instrument\",\n    \"why\": \"At highway speeds, players need immediate spatial awareness of enemies/obstacles; a non-functional radar removes critical gameplay information and looks like a rendering failure\",\n    \"fix\": \"Add a bright, rotating sweep line (cyan/green), render enemy contacts as pulsing red/orange dots, and ensure the outer ring and grid have sufficient contrast (light gray on dark) to be visible\"\n  },\n  {\n    \"title\": \"Minimap Boundary Indistinctness\",\n    \"where\": \"City screen, central minimap view\",\n    \"problem\": \"The circular boundary wall is rendered in low-contrast gray against the cracked earth texture, and building interaction icons (colored arrows) are small and lack visual weight against the detailed background\",\n    \"why\": \"Players cannot quickly identify the playable area limits or distinguish interactive points of interest, causing navigation delays and visual fatigue\",\n    \"fix\": \"Increase boundary wall opacity to 80-100% with a bright white or cyan color, add a subtle outer glow/shadow to separate it from the ground texture, and scale up building icons by 20-30% with saturated colors and white borders\"\n  },\n  {\n    \"title\": \"Armour Status Confusion\",\n    \"where\": \"Arena and road screens, top-right condition panel\",\n    \"problem\": \"All armour zones (Front, Rear, Left, Right, Underbody) display \\\"0/0\\\" in red text, which visually communicates \\\"damaged/destroyed\\\" state rather than \\\"no armour equipped\\\", and the horizontal bars are empty without indicating availability\",\n    \"why\": \"Players misinterpret the red zeros as critical vehicle damage, creating false urgency and confusion about whether their car is destroyed or simply unarmoured\",\n    \"fix\": \"Render empty slots as \\\"--\\\" or \\\"0/0\\\" in neutral gray, add a dashed border or \\\"+\\\" icon to indicate the slot is available for mounting, and reserve red exclusively for actual damage states with health remaining\"\n  },\n  {\n    \"title\": \"Weapon Slot Ambiguity\",\n    \"where\": \"Constructor screen, left-hand panel weapon list\",\n    \"problem\": \"Weapon rows 1-10 display \\\"(empty)\\\" in low-contrast, muted text that is difficult to read against the dark background and appears disabled rather than available\",\n    \"why\": \"Players cannot quickly identify which mounting points are free for weapons, and the dim text suggests the slots are inaccessible rather than empty, slowing down the build process\",\n    \"fix\": \"Increase contrast of \\\"(empty)\\\" text to bright cyan or white, add a subtle left border or \\\"+\\\" indicator to signal interactivity, and ensure hover/selected states are visually distinct from the static list\"\n  }\n]"
+}

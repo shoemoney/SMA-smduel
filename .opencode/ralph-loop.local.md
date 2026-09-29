@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 49
+iteration: 50
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (49 of 82 vision models):
+Reviewers asked (50 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1506,11 +1506,86 @@ TOOLING - the review harness got audited by its own failure this round:
        protects: the tagline must stay subordinate to a 40-76px wordmark, and
        bolding the smaller line inverts exactly that.
 
+50. stepfun/step-3.7-flash -> ZERO REAL. Nothing changed. Every claim was
+   checked, and one of them sent me building a fix for an element I had not
+   actually found:
+     - "Debug Seed Text Leak ... 'Seed alice5ee' beneath the weapons UI ...
+       remove it from production builds." FALSE, and it is the second review to
+       call the seed a debug leak (iteration 19 made the SAME call about the
+       title's phantom session header, and that one was right for a reason that
+       does not apply here). The title screen had no run in progress, so a
+       session header there described a session that did not exist. The arena
+       seed is the opposite case: it is the hash of the run the player is
+       standing in, and it is what makes a practice arena reproducible. The
+       test for "is this debug data" is not how it looks, it is whether the
+       state it describes exists — and deleting it would remove a feature to
+       satisfy a screenshot reading. The reviewer's alternative ("replace with
+       the active weapon name") would trade a real, unique value for a
+       duplicated one, and would be wrong on the no-weapon case too;
+     - "The radar is a nearly black disc with no visible sweep line, contact
+       dots, or grid lines." THIRTY-FIRST report on that element, and the
+       suggested remedy is still the fabricated contacts declined ten times;
+     - "The circular boundary wall is rendered in low-contrast gray against
+       the cracked earth texture ... increase boundary wall opacity to 80-100%
+       with a bright white or cyan color." FALSE on the wall, and this is the
+       finding that cost the most and returned the least, so it is worth
+       recording in full.
+       The wall is plainly legible in the frame — a segmented band running the
+       full width of the capture, one of the most distinct things on the city
+       screen. So I measured it anyway: I sampled two bands and got a 14-point
+       gap, which is lower than the 17-19 the buildings get, and 14 is low
+       enough to sound like a real finding. I built a fix — a value-only wall
+       tint, on the reasoning that buildings separate by contact shadow and the
+       wall has none, so it is the only prop relying on the grade alone, and
+       the grade is luminance-preserving (`slate * lum`) so tone can never
+       darken it. That reasoning is sound and the change is small.
+       Then I measured the result and the wall was BYTE-IDENTICAL, and the
+       capture's luma had moved 93.38 -> 93.17, so something had changed
+       somewhere. Rather than keep adjusting numbers, I re-tinted the wall
+       unmistakable green to find out where it actually draws. It drew on 279
+       pixels in a small patch near the top of the frame — the entrance
+       MARKERS, not the wall — which means the arc I had been sampling is not
+       `prop-citywall` at all, and therefore the 14-point gap was a measurement
+       of the wrong element entirely.
+       So: reverted. The finding was false, the "gap 14" was an artefact of
+       sampling, and the fix was aimed at a target I had never located. It is
+       the FIFTH time in this log a sample box has nearly misled me (iterations
+       12, 30, 33, 35, and now 50) and the rule has now cost real work rather
+       than just time. The sharpened version, learned the expensive way: a
+       measurement is only evidence if you have confirmed you are measuring the
+       thing you claim. The tell was available before I built anything — a 0.86
+       multiply that changed NOTHING is not a tuning result, it is a signal
+       that the target is not where you think it is;
+     - "All armour zones display '0/0' in red, which communicates damaged or
+       destroyed rather than unarmoured." FALSE on all three counts, and the
+       frame settles it: the ARMOUR block shows FRONT/REAR/LEFT/RIGHT/
+       UNDERBODY each as a NEUTRAL dash inside a DASHED CHIP. Not red, not
+       "0/0", and the dashed border is the thing the review asks to "add". It
+       is iteration 21's fix, unchanged since, and iteration 9 traced the same
+       chain that killed this exact claim for iteration 41. Worth noting the
+       reviewer's own remedy is a description of the shipped design, which is
+       the eleventh time that has happened and is the strongest available
+       signal that a claim is stale rather than new;
+     - "Weapon rows display '(empty)' in low-contrast muted text ... increase
+       contrast to bright cyan or white." The NINTH report of this class and the
+       second in consecutive iterations asking for exactly the opposite of
+       iteration 17. Dim-and-italic on the unfilled slots is the whole point:
+       the eye has to land on what is fitted. A tenth bright "(empty)" would
+       put the loudest thing on the constructor in the state the player is
+       trying to leave, and the reviewer's "add a left border to signal
+       interactivity" is the amber requirement rail added in iteration 48,
+       which exists precisely to mark unmet weapon slots.
+     NO CODE CHANGED. Seven zero-real reviews in the last sixteen. The honest
+     summary of where the loop has got to: the remaining models are re-issuing
+     five solved complaints with fresh wording, and the most valuable output of
+     a late round is the evidence that there is nothing left to fix — plus, this
+     round, a much better way to tell a real finding from a bad measurement.
+
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
   asset regeneration, not a CSS change, and it must not be faked with a filter.
 - City daylight grade (my 0.6 ground tint is why it reads dim), street network,
-  title-menu composition, 10 empty weapon rows.
+  10 empty weapon rows.
 
 Tooling: `node tools/review.mjs --list | --model <id> --shots <dir>`
 Reviews: .opencode/reviews/
