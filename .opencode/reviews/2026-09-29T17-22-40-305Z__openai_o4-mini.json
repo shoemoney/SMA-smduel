@@ -1,0 +1,75 @@
+{
+  "model": "openai/o4-mini",
+  "modelLabel": "openai/o4-mini",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T17:22:40.305Z",
+  "usage": {
+    "prompt_tokens": 8984,
+    "completion_tokens": 3257,
+    "total_tokens": 12241,
+    "cost": 0.0242132,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0242132,
+      "upstream_inference_prompt_cost": 0.0098824,
+      "upstream_inference_completions_cost": 0.0143308
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2432,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "finishReason": "stop",
+  "findings": [
+    {
+      "title": "Clipped and low-contrast instruction bars",
+      "where": "Arena, Road, and City screens, top-center instruction/status bar",
+      "problem": "The instruction bars use small, light grey text on a semi-transparent background; long lines are truncated with an ellipsis, making controls and status messages unreadable.",
+      "why": "Players can’t see critical control hints or journey status at a glance, leading to confusion and missed information during play.",
+      "fix": "Increase font size by 20%, switch to bold white text, expand the container width or enable multi-line wrapping, remove ellipses, and boost the background opacity to at least 80% for better contrast."
+    },
+    {
+      "title": "Static radar display",
+      "where": "Bottom-left radar panel on Arena, Road, and City screens",
+      "problem": "Radar shows a static green circle with no sweep animation or blip markers; the orientation label is truncated and cut off.",
+      "why": "Players expect dynamic scanning feedback to track enemies or waypoints; a non-animating, featureless radar undermines trust in this instrument.",
+      "fix": "Implement a rotating sweep line with a fading trail, render pulsing blips for detected objects, and adjust the panel layout so the full \"Orientation: north-up\" text fits beneath the radar."
+    },
+    {
+      "title": "Invisible progress bar",
+      "where": "Road screen, top-center just below the status bar",
+      "problem": "The trip progress bar is a thin line with minimal contrast against the background, and its fill indicator is nearly the same shade, making progress almost imperceptible.",
+      "why": "Players can’t gauge how far they've driven or how much remains, reducing the sense of progression and anticipation.",
+      "fix": "Increase the bar height to at least 8px, use a distinct high-contrast fill color (e.g., bright teal) and a darker grey track, and add a percentage readout at the right end."
+    },
+    {
+      "title": "Subtle menu selection highlight",
+      "where": "Title screen, central menu box around options",
+      "problem": "The selected menu item is outlined with a thin neon border while unselected items are plain text, making the active choice ambiguous.",
+      "why": "New players may not clearly see which menu option is active, hindering navigation and giving the UI an unfinished feel.",
+      "fix": "Use a solid background fill for the selected row in a contrasting color, increase padding, change the selected font color to white, and add a hover state (e.g., slight background tint) for unselected items."
+    },
+    {
+      "title": "Unstructured constructor layout",
+      "where": "Constructor screen, left component list and right stats/preview panel",
+      "problem": "All elements appear as plain text in narrow columns with minimal spacing or separators; the name input, section headers, weapon slots, and help text all bleed together.",
+      "why": "Players struggle to distinguish stats vs. equipment slots vs. instructions, increasing cognitive load and slowing down vehicle setup.",
+      "fix": "Group related controls under bold, labeled headers with horizontal dividers, enclose the name input in a clearly labeled box with a thicker border, add simple icons for body/chassis/weapon slots, and increase footer help text to at least 14px."
+    }
+  ],
+  "parseError": null,
+  "raw": "[  \n  {  \n    \"title\": \"Clipped and low-contrast instruction bars\",  \n    \"where\": \"Arena, Road, and City screens, top-center instruction/status bar\",  \n    \"problem\": \"The instruction bars use small, light grey text on a semi-transparent background; long lines are truncated with an ellipsis, making controls and status messages unreadable.\",  \n    \"why\": \"Players can’t see critical control hints or journey status at a glance, leading to confusion and missed information during play.\",  \n    \"fix\": \"Increase font size by 20%, switch to bold white text, expand the container width or enable multi-line wrapping, remove ellipses, and boost the background opacity to at least 80% for better contrast.\"  \n  },  \n  {  \n    \"title\": \"Static radar display\",  \n    \"where\": \"Bottom-left radar panel on Arena, Road, and City screens\",  \n    \"problem\": \"Radar shows a static green circle with no sweep animation or blip markers; the orientation label is truncated and cut off.\",  \n    \"why\": \"Players expect dynamic scanning feedback to track enemies or waypoints; a non-animating, featureless radar undermines trust in this instrument.\",  \n    \"fix\": \"Implement a rotating sweep line with a fading trail, render pulsing blips for detected objects, and adjust the panel layout so the full \\\"Orientation: north-up\\\" text fits beneath the radar.\"  \n  },  \n  {  \n    \"title\": \"Invisible progress bar\",  \n    \"where\": \"Road screen, top-center just below the status bar\",  \n    \"problem\": \"The trip progress bar is a thin line with minimal contrast against the background, and its fill indicator is nearly the same shade, making progress almost imperceptible.\",  \n    \"why\": \"Players can’t gauge how far they've driven or how much remains, reducing the sense of progression and anticipation.\",  \n    \"fix\": \"Increase the bar height to at least 8px, use a distinct high-contrast fill color (e.g., bright teal) and a darker grey track, and add a percentage readout at the right end.\"  \n  },  \n  {  \n    \"title\": \"Subtle menu selection highlight\",  \n    \"where\": \"Title screen, central menu box around options\",  \n    \"problem\": \"The selected menu item is outlined with a thin neon border while unselected items are plain text, making the active choice ambiguous.\",  \n    \"why\": \"New players may not clearly see which menu option is active, hindering navigation and giving the UI an unfinished feel.\",  \n    \"fix\": \"Use a solid background fill for the selected row in a contrasting color, increase padding, change the selected font color to white, and add a hover state (e.g., slight background tint) for unselected items.\"  \n  },  \n  {  \n    \"title\": \"Unstructured constructor layout\",  \n    \"where\": \"Constructor screen, left component list and right stats/preview panel\",  \n    \"problem\": \"All elements appear as plain text in narrow columns with minimal spacing or separators; the name input, section headers, weapon slots, and help text all bleed together.\",  \n    \"why\": \"Players struggle to distinguish stats vs. equipment slots vs. instructions, increasing cognitive load and slowing down vehicle setup.\",  \n    \"fix\": \"Group related controls under bold, labeled headers with horizontal dividers, enclose the name input in a clearly labeled box with a thicker border, add simple icons for body/chassis/weapon slots, and increase footer help text to at least 14px.\"  \n  }  \n]"
+}

@@ -2392,6 +2392,38 @@ function showArena(
   const status = el('div');
   status.style.cssText =
     'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
+  /**
+   * Controls and seed, split OUT of the status line.
+   *
+   * The banner was one element carrying a mode label, three control hints and
+   * the session seed, inside a `max-width` that truncated it: it rendered as
+   * "Practice arena — WASD/arrows drive, Space/J fire, Q/E cycle weapon. Seed
+   * a11ce5ee…." A review called the result "small, light grey text ... long
+   * lines are truncated with an ellipsis, making controls and status messages
+   * unreadable", and iteration 19 had already caught this same line's siblings
+   * leaking dev data into player-facing UI.
+   *
+   * The truncation is what made the seed read as debug noise: a hash cut off
+   * mid-string looks like a log line, where a complete, labelled one looks like
+   * a deliberate feature. The seed is genuinely useful — it is what makes a
+   * practice run reproducible — so it is kept, not removed, and given its own
+   * element that cannot ellipsize. It goes BELOW the WEAPONS button rather than
+   * beside it, and on the left rather than the right: a screenshot caught it
+   * under the WEAPONS button at top-left, and a second caught it hidden behind
+   * the CONDITION panel when I moved it right. The arena's corners are all
+   * spoken for, so the stamp tucks under the one control it is nearest to.
+   *
+   * The controls are a teaching aid, so they fade like the road's driving hint
+   * (see the identical `sm-road-hint-fade` keyframes) instead of sitting in the
+   * objective line for the whole session. `status` now says only what stays true.
+   */
+  const arenaControls = el('div');
+  arenaControls.style.cssText =
+    'position:absolute;top:34px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.62);padding:3px 9px;border-radius:4px;text-align:center;white-space:nowrap;pointer-events:none;animation:sm-road-hint-fade 7s ease-out forwards;';
+  arenaControls.textContent = t(isCoarsePointer() ? 'ui.arena.arenaControlsTouch' : 'ui.arena.arenaControls');
+  const seedTag = el('div');
+  seedTag.style.cssText =
+    'position:absolute;top:52px;left:8px;color:#7f8fa2;font-family:ui-monospace,monospace;font-size:11px;background:rgba(10,14,20,0.62);padding:3px 7px;border-radius:4px;white-space:nowrap;pointer-events:none;';
   const exitBtn = el('button', undefined, t('ui.arena.exitToTitle'));
   exitBtn.style.cssText =
     'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
@@ -2401,6 +2433,8 @@ function showArena(
   container.appendChild(canvas);
   container.appendChild(hudHost);
   container.appendChild(status);
+  container.appendChild(arenaControls);
+  container.appendChild(seedTag);
   container.appendChild(retryBtn);
   container.appendChild(exitBtn);
   clearAndAppend(root, container);
@@ -2520,7 +2554,8 @@ function showArena(
     // The seed's job is REPRODUCIBILITY: it goes in the console log and in the
     // crash banner, both of which carry it in full for a bug report. On screen
     // it only needs to be recognisable and short.
-    status.textContent = t('ui.arena.practiceHint', { seed: `${session.sessionSeed.slice(0, 8)}…` });
+    status.textContent = t('ui.arena.practiceHint');
+    seedTag.textContent = t('ui.arena.seedLabel', { seed: session.sessionSeed.slice(0, 8) });
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
 

@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 21
+iteration: 22
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (21 of 82 vision models):
+Reviewers asked (22 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -319,6 +319,36 @@ TOOLING - the review harness got audited by its own failure this round:
        noticing the pixel count was IDENTICAL to the unrelated armour-chip change.
      FALSE: radar (13th report on the same element); the tagline contrast, which
        already carries a two-layer shadow from iteration 15.
+
+22. openai/o4-mini -> 1 REAL (the truncation that made a real feature look like a
+     log line), 1 measured-and-already-satisfied, 3 FALSE:
+     - "The instruction bars use small, light grey text ... long lines are
+       truncated with an ellipsis, making controls and status messages
+       unreadable." TRUE, and the cause is more specific than the review knew.
+       The arena banner was ONE element carrying a mode label, three control
+       hints and the session seed inside a max-width, so it rendered as
+       "Practice arena - WASD/arrows drive, Space/J fire, Q/E cycle weapon. Seed
+       a11ce5ee...". THE TRUNCATION IS WHAT MADE THE SEED LOOK LIKE DEBUG
+       NOISE: a hash cut off mid-string reads as a log line, a complete labelled
+       one reads as a feature. The seed is genuinely useful - it is what makes a
+       practice run reproducible - so it is KEPT and given its own element that
+       cannot ellipsize, rather than deleted the way iteration 19 deleted the
+       title's phantom session header. Controls became a fading hint on the same
+       keyframes as the road's, and the status line now says only what stays true.
+       Positioned by screenshot twice: top-left collided with WEAPONS, top-right
+       hid it behind CONDITION, so it tucks under WEAPONS.
+     - "The progress bar fill is nearly the same shade as the track, making
+       progress almost imperceptible." MEASURED FALSE. The fill is a teal-to-blue
+       gradient (#4fd6c4 -> #63a8ff) on a near-black track, about 9:1, and the bar
+       is already 8px - the review asked for "at least 8px". What it is seeing is
+       scaleX(0) at the start of a 150-mile route: an empty bar is the honest
+       report of 0 miles driven, and the miles are in the objective line one row
+       above. A duplicate percentage readout would be the same clutter the
+       drive-hint fix just removed.
+     FALSE: radar (14th report on the same element); the selected menu row is
+       ambiguous (it has an accent wash plus a 3px edge, and iteration 20
+       strengthened the panel around it); the constructor is unstructured (it has
+       a section edge, a distinct CONFIRM button, and a loadout group heading).
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would
