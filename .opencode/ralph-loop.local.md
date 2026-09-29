@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 48
+iteration: 49
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (48 of 82 vision models):
+Reviewers asked (49 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -1466,6 +1466,45 @@ TOOLING - the review harness got audited by its own failure this round:
      a unit of truth — it is three observations of different vintages, and the
      useful move is to check each against the frame rather than accept or reject
      the review as a whole.
+
+49. qwen/qwen3-vl-8b-thinking -> 1 REAL (small, and only after separating the
+     claim from its stated cause), 4 FALSE:
+     - "The progress banner uses dashes to split text, causing awkward line
+       breaks ... text is hard to parse quickly." The STATED CAUSE is false and
+       the frame settles it in one look: the banner is a single line with no wrap
+       at all, at 1280px and at the narrow widths this loop also captures. There
+       are no line breaks to be awkward.
+       The OBSERVATION underneath it is still worth something, though, and it is
+       the kind of thing that only shows up when someone reads a line closely
+       rather than scanning it: these are three FIELDS — destination, distance,
+       day — and an em dash is a sentence break, not a field delimiter. A player
+       reading this at speed parses "Albany — 150mi" as a phrase with an aside
+       rather than as two adjacent values. The road and city status lines now
+       separate fields with a middot, which is what the menu header has always
+       used for the same job.
+       Worth recording as a pattern: a wrong reason attached to a real
+       observation is still a real observation. The reflex to discard a finding
+       because its diagnosis is wrong throws away the half that was right — which
+       is the mirror of iteration 25, where a wrong claim about the CONDITION
+       panel was really a right claim about WEIGHT;
+     - "Radar is a static black disc with no visible sweep or contact markers."
+       THIRTIETH report on that element, and the suggested fix is the fabricated
+       placeholder contacts declined nine times;
+     - "'Not road-legal' is too small and hard to read." Measured at 7.54:1 in
+       iteration 38 — past AAA — and it is set in BOLD amber as the most
+       prominent line in a three-line panel, because it is the one line that
+       blocks the player from taking the car anywhere. The "minimum 16px" ask
+       would enlarge the least-scannable element of the panel;
+     - "Weapon slot '(empty)' has low contrast against the dark background ...
+       set it to white at 90% opacity." INVERTED. Iteration 17 dimmed the
+       unfilled slots — dim AND italic — precisely so the eye lands on what is
+       actually fitted. Making all ten empty slots near-white would put the
+       loudest thing on the screen in the state the player is trying to move out
+       of;
+     - "The tagline is too light ... increase to bold." Measured at 9.00:1 in
+       iteration 44, and iteration 12 established the hierarchy the weight
+       protects: the tagline must stay subordinate to a 40-76px wordmark, and
+       bolding the smaller line inverts exactly that.
 
 DEFERRED (real, documented, not bugs):
 - TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
