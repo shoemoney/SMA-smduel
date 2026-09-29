@@ -108,11 +108,22 @@ describe('index.html — arcade home link', () => {
 
 describe('index.html — mobile viewport', () => {
   it('gives #app a dvh height with a vh fallback', () => {
-    const appRuleMatch = INDEX_HTML.match(/#app\s*{([^}]*)}/);
-    expect(appRuleMatch).not.toBeNull();
+    // The rule used to live in a <style> block inside index.html. It now lives
+    // in src/ui/tokens.css, because the page's global CSS was extracted into a
+    // token layer that every screen shares. Asserting on index.html alone made
+    // this test fail for a pure refactor while the actual mobile behaviour was
+    // unchanged — and, worse, it would have kept passing if the rule had been
+    // deleted from BOTH files. So the search covers the stylesheet that owns it
+    // now, and the file list is what makes the relocation explicit.
+    const sources = [INDEX_HTML, readFileSync(new URL('../../src/ui/tokens.css', import.meta.url), 'utf8')].join('\n');
+    const appRuleMatch = sources.match(/#app\s*{([^}]*)}/);
+    expect(appRuleMatch, 'no #app rule found in index.html or src/ui/tokens.css').not.toBeNull();
     const appRule = appRuleMatch?.[1] ?? '';
     expect(appRule).toMatch(/height:\s*100vh/);
     expect(appRule).toMatch(/height:\s*100dvh/);
+    // `dvh` must come AFTER `vh` or it is dead code in browsers that do not
+    // understand it, which is the entire point of shipping both.
+    expect(appRule.indexOf('100dvh')).toBeGreaterThan(appRule.indexOf('100vh'));
   });
 });
 

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { citiesConfig, drivingConfig, economy } from '@/data/rulesets';
@@ -33,6 +35,24 @@ const NEWYORK = 'newyork'; // 10 facilities — plenty of ring slots to make a s
 const PROVIDENCE = 'providence'; // 1 facility — the ring-size edge case
 
 /** A minimal, self-contained atlas manifest covering every frame name `@/ui/city-view` can ask for — never the live `assets/atlas.json`, which a concurrent workflow owns and may edit mid-run. */
+/**
+ * A minimal, self-contained atlas manifest covering every frame name
+ * `@/ui/city-view` can ask for — never the live `assets/atlas.json`, which a
+ * concurrent workflow owns and may edit mid-run.
+ *
+ * The frame list is GENERATED from the source rather than hand-listed, because a
+ * hand-written list silently rots: the city view gained a wall ring, street
+ * lights, barriers, doormarkers and a whole set of authored `building-*`
+ * footprints, and the list below was never updated. `buildCityInstances` then
+ * threw `unknown atlas frame "prop-citywall"` and five tests failed — not
+ * because the city broke, but because the fixture was out of date. A stale
+ * fixture reads exactly like a product bug, which is the worst possible failure
+ * mode for a test double.
+ *
+ * So the names are scanned out of the module under test, and a name that is
+ * genuinely absent from the atlas still fails loudly (see the assertion at the
+ * bottom) rather than being silently invented here.
+ */
 function fixtureAtlasIndex() {
   const frame = (kind: string) => ({
     atlas: 0,
@@ -47,19 +67,58 @@ function fixtureAtlasIndex() {
     kind,
     rotationOffsetDeg: 0,
   });
+  const kindOf = (name: string): string =>
+    name.startsWith('building-')
+      ? 'building'
+      : name.startsWith('prop-')
+        ? 'prop'
+        : name.startsWith('car-')
+          ? 'car'
+          : name.startsWith('cycle-')
+            ? 'cycle'
+            : 'tile';
+  const sources = ['../../src/ui/city-view.ts', '../../src/render/ground.ts']
+    .map((rel) => readFileSync(new URL(rel, import.meta.url), 'utf8'))
+    .join('\n');
+  const frames: Record<string, ReturnType<typeof frame>> = {};
+  for (const match of sources.matchAll(/'(building-[a-z-]+|prop-[a-z-]+|tile-[a-z-]+|cycle-[a-z-]+|car-[a-z-]+)'/g)) {
+    const name = match[1]!;
+    frames[name] = frame(kindOf(name));
+  }
+  // Vehicle sprites are requested through a template literal —
+  // `car-${vehicle.design.bodyId}` — so a regex over the source cannot see
+  // them. They are derived from the ruleset's own body list instead, which is
+  // the same source of truth the runtime resolves them through.
+  const bodies = JSON.parse(readFileSync(new URL('../../rulesets/classic/bodies.json', import.meta.url), 'utf8')) as {
+    bodies?: { id: string }[];
+  };
+  for (const body of bodies.bodies ?? []) frames[`car-${body.id}`] = frame('car');
   return loadAtlasIndex({
     atlases: [{ file: 'fixture.png', width: 64, height: 64 }],
-    frames: {
-      'tile-asphalt-clean': frame('tile'),
-      'tile-roof-residential': frame('tile'),
-      'tile-roof-commercial': frame('tile'),
-      'tile-roof-industrial': frame('tile'),
-      'prop-city-gate': frame('prop'),
-      'cycle-topdown': frame('cycle'),
-      'car-midsized': frame('car'),
-    },
+    frames,
   });
 }
+
+/**
+ * Every frame the fixture invents must really exist in the shipped atlas, and
+ * vice versa for the kinds the city uses.
+ *
+ * The fixture is generated from source, so it can only ever be too GENEROUS
+ * (a name in a comment or a string that is not actually requested), never too
+ * small. This test catches the generous direction: a generated name that is not
+ * in the real manifest means the city view is asking for art that does not
+ * exist, which is a production crash at render time.
+ */
+it('every frame the city view asks for exists in the real manifest', () => {
+  const real = JSON.parse(readFileSync(new URL('../../assets/atlas.json', import.meta.url), 'utf8')) as {
+    frames: Record<string, unknown>;
+  };
+  const sources = ['../../src/ui/city-view.ts', '../../src/render/ground.ts']
+    .map((rel) => readFileSync(new URL(rel, import.meta.url), 'utf8'))
+    .join('\n');
+  const asked = [...new Set([...sources.matchAll(/'(building-[a-z-]+|prop-[a-z-]+|tile-[a-z-]+|cycle-[a-z-]+|car-[a-z-]+)'/g)].map((m) => m[1]!))];
+  expect(asked.filter((name) => !(name in real.frames))).toEqual([]);
+});
 
 function clockAt(dayIndex: number, phase: 'DAY' | 'NIGHT'): Clock {
   const day = advanceDays(initialClock(), dayIndex);
@@ -773,7 +832,7 @@ describe('buildCityInstances', () => {
     return { layout, player, vehicle: null };
   }
 
-  it('emits one ground tile per grid cell, one building instance per doorway plus the gate, and one actor for the on-foot player', () => {
+  it('emits ONE ground quad, a building plus its shadow per doorway and the gate, and one actor for the on-foot player', () => {
     const snapshot = makeSnapshot();
     const atlasIndex = fixtureAtlasIndex();
     const instances = buildCityInstances(snapshot, atlasIndex);
@@ -783,32 +842,49 @@ describe('buildCityInstances', () => {
       byLayer.set(inst.layer, (byLayer.get(inst.layer) ?? 0) + 1);
     }
 
-    const tile = snapshot.layout.tileSizeM;
-    const half = snapshot.layout.boundsRadiusM + tile;
-    // Closed-form derivation of the grid's per-axis point count - how many
-    // multiples of `tile`, starting exactly at -half, land at or before
-    // +half - expressed as a formula rather than by re-running
-    // buildCityInstances's own `for (v = -half; v <= half; v += tile)`
-    // loop, so a bug in THAT loop (wrong bound, wrong step, off-by-one)
-    // shows up as a mismatch instead of being silently reproduced.
-    const axisCount = Math.floor((2 * half) / tile + 1e-9) + 1;
-    const expectedGroundCount = axisCount * axisCount;
+    // The ground is a SINGLE quad now, not a grid of cells. This assertion was
+    // previously a closed-form `axisCount * axisCount` grid derivation, and it
+    // is worth being explicit that the grid is gone rather than just accepting
+    // whatever count comes out: a per-cell grid is what made the ground read as
+    // tiled wallpaper, because every cell boundary is a visible seam. The quad
+    // has no interior boundary, and `uvRepeatMetres` carries the tiling into the
+    // fragment shader instead.
+    expect(byLayer.get(0)).toBe(1);
+    const groundQuadInstance = instances.find((i) => i.layer === 0);
+    expect(groundQuadInstance?.uvRepeatMetres).toBeGreaterThan(0);
 
-    expect(expectedGroundCount).toBeGreaterThan(1); // sanity: the formula itself must describe a real grid, not a degenerate one
-    expect(byLayer.get(0)).toBe(expectedGroundCount);
-    expect(byLayer.get(1)).toBe(snapshot.layout.doorways.length + 1); // + gate
-    expect(byLayer.get(2)).toBe(1); // just the walking player, no vehicle in this snapshot
-
-    // Every ground tile must also fall within [-half, half] on both axes -
-    // catches a formula/implementation that agrees on COUNT but not on
-    // actual coverage (e.g. tiles shifted off-centre).
-    const groundTiles = instances.filter((i) => i.layer === 0);
-    for (const t of groundTiles) {
-      expect(t.position.x).toBeGreaterThanOrEqual(-half - 1e-9);
-      expect(t.position.x).toBeLessThanOrEqual(half + 1e-9);
-      expect(t.position.y).toBeGreaterThanOrEqual(-half - 1e-9);
-      expect(t.position.y).toBeLessThanOrEqual(half + 1e-9);
+    // Layer 1 is buildings, and it is a MIX: shadow+building pairs for the
+    // facilities, the gate and the decorative infill, but also bare doormarkers,
+    // which have no shadow. So the count is not a simple multiple and strict
+    // index pairing does not hold. The invariant that actually matters is that
+    // every shadow is IMMEDIATELY followed by its own caster — otherwise
+    // painter's-algorithm order puts the building on top of its shadow and the
+    // contact shadow silently disappears, which is exactly the bug the shadow
+    // work was for.
+    const layer1 = instances.filter((i) => i.layer === 1);
+    let shadows = 0;
+    for (let i = 0; i < layer1.length; i++) {
+      const inst = layer1[i]!;
+      if ((inst.shadowSoftness ?? 0) <= 0) continue;
+      shadows += 1;
+      const caster = layer1[i + 1];
+      expect(caster, `shadow at index ${i} has no caster after it`).toBeDefined();
+      expect(caster!.shadowSoftness ?? 0).toBe(0);
+      expect(caster!.atlasId).toBe(inst.atlasId);
+      // The shadow is deliberately OFFSET from its caster (light from the
+      // upper-left), so positions are not equal — the caster sits one shadow
+      // offset up-and-left of the shadow. Asserting the relationship catches a
+      // shadow that has drifted onto the wrong side of its building, which a
+      // count check would pass.
+      expect(inst.position.x - caster!.position.x).toBeCloseTo(1.0, 6);
+      expect(inst.position.y - caster!.position.y).toBeCloseTo(-0.9, 6);
     }
+    // Sanity: the city really does emit shadows, so the loop above is not
+    // passing vacuously over an empty set.
+    expect(shadows).toBeGreaterThanOrEqual(snapshot.layout.doorways.length + 1);
+
+    // One walking player, no vehicle in this snapshot.
+    expect(byLayer.get(2)).toBe(1);
   });
 
   it('renders both a parked vehicle and the on-foot player when the vehicle is present but not occupied', () => {
@@ -818,7 +894,11 @@ describe('buildCityInstances', () => {
     };
     const instances = buildCityInstances(snapshot, fixtureAtlasIndex());
     const actorLayer = instances.filter((i) => i.layer === 2);
-    expect(actorLayer).toHaveLength(2);
+    // Parked vehicle = its contact shadow + its sprite, then the walking player.
+    expect(actorLayer).toHaveLength(3);
+    expect(actorLayer[0]!.shadowSoftness ?? 0).toBeGreaterThan(0);
+    expect(actorLayer[1]!.shadowSoftness ?? 0).toBe(0);
+    expect(actorLayer[2]!.shadowSoftness ?? 0).toBe(0);
   });
 
   it('renders only the vehicle (at the player\'s position) when the player is riding it - no separate walking sprite', () => {
@@ -830,8 +910,12 @@ describe('buildCityInstances', () => {
     };
     const instances = buildCityInstances(snapshot, fixtureAtlasIndex());
     const actorLayer = instances.filter((i) => i.layer === 2);
-    expect(actorLayer).toHaveLength(1);
-    expect(actorLayer[0]?.position).toEqual({ x: 7, y: -3 });
+    // Shadow + vehicle, and no separate walking sprite. The shadow is emitted
+    // first so the painter's algorithm within the layer puts it underneath.
+    expect(actorLayer).toHaveLength(2);
+    expect(actorLayer[0]!.shadowSoftness ?? 0).toBeGreaterThan(0);
+    expect(actorLayer[1]!.shadowSoftness ?? 0).toBe(0);
+    expect(actorLayer[1]?.position).toEqual({ x: 7, y: -3 });
   });
 
   it('never mutates its snapshot (deep-frozen input survives a call unharmed), and returns real instances derived from it - not an empty or garbage buffer', () => {

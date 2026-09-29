@@ -6,6 +6,13 @@ dist/
 .pending-questions.md
 perf-report.json
 assets/raw/
+# Generated source art staged by tools/gen-codex-assets.mjs before
+# tools/integrate-codex-assets.mjs folds it into assets/raw/ and repacks the
+# atlas. Same category as assets/raw/: reproducible from the generator, and the
+# packed atlas is what ships.
+assets/raw-codex/
+# Visual-review captures from tools/shoot.mjs. Local evidence, tens of MB.
+.shots/
 .remember/
 .claude/
 .playwright-mcp/

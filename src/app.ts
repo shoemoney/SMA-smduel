@@ -146,6 +146,7 @@ import {
   type HudElement,
   type HudDocument,
   type HudMessage,
+  type HudRadarContact,
   type HudMessageKind,
   type HudSettings,
   type HudSnapshot,
@@ -153,15 +154,22 @@ import {
 import { mountBuilder, type BuilderConfirmedBuild } from '@/ui/builder';
 import { mountFacility, type ArenaEntryResult, type BuildingContext, type MountedFacility } from '@/ui/buildings';
 import { leaveAction, LEAVE_ACTION_ID, mountBuildingPanel, type RumorId } from '@/ui/buildings/shared';
-import { buildCityInstances, type CityVehicleView, type CityViewSnapshot } from '@/ui/city-view';
+import {
+  buildCityInstances,
+  cityLayer1InstanceCount,
+  type CityVehicleView,
+  type CityViewSnapshot,
+  WALL_SETBACK_M as CITY_WALL_SETBACK_M,
+} from '@/ui/city-view';
 import { mountMenu, type MenuAction, type MenuHeaderInfo } from '@/ui/menu';
 import { cityName, t } from '@/ui/strings';
 import { isCoarsePointer, mountTouchControls, type TouchCommandSpec, type TouchControls } from '@/ui/touch';
 import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
 
 import { initGpu, type GpuContext } from '@/render/gpu';
-import { loadAtlasIndex, type AtlasIndex, type FrameInfo } from '@/render/atlas';
+import { loadAtlasIndex, type AtlasIndex } from '@/render/atlas';
 import { createCamera, type Camera } from '@/render/camera';
+import { groundQuad, GROUND_TILE_METRES } from '@/render/ground';
 import {
   createAtlasBindGroup,
   createAtlasBindGroupLayout,
@@ -171,12 +179,22 @@ import {
   createCameraUniformBuffer,
   createInstanceStorageBuffer,
   createLayerPipeline,
+  createPostBindGroup,
+  createPostBindGroupLayout,
+  createPostPipeline,
+  createPostSampler,
+  createPostUniformBuffer,
   createShaderModule,
+  encodePostPass,
   encodeSpritePass,
   packInstances,
+  packPostUniforms,
   writeCameraUniform,
   writeInstanceBuffer,
+  type AtlasDraw,
+  type PostUniformValues,
   type SpriteInstanceInput,
+  type Vec2M,
 } from '@/render/sprite';
 
 import atlasManifestRaw from '../assets/atlas.json';
@@ -324,6 +342,20 @@ export function seedOverrideFromSearch(search: string): string | null {
   if (raw === null) return null;
   const trimmed = raw.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Reads `?screen=` from a location.search-style string — the deterministic
+ * screen-jump seam `boot` uses to open one named screen directly (see
+ * `startScreenJump` there for why a visual-overhaul pass needs it). A missing,
+ * blank, or unrecognised value yields null so boot falls through to the normal
+ * title flow, which is the only path a real player ever takes.
+ */
+export function screenFromSearch(search: string): string | null {
+  const raw = new URLSearchParams(search).get('screen');
+  if (raw === null) return null;
+  const trimmed = raw.trim().toLowerCase();
+  return /^[a-z]+$/.test(trimmed) ? trimmed : null;
 }
 
 /**
@@ -1455,7 +1487,35 @@ export function makeRoadDamageSystem(
 // Rendering
 // ---------------------------------------------------------------------------
 
-interface RenderResources {
+/**
+ * The post/grade pass's per-screen state.
+ *
+ * Factored out because the arena, arena-event, road and city screens each build
+ * their own resource set with different instance buffers, and all four now run
+ * the identical two-pass frame. Carrying the grade state as its own shape means
+ * the graded encode path and the per-frame grade upload are written once instead
+ * of four times — the duplication the four near-identical `renderFrame`s already
+ * had, which is how they drifted in the first place.
+ *
+ * The scene texture itself is deliberately NOT in here: it is a *managed*
+ * resource, recreated by `GpuContext.defineResource` on resize and on
+ * device-loss recovery, so its view and bind group are re-derived per frame by
+ * `writePostFrame` rather than cached.
+ */
+interface PostTemplate {
+  readonly postPipeline: GPURenderPipeline;
+  readonly postUniformBuffer: GPUBuffer;
+  readonly postSampler: GPUSampler;
+  /** Kept so `writePostFrame` can rebuild the bind group without recreating the layout. */
+  readonly postLayout: GPUBindGroupLayout;
+}
+
+/** A `PostTemplate` with this frame's bind group, bound to the current scene texture. */
+interface PostResources extends PostTemplate {
+  readonly postBindGroup: GPUBindGroup;
+}
+
+interface RenderResources extends PostTemplate {
   readonly pipeline: GPURenderPipeline;
   readonly cameraBuffer: GPUBuffer;
   readonly cameraBindGroup: GPUBindGroup;
@@ -1466,13 +1526,177 @@ interface RenderResources {
   readonly texture: GPUTexture;
 }
 
-const TILE_INSTANCE_CAPACITY = FLOOR_TILES_PER_SIDE * FLOOR_TILES_PER_SIDE;
-const SPRITE_INSTANCE_CAPACITY = 16;
+/**
+ * Ground capacity for the arena/road/event screens.
+ *
+ * Was `FLOOR_TILES_PER_SIDE ** 2` (81) because the old floor was a fixed 9x9
+ * grid of one repeated frame. The ground is now a varied field whose extent is
+ * whatever covers the visible area, so the count is derived, not a square — see
+ * `groundFieldCellCount`. 2048 is a hard ceiling that covers a 1440x900 viewport
+ * at 5m cells with margin; `writeInstanceBuffer` does not bounds-check, and
+ * overrunning a storage buffer is a WebGPU validation error, not a clamp.
+ */
+const TILE_INSTANCE_CAPACITY = 2048;
+const SPRITE_INSTANCE_CAPACITY = 64;
+
+/**
+ * Extra metres of ground drawn beyond the visible area.
+ *
+ * There is no depth buffer and the camera is hard-locked to the player, so a
+ * quad sized exactly to the view shows the clear colour at the frame edge on
+ * rounding and while the window resizes. A few metres of overscan removes that
+ * entirely, and costs one quad.
+ */
+const GROUND_MARGIN_M = 12;
+
+/** The grade each screen runs. Screens differ deliberately: the arena is a hard-lit concrete pit, the road is open and dusty. The width/height/timeSeconds fields are supplied per frame by `writePostFrame`. */
+const ARENA_GRADE: Omit<PostUniformValues, 'width' | 'height' | 'timeSeconds'> = {
+  vignette: 0.38,
+  bloom: 0.7,
+  grain: 0.05,
+  saturation: 1.1,
+  contrast: 1.12,
+  splitTone: 0.5,
+  exposure: 0.92,
+};
+
+const ROAD_GRADE: Omit<PostUniformValues, 'width' | 'height' | 'timeSeconds'> = {
+  vignette: 0.26,
+  bloom: 0.45,
+  grain: 0.07,
+  saturation: 1.04,
+  contrast: 1.06,
+  splitTone: 0.7,
+  exposure: 0.95,
+};
+
+const CITY_GRADE: Omit<PostUniformValues, 'width' | 'height' | 'timeSeconds'> = {
+  vignette: 0.3,
+  bloom: 0.4,
+  grain: 0.045,
+  saturation: 1.06,
+  contrast: 1.08,
+  splitTone: 0.4,
+  exposure: 0.9,
+};
+
+/** Label for the managed offscreen scene texture, so `defineResource`/`getTexture` agree. */
+const SCENE_TEXTURE_LABEL = 'scene-color';
+
+/**
+ * World-space half-extent of what the camera can see, in metres.
+ *
+ * Derived from the camera's own px/m and the viewport in CSS pixels, so it
+ * tracks zoom and device pixel ratio without a second source of truth. The
+ * ground field is sized from this, which is what makes the ground always reach
+ * the edge of the screen — the old fixed-size floor did not, and left a black
+ * band down one side of the road.
+ */
+function cameraVisibleHalfExtentM(camera: Camera): Vec2M {
+  return camera.getHalfExtentsM();
+}
+
+/**
+ * How far to zoom out, in metres, so the city's own bounds fill the viewport.
+ *
+ * The city is a ring of radius `boundsRadiusM` (about 10.7m for the largest
+ * city, 16 cities total). At the old fixed 14 px/m it drew as a ~300px
+ * postage stamp centred in a mostly-black screen. Fitting the bounds plus a
+ * margin for the wall ring and the ground apron makes it fill the frame at any
+ * window size.
+ *
+ * Clamped to {@link MIN_ZOOM_PX_PER_M}..{@link MAX_ZOOM_PX_PER_M} so a very
+ * small city does not zoom to an unreadable blur, and a very wide window does
+ * not reduce the world to a speck.
+ */
+function cityZoomPxPerM(size: { width: number; height: number }, boundsRadiusM: number): number {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const cssWidth = Math.max(1, size.width / dpr);
+  const cssHeight = Math.max(1, size.height / dpr);
+  // The city's true outer radius: the facility ring plus the fixed wall setback.
+  //
+  // This used to be `boundsRadiusM * CITY_FIT_MARGIN`, which is wrong for a
+  // structural reason rather than a tuning one: the wall sits at an ABSOLUTE
+  // `WALL_SETBACK_M` (8m) while the margin was a MULTIPLE of the radius. Those
+  // two only agree at one city size. At New York's R=10.65 a 1.9 margin framed
+  // 20.2m and just contained the 18.65m wall; at Providence's R=6 the same 1.9
+  // framed 11.4m against a 14m wall, so the ring was cropped off the top and
+  // bottom of the screen. No single ratio fixes both — expressing the fit in
+  // metres does, for every city, with no per-city table.
+  const wantRadiusM = boundsRadiusM + CITY_WALL_SETBACK_M + CITY_FIT_PAD_M;
+  const fit = Math.min(cssWidth, cssHeight) / 2 / Math.max(wantRadiusM, 1);
+  return clamp(fit, MIN_ZOOM_PX_PER_M, MAX_ZOOM_PX_PER_M);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return value < min ? min : value > max ? max : value;
+}
+
+/** Zoom floor. Below this the world becomes an unreadable smear. */
+const MIN_ZOOM_PX_PER_M = 11;
+/**
+ * Zoom ceiling. Above this a single car fills the screen.
+ *
+ * This was 40 while the arena/road zooms sat at 17/15, which meant the ceiling
+ * could never bind and the real limit was the arena constant. Raised to 64 so
+ * the ceiling stays a genuine clamp as the scene zooms in.
+ */
+const MAX_ZOOM_PX_PER_M = 64;
+
+/**
+ * Slack beyond the wall ring, in metres, so the wall is not flush against the
+ * frame edge. Metres rather than a ratio, to match CITY_WALL_SETBACK_M.
+ */
+const CITY_FIT_PAD_M = 3;
+
+/**
+ * Arena/event zoom, in pixels per metre.
+ *
+ * ## Why this nearly doubled
+ *
+ * A subcompact draws at 3.2 x 5.2 m (see VEHICLE_SPRITE_SIZE_M), so at the old
+ * 17 px/m the player's own car was 54 x 88 device px inside a 1440x900 frame —
+ * about 4% of the width. That reads as a postage stamp: the player cannot see
+ * what they are driving, the car art is too small for its own detail to survive
+ * the downscale, and every other visual problem (missing shadow, weak ground)
+ * is being judged at a size where none of it can register.
+ *
+ * 30 px/m makes the same car 96 x 156 px. That is a normal top-down driving
+ * camera: the car is the largest, clearest object on screen, and the ground and
+ * shadow work is finally visible enough to judge.
+ */
+const ARENA_ZOOM_PX_PER_M = 30;
+/** Road zoom. Tighter than the arena was, but a little wider than the arena for road ahead. */
+const ROAD_ZOOM_PX_PER_M = 28;
+
+/**
+ * Creates (or re-creates, on resize and on device-loss recovery, via
+ * `defineResource`) the offscreen colour target the world is composited into.
+ *
+ * The post pass used to be unwired dead code partly because there was nowhere
+ * to put the scene: every `renderFrame` drew straight into the swapchain, so
+ * even a wired `post.wgsl` had nothing to sample. Registering it as a managed
+ * resource rather than a local is what makes it survive a resize or a lost
+ * device without duplicating that logic in four render loops.
+ */
+function ensureSceneTexture(gpuCtx: GpuContext, width: number, height: number): GPUTexture {
+  const existing = gpuCtx.getTexture(SCENE_TEXTURE_LABEL);
+  if (existing !== undefined && existing.width === width && existing.height === height) return existing;
+  gpuCtx.defineResource({
+    label: SCENE_TEXTURE_LABEL,
+    format: gpuCtx.getFormat(),
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+  });
+  const created = gpuCtx.getTexture(SCENE_TEXTURE_LABEL);
+  if (created === undefined) throw new Error('render: scene texture was not created by defineResource');
+  return created;
+}
 
 async function buildRenderResources(
   gpuCtx: GpuContext,
   atlasBitmap: ImageBitmap,
   spriteShaderSource: string,
+  postShaderSource: string,
 ): Promise<RenderResources> {
   const device = gpuCtx.getDevice();
   const format = gpuCtx.getFormat();
@@ -1511,31 +1735,187 @@ async function buildRenderResources(
   const spriteInstanceBuffer = createInstanceStorageBuffer(device, SPRITE_INSTANCE_CAPACITY);
   const spriteBindGroup = createAtlasBindGroup(device, atlasLayout, spriteInstanceBuffer, sampler, textureView);
 
-  return { pipeline, cameraBuffer, cameraBindGroup, tileInstanceBuffer, tileBindGroup, spriteInstanceBuffer, spriteBindGroup, texture };
+  return {
+    pipeline,
+    cameraBuffer,
+    cameraBindGroup,
+    tileInstanceBuffer,
+    tileBindGroup,
+    spriteInstanceBuffer,
+    spriteBindGroup,
+    texture,
+    ...buildPostResources(gpuCtx, postShaderSource),
+  };
 }
 
-function buildFloorInstances(atlasIndex: AtlasIndex): SpriteInstanceInput[] {
-  const frame: FrameInfo = atlasIndex.frame('tile-concrete-arena');
-  const uv = frame.uv;
-  const half = ARENA_HALF_SIZE_M;
-  const instances: SpriteInstanceInput[] = [];
-  for (let row = 0; row < FLOOR_TILES_PER_SIDE; row++) {
-    for (let col = 0; col < FLOOR_TILES_PER_SIDE; col++) {
-      instances.push({
-        atlasId: '0',
-        position: {
-          x: col * FLOOR_TILE_SIZE_M - half + FLOOR_TILE_SIZE_M / 2,
-          y: row * FLOOR_TILE_SIZE_M - half + FLOOR_TILE_SIZE_M / 2,
-        },
-        rotationRad: 0,
-        sizeM: { x: FLOOR_TILE_SIZE_M, y: FLOOR_TILE_SIZE_M },
-        uvRect: uv,
-        tint: { r: 1, g: 1, b: 1, a: 1 },
-        layer: 0,
-      });
-    }
-  }
-  return instances;
+/**
+ * Builds the post pass's per-screen state: shader, pipeline, sampler and the
+ * grade uniform buffer.
+ *
+ * Deliberately does NOT return a bind group. The scene texture is a *managed*
+ * resource — `GpuContext.defineResource` recreates it on resize and on
+ * device-loss recovery, handing back a brand new `GPUTexture` whose old bind
+ * group is dead. The bind group is therefore re-derived every frame by
+ * `writePostFrame`, which is one `createView` plus one `createBindGroup` on an
+ * already-created texture: cheap, and it removes the whole class of
+ * "renders fine until you resize the window" bugs.
+ */
+function buildPostResources(gpuCtx: GpuContext, postShaderSource: string): PostTemplate {
+  const device = gpuCtx.getDevice();
+  const postLayout = createPostBindGroupLayout(device);
+  const postShaderModule = createShaderModule(device, 'post-shader', postShaderSource);
+  return {
+    postPipeline: createPostPipeline({
+      device,
+      shaderModule: postShaderModule,
+      targetFormat: gpuCtx.getFormat(),
+      sourceLayout: postLayout,
+      label: 'post-grade',
+    }),
+    postSampler: createPostSampler(device),
+    postUniformBuffer: createPostUniformBuffer(device),
+    postLayout,
+  };
+}
+
+/**
+ * Binds the post pass to whatever `sceneTexture` currently is, and uploads the
+ * grade for this frame.
+ *
+ * Split out because the scene texture is a *managed* resource: `defineResource`
+ * recreates it on resize and on device-loss recovery, which hands back a brand
+ * new `GPUTexture` whose old bind group is dead. Re-deriving the view and
+ * bind group every frame is one `createView` and one `createBindGroup` on an
+ * already-created texture — cheap, and it removes a whole class of
+ * "works until you resize the window" bugs.
+ */
+function writePostFrame(
+  gpuCtx: GpuContext,
+  post: PostTemplate,
+  grade: Omit<PostUniformValues, 'width' | 'height' | 'timeSeconds'>,
+  timeSeconds: number,
+): { readonly sceneView: GPUTextureView; readonly post: PostResources } {
+  const device = gpuCtx.getDevice();
+  const size = gpuCtx.getSize();
+  const sceneTexture = ensureSceneTexture(gpuCtx, size.width, size.height);
+  const sceneView = sceneTexture.createView();
+  const postBindGroup = createPostBindGroup(device, post.postLayout, post.postSampler, sceneView, post.postUniformBuffer);
+  device.queue.writeBuffer(
+    post.postUniformBuffer,
+    0,
+    packPostUniforms({ ...grade, width: size.width, height: size.height, timeSeconds }),
+  );
+  return { sceneView, post: { ...post, postBindGroup } };
+}
+
+/**
+ * Encodes the two-pass frame: world layers into the offscreen target, then the
+ * grade pass from that target to the swapchain.
+ *
+ * This replaces the single `beginRenderPass`-straight-to-swapchain shape that
+ * every one of the four render loops used to repeat. `outputView` is the
+ * swapchain texture's view — the post pass writes THERE, sampling the scene
+ * target, which is the whole reason the scene target exists.
+ */
+function encodeGradedFrame(
+  device: GPUDevice,
+  pipeline: GPURenderPipeline,
+  post: PostResources,
+  sceneView: GPUTextureView,
+  outputView: GPUTextureView,
+  cameraBindGroup: GPUBindGroup,
+  layers: readonly AtlasDraw[],
+): void {
+  const encoder = device.createCommandEncoder({ label: 'frame' });
+
+  const scenePass = encoder.beginRenderPass({
+    label: 'scene',
+    colorAttachments: [{ view: sceneView, clearValue: { r: 0.02, g: 0.03, b: 0.05, a: 1 }, loadOp: 'clear', storeOp: 'store' }],
+  });
+  encodeSpritePass(scenePass, pipeline, cameraBindGroup, layers);
+  scenePass.end();
+
+  const postPass = encoder.beginRenderPass({
+    label: 'post-grade',
+    colorAttachments: [{ view: outputView, clearValue: { r: 0, g: 0, b: 0, a: 1 }, loadOp: 'clear', storeOp: 'store' }],
+  });
+  encodePostPass(postPass, post.postPipeline, post.postBindGroup);
+  postPass.end();
+
+  device.queue.submit([encoder.finish()]);
+}
+
+/**
+ * A contact shadow for a vehicle, drawn immediately beneath it.
+ *
+ * The scene has no lighting of any kind, so this is the entire reason a car
+ * reads as a solid object sitting on the ground rather than a sticker floating
+ * above it. It is one extra instance in the same buffer — no new art, no extra
+ * draw call — because `sprite.wgsl` computes the radial falloff from the quad's
+ * local position whenever `shadowSoftness > 0`.
+ */
+export function vehicleShadowInstance(vehicle: VehicleState, atlasIndex: AtlasIndex): SpriteInstanceInput {
+  const frame = atlasIndex.frame(`car-${vehicle.design.bodyId}`);
+  return {
+    atlasId: String(frame.atlasIndex),
+    position: { x: vehicle.position.x + SHADOW_OFFSET_M.x, y: vehicle.position.y + SHADOW_OFFSET_M.y },
+    rotationRad: vehicle.headingRad,
+    sizeM: { x: VEHICLE_SPRITE_SIZE_M.x * SHADOW_GROWTH, y: VEHICLE_SPRITE_SIZE_M.y * SHADOW_GROWTH },
+    uvRect: frame.uv,
+    tint: { r: 0, g: 0, b: 0, a: 1 },
+    layer: 0,
+    shadowSoftness: 0.7,
+    shadowOpacity: SHADOW_OPACITY,
+  };
+}
+
+/**
+ * Shadow offset from its caster, in metres. Sun high and to the upper-left, so
+ * the shadow falls down-and-right (+x, -y on screen).
+ *
+ * ## Why this is a Vec2 and not one number
+ *
+ * The offset used to be a single scalar added to BOTH axes, and it was also
+ * too small to see. Together those made the shadow invisible in a way that
+ * looked like a broken feature rather than a tuning mistake: the quad is only
+ * `SHADOW_GROWTH` times the car, so with a sub-metre offset almost the entire
+ * shadow disc sat UNDER the opaque car sprite and the few pixels that peeked
+ * out read as dirt. Cranking `SHADOW_OPACITY` changed nothing, because the
+ * problem was coverage, not darkness.
+ */
+const SHADOW_OFFSET_M = { x: 1.0, y: -0.9 };
+/**
+ * How much bigger a shadow is than its caster, as a multiplier.
+ *
+ * This has to be comfortably above 1 for a top-down ortho camera: the shadow
+ * is a soft disc, the caster is an opaque sprite, and anything near 1.0 is
+ * simply hidden underneath it. 1.9 puts a clear halo of shadow out to roughly
+ * a car's width on the shadow side, which is what actually reads as contact.
+ */
+const SHADOW_GROWTH = 1.9;
+/** Peak shadow alpha at the centre of the disc. */
+const SHADOW_OPACITY = 0.5;
+
+/**
+ * Builds the ground as a single quad for the arena / road / arena-event screens.
+ *
+ * The extent comes from the camera so the ground always covers the visible
+ * area plus a margin. A fixed-size floor is what left a black band down one
+ * side of the road, because a 90m arena floor is narrower than the view at some
+ * window sizes.
+ */
+function buildGroundQuad(atlasIndex: AtlasIndex, center: Vec2M, halfExtentM: number, pool: string): SpriteInstanceInput[] {
+  const scale = GROUND_TILE_METRES[pool] ?? { tileMetres: 24, detailScale: 8.3 };
+  return [
+    groundQuad(atlasIndex, {
+      pool,
+      center,
+      halfExtentM,
+      layer: 0,
+      tileMetres: scale.tileMetres,
+      detailScale: scale.detailScale,
+    }),
+  ];
 }
 
 /** Composes a vehicle's render rotation from its simulation heading and its frame's `rotationOffsetDeg` — the exact seam a vehicle-orientation regression test drives directly, instead of reimplementing this formula (assets/ASSET-NOTES.md section 2). */
@@ -1821,7 +2201,6 @@ function showArena(
   let gpuCtx: GpuContext | undefined;
   let resources: RenderResources | undefined;
   let atlasIndex: AtlasIndex | undefined;
-  let floorInstances: SpriteInstanceInput[] = [];
   const camera: Camera = createCamera();
   camera.setZoom(PIXELS_PER_METER_CSS);
 
@@ -1840,19 +2219,20 @@ function showArena(
     status.textContent = t('ui.arena.practiceHint', { seed: session.sessionSeed });
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
-    floorInstances = buildFloorInstances(atlasIndex);
 
     const atlasImageUrl = new URL('../assets/atlas-0.png', import.meta.url).href;
     const spriteShaderUrl = new URL('./render/shaders/sprite.wgsl', import.meta.url);
-    const [atlasBlob, spriteShaderSource] = await Promise.all([
+    const postShaderUrl = new URL('./render/shaders/post.wgsl', import.meta.url);
+    const [atlasBlob, spriteShaderSource, postShaderSource] = await Promise.all([
       fetch(atlasImageUrl).then((response) => response.blob()),
       fetch(spriteShaderUrl).then((response) => response.text()),
+      fetch(postShaderUrl).then((response) => response.text()),
     ]);
     const atlasBitmap = await createImageBitmap(atlasBlob);
-    resources = await buildRenderResources(gpuCtx, atlasBitmap, spriteShaderSource);
+    resources = await buildRenderResources(gpuCtx, atlasBitmap, spriteShaderSource, postShaderSource);
 
     gpuCtx.onRecovered(() => {
-      void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource).then((rebuilt) => {
+      void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, postShaderSource).then((rebuilt) => {
         resources = rebuilt;
       });
     });
@@ -1864,7 +2244,7 @@ function showArena(
     });
   }
 
-  function renderFrame(): void {
+  function renderFrame(nowSeconds: number): void {
     if (gpuCtx === undefined || resources === undefined || atlasIndex === undefined || gpuCtx.isPaused()) return;
     const player = findPlayer(world);
     if (player === undefined) return;
@@ -1872,32 +2252,36 @@ function showArena(
     const size = gpuCtx.getSize();
     camera.setViewportPx(size.width, size.height);
     camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    camera.setZoom(ARENA_ZOOM_PX_PER_M);
     camera.setCenter(player.position);
     writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
 
-    const spriteInstances = [vehicleSpriteInstance(player, atlasIndex)];
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(floorInstances));
+    // The floor is a varied field sized to the visible area, not a fixed 9x9
+    // grid of one repeated frame — see `buildGroundField`.
+    const visible = cameraVisibleHalfExtentM(camera);
+    const groundInstances = buildGroundQuad(
+      atlasIndex,
+      { x: player.position.x, y: player.position.y },
+      Math.max(visible.x, visible.y) + GROUND_MARGIN_M,
+      'arena',
+    );
+    const spriteInstances = [vehicleShadowInstance(player, atlasIndex), vehicleSpriteInstance(player, atlasIndex)];
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances));
     writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
 
-    const encoder = gpuCtx.getDevice().createCommandEncoder({ label: 'frame' });
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view: gpuCtx.getContext().getCurrentTexture().createView(),
-          clearValue: { r: 0.02, g: 0.03, b: 0.05, a: 1 },
-          loadOp: 'clear',
-          storeOp: 'store',
-        },
+    const { sceneView, post } = writePostFrame(gpuCtx, resources, ARENA_GRADE, nowSeconds);
+    encodeGradedFrame(
+      gpuCtx.getDevice(),
+      resources.pipeline,
+      post,
+      sceneView,
+      gpuCtx.getContext().getCurrentTexture().createView(),
+      resources.cameraBindGroup,
+      [
+        { bindGroup: resources.tileBindGroup, instanceCount: groundInstances.length },
+        { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
       ],
-    });
-    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
-      { bindGroup: resources.tileBindGroup, instanceCount: floorInstances.length },
-    ]);
-    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
-      { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
-    ]);
-    pass.end();
-    gpuCtx.getDevice().queue.submit([encoder.finish()]);
+    );
   }
 
   // --- main loop --------------------------------------------------------------
@@ -1914,7 +2298,7 @@ function showArena(
     const deltaSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
     loop.advance(deltaSeconds);
-    renderFrame();
+    renderFrame(nowMs / 1000);
     renderHudFrame();
     rafHandle = window.requestAnimationFrame(frame);
   }
@@ -2658,7 +3042,10 @@ function showArenaEvent(
       vehicle: player,
       activeWeaponIndex: weaponSelection.active(),
       accelMphPerSec,
-      radar: { enabled: !isRadarDisabled(player.plantDP, plant.radarFailureThreshold), contacts: [] },
+      radar: {
+        enabled: !isRadarDisabled(player.plantDP, plant.radarFailureThreshold),
+        contacts: radarContactsFromVehicles(world, playerVehicleId, opponents),
+      },
       driver: { naturalHealth: driverRef.current.naturalHealth, bodyArmor: driverRef.current.bodyArmor },
       messages,
       settings: hudSettings,
@@ -2682,7 +3069,6 @@ function showArenaEvent(
   let gpuCtx: GpuContext | undefined;
   let resources: RenderResources | undefined;
   let atlasIndex: AtlasIndex | undefined;
-  let floorInstances: SpriteInstanceInput[] = [];
   const camera: Camera = createCamera();
   camera.setZoom(PIXELS_PER_METER_CSS);
 
@@ -2701,19 +3087,20 @@ function showArenaEvent(
     status.textContent = t('ui.arena.eventHint', { event: event.name });
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
-    floorInstances = buildFloorInstances(atlasIndex);
 
     const atlasImageUrl = new URL('../assets/atlas-0.png', import.meta.url).href;
     const spriteShaderUrl = new URL('./render/shaders/sprite.wgsl', import.meta.url);
-    const [atlasBlob, spriteShaderSource] = await Promise.all([
+    const postShaderUrl = new URL('./render/shaders/post.wgsl', import.meta.url);
+    const [atlasBlob, spriteShaderSource, postShaderSource] = await Promise.all([
       fetch(atlasImageUrl).then((response) => response.blob()),
       fetch(spriteShaderUrl).then((response) => response.text()),
+      fetch(postShaderUrl).then((response) => response.text()),
     ]);
     const atlasBitmap = await createImageBitmap(atlasBlob);
-    resources = await buildRenderResources(gpuCtx, atlasBitmap, spriteShaderSource);
+    resources = await buildRenderResources(gpuCtx, atlasBitmap, spriteShaderSource, postShaderSource);
 
     gpuCtx.onRecovered(() => {
-      void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource).then((rebuilt) => {
+      void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, postShaderSource).then((rebuilt) => {
         resources = rebuilt;
       });
     });
@@ -2725,7 +3112,7 @@ function showArenaEvent(
     });
   }
 
-  function renderFrame(): void {
+  function renderFrame(nowSeconds: number): void {
     if (gpuCtx === undefined || resources === undefined || atlasIndex === undefined || gpuCtx.isPaused()) return;
     const player = findPlayer(world);
     if (player === undefined) return;
@@ -2733,36 +3120,43 @@ function showArenaEvent(
     const size = gpuCtx.getSize();
     camera.setViewportPx(size.width, size.height);
     camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    camera.setZoom(ARENA_ZOOM_PX_PER_M);
     camera.setCenter(player.position);
     writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
 
     const atlas = atlasIndex;
-    const opponentInstances = world.entities.vehicles
-      .filter((vehicle) => vehicle.id !== player.id && !vehicle.destroyed)
-      .map((vehicle) => vehicleSpriteInstance(vehicle, atlas));
-    const spriteInstances = [vehicleSpriteInstance(player, atlas), ...opponentInstances];
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(floorInstances));
+    const opponents = world.entities.vehicles.filter((vehicle) => vehicle.id !== player.id && !vehicle.destroyed);
+    // A shadow per vehicle, emitted immediately before the vehicle it belongs
+    // to, so the painter's algorithm keeps each shadow under its own caster.
+    const spriteInstances = [
+      vehicleShadowInstance(player, atlas),
+      vehicleSpriteInstance(player, atlas),
+      ...opponents.flatMap((vehicle) => [vehicleShadowInstance(vehicle, atlas), vehicleSpriteInstance(vehicle, atlas)]),
+    ];
+
+    const visible = cameraVisibleHalfExtentM(camera);
+    const groundInstances = buildGroundQuad(
+      atlas,
+      { x: player.position.x, y: player.position.y },
+      Math.max(visible.x, visible.y) + GROUND_MARGIN_M,
+      'arena',
+    );
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances));
     writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
 
-    const encoder = gpuCtx.getDevice().createCommandEncoder({ label: 'arena-event-frame' });
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view: gpuCtx.getContext().getCurrentTexture().createView(),
-          clearValue: { r: 0.02, g: 0.03, b: 0.05, a: 1 },
-          loadOp: 'clear',
-          storeOp: 'store',
-        },
+    const { sceneView, post } = writePostFrame(gpuCtx, resources, ARENA_GRADE, nowSeconds);
+    encodeGradedFrame(
+      gpuCtx.getDevice(),
+      resources.pipeline,
+      post,
+      sceneView,
+      gpuCtx.getContext().getCurrentTexture().createView(),
+      resources.cameraBindGroup,
+      [
+        { bindGroup: resources.tileBindGroup, instanceCount: groundInstances.length },
+        { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
       ],
-    });
-    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
-      { bindGroup: resources.tileBindGroup, instanceCount: floorInstances.length },
-    ]);
-    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
-      { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
-    ]);
-    pass.end();
-    gpuCtx.getDevice().queue.submit([encoder.finish()]);
+    );
   }
 
   let rafHandle = 0;
@@ -2878,7 +3272,7 @@ function showArenaEvent(
     const deltaSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
     loop.advance(deltaSeconds);
-    renderFrame();
+    renderFrame(nowMs / 1000);
     renderHudFrame();
 
     if (matchPhase.kind === 'running') {
@@ -2936,7 +3330,7 @@ export function vehicleParkedAtGate(vehicle: VehicleState | null, gate: Vec2): V
   return vehicle === null ? null : { ...vehicle, position: { ...gate }, headingRad: 0 };
 }
 
-interface CityRenderResources {
+interface CityRenderResources extends PostTemplate {
   readonly pipeline: GPURenderPipeline;
   readonly cameraBuffer: GPUBuffer;
   readonly cameraBindGroup: GPUBindGroup;
@@ -2950,19 +3344,29 @@ interface CityRenderResources {
 }
 
 /** The player on foot plus, at most, one parked-or-ridden car - the two actor-layer instances `@/ui/city-view`'s `buildCityInstances` can ever emit in one frame. */
-const CITY_ACTOR_INSTANCE_CAPACITY = 2;
+const CITY_ACTOR_INSTANCE_CAPACITY = 3;
 
-/** Exact tile count `@/ui/city-view`'s own `groundInstances` loop emits for `layout` - mirrors that loop's bounds precisely so the GPU buffer is neither wastefully oversized nor (worse) too small to hold a real frame. */
-function cityGroundTileCount(layout: CityLayout): number {
-  const half = layout.boundsRadiusM + layout.tileSizeM;
-  const steps = Math.floor((2 * half) / layout.tileSizeM) + 1;
-  return steps * steps;
+/** The city's ground is a single quad like every other screen's, so its layer-0 capacity is 1. */
+const CITY_GROUND_INSTANCE_COUNT = 1;
+
+/**
+ * Exact ground-cell count `@/ui/city-view`'s own `groundField` call emits.
+ *
+ * Delegates to `groundFieldCellCount` rather than re-deriving the loop bounds,
+ * because these two must agree exactly: the instance buffer is sized from this
+ * number once, and `writeInstanceBuffer` does not bounds-check, so a cell count
+ * that drifts even one row high overflows a storage buffer — which is a WebGPU
+ * validation error, not a clamp.
+ */
+function cityGroundTileCount(_layout: CityLayout): number {
+  return CITY_GROUND_INSTANCE_COUNT;
 }
 
 async function buildCityRenderResources(
   gpuCtx: GpuContext,
   atlasBitmap: ImageBitmap,
   spriteShaderSource: string,
+  postShaderSource: string,
   groundCapacity: number,
   buildingCapacity: number,
 ): Promise<CityRenderResources> {
@@ -3016,6 +3420,7 @@ async function buildCityRenderResources(
     actorInstanceBuffer,
     actorBindGroup,
     texture,
+    ...buildPostResources(gpuCtx, postShaderSource),
   };
 }
 
@@ -3461,17 +3866,19 @@ function showCity(root: HTMLElement, state: CityRunState): void {
 
     const atlasImageUrl = new URL('../assets/atlas-0.png', import.meta.url).href;
     const spriteShaderUrl = new URL('./render/shaders/sprite.wgsl', import.meta.url);
-    const [atlasBlob, spriteShaderSource] = await Promise.all([
+    const postShaderUrl = new URL('./render/shaders/post.wgsl', import.meta.url);
+    const [atlasBlob, spriteShaderSource, postShaderSource] = await Promise.all([
       fetch(atlasImageUrl).then((response) => response.blob()),
       fetch(spriteShaderUrl).then((response) => response.text()),
+      fetch(postShaderUrl).then((response) => response.text()),
     ]);
     const atlasBitmap = await createImageBitmap(atlasBlob);
     const groundCapacity = cityGroundTileCount(layout);
-    const buildingCapacity = layout.doorways.length + 1;
-    resources = await buildCityRenderResources(gpuCtx, atlasBitmap, spriteShaderSource, groundCapacity, buildingCapacity);
+    const buildingCapacity = cityLayer1InstanceCount(layout);
+    resources = await buildCityRenderResources(gpuCtx, atlasBitmap, spriteShaderSource, postShaderSource, groundCapacity, buildingCapacity);
 
     gpuCtx.onRecovered(() => {
-      void buildCityRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, groundCapacity, buildingCapacity).then((rebuilt) => {
+      void buildCityRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, postShaderSource, groundCapacity, buildingCapacity).then((rebuilt) => {
         resources = rebuilt;
       });
     });
@@ -3483,12 +3890,18 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     });
   }
 
-  function renderFrame(): void {
+  function renderFrame(nowSeconds: number): void {
     if (gpuCtx === undefined || resources === undefined || atlasIndex === undefined || gpuCtx.isPaused()) return;
 
     const size = gpuCtx.getSize();
     camera.setViewportPx(size.width, size.height);
     camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // The city is a ~21m circle. At the old fixed 14 px/m it occupied about a
+    // third of a 1440px viewport with black on both sides — the single most
+    // obvious thing wrong with this screen. Zooming to fit the city's own
+    // bounds (plus margin for the wall ring and ground apron) makes it fill
+    // the frame at any window size.
+    camera.setZoom(cityZoomPxPerM(size, layout.boundsRadiusM));
     camera.setCenter(player.position);
     writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
 
@@ -3501,24 +3914,20 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     writeInstanceBuffer(gpuCtx.getDevice(), resources.buildingInstanceBuffer, packInstances(buildings));
     writeInstanceBuffer(gpuCtx.getDevice(), resources.actorInstanceBuffer, packInstances(actors));
 
-    const encoder = gpuCtx.getDevice().createCommandEncoder({ label: 'city-frame' });
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view: gpuCtx.getContext().getCurrentTexture().createView(),
-          clearValue: { r: 0.05, g: 0.07, b: 0.06, a: 1 },
-          loadOp: 'clear',
-          storeOp: 'store',
-        },
+    const { sceneView, post } = writePostFrame(gpuCtx, resources, CITY_GRADE, nowSeconds);
+    encodeGradedFrame(
+      gpuCtx.getDevice(),
+      resources.pipeline,
+      post,
+      sceneView,
+      gpuCtx.getContext().getCurrentTexture().createView(),
+      resources.cameraBindGroup,
+      [
+        { bindGroup: resources.groundBindGroup, instanceCount: ground.length },
+        { bindGroup: resources.buildingBindGroup, instanceCount: buildings.length },
+        { bindGroup: resources.actorBindGroup, instanceCount: actors.length },
       ],
-    });
-    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [{ bindGroup: resources.groundBindGroup, instanceCount: ground.length }]);
-    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
-      { bindGroup: resources.buildingBindGroup, instanceCount: buildings.length },
-    ]);
-    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [{ bindGroup: resources.actorBindGroup, instanceCount: actors.length }]);
-    pass.end();
-    gpuCtx.getDevice().queue.submit([encoder.finish()]);
+    );
   }
 
   // --- main loop --------------------------------------------------------------
@@ -3548,7 +3957,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
       if (step.trigger.kind !== 'none') handleTrigger(step.trigger);
     }
     updateStatus();
-    renderFrame();
+    renderFrame(nowMs / 1000);
     rafHandle = window.requestAnimationFrame(frame);
   }
 
@@ -3678,6 +4087,50 @@ export function createRoadWreckFromDefeat(unit: EncounterUnit, position: Vec2, d
  * contact the player never attacks just passes by and is logged, never
  * fought.
  */
+/**
+ * Builds radar contacts for the HUD from the live opponent set.
+ *
+ * ## Why this exists
+ *
+ * Both arena screens used to pass `contacts: []` — a hardcoded empty array. On
+ * the practice arena that is harmless (it is a free run with zero opponents, so
+ * an empty radar is the TRUTH), but on a real mission arena it meant the radar
+ * was a decorative black disc while up to `matchState.opponentsTotal` armed
+ * vehicles drove around inside sensor range. A radar that is always empty is
+ * worse than no radar, because it actively tells the player they are alone.
+ *
+ * Offsets are world-frame metres relative to the player, which is what
+ * `HudRadarContact` documents and what `buildRadar` rotates into screen space.
+ * Contacts are deliberately NOT pre-filtered to visual range here:
+ * `buildRadar` already filters on `drivingConfig().radar.visualRangeM` and
+ * reports the count it actually drew, so filtering twice would let the two
+ * disagree and make the accessibility summary a lie.
+ */
+function radarContactsFromVehicles(
+  world: World,
+  playerId: string,
+  opponents: ReadonlyMap<string, ArenaOpponentState>,
+): HudRadarContact[] {
+  const player = findPlayer(world);
+  if (player === undefined) return [];
+  const out: HudRadarContact[] = [];
+  for (const vehicle of world.entities.vehicles) {
+    if (vehicle.id === playerId) continue;
+    // `opponents` is the authoritative hostile set: a wreck or a neutral car in
+    // the same world is not a radar contact, and guessing from the world alone
+    // would light up every civilian.
+    if (!opponents.has(vehicle.id)) continue;
+    out.push({
+      id: vehicle.id,
+      kind: 'vehicle',
+      worldDx: vehicle.position.x - player.position.x,
+      worldDy: vehicle.position.y - player.position.y,
+      hostile: true,
+    });
+  }
+  return out;
+}
+
 function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripState, onArrive: (nextState: CityRunState) => void): void {
   const container = el('div', 'sm-screen sm-screen--road');
   container.style.cssText = 'position:absolute;inset:0;background:#05070a;';
@@ -3727,6 +4180,12 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   function logNotice(text: string): void {
     notice.textContent = text;
   }
+
+  // Message feed + weapon cycling for the road HUD. Both are created here rather
+  // than shared with the arena screens because those bind to their own world;
+  // the road's world is the transient `combatWorld`, so the arena's
+  // `findPlayer(world)`-based selectors have nothing to select from.
+  const roadMessages: HudMessage[] = [];
 
   function engagementRangeM(): number {
     return drivingConfig().radar.visualRangeM;
@@ -3870,7 +4329,6 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   let gpuCtx: GpuContext | undefined;
   let resources: RenderResources | undefined;
   let atlasIndex: AtlasIndex | undefined;
-  let floorInstances: SpriteInstanceInput[] = [];
   const camera: Camera = createCamera();
   camera.setZoom(PIXELS_PER_METER_CSS);
 
@@ -3888,19 +4346,20 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     gpuCtx = init.context;
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
-    floorInstances = buildFloorInstances(atlasIndex);
 
     const atlasImageUrl = new URL('../assets/atlas-0.png', import.meta.url).href;
     const spriteShaderUrl = new URL('./render/shaders/sprite.wgsl', import.meta.url);
-    const [atlasBlob, spriteShaderSource] = await Promise.all([
+    const postShaderUrl = new URL('./render/shaders/post.wgsl', import.meta.url);
+    const [atlasBlob, spriteShaderSource, postShaderSource] = await Promise.all([
       fetch(atlasImageUrl).then((response) => response.blob()),
       fetch(spriteShaderUrl).then((response) => response.text()),
+      fetch(postShaderUrl).then((response) => response.text()),
     ]);
     const atlasBitmap = await createImageBitmap(atlasBlob);
-    resources = await buildRenderResources(gpuCtx, atlasBitmap, spriteShaderSource);
+    resources = await buildRenderResources(gpuCtx, atlasBitmap, spriteShaderSource, postShaderSource);
 
     gpuCtx.onRecovered(() => {
-      void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource).then((rebuilt) => {
+      void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, postShaderSource).then((rebuilt) => {
         resources = rebuilt;
       });
     });
@@ -3910,39 +4369,105 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     wireRecoveryUi(gpuCtx, retryBtn, logNotice);
   }
 
-  function renderFrame(): void {
+  // --- HUD ------------------------------------------------------------------
+  // The road screen drives the same vehicle, fights the same `@/sim/ai` opponents
+  // and fires the same weapons as the arena screens, but it used to render NO
+  // HUD at all — no radar, no speed, no condition. A combat screen with no
+  // instrumentation is a real gap, and it is why the road captures showed bare
+  // asphalt with two buttons in the corner.
+  //
+  // `trip.vehicle` is the authoritative player body here (the road has no
+  // `findPlayer(world)` because its world is the transient `combatWorld`
+  // overlay, rebuilt each tick), so the snapshot is built from it directly
+  // rather than through the arena helper.
+  const hudHost = el('div');
+  hudHost.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  container.insertBefore(hudHost, status);
+  const hudContainer = document.createElement('div');
+  hudContainer.style.pointerEvents = 'auto';
+  hudHost.appendChild(hudContainer);
+  const hudDoc = new DomHudDocument();
+  const hudRoot = new DomHudElement(hudContainer);
+  let hudSettings: HudSettings = { scale: 1, radarOrientation: 'world', reducedFlash: false, reducedShake: false };
+
+  function renderRoadHudFrame(): void {
+    const vehicle = trip.vehicle;
+    const plant = getPlant(vehicle.design.plantId);
+    const liveOpponents = [...opponentVehicles.values()].filter((v) => !v.destroyed);
+    const snapshot: HudSnapshot = {
+      vehicle,
+      activeWeaponIndex: weaponSelection.active(),
+      accelMphPerSec: computeBuild(vehicle.design).accelMphPerSec,
+      radar: {
+        enabled: !isRadarDisabled(vehicle.plantDP, plant.radarFailureThreshold),
+        contacts: liveOpponents.map((v) => ({
+          id: v.id,
+          kind: 'vehicle' as const,
+          worldDx: v.position.x - vehicle.position.x,
+          worldDy: v.position.y - vehicle.position.y,
+          hostile: true,
+        })),
+      },
+      driver: { naturalHealth: driver.naturalHealth, bodyArmor: driver.bodyArmor },
+      messages: roadMessages,
+      settings: hudSettings,
+    };
+    renderHud(hudDoc, hudRoot, snapshot, {
+      onToggleRadarOrientation: () => {
+        hudSettings = { ...hudSettings, radarOrientation: hudSettings.radarOrientation === 'world' ? 'heading' : 'world' };
+        renderRoadHudFrame();
+      },
+      onToggleReducedFlash: () => {
+        hudSettings = { ...hudSettings, reducedFlash: !hudSettings.reducedFlash };
+        renderRoadHudFrame();
+      },
+      onToggleReducedShake: () => {
+        hudSettings = { ...hudSettings, reducedShake: !hudSettings.reducedShake };
+        renderRoadHudFrame();
+      },
+    });
+  }
+
+  function renderFrame(nowSeconds: number): void {
     if (gpuCtx === undefined || resources === undefined || atlasIndex === undefined || gpuCtx.isPaused()) return;
     const size = gpuCtx.getSize();
     camera.setViewportPx(size.width, size.height);
     camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    camera.setZoom(ROAD_ZOOM_PX_PER_M);
     camera.setCenter(trip.vehicle.position);
     writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
 
     const atlas = atlasIndex;
-    const opponentInstances = [...opponentVehicles.values()].filter((v) => !v.destroyed).map((v) => vehicleSpriteInstance(v, atlas));
-    const spriteInstances = [vehicleSpriteInstance(trip.vehicle, atlas), ...opponentInstances];
-    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(floorInstances));
+    const opponents = [...opponentVehicles.values()].filter((v) => !v.destroyed);
+    const spriteInstances = [
+      vehicleShadowInstance(trip.vehicle, atlas),
+      vehicleSpriteInstance(trip.vehicle, atlas),
+      ...opponents.flatMap((v) => [vehicleShadowInstance(v, atlas), vehicleSpriteInstance(v, atlas)]),
+    ];
+
+    // The road is an unbounded world, so the field is sized to the visible
+    // area and re-centred on the player each frame. Cells are hashed off their
+    // own world coordinates (`groundField`), so panning reuses the same cells
+    // and the ground does not crawl or re-randomise under the car.
+    const visible = cameraVisibleHalfExtentM(camera);
+    const half = Math.max(visible.x, visible.y) + GROUND_MARGIN_M;
+    const groundInstances = buildGroundQuad(atlas, trip.vehicle.position, half, 'road');
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances));
     writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances));
 
-    const encoder = gpuCtx.getDevice().createCommandEncoder({ label: 'road-frame' });
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view: gpuCtx.getContext().getCurrentTexture().createView(),
-          clearValue: { r: 0.03, g: 0.04, b: 0.03, a: 1 },
-          loadOp: 'clear',
-          storeOp: 'store',
-        },
+    const { sceneView, post } = writePostFrame(gpuCtx, resources, ROAD_GRADE, nowSeconds);
+    encodeGradedFrame(
+      gpuCtx.getDevice(),
+      resources.pipeline,
+      post,
+      sceneView,
+      gpuCtx.getContext().getCurrentTexture().createView(),
+      resources.cameraBindGroup,
+      [
+        { bindGroup: resources.tileBindGroup, instanceCount: groundInstances.length },
+        { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
       ],
-    });
-    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
-      { bindGroup: resources.tileBindGroup, instanceCount: floorInstances.length },
-    ]);
-    encodeSpritePass(pass, resources.pipeline, resources.cameraBindGroup, [
-      { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
-    ]);
-    pass.end();
-    gpuCtx.getDevice().queue.submit([encoder.finish()]);
+    );
   }
 
   let rafHandle = 0;
@@ -4080,7 +4605,8 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     const wreckNearby = nearbySearchableWreck() !== undefined;
     if (wreckNearby) logNotice(t('ui.road.wreckHint'));
     touch?.setCommandVisible('searchWreck', wreckNearby);
-    renderFrame();
+    renderFrame(nowMs / 1000);
+    renderRoadHudFrame();
     if (result.arrived) {
       finish();
       return;
@@ -4224,6 +4750,127 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
         ? { onContinue: () => resumeSession(existing), hasWonVictory: hasWonVictory(existing.game.quests) }
         : {}),
     });
+  }
+
+  // `?screen=<name>` boots straight into one named screen with a deterministic
+  // session, skipping the whole title -> driver -> constructor walk.
+  //
+  // This exists for VISUAL VERIFICATION, not as a cheat. Reaching the arena or
+  // the road otherwise means steering a walking avatar into a procedurally
+  // placed door in a seeded city, which is a fragile thing to ask a screenshot
+  // script to do repeatedly and get the same framing twice. A visual overhaul
+  // cannot be reviewed without repeatable captures of the same screen, so this
+  // is the seam that makes before/after comparison possible at all.
+  //
+  // It is strictly a URL-parameter path: nothing in the normal boot flow calls
+  // it, and the session it builds is a real one (a real driver, a real legal
+  // vehicle, a real `CityRunState`) built from the same functions the real flow
+  // calls, so what gets captured is the real screen and not a mock.
+  function startScreenJump(target: string): boolean {
+    const known = ['title', 'controls', 'driver', 'constructor', 'city', 'arena', 'road', 'fleet'];
+    if (!known.includes(target)) return false;
+
+    if (target === 'title') {
+      showTitle(root, { onNewDriver: () => startNewSession() });
+      return true;
+    }
+    if (target === 'controls') {
+      showControls(root, () => showTitle(root, { onNewDriver: () => startNewSession() }));
+      return true;
+    }
+
+    // Everything below needs a driver, and everything but `driver` needs a
+    // legal vehicle too. Both are built from the real constructors with an
+    // even skill split and the cheapest legal build, which is exactly what the
+    // driver's own first session produces before they spend anything.
+    const cfg = skillsConfig();
+    const base = Math.floor(cfg.startingSkillPool / cfg.skills.length);
+    const remainder = cfg.startingSkillPool - base * cfg.skills.length;
+    const skills: Record<string, number> = {};
+    cfg.skills.forEach((name, index) => {
+      skills[name] = base + (index === cfg.skills.length - 1 ? remainder : 0);
+    });
+    const created = createDriver('Screencap', skills as Parameters<typeof createDriver>[1]);
+    if (!created.ok) return false;
+    const sessionSeed = resolveSessionSeed({ search, randomSeed });
+    lastSessionSeed = sessionSeed;
+
+    if (target === 'driver') {
+      showDriverCreation(root, () => startNewSession());
+      return true;
+    }
+
+    const design: VehicleDesign = {
+      name: 'Screencap Rig',
+      bodyId: 'subcompact',
+      chassisId: 'standard',
+      suspensionId: 'light',
+      plantId: 'small',
+      tireId: 'standard',
+      armor: { FRONT: 0, REAR: 0, LEFT: 0, RIGHT: 0, UNDERBODY: 0 },
+      weapons: [],
+    };
+    const vehicle = vehicleStateFromDesign(design, 'veh-screencap', PLAYER_ID);
+    const cityState: CityRunState = {
+      driver: created.driver,
+      vehicle,
+      vehicleStored: false,
+      clock: initialClock(),
+      cityId: created.driver.cityId,
+      sessionSeed,
+      openDb,
+      rng: createRng(sessionSeed).stream('driver'),
+      search,
+      rumorsHeardToday: new Map(),
+      activeCourierJobs: [],
+      fleet: { vehicles: [{ vehicle, stored: false, cityId: created.driver.cityId }] },
+      routeHistory: new Map(),
+      quests: [],
+      arenaRecord: { wins: 0, losses: 0 },
+    };
+
+    if (target === 'constructor') {
+      showConstructor(
+        root,
+        created.driver,
+        (chargedDriver) => showCity(root, { ...cityState, driver: chargedDriver, vehicleStored: true }),
+        () => startScreenJump('constructor'),
+      );
+      return true;
+    }
+    if (target === 'arena') {
+      showArena(root, created.driver, vehicle, { sessionSeed, openDb, quests: [] }, () => void start());
+      return true;
+    }
+    if (target === 'fleet') {
+      showFleet(root, cityState, () => showCity(root, cityState));
+      return true;
+    }
+    if (target === 'road') {
+      const neighbors = cityRouteNeighbors(cityState.cityId);
+      const first = neighbors[0];
+      if (first === undefined) return false;
+      const resolved: ResolvedRoute = resolveRoute(cityState.cityId, first.neighborCityId);
+      const trip = beginRoadTripWithEncounters(
+        resolved,
+        vehicle,
+        cityState.clock,
+        sessionSeed,
+        FRESH_ROUTE_HISTORY,
+        pursuitLevelFromQuestState(cityState.quests),
+      );
+      showRoad(root, cityState, trip, () => showCity(root, cityState));
+      return true;
+    }
+
+    showCity(root, cityState);
+    return true;
+  }
+
+  const screenTarget = screenFromSearch(search);
+  if (screenTarget !== null && startScreenJump(screenTarget)) {
+    console.info(`smduel: screen jump to "${screenTarget}"`);
+    return;
   }
 
   await start();

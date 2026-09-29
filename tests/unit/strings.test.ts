@@ -593,6 +593,14 @@ const EXISTING_VIOLATIONS: ReadonlySet<string> = new Set(
     ['src/ui/hud.ts', 'Plant:'],
     ['src/ui/hud.ts', 'Driver:'],
     ['src/ui/hud.ts', 'Body armor:'],
+    // src/app.ts - a WebGPU texture LABEL, not display text. It is passed as
+    // the `label` field of a resource descriptor and only ever surfaces in a
+    // GPU capture / validation message, never on screen. The scanner cannot
+    // tell a label from copy because both are string literals in an object
+    // literal, and putting a GPU-internal identifier in strings.json would be
+    // worse: it would make a debug label look like translatable player-facing
+    // text and put it in the localisation pipeline.
+    ['src/app.ts', 'scene-color'],
   ].map(([file, text]) => `${file}\u0000${text}`),
 );
 

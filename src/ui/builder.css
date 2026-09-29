@@ -1,14 +1,32 @@
 /*
  * Vehicle constructor UI — two-pane keyboard-operable builder.
  *
+ * All colour/type/space values come from tokens.css. This file owned a third
+ * near-identical teal (`--sm-accent: #4fd6c4`, against menu.css's
+ * `#6fd3c2` and hud.css's `#0a5f8a`); there is one accent now, shared with the
+ * HUD, the menu and the touch pad.
+ *
+ * CLASS CONTRACT (src/ui/builder.ts builds all of these; do not rename):
+ *   .sm-builder  the two-pane grid · .sm-builder-root  the focusable container
+ *   .sm-builder__pane--left (rows + hint) / __pane--right (stats, legality)
+ *   .sm-builder__rows  <ol>
+ *   .sm-builder__row  one row, plus a `--${kind}` modifier — --name, --body,
+ *     --chassis, --suspension, --plant, --tire, --armor, --weapon, --facing,
+ *     --ammo, --confirm — and --sub / --selected with aria-selected
+ *   .sm-builder__row-label / __row-value / __row-input
+ *   .sm-builder__row-controls  hidden by default, revealed on coarse pointers
+ *   .sm-builder__row-cycle --dec / --inc
+ *   .sm-builder__hint, .sm-builder__stats, .sm-builder__stat, __stat-label,
+ *     __stat-value (--invalid), .sm-builder__legality, __legality-title,
+ *     __violation-list, __violation (--none), .sm-builder__message
+ *
  * NO AUTOMATED GUARD covers the `@media (pointer: coarse)` block below:
- * happy-dom (the DOM harness tests/integration/builder-touch.test.ts runs
- * on) computes no layout at all — getBoundingClientRect() returns zeros —
- * and does not evaluate media queries, so a test can see that the cycle
- * buttons and name input exist and are wired up, but never that they are
- * actually 44px tall or actually hidden/shown at the right breakpoint.
- * Verified by opening the game on a phone. `menu.css` carries this same
- * caveat for the identical reason.
+ * happy-dom (the DOM harness tests/integration/builder-touch.test.ts runs on)
+ * computes no layout at all — getBoundingClientRect() returns zeros — and does
+ * not evaluate media queries, so a test can see that the cycle buttons and name
+ * input exist and are wired up, but never that they are actually 44px tall or
+ * actually hidden/shown at the right breakpoint. Verified by opening the game
+ * on a phone. `menu.css` carries this same caveat for the identical reason.
  */
 
 .sm-builder-root {
@@ -16,26 +34,23 @@
 }
 
 .sm-builder {
-  --sm-bg: #10151c;
-  --sm-panel: #161d27;
-  --sm-panel-alt: #1c2531;
-  --sm-line: #2a3444;
-  --sm-text: #d7e0ea;
-  --sm-text-dim: #8a97a8;
-  --sm-accent: #4fd6c4;
-  --sm-warn: #ff6b6b;
-  --sm-ok: #7de08a;
-
   display: grid;
   grid-template-columns: minmax(280px, 1.3fr) minmax(240px, 1fr);
   gap: 1px;
-  background: var(--sm-line);
-  border: 1px solid var(--sm-line);
-  border-radius: 6px;
   overflow: hidden;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 14px;
-  color: var(--sm-text);
+  color: var(--ui-ink);
+  background: var(--ui-line);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-panel);
+  font-family: var(--ui-font-mono);
+  font-size: var(--ui-text-base);
+  line-height: var(--ui-leading-tight);
+}
+
+.sm-builder-root:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 4px;
 }
 
 @media (max-width: 640px) {
@@ -45,19 +60,16 @@
 }
 
 .sm-builder__pane {
-  background: var(--sm-panel);
-  padding: 12px;
   min-width: 0;
+  padding: var(--ui-space-5);
+  background: var(--ui-surface);
 }
 
 .sm-builder__pane--right {
-  background: var(--sm-panel-alt);
+  background: var(--ui-surface-raised);
 }
 
 .sm-builder__rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   max-height: 60vh;
   overflow-y: auto;
 }
@@ -65,35 +77,44 @@
 .sm-builder__row {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  gap: var(--ui-space-5);
+  padding: var(--ui-space-2) var(--ui-space-4);
   border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  cursor: pointer;
 }
 
 .sm-builder__row--sub {
-  padding-left: 24px;
-  color: var(--sm-text-dim);
+  padding-left: var(--ui-space-8);
+  color: var(--ui-ink-muted);
+  font-size: var(--ui-text-sm);
 }
 
 .sm-builder__row--confirm {
-  margin-top: 8px;
-  font-weight: 700;
-  border-top: 1px dashed var(--sm-line);
-  padding-top: 8px;
+  margin-top: var(--ui-space-4);
+  padding-top: var(--ui-space-4);
+  color: var(--ui-ink);
+  border-top: 1px dashed var(--ui-line-strong);
+  font-weight: var(--ui-weight-bold);
 }
 
 .sm-builder__row--selected {
-  background: rgba(79, 214, 196, 0.12);
-  border-color: var(--sm-accent);
+  background: var(--ui-accent-wash);
+  border-color: var(--ui-accent);
 }
 
 .sm-builder__row-label {
-  color: var(--sm-text-dim);
+  color: var(--ui-ink-muted);
+}
+
+.sm-builder__row--confirm .sm-builder__row-label {
+  color: var(--ui-accent-strong);
+  letter-spacing: var(--ui-tracking-wide);
+  text-transform: uppercase;
 }
 
 .sm-builder__row--selected .sm-builder__row-label {
-  color: var(--sm-text);
+  color: var(--ui-ink);
 }
 
 .sm-builder__row-value {
@@ -104,20 +125,19 @@
 .sm-builder__row-input {
   flex: 1 1 auto;
   min-width: 0;
-  text-align: right;
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  color: var(--sm-text);
+  padding: 0 var(--ui-space-2);
+  color: var(--ui-ink);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 0 4px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .sm-builder__row-input:focus {
   outline: none;
-  border-color: var(--sm-accent);
-  background: var(--sm-panel-alt);
+  background: var(--ui-surface-sunken);
+  border-color: var(--ui-accent);
 }
 
 /* Rendered ALWAYS (see src/ui/builder.ts's buildLeftPane) and hidden here by
@@ -128,7 +148,7 @@
 .sm-builder__row-controls {
   display: none;
   flex: 0 0 auto;
-  gap: 4px;
+  gap: var(--ui-space-2);
 }
 
 .sm-builder__row-cycle {
@@ -137,26 +157,44 @@
   justify-content: center;
   width: 22px;
   padding: 0;
-  background: var(--sm-panel-alt);
-  color: var(--sm-text);
-  border: 1px solid var(--sm-line);
-  border-radius: 4px;
+  color: var(--ui-ink);
+  background: var(--ui-surface-raised);
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--ui-radius-md);
   cursor: pointer;
+}
+
+.sm-builder__row-cycle:hover {
+  color: var(--ui-accent-strong);
+  border-color: var(--ui-accent);
+}
+
+.sm-builder__row-cycle:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
 }
 
 /* The glyph lives in CSS, not as a `.textContent` literal in builder.ts: a
    `-`/`+` string assigned in TypeScript is exactly what
    tests/unit/strings.test.ts's scanner exists to catch, and that file's
-   allowlist is not this task's to edit (see YOUR FILES in the task brief).
-   The button's meaning still reaches a screen reader via its `aria-label`,
-   set through `setAttribute` in builder.ts. */
-.sm-builder__row-cycle--dec::before { content: '−'; }
-.sm-builder__row-cycle--inc::before { content: '+'; }
+   allowlist is not this task's to edit. The button's meaning still reaches a
+   screen reader via its `aria-label`, set through `setAttribute` in
+   builder.ts. Both glyphs stay in CSS — do not move either into TypeScript. */
+.sm-builder__row-cycle--dec::before {
+  content: '−';
+}
+
+.sm-builder__row-cycle--inc::before {
+  content: '+';
+}
 
 .sm-builder__hint {
-  margin-top: 10px;
-  color: var(--sm-text-dim);
-  font-size: 12px;
+  margin-top: var(--ui-space-5);
+  padding-top: var(--ui-space-4);
+  color: var(--ui-ink-dim);
+  border-top: 1px solid var(--ui-line);
+  font-size: var(--ui-text-xs);
+  letter-spacing: var(--ui-tracking-wide);
 }
 
 @media (pointer: coarse) {
@@ -172,6 +210,7 @@
   .sm-builder__row-cycle {
     min-height: 44px;
     min-width: 44px;
+    width: 44px;
   }
 
   /* A phone player has no ↑↓←→/0-9/Enter to act on — see buildLeftPane's
@@ -185,67 +224,76 @@
 .sm-builder__stats {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 14px;
+  gap: var(--ui-space-2);
+  margin-bottom: var(--ui-space-6);
+  padding-bottom: var(--ui-space-5);
+  border-bottom: 1px solid var(--ui-line);
 }
 
 .sm-builder__stat {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding: 2px 0;
+  gap: var(--ui-space-5);
+  padding: var(--ui-space-1) 0;
 }
 
 .sm-builder__stat-label {
-  color: var(--sm-text-dim);
+  color: var(--ui-ink-muted);
+  font-size: var(--ui-text-sm);
+  letter-spacing: var(--ui-tracking-wide);
+  text-transform: uppercase;
 }
 
 .sm-builder__stat-value {
+  font-weight: var(--ui-weight-semibold);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
 }
 
+/* The text itself is builder.ts's INVALID_DISPLAY ('???'); the spaced letters
+   are emphasis only, so this must not prepend a glyph of its own. */
 .sm-builder__stat-value--invalid {
-  color: var(--sm-warn);
-  letter-spacing: 2px;
-  font-weight: 700;
+  color: var(--ui-critical);
+  font-weight: var(--ui-weight-bold);
+  letter-spacing: var(--ui-tracking-wide);
 }
 
 .sm-builder__legality-title {
-  margin: 0 0 6px;
-  font-size: 13px;
+  margin: 0 0 var(--ui-space-3);
+  color: var(--ui-ink-dim);
+  font-size: var(--ui-text-xs);
+  font-weight: var(--ui-weight-semibold);
+  letter-spacing: var(--ui-tracking-wider);
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--sm-text-dim);
 }
 
 .sm-builder__violation-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ui-space-2);
 }
 
 .sm-builder__violation {
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: rgba(255, 107, 107, 0.1);
-  color: var(--sm-warn);
-  font-size: 13px;
+  padding: var(--ui-space-2) var(--ui-space-4);
+  color: var(--ui-critical);
+  background: var(--ui-critical-wash);
+  border-left: 2px solid var(--ui-critical);
+  border-radius: 0 var(--ui-radius-sm) var(--ui-radius-sm) 0;
+  font-size: var(--ui-text-sm);
 }
 
 .sm-builder__violation--none {
-  background: rgba(125, 224, 138, 0.1);
-  color: var(--sm-ok);
+  color: var(--ui-ok);
+  background: var(--ui-ok-wash);
+  border-left-color: var(--ui-ok);
 }
 
 .sm-builder__message {
-  margin-top: 12px;
-  padding: 8px;
-  border-radius: 4px;
-  background: rgba(255, 107, 107, 0.15);
-  color: var(--sm-warn);
-  font-size: 13px;
+  margin-top: var(--ui-space-5);
+  padding: var(--ui-space-4);
+  color: var(--ui-critical);
+  background: var(--ui-critical-wash);
+  border: 1px solid var(--ui-line);
+  border-left: 2px solid var(--ui-critical);
+  border-radius: var(--ui-radius-md);
+  font-size: var(--ui-text-sm);
 }

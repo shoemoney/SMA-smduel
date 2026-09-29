@@ -9,28 +9,43 @@
  * procedural unit quad per instance entirely in the vertex shader (see
  * sprite.wgsl / tile.wgsl) — no per-sprite vertex buffer is needed.
  *
- * Byte layout (must match the WGSL `Instance` struct in sprite.wgsl and
- * tile.wgsl exactly): 16 floats / 64 bytes per instance, laid out as four
- * vec4<f32> slots so every field lands on the 16-byte boundary WGSL struct
- * rules require:
+ * Byte layout (must match the WGSL `Instance` struct in sprite.wgsl exactly):
+ * 20 floats / 80 bytes per instance, laid out as four vec4<f32> slots plus a
+ * fifth, so every field lands on the 16-byte boundary WGSL struct rules
+ * require:
  *
  *   float offset | field       | meaning
  *   ------------ | ----------- | -------------------------------------------
  *   0..3         | transform0  | xy = world position (m), z = rotation (rad), w = layer
- *   4..7         | transform1  | xy = size (m, full width/height), zw = reserved
+ *   4..7         | transform1  | xy = size (m, full width/height),
+ *                |             |     zw = OVERLOADED, see below
  *   8..11        | uvRect      | x0,y0 = atlas UV top-left, z,w = atlas UV bottom-right
- *                |             | (tile.wgsl instead reads zw as a repeat count)
  *   12..15       | tint        | r,g,b,a multiply tint
+ *   16..19       | extra       | x = SPRITE_KIND tag, yzw = reserved (zero)
+ *
+ * `transform1.zw` is overloaded because both consumers fit in two floats, and
+ * which one is present is decided by `extra.x` — the authoritative tag. That
+ * tag is not decoration: shadow and ground both read `transform1.zw`, and
+ * inferring which from the *value* (e.g. "non-zero means shadow") is what made
+ * ground quads render as black shadows. `resolveSpriteKind` writes it.
+ *
+ *   kind 0 PLAIN  : zw unused
+ *   kind 1 SHADOW : z = softness, w = opacity
+ *   kind 2 GROUND : z = tile metres, w = detail scale
+ *
+ * NOTE: `tile.wgsl` is DEAD and is not part of any pipeline. The field table
+ * above describes sprite.wgsl only; sprite.wgsl grew the ground branch that
+ * tile.wgsl used to model, so the tiled-ground path is not a second shader.
  *
  * `layer` (transform0.w) is written into the packed buffer for shader-side
- * debugging/future use only — neither sprite.wgsl nor tile.wgsl reads it, and
- * this pipeline has no depth buffer. Cross-atlas z-order is instead decided
- * entirely on the CPU by `buildFrameInstanceBuffers`, which buckets visible
- * instances by ascending `layer` and emits one packed buffer per (layer,
- * atlas) pair in that order — a plain painter's algorithm. That is the
- * correct approach here regardless: the hazard layer blends with alpha, and
- * alpha blending is order-dependent, so a depth test alone could not replace
- * it even if one were added.
+ * debugging/future use only — sprite.wgsl does not read it, and this pipeline
+ * has no depth buffer. Cross-atlas z-order is instead decided entirely on the
+ * CPU by `buildFrameInstanceBuffers`, which buckets visible instances by
+ * ascending `layer` and emits one packed buffer per (layer, atlas) pair in
+ * that order — a plain painter's algorithm. That is the correct approach here
+ * regardless: the hazard layer blends with alpha, and alpha blending is
+ * order-dependent, so a depth test alone could not replace it even if one were
+ * added.
  */
 
 export interface Vec2M {
@@ -73,9 +88,63 @@ export interface SpriteInstanceInput {
    * order; nothing beyond that is guaranteed within a bucket.
    */
   readonly layer: number;
+  /**
+   * Contact-shadow parameters, packed into `transform1.zw` (previously two
+   * reserved floats that were hard-zeroed and never read — see the field table
+   * above). Optional so ordinary sprites are unchanged.
+   *
+   * The scene has no lighting at all, so an unshadowed vehicle reads as a
+   * sticker on the ground. A shadow instance draws no new art: `sprite.wgsl`
+   * computes a radial falloff from the quad's local position whenever
+   * `shadowSoftness > 0`, which is why the slot is a flag rather than a frame
+   * name — it works for any sprite, any size, with no atlas frame.
+   */
+  readonly shadowSoftness?: number;
+  /** Peak shadow alpha. 0 is invisible, ~0.45 reads as a daylight contact shadow. */
+  readonly shadowOpacity?: number;
+  /**
+   * Ground only: world size in metres that one tile of `uvRect` should cover.
+   *
+   * Non-zero marks the instance as tiled ground, which makes `sprite.wgsl`
+   * derive its UVs from world position with `fract()` instead of from the quad
+   * — see the ground branch in the fragment shader. Mutually exclusive with
+   * the two shadow fields, which is why the fragment shader gates on
+   * `shadowOpacity` first.
+   */
+  readonly uvRepeatMetres?: number;
+  /** Ground only: second sampling scale, as a multiple of `uvRepeatMetres`. 0 disables the blend. */
+  readonly uvDetailScale?: number;
 }
 
-export const FLOATS_PER_INSTANCE = 16;
+/**
+ * Which fragment path this instance takes. Defaults to {@link SPRITE_KIND.PLAIN}
+ * and is derived from the shadow/ground fields when not given explicitly, so
+ * callers do not have to keep two things in sync.
+ */
+export function resolveSpriteKind(inst: SpriteInstanceInput): SpriteKind {
+  if (inst.uvRepeatMetres !== undefined && inst.uvRepeatMetres > 0) return SPRITE_KIND.GROUND;
+  if (inst.shadowOpacity !== undefined && inst.shadowOpacity > 0) return SPRITE_KIND.SHADOW;
+  return SPRITE_KIND.PLAIN;
+}
+
+/**
+ * Which of the fragment shader's special paths an instance takes.
+ *
+ * Written into `extra.x` rather than inferred from the instance's values — see
+ * the field-table note above for the concrete bug that forced the field.
+ */
+export const SPRITE_KIND = {
+  /** Ordinary textured sprite: `sampled * tint`. */
+  PLAIN: 0,
+  /** Analytic radial contact shadow, no texture read. */
+  SHADOW: 1,
+  /** World-space `fract()`-tiled ground quad with a second detail scale. */
+  GROUND: 2,
+} as const;
+
+export type SpriteKind = (typeof SPRITE_KIND)[keyof typeof SPRITE_KIND];
+
+export const FLOATS_PER_INSTANCE = 20;
 export const BYTES_PER_INSTANCE = FLOATS_PER_INSTANCE * 4;
 
 /** Float (not byte) offset of each field's first component within one packed instance. */
@@ -84,6 +153,7 @@ export const INSTANCE_FIELD_FLOAT_OFFSETS = {
   transform1: 4,
   uvRect: 8,
   tint: 12,
+  extra: 16,
 } as const;
 
 /**
@@ -102,8 +172,13 @@ export function packInstances(instances: readonly SpriteInstanceInput[]): Float3
     out[base + 3] = inst.layer;
     out[base + 4] = inst.sizeM.x;
     out[base + 5] = inst.sizeM.y;
-    out[base + 6] = 0;
-    out[base + 7] = 0;
+    // transform1.zw is overloaded: a shadow carries (softness, opacity), a
+    // ground quad carries (tileMetres, detailScale). `extra.x` is the
+    // authoritative tag saying which — see resolveSpriteKind.
+    const kind = resolveSpriteKind(inst);
+    const isGround = kind === SPRITE_KIND.GROUND;
+    out[base + 6] = isGround ? (inst.uvRepeatMetres ?? 0) : (inst.shadowSoftness ?? 0);
+    out[base + 7] = isGround ? (inst.uvDetailScale ?? 0) : (inst.shadowOpacity ?? 0);
     out[base + 8] = inst.uvRect.u0;
     out[base + 9] = inst.uvRect.v0;
     out[base + 10] = inst.uvRect.u1;
@@ -112,6 +187,10 @@ export function packInstances(instances: readonly SpriteInstanceInput[]): Float3
     out[base + 13] = inst.tint.g;
     out[base + 14] = inst.tint.b;
     out[base + 15] = inst.tint.a;
+    out[base + 16] = resolveSpriteKind(inst);
+    out[base + 17] = 0;
+    out[base + 18] = 0;
+    out[base + 19] = 0;
   }
   return out;
 }
@@ -420,13 +499,81 @@ export function createLayerPipeline(opts: LayerPipelineOptions): GPURenderPipeli
 // src/render/shaders/post.wgsl for the shader itself).
 // ---------------------------------------------------------------------------
 
-/** Bind group layout for the post pass's group(0): the composited scene's sampler and texture. */
+/**
+ * The post pass's grade parameters, uploaded once per frame.
+ *
+ * Field order and count are load-bearing and shared with `PostUniforms` in
+ * `src/render/shaders/post.wgsl` — 3 x vec4 = 48 bytes, 16-byte aligned, no
+ * padding. A screen sets these per frame to dial its own look (the arena runs
+ * a harder vignette than the city) without a second pipeline or a recompile.
+ */
+export interface PostUniformValues {
+  /** Width and height of the composited scene, in device pixels. Drives the bloom tap radius and the aspect-corrected vignette. */
+  readonly width: number;
+  readonly height: number;
+  /** Seconds since boot. Drives the animated grain so it does not sit frozen on a still frame. */
+  readonly timeSeconds: number;
+  /** 0 disables the vignette, ~0.5 is heavy. */
+  readonly vignette: number;
+  /** 0 disables bloom. */
+  readonly bloom: number;
+  /** 0 disables grain. */
+  readonly grain: number;
+  /** 0 is greyscale, 1 is unchanged, >1 pushes colour. */
+  readonly saturation: number;
+  /** 1 is unchanged; <1 flattens toward mid grey, >1 adds contrast. */
+  readonly contrast: number;
+  /** Strength of the warm-shadow / cool-highlight split tone. 0 is a no-op. */
+  readonly splitTone: number;
+  /** Global multiplicative exposure applied before the tone curve. */
+  readonly exposure: number;
+}
+
+/** Bytes in the post uniform block: 3 x vec4<f32>. Must match `PostUniforms` in post.wgsl. */
+export const POST_UNIFORM_BYTES = 48;
+
+export function packPostUniforms(v: PostUniformValues): Float32Array<ArrayBuffer> {
+  return new Float32Array([
+    v.width,
+    v.height,
+    v.timeSeconds,
+    v.vignette,
+    v.bloom,
+    v.grain,
+    v.saturation,
+    v.contrast,
+    v.splitTone,
+    0, // reserved
+    v.exposure,
+    0, // reserved
+  ]);
+}
+
+/** A `GPUBuffer` sized for {@link POST_UNIFORM_BYTES}, in `UNIFORM | COPY_DST` usage. */
+export function createPostUniformBuffer(device: GPUDevice): GPUBuffer {
+  return device.createBuffer({
+    label: 'post-uniforms',
+    size: POST_UNIFORM_BYTES,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+}
+
+/**
+ * Bind group layout for the post pass's group(0): the composited scene's
+ * sampler, its texture, and the grade uniform block.
+ *
+ * The uniform at binding 2 is new. The pass was originally a pure copy with no
+ * parameters, which is why it could be a literal identity; once it grades, the
+ * grade has to come from somewhere, and a uniform beats recompiling the shader
+ * per screen or hardcoding a single look.
+ */
 export function createPostBindGroupLayout(device: GPUDevice): GPUBindGroupLayout {
   return device.createBindGroupLayout({
     label: 'post-bind-group-layout',
     entries: [
       { binding: 0, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
       { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } },
+      { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
     ],
   });
 }
@@ -436,6 +583,7 @@ export function createPostBindGroup(
   layout: GPUBindGroupLayout,
   sampler: GPUSampler,
   sourceView: GPUTextureView,
+  uniformBuffer: GPUBuffer,
 ): GPUBindGroup {
   return device.createBindGroup({
     label: 'post-bind-group',
@@ -443,6 +591,7 @@ export function createPostBindGroup(
     entries: [
       { binding: 0, resource: sampler },
       { binding: 1, resource: sourceView },
+      { binding: 2, resource: { buffer: uniformBuffer } },
     ],
   });
 }

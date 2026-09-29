@@ -1,98 +1,86 @@
 /*
  * Combat HUD overlay styles.
  *
- * - Positioning only: upper-left weapons, lower-left radar, bottom
- *   speed/battery, right-side damage facings, and a capped message feed.
- * - No state is ever conveyed by color alone: every damage/status element
+ * ALL colour/type/space values come from tokens.css — this file declares no
+ * colour of its own. `--hud-scale` is NOT a design token: hud.ts writes it
+ * inline onto the overlay root from HudSettings.scale, so it is a runtime
+ * input, and it is declared here only as the fallback for markup that has not
+ * gone through hud.ts. Same for the per-element `--hud-radar-x/y` and
+ * `--hud-speed-frac` custom properties hud.ts sets.
+ *
+ * - Positioning: upper-left weapons, upper-centre message feed, upper-right
+ *   condition, lower-left radar, bottom-centre speed, lower-right a11y.
+ * - No state is ever conveyed by colour alone: every damage/status element
  *   carries a `data-state` attribute and its own text/glyph content (see
- *   hud.ts); the colors below are a redundant reinforcement layer, not the
- *   only signal.
- * - `--hud-scale` (set by hud.ts from HudSettings.scale) resizes the whole
- *   overlay; `data-reduced-flash`/`data-reduced-shake` on the root disable
- *   the corresponding animations.
- * - Light/dark-safe: every color is a custom property, redefined under
- *   `prefers-color-scheme: dark`.
+ *   hud.ts); the state colours below are a redundant reinforcement layer, not
+ *   the only signal.
+ * - `data-reduced-flash`/`data-reduced-shake` on the root disable the
+ *   corresponding animations.
+ * - The four generic `[data-state]` rules are scoped to `.hud-root`. They used
+ *   to be bare global attribute selectors, so any element anywhere in the page
+ *   carrying `data-state="critical"` had its text colour changed by the HUD's
+ *   stylesheet.
+ * - NO REGRESSION TEST GUARDS THIS FILE'S LAYOUT: happy-dom computes no
+ *   layout (getBoundingClientRect() answers zero) and evaluates no media
+ *   queries, so panel sizing is verified by opening the game — the same
+ *   measured limitation menu.css and builder.css document.
  */
 
-:root {
-  --hud-scale: 1;
-  --hud-bg: rgba(248, 250, 252, 0.86);
-  --hud-bg-strong: rgba(248, 250, 252, 0.96);
-  --hud-fg: #10151b;
-  --hud-fg-muted: #4a5568;
-  --hud-border: rgba(16, 21, 27, 0.35);
-  --hud-accent: #0a5f8a;
-  --hud-ok: #1a7f37;
-  --hud-damaged: #9a6a00;
-  --hud-critical: #b8330a;
-  --hud-destroyed: #8a1f1f;
-  --hud-active-ring: #0a5f8a;
-  --hud-focus-ring: #0a5f8a;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --hud-bg: rgba(12, 16, 22, 0.82);
-    --hud-bg-strong: rgba(12, 16, 22, 0.94);
-    --hud-fg: #eef2f6;
-    --hud-fg-muted: #a8b3c0;
-    --hud-border: rgba(238, 242, 246, 0.28);
-    --hud-accent: #6cc4f0;
-    --hud-ok: #55c26e;
-    --hud-damaged: #e0b23a;
-    --hud-critical: #ef7a4f;
-    --hud-destroyed: #ff8a8a;
-    --hud-active-ring: #6cc4f0;
-    --hud-focus-ring: #6cc4f0;
-  }
-}
-
-:root[data-theme='dark'] {
-  --hud-bg: rgba(12, 16, 22, 0.82);
-  --hud-bg-strong: rgba(12, 16, 22, 0.94);
-  --hud-fg: #eef2f6;
-  --hud-fg-muted: #a8b3c0;
-  --hud-border: rgba(238, 242, 246, 0.28);
-  --hud-accent: #6cc4f0;
-  --hud-ok: #55c26e;
-  --hud-damaged: #e0b23a;
-  --hud-critical: #ef7a4f;
-  --hud-destroyed: #ff8a8a;
-  --hud-active-ring: #6cc4f0;
-  --hud-focus-ring: #6cc4f0;
-}
+@import './tokens.css';
 
 .hud-root {
+  --hud-scale: 1;
+
+  /* Token x scale, resolved once. --hud-scale is written inline by hud.ts, so
+     every dimension below multiplies it through these locals instead of
+     repeating a long calc() in forty rules. */
+  --pad: calc(var(--ui-space-4) * var(--hud-scale));
+  --gap: calc(var(--ui-space-3) * var(--hud-scale));
+  --inset: calc(var(--ui-space-5) * var(--hud-scale));
+  --t2xs: calc(var(--ui-text-2xs) * var(--hud-scale));
+  --txs: calc(var(--ui-text-xs) * var(--hud-scale));
+  --tbase: calc(var(--ui-text-base) * var(--hud-scale));
+  --tdisplay: calc(var(--ui-text-display) * var(--hud-scale));
+  --rsm: calc(var(--ui-radius-sm) * var(--hud-scale));
+  --rlg: calc(var(--ui-radius-lg) * var(--hud-scale));
+  --rule: calc(1px * var(--hud-scale));
+
   position: fixed;
   inset: 0;
   pointer-events: none;
-  font: calc(13px * var(--hud-scale)) / 1.3 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  color: var(--hud-fg);
-  -webkit-font-smoothing: antialiased;
   z-index: 20;
+  color: var(--ui-ink);
+  font-family: var(--ui-font-mono);
+  font-size: var(--tbase);
+  line-height: var(--ui-leading-tight);
+  /* Inherited by the whole overlay so every number in a column lines up. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
 }
 
-.hud-root * {
-  box-sizing: border-box;
-}
+/* --- panel chrome: one shared shell so the six panels read as one cluster --- */
 
 .hud-panel {
   position: absolute;
   pointer-events: auto;
-  background: var(--hud-bg);
-  border: 1px solid var(--hud-border);
-  border-radius: calc(8px * var(--hud-scale));
-  padding: calc(8px * var(--hud-scale)) calc(10px * var(--hud-scale));
-  backdrop-filter: blur(6px);
+  padding: var(--pad) var(--inset);
   max-width: calc(260px * var(--hud-scale));
+  background: linear-gradient(180deg, var(--ui-glass-raised), var(--ui-glass) 68%);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--rlg);
+  box-shadow: var(--ui-shadow-panel);
+  backdrop-filter: blur(6px);
 }
 
+/* Titles sit at the BOTTOM of the ramp — a player reads the value, not the
+   label, so the label is the smallest and quietest thing in the panel. */
 .hud-panel-title {
-  margin: 0 0 calc(4px * var(--hud-scale));
-  font-size: calc(11px * var(--hud-scale));
+  margin: 0 0 var(--gap);
+  color: var(--ui-ink-dim);
+  font-size: var(--t2xs);
+  font-weight: var(--ui-weight-semibold);
+  letter-spacing: var(--ui-tracking-wider);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--hud-fg-muted);
 }
 
 /* Screen-reader-only content: visually hidden, still in the accessibility tree. */
@@ -111,120 +99,148 @@
 /* --- layout slots ----------------------------------------------------- */
 
 .hud-panel--weapons {
-  top: calc(12px * var(--hud-scale));
-  left: calc(12px * var(--hud-scale));
+  top: var(--inset);
+  left: var(--inset);
 }
 
 .hud-panel--radar {
-  bottom: calc(12px * var(--hud-scale));
-  left: calc(12px * var(--hud-scale));
+  bottom: var(--inset);
+  left: var(--inset);
   width: calc(180px * var(--hud-scale));
 }
 
 .hud-panel--speed {
-  bottom: calc(12px * var(--hud-scale));
+  bottom: var(--inset);
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
+  min-width: calc(132px * var(--hud-scale));
 }
 
 .hud-panel--damage {
-  top: calc(12px * var(--hud-scale));
-  right: calc(12px * var(--hud-scale));
+  top: var(--inset);
+  right: var(--inset);
 }
 
+/**
+ * Message feed.
+ *
+ * Offset BELOW the top inset rather than on it. The arena and road screens also
+ * render their own status line — a `position:absolute; top:8px; left:50%`
+ * element built in `src/app.ts` — and both it and this panel were claiming
+ * top-centre, so the feed printed straight over the status line and neither was
+ * readable. The screens' status line is the one that carries the controls
+ * legend, so the feed yields and sits under it.
+ */
 .hud-panel--messages {
-  top: calc(12px * var(--hud-scale));
+  top: calc(var(--inset) + 26px);
   left: 50%;
   transform: translateX(-50%);
-  width: calc(320px * var(--hud-scale));
+  width: min(calc(420px * var(--hud-scale)), 62vw);
 }
 
 .hud-panel--a11y {
-  bottom: calc(12px * var(--hud-scale));
-  right: calc(12px * var(--hud-scale));
+  right: var(--inset);
+  bottom: var(--inset);
   display: flex;
   flex-direction: column;
-  gap: calc(4px * var(--hud-scale));
+  gap: var(--gap);
 }
 
 /* --- weapons ------------------------------------------------------------ */
 
 .hud-weapon-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: calc(3px * var(--hud-scale));
+  gap: var(--gap);
 }
 
+/* slot · facing · name · ammo · cooldown · dp — the column order hud.ts emits. */
 .hud-weapon-row {
   display: grid;
-  grid-template-columns: 1.4em 3.2em 1fr auto auto auto;
-  align-items: center;
-  gap: calc(6px * var(--hud-scale));
-  padding: calc(2px * var(--hud-scale)) calc(4px * var(--hud-scale));
-  border-radius: calc(4px * var(--hud-scale));
+  grid-template-columns: 1.4em 3.2em minmax(0, 1fr) auto auto auto;
+  align-items: baseline;
+  gap: var(--gap);
+  padding: var(--gap) var(--gap);
   border: 1px solid transparent;
-}
-
-/* Active weapon: a border/shape change, not a color-only highlight. */
-.hud-weapon-row--active {
-  border: 2px solid var(--hud-active-ring);
-  font-weight: 700;
-}
-.hud-weapon-row--active .hud-weapon-slot::after {
-  content: ' \25B6'; /* ▶ marks the active row with a shape, not just a border color */
+  border-radius: var(--rsm);
+  font-size: var(--txs);
 }
 
 .hud-weapon-slot {
-  color: var(--hud-fg-muted);
+  color: var(--ui-ink-dim);
+  text-align: right;
+}
+
+.hud-weapon-facing {
+  color: var(--ui-ink-dim);
+  letter-spacing: var(--ui-tracking-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The one value that identifies the row: the brightest ink in the panel. */
+.hud-weapon-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ui-ink);
+  font-size: var(--tbase);
+  font-weight: var(--ui-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-weapon-ammo,
+.hud-weapon-cooldown,
+.hud-weapon-dp {
+  color: var(--ui-ink-muted);
+  white-space: nowrap;
 }
 
 .hud-weapon-cooldown--ready {
-  color: var(--hud-ok);
+  color: var(--ui-ok);
 }
 
-.hud-weapon-dp[data-state='ok'] {
-  color: var(--hud-ok);
+/* Active weapon: a border/shape change, not a colour-only highlight. */
+.hud-weapon-row--active {
+  background: var(--ui-accent-wash);
+  border-color: var(--ui-accent);
+  font-weight: var(--ui-weight-bold);
 }
-.hud-weapon-dp[data-state='damaged'] {
-  color: var(--hud-damaged);
-}
-.hud-weapon-dp[data-state='critical'] {
-  color: var(--hud-critical);
-}
-.hud-weapon-dp[data-state='destroyed'] {
-  color: var(--hud-destroyed);
+
+.hud-weapon-row--active .hud-weapon-slot::after {
+  content: ' \25B6'; /* ▶ marks the active row with a shape, not just a border colour */
 }
 
 /* --- radar --------------------------------------------------------------- */
 
 .hud-panel--radar[data-state='offline'] .hud-radar-offline {
-  color: var(--hud-critical);
-  font-weight: 700;
+  margin: var(--gap) 0;
+  color: var(--ui-critical);
+  font-weight: var(--ui-weight-bold);
 }
 
 .hud-radar-face {
   position: relative;
   width: 100%;
+  margin: var(--pad) 0;
   aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border: 1px solid var(--ui-line-strong);
   border-radius: 50%;
-  border: 1px solid var(--hud-border);
-  background: repeating-radial-gradient(circle, transparent 0, transparent calc(20% - 1px), var(--hud-border) 20%);
-  margin: calc(6px * var(--hud-scale)) 0;
+  background: radial-gradient(circle, var(--ui-dial-track) 0 1px, transparent 1px) 0 0 / 25% 25%, var(--ui-dial-face);
+  box-shadow: inset 0 0 0 1px var(--ui-void), inset 0 0 18px var(--ui-dial-vignette);
   /* Belt-and-suspenders: hud.ts pre-culls contacts to the ruleset's visual
      range, but this keeps a bad value from ever escaping the circular face. */
-  overflow: hidden;
 }
 
 .hud-radar-player {
   position: absolute;
   top: 50%;
   left: 50%;
+  color: var(--ui-accent-strong);
+  font-size: var(--txs);
   transform: translate(-50%, -50%);
-  color: var(--hud-accent);
 }
 
 .hud-radar-contact {
@@ -235,74 +251,124 @@
      panel size. */
   top: calc(50% - var(--hud-radar-y) * 50%);
   left: calc(50% + var(--hud-radar-x) * 50%);
-  transform: translate(-50%, -50%);
-  font-size: calc(10px * var(--hud-scale));
+  color: var(--ui-ink-muted);
+  font-size: var(--txs);
   line-height: 1;
+  transform: translate(-50%, -50%);
 }
-/* Shape per contact kind — never color alone. */
+
+/* Shape per contact kind — never colour alone. */
 .hud-radar-contact--vehicle::before {
   content: '\25A0'; /* ■ */
 }
+
 .hud-radar-contact--pedestrian::before {
   content: '\25CF'; /* ● */
 }
-.hud-radar-contact--hazard::before {
-  content: '\2716'; /* ✖ */
-}
+
+.hud-radar-contact--hazard::before,
 .hud-radar-contact--wreck::before {
   content: '\2716'; /* ✖ */
+}
+
+.hud-radar-contact--wreck {
   opacity: 0.6;
 }
+
 .hud-radar-contact--hostile {
-  color: var(--hud-critical);
-  font-weight: 700;
+  color: var(--ui-critical);
+  font-weight: var(--ui-weight-bold);
 }
 
 .hud-radar-orientation-toggle {
-  margin-top: calc(4px * var(--hud-scale));
   width: 100%;
+  margin-top: var(--gap);
 }
 
 /* --- speed / battery ------------------------------------------------------ */
 
 .hud-speed-dial {
+  position: relative;
   width: calc(64px * var(--hud-scale));
   height: calc(64px * var(--hud-scale));
-  margin: 0 auto calc(4px * var(--hud-scale));
+  margin: 0 auto var(--gap);
+}
+
+/* The gauge itself lives on a pseudo-element because the ring is drawn by
+   masking a conic gradient to an annulus, and a `mask` on this element would
+   mask the hub below along with it. Four major ticks (90°) over 24 minor
+   ticks (15°), with the value wedge running clockwise from 12 o'clock. */
+.hud-speed-dial::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(from -90deg, var(--ui-dial-tick) 0 2.5deg, transparent 2.5deg 90deg),
+    repeating-conic-gradient(from -90deg, var(--ui-dial-tick) 0 1deg, transparent 1deg 15deg),
+    conic-gradient(
+      from -90deg,
+      var(--ui-accent) 0 calc(var(--hud-speed-frac, 0) * 360deg),
+      var(--ui-dial-track) 0 360deg
+    );
+  border: var(--rule) solid var(--ui-line-strong);
   border-radius: 50%;
-  border: calc(3px * var(--hud-scale)) solid var(--hud-border);
-  background: conic-gradient(var(--hud-accent) calc(var(--hud-speed-frac, 0) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(closest-side, transparent 0 60%, var(--ui-mask-opaque) 62%);
+  mask: radial-gradient(closest-side, transparent 0 60%, var(--ui-mask-opaque) 62%);
+}
+
+.hud-speed-dial::after {
+  content: '';
+  position: absolute;
+  inset: 36%;
+  background: var(--ui-dial-face);
+  border: 1px solid var(--ui-line);
+  border-radius: 50%;
 }
 
 .hud-speed-digital {
-  font-size: calc(20px * var(--hud-scale));
-  font-weight: 700;
+  font-size: var(--tdisplay);
+  font-weight: var(--ui-weight-bold);
+  letter-spacing: var(--ui-tracking-wide);
+  line-height: var(--ui-leading-tight);
 }
 
 .hud-accel-tier,
 .hud-odometer {
-  color: var(--hud-fg-muted);
-  font-size: calc(11px * var(--hud-scale));
+  color: var(--ui-ink-dim);
+  font-size: var(--txs);
+}
+
+.hud-accel-tier {
+  letter-spacing: var(--ui-tracking-wide);
+  text-transform: uppercase;
 }
 
 .hud-battery {
-  margin-top: calc(4px * var(--hud-scale));
-  font-weight: 700;
+  margin-top: var(--gap);
+  padding-top: var(--gap);
+  border-top: 1px solid var(--ui-line);
+  font-size: var(--tbase);
+  font-weight: var(--ui-weight-semibold);
 }
+
 .hud-battery[data-state='ok'] {
-  color: var(--hud-ok);
+  color: var(--ui-ok);
 }
+
 .hud-battery[data-state='damaged'] {
-  color: var(--hud-damaged);
+  color: var(--ui-damaged);
 }
+
 .hud-battery[data-state='critical'] {
-  color: var(--hud-critical);
+  color: var(--ui-critical);
 }
+
 .hud-battery--empty,
 .hud-battery[data-state='empty'] {
-  color: var(--hud-destroyed);
+  color: var(--ui-destroyed);
 }
-/* Reduced-flash: the empty-battery pulse is opt-out, never the only cue (the glyph/text already says "0%"). */
+
+/* Reduced-flash: the empty-battery pulse is opt-out, never the only cue (the
+   glyph/text already says "0%"). */
 .hud-root:not([data-reduced-flash='true']) .hud-battery--empty {
   animation: hud-pulse 1s ease-in-out infinite;
 }
@@ -312,80 +378,139 @@
 .hud-armor-list,
 .hud-tire-list,
 .hud-cargo-list {
-  list-style: none;
-  margin: 0 0 calc(4px * var(--hud-scale));
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: calc(2px * var(--hud-scale));
+  gap: var(--gap);
+  margin-bottom: var(--gap);
 }
 
-[data-state='ok'] {
-  color: var(--hud-ok);
+.hud-armor-list {
+  padding-bottom: var(--gap);
+  border-bottom: 1px solid var(--ui-line);
 }
-[data-state='damaged'] {
-  color: var(--hud-damaged);
+
+.hud-tire-list {
+  padding-bottom: var(--gap);
+  border-bottom: 1px solid var(--ui-line);
 }
-[data-state='critical'] {
-  color: var(--hud-critical);
+
+/* One row treatment for every condition line: the label and the number arrive
+   as a single text node, so the state colour carries the emphasis. */
+.hud-armor-facing,
+.hud-tire,
+.hud-cargo,
+.hud-plant,
+.hud-driver-health,
+.hud-driver-armor {
+  padding: var(--gap) var(--gap);
+  border-left: calc(2 * var(--rule)) solid currentcolor;
+  border-radius: 0 var(--rsm) var(--rsm) 0;
+  background: var(--ui-glass-sunken);
+  font-size: var(--txs);
 }
-[data-state='destroyed'] {
-  color: var(--hud-destroyed);
+
+/* Condition colouring for EVERY data-state element hud.ts emits — weapon DP,
+   the armor/tire/cargo lists, plant, driver health and body armor all carry
+   this attribute and nothing else.
+   Scoped to `.hud-root` on purpose: these four rules used to be bare global
+   attribute selectors at the bottom of this file, so any element anywhere in
+   the page that happened to carry `data-state="critical"` had its text colour
+   changed by the HUD's stylesheet. The radar panel also sets `data-state`
+   (online/offline) and must NOT be caught by these. */
+.hud-root [data-state='ok'] {
+  color: var(--ui-ok);
+}
+
+.hud-root [data-state='damaged'] {
+  color: var(--ui-damaged);
+}
+
+.hud-root [data-state='critical'] {
+  color: var(--ui-critical);
+}
+
+.hud-root [data-state='destroyed'] {
+  color: var(--ui-destroyed);
 }
 
 /* --- message feed ----------------------------------------------------------- */
 
 .hud-message-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: calc(2px * var(--hud-scale));
+  gap: var(--gap);
   max-height: calc(160px * var(--hud-scale));
   overflow-y: auto;
 }
 
 .hud-message {
-  padding: calc(2px * var(--hud-scale)) calc(4px * var(--hud-scale));
-  border-left: calc(3px * var(--hud-scale)) solid var(--hud-border);
+  padding: var(--gap) var(--gap);
+  border-left: calc(3 * var(--rule)) solid var(--ui-line);
+  color: var(--ui-ink-muted);
+  font-size: var(--txs);
 }
+
+.hud-message--hit,
+.hud-message--info {
+  border-left-color: var(--ui-line-strong);
+}
+
 .hud-message--destroyed,
 .hud-message--controlLoss {
-  border-left-color: var(--hud-critical);
-  font-weight: 700;
+  border-left-color: var(--ui-critical);
+  color: var(--ui-ink);
+  font-weight: var(--ui-weight-bold);
 }
+
 .hud-message--victory {
-  border-left-color: var(--hud-ok);
-  font-weight: 700;
+  border-left-color: var(--ui-ok);
+  color: var(--ui-ink);
+  font-weight: var(--ui-weight-bold);
 }
+
 .hud-message--deadline,
 .hud-message--salvage {
-  border-left-color: var(--hud-damaged);
+  border-left-color: var(--ui-damaged);
+  color: var(--ui-ink);
 }
 
 /* --- accessibility controls -------------------------------------------------- */
 
 .hud-a11y-toggle,
 .hud-radar-orientation-toggle {
-  font: inherit;
-  color: var(--hud-fg);
-  background: var(--hud-bg-strong);
-  border: 1px solid var(--hud-border);
-  border-radius: calc(4px * var(--hud-scale));
-  padding: calc(3px * var(--hud-scale)) calc(6px * var(--hud-scale));
-  cursor: pointer;
+  padding: var(--gap) var(--gap);
+  color: var(--ui-ink-muted);
+  background: var(--ui-glass-strong);
+  border: 1px solid var(--ui-line);
+  border-radius: calc(var(--ui-radius-md) * var(--hud-scale));
+  font-family: inherit;
+  font-size: var(--txs);
+  letter-spacing: var(--ui-tracking-wide);
+  transition: color var(--ui-duration-fast) var(--ui-ease-standard),
+    border-color var(--ui-duration-fast) var(--ui-ease-standard);
 }
-.hud-a11y-toggle[aria-pressed='true'] {
+
+.hud-a11y-toggle:hover,
+.hud-radar-orientation-toggle:hover {
+  color: var(--ui-ink);
+  border-color: var(--ui-line-strong);
+}
+
+.hud-a11y-toggle[aria-pressed='true'],
+.hud-radar-orientation-toggle[aria-pressed='true'] {
+  color: var(--ui-accent-strong);
+  background: var(--ui-accent-wash);
+  border-color: var(--ui-accent);
   border-style: dashed;
-  font-weight: 700;
+  font-weight: var(--ui-weight-bold);
 }
+
 .hud-a11y-toggle[aria-pressed='true']::before {
-  content: '\2713 '; /* ✓ shape, not just a color change, when a toggle is on */
+  content: '\2713 '; /* ✓ shape, not just a colour change, when a toggle is on */
 }
 
 .hud-root button:focus-visible {
-  outline: calc(2px * var(--hud-scale)) solid var(--hud-focus-ring);
+  outline: calc(2 * var(--rule)) solid var(--ui-focus);
   outline-offset: 2px;
 }
 
@@ -396,6 +521,7 @@
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.55;
   }
@@ -413,16 +539,20 @@
 }
 
 /* Screen-shake is applied by the render layer to the canvas, not the HUD; the
-   HUD only surfaces the setting (data-reduced-shake on .hud-root) so that
-   code can read it from the DOM instead of re-deriving its own copy of the
+   HUD only surfaces the setting (data-reduced-shake on .hud-root) so that code
+   can read it from the DOM instead of re-deriving its own copy of the
    preference. */
 
+/* Panels must never claim more than a share of a phone screen: the centre
+   column (message feed) is capped as a vw fraction so it cannot push a
+   side panel off-screen at 390px. */
 @media (max-width: 640px) {
   .hud-panel {
-    max-width: calc(180px * var(--hud-scale));
-    font-size: calc(11px * var(--hud-scale));
+    max-width: min(calc(180px * var(--hud-scale)), 44vw);
+    font-size: var(--txs);
   }
+
   .hud-panel--messages {
-    width: calc(220px * var(--hud-scale));
+    width: min(calc(220px * var(--hud-scale)), 58vw);
   }
 }

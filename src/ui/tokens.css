@@ -1,0 +1,344 @@
+/*
+ * smduel design system — the single source of truth for the UI layer.
+ *
+ * Loaded twice over, on purpose:
+ *   1. `<link rel="stylesheet" href="./src/ui/tokens.css">` in index.html, so
+ *      the page has its background and base type BEFORE the module graph runs
+ *      (no white flash before `boot()`).
+ *   2. `@import './tokens.css'` at the top of hud.css, so the HUD is
+ *      self-contained and no stylesheet can ever load without the tokens it
+ *      consumes. `src/app.ts` imports the four component stylesheets, and that
+ *      file is owned elsewhere, so this file cannot be added to its import
+ *      list — the @import is the wiring that makes the dependency explicit
+ *      from the consuming side instead. Vite emits the module once.
+ *
+ * EVERY raw hex/rgba in the other stylesheets lives here and nowhere else.
+ * The four private token namespaces this replaced (`--hud-*`, `--menu-*`,
+ * `--sm-*`, `--touch-*`) shared no values, which is why the menu's teal and
+ * the HUD's teal were two different colours a few units apart and nobody could
+ * tell which was the real one.
+ *
+ * DARK IS THE DEFAULT, UNCONDITIONALLY — there is no `prefers-color-scheme`
+ * block anywhere in this file. That is a bug this repo already paid for:
+ * `hud.css` used to declare LIGHT values at `:root` and only flip dark inside
+ * `@media (prefers-color-scheme: dark)`, so a device with a light-themed OS
+ * got near-white panels floating on the near-black game canvas (measured on a
+ * real touch device; the old `touch.css` header documented it). The canvas is
+ * always near-black, so the dark surface is the only honest default. Light is
+ * an explicit opt-in via `:root[data-theme='light']` below, which also means
+ * the three separate per-component light blocks (hud/menu/touch) collapse into
+ * one — which is what "one system" actually requires.
+ */
+
+/* ===========================================================================
+   1. Reset
+   =========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100%;
+}
+
+img,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+p,
+ol,
+ul,
+dl {
+  margin: 0;
+  padding: 0;
+}
+
+/* Every heading here is a styled panel/section title (h2 = HUD panel title,
+   h3 = builder legality title), never a semantic size — components set their
+   own step and weight from the ramp below. */
+h1,
+h2,
+h3 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+ol,
+ul {
+  list-style: none;
+}
+
+button,
+input,
+select,
+textarea {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+button {
+  cursor: pointer;
+  text-align: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ===========================================================================
+   2. Palette + ramp tokens
+   =========================================================================== */
+
+:root {
+  /* --- surfaces: an ink-dark stack, translucent so the canvas reads through */
+  --ui-void: #05070a; /* page base; matches <meta name="theme-color"> */
+  --ui-surface: #101720;
+  --ui-surface-raised: #1a2331;
+  --ui-surface-sunken: #0b1017;
+  /* Translucent "glass" ramp used by every panel/chrome surface in the game. */
+  --ui-glass: rgba(16, 23, 32, 0.78);
+  --ui-glass-raised: rgba(30, 41, 56, 0.8);
+  --ui-glass-strong: rgba(12, 17, 24, 0.92);
+  --ui-glass-sunken: rgba(6, 9, 14, 0.72);
+
+  /* --- lines */
+  --ui-line: rgba(146, 176, 204, 0.2);
+  --ui-line-strong: rgba(146, 176, 204, 0.38);
+  --ui-line-accent: color-mix(in srgb, var(--ui-accent) 45%, transparent);
+
+  /* --- ink */
+  --ui-ink: #e9eff6;
+  --ui-ink-muted: #a2b3c4;
+  --ui-ink-dim: #6d7f92;
+  --ui-ink-inverse: #04201d; /* text drawn ON an accent fill */
+
+  /* --- accent: the ONE teal. #6fd3c2 (menu.css) and #4fd6c4 (builder.css)
+         were two near-identical teals that were not equal; they are now this. */
+  --ui-accent: #5fd0bd;
+  --ui-accent-strong: #7ce0cf;
+  --ui-accent-wash: rgba(95, 208, 189, 0.14);
+
+  /* --- condition states: a monotonic lightness ramp (green -> amber -> orange
+         -> crimson) so the four stay separable by lightness alone, not only by
+         hue. Every one of these is >= 5.7:1 on --ui-surface. Never the sole
+         signal: hud.ts pairs each with its own glyph + text. */
+  --ui-ok: #5ad46f;
+  --ui-damaged: #f2b632;
+  --ui-critical: #ff8a3d;
+  --ui-destroyed: #ff5570;
+  --ui-ok-wash: rgba(90, 212, 111, 0.14);
+  --ui-damaged-wash: rgba(242, 182, 50, 0.14);
+  --ui-critical-wash: rgba(255, 138, 61, 0.14);
+  --ui-destroyed-wash: rgba(255, 85, 112, 0.16);
+
+  /* --- focus: deliberately NOT the accent, so a focus ring is never confused
+         with a selected/active state ring. */
+  --ui-focus: #8ecbff;
+
+  /* --- instrument faces */
+  --ui-dial-face: #0b1017;
+  --ui-dial-track: rgba(146, 176, 204, 0.22);
+  --ui-dial-tick: rgba(169, 198, 224, 0.55);
+  --ui-dial-vignette: rgba(0, 0, 0, 0.55);
+  /* Mask "opaque" key: a mask gradient's opaque stop is not a palette colour,
+     but keeping it here is what makes "no raw hex outside tokens.css" true
+     rather than approximately true. */
+  --ui-mask-opaque: #000;
+
+  /* --- type: one mono face, spelled one way. The old files spelled the same
+         face two ways ('SF Mono', Menlo, Consolas vs 'SFMono-Regular',
+         Consolas, 'Liberation Mono', Menlo) — this is the union, once. */
+  --ui-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ui-font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Named steps of the type ramp. */
+  --ui-text-2xs: 0.625rem; /* 10px — the most subordinate step: panel titles */
+  --ui-text-xs: 0.6875rem; /* 11px — secondary labels, glyph rows */
+  --ui-text-sm: 0.75rem; /* 12px — hints, reasons, stats */
+  --ui-text-base: 0.8125rem; /* 13px — the HUD's body size */
+  --ui-text-md: 0.9375rem; /* 15px — menus, prose */
+  --ui-text-lg: 1.125rem; /* 18px */
+  --ui-text-xl: 1.375rem; /* 22px */
+  --ui-text-2xl: 1.75rem; /* 28px */
+  --ui-text-display: 2.125rem; /* 34px — the speed readout */
+
+  --ui-weight-medium: 500;
+  --ui-weight-semibold: 600;
+  --ui-weight-bold: 700;
+
+  --ui-leading-tight: 1.15;
+  --ui-leading-normal: 1.4;
+  --ui-leading-relaxed: 1.55;
+  --ui-tracking-wide: 0.08em;
+  --ui-tracking-wider: 0.14em;
+
+  /* --- space */
+  --ui-space-1: 2px;
+  --ui-space-2: 4px;
+  --ui-space-3: 6px;
+  --ui-space-4: 8px;
+  --ui-space-5: 12px;
+  --ui-space-6: 16px;
+  --ui-space-7: 20px;
+  --ui-space-8: 24px;
+
+  /* --- radius */
+  --ui-radius-sm: 3px;
+  --ui-radius-md: 5px;
+  --ui-radius-lg: 8px;
+  --ui-radius-xl: 12px;
+
+  /* --- elevation */
+  --ui-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 24px rgba(0, 0, 0, 0.38);
+  --ui-shadow-raised: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --ui-focus-ring: 0 0 0 2px var(--ui-void), 0 0 0 4px var(--ui-focus);
+
+  /* --- motion. Kept short and few: this is a HUD that re-renders every frame,
+         and every transition here is on chrome, not on data. */
+  --ui-duration-fast: 90ms;
+  --ui-duration-base: 160ms;
+  --ui-duration-slow: 280ms;
+  --ui-ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* Explicit light theme. ONE block for the whole app: hud.css, menu.css,
+   builder.css and touch.css each used to carry their own copy of this, which
+   is how they drifted apart. */
+:root[data-theme='light'] {
+  --ui-surface: #ffffff;
+  --ui-surface-raised: #f7f9fb;
+  --ui-surface-sunken: #e4eaf0;
+  --ui-glass: rgba(255, 255, 255, 0.9);
+  --ui-glass-raised: rgba(244, 248, 252, 0.94);
+  --ui-glass-strong: rgba(255, 255, 255, 0.97);
+  --ui-glass-sunken: rgba(226, 233, 241, 0.9);
+
+  --ui-line: rgba(16, 32, 48, 0.16);
+  --ui-line-strong: rgba(16, 32, 48, 0.32);
+
+  --ui-ink: #0d141c;
+  --ui-ink-muted: #47566a;
+  --ui-ink-dim: #64748b;
+  --ui-ink-inverse: #ffffff;
+
+  --ui-accent: #0f766e;
+  --ui-accent-strong: #0b5f58;
+  --ui-accent-wash: rgba(15, 118, 110, 0.12);
+
+  --ui-ok: #17693a;
+  --ui-damaged: #8a5a00;
+  --ui-critical: #b8390c;
+  --ui-destroyed: #a81032;
+  --ui-ok-wash: rgba(23, 105, 58, 0.12);
+  --ui-damaged-wash: rgba(138, 90, 0, 0.12);
+  --ui-critical-wash: rgba(184, 57, 12, 0.12);
+  --ui-destroyed-wash: rgba(168, 16, 50, 0.12);
+
+  --ui-focus: #0b5fbe;
+
+  --ui-dial-face: #e8eef4;
+  --ui-dial-track: rgba(16, 32, 48, 0.14);
+  --ui-dial-tick: rgba(16, 32, 48, 0.42);
+
+  --ui-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 6px 18px rgba(16, 32, 48, 0.14);
+  --ui-shadow-raised: 0 10px 28px rgba(16, 32, 48, 0.2);
+}
+
+/* ===========================================================================
+   3. Document shell
+   Moved out of index.html's inline <style> block. Kept here rather than in a
+   fourth stylesheet because src/app.ts owns the stylesheet import list and is
+   not this task's file.
+   =========================================================================== */
+
+html,
+body {
+  height: 100%;
+  background: var(--ui-void);
+  color: var(--ui-ink);
+  font-family: var(--ui-font-sans);
+  font-size: var(--ui-text-md);
+  line-height: var(--ui-leading-normal);
+  overscroll-behavior: none;
+}
+
+#app {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Static chrome lives OUTSIDE #app: every screen mount in src/app.ts does
+   root.innerHTML = '' on #app (its clearAndAppend helper), which would destroy
+   anything mounted inside it on every screen change. Sitting outside #app
+   survives every transition with no JS and cannot steal focus on mount. */
+.arcade-home-link {
+  position: fixed;
+  top: var(--ui-space-4);
+  left: var(--ui-space-4);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-3);
+  padding: var(--ui-space-3) var(--ui-space-5);
+  min-height: 44px;
+  background: var(--ui-glass-strong);
+  border: 1px solid var(--ui-line-accent);
+  border-radius: var(--ui-radius-md);
+  color: var(--ui-ink);
+  font-family: var(--ui-font-sans);
+  font-size: var(--ui-text-xs);
+  line-height: 1;
+}
+
+.arcade-home-link img {
+  border-radius: var(--ui-radius-sm);
+}
+
+.arcade-home-link:hover {
+  border-color: var(--ui-accent);
+  color: var(--ui-accent-strong);
+}
+
+.arcade-home-link:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-focus-ring);
+}
+
+@media (pointer: coarse) {
+  .arcade-home-link {
+    padding: var(--ui-space-3);
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  /* The label is redundant with the link's own aria-label. */
+  .arcade-home-link .arcade-home-label {
+    display: none;
+  }
+}

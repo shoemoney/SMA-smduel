@@ -5,82 +5,74 @@
     "car-compact": {
       "kind": "car",
       "keyed": true,
-      "keyColor": "#F4308E",
-      "keyColorDeviation": 3,
-      "rotationOffsetDeg": 270,
+      "keyColor": "#FC03FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good",
-      "note": "nose UP (armored front vision-slit + hood taper to a front tow hook are at the top of the frame, exhaust-shaped tail lamps and cargo door hardware are at the bottom) - verified against assets/raw/car-compact.png 2026-09-27"
+      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "rotationOffsetDeg": 270
     },
     "car-kart": {
       "kind": "car",
       "keyed": true,
-      "keyColor": "#F702A1",
-      "keyColorDeviation": 4,
-      "rotationOffsetDeg": 90,
+      "keyColor": "#FC03FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good",
-      "note": "nose DOWN (wide rear slicks and seatback at the top, narrower front wheels and the front nose cone at the bottom) - verified against assets/raw/car-kart.png 2026-09-27"
+      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "rotationOffsetDeg": 270
     },
     "car-luxury": {
       "kind": "car",
       "keyed": true,
-      "keyColor": "#F80581",
-      "keyColorDeviation": 3,
-      "rotationOffsetDeg": 90,
+      "keyColor": "#FC03FA",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good",
-      "note": "nose DOWN (pointed supercar prow with splitter vents and a badge is at the bottom, gun-turret deck lid is at the top) - verified against assets/raw/car-luxury.png 2026-09-27"
+      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "rotationOffsetDeg": 270
     },
     "car-midsized": {
       "kind": "car",
       "keyed": true,
-      "keyColor": "#F10364",
-      "keyColorDeviation": 3,
-      "rotationOffsetDeg": 90,
+      "keyColor": "#FC03FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good",
-      "note": "nose DOWN (twin-wiper windshield + hood run to the bottom edge, rear hatch glass and trunk vents are at the top) - verified against assets/raw/car-midsized.png 2026-09-27"
+      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "rotationOffsetDeg": 270
     },
     "car-pickup": {
       "kind": "car",
       "keyed": true,
-      "keyColor": "#F90D7D",
-      "keyColorDeviation": 3,
-      "rotationOffsetDeg": 270,
+      "keyColor": "#FC03FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good",
-      "note": "nose UP (cab/windshield at the top, open bed and tailgate at the bottom) - verified against assets/raw/car-pickup.png 2026-09-27"
+      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "rotationOffsetDeg": 270
     },
     "car-stationwagon": {
       "kind": "car",
       "keyed": true,
-      "keyColor": "#F51A69",
-      "keyColorDeviation": 2,
-      "rotationOffsetDeg": 180,
+      "keyColor": "#FC03FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "fair",
-      "note": "landscape frame, nose LEFT (windshield + wiper + wing mirror on the left edge, plain roof and a spare/jerry-can mount on the right edge) - verified against assets/raw/car-stationwagon.png 2026-09-27"
+      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "rotationOffsetDeg": 270
     },
     "car-subcompact": {
       "kind": "car",
       "keyed": true,
-      "keyColor": "#E2344F",
-      "keyColorDeviation": 3,
-      "rotationOffsetDeg": 90,
+      "keyColor": "#FB03FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good",
-      "note": "nose DOWN (grille + bumper + wipers at the bottom, roof gun mount at the top) - verified against assets/raw/car-subcompact.png 2026-09-27"
+      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "rotationOffsetDeg": 270
     },
     "car-van": {
       "kind": "car",
       "keyed": true,
-      "keyColor": "#F7237A",
-      "keyColorDeviation": 2,
-      "rotationOffsetDeg": 90,
+      "keyColor": "#FC03FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good",
-      "note": "nose DOWN (windshield with wipers + headlights at the bottom, roof vents at the top) - verified against assets/raw/car-van.png 2026-09-27"
+      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "rotationOffsetDeg": 270
     },
     "cycle-topdown": {
       "kind": "cycle",
@@ -140,11 +132,11 @@
     "decal-tire-marks": {
       "kind": "decal",
       "keyed": true,
-      "keyColor": "#FD34AC",
-      "keyColorDeviation": 3,
-      "rotationOffsetDeg": 0,
+      "keyColor": "#FB03FA",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good"
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
     },
     "fx-explosion-sheet": {
       "kind": "fx",
@@ -160,29 +152,29 @@
     "fx-impact-spark": {
       "kind": "fx",
       "keyed": true,
-      "keyColor": "#F50062",
-      "keyColorDeviation": 2,
-      "rotationOffsetDeg": 0,
+      "keyColor": "#FB04FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good"
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
     },
     "fx-muzzle-flash": {
       "kind": "fx",
       "keyed": true,
-      "keyColor": "#F6006D",
-      "keyColorDeviation": 4,
-      "rotationOffsetDeg": 0,
+      "keyColor": "#FB04FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good"
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
     },
     "fx-smoke-puff": {
       "kind": "fx",
       "keyed": true,
-      "keyColor": "#FC4FA7",
-      "keyColorDeviation": 3,
-      "rotationOffsetDeg": 0,
+      "keyColor": "#FB04FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good"
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
     },
     "prop-chainlink-fence": {
       "kind": "prop",
@@ -457,12 +449,11 @@
     "prop-barricade": {
       "kind": "prop",
       "keyed": true,
-      "keyColor": "#E22D72",
-      "keyColorDeviation": 16,
-      "rotationOffsetDeg": 0,
+      "keyColor": "#FC03FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good",
-      "note": "new"
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
     },
     "prop-fuel-drum": {
       "kind": "prop",
@@ -667,12 +658,11 @@
     "prop-streetlight": {
       "kind": "prop",
       "keyed": true,
-      "keyColor": "#E75388",
-      "keyColorDeviation": 1,
-      "rotationOffsetDeg": 0,
+      "keyColor": "#FB03FB",
+      "keyColorDeviation": 0,
       "view": "orthographic",
-      "readability": "good",
-      "note": "Phase 4 city prop"
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
     },
     "tile-cityblock": {
       "kind": "tile",
@@ -693,6 +683,114 @@
       "view": "texture",
       "readability": "good",
       "note": "Phase 4 city ground texture"
+    },
+    "decal-scorch": {
+      "kind": "decal",
+      "keyed": true,
+      "keyColor": "#FB03FA",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "fx-explosion": {
+      "kind": "fx",
+      "keyed": true,
+      "keyColor": "#FC04FA",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "ground-arena-a": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "ground-arena-b": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "ground-dirt-a": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "ground-dirt-b": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "ground-road-a": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "ground-road-b": {
+      "kind": "tile",
+      "keyed": false,
+      "keyColor": null,
+      "keyColorDeviation": null,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "prop-crate": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#FB02FB",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "prop-junkpile": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#FC03FB",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "prop-sandbag": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#FC03FB",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
+    },
+    "prop-tyres": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#FB03FB",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "rotationOffsetDeg": 0
     }
   },
   "keyingNote": "Key by HUE (magenta/pink band) with a saturation floor, NOT by RGB distance. Regenerated sprites carry a drop shadow and a background gradient that RGB-distance keying leaves as a dark halo.",

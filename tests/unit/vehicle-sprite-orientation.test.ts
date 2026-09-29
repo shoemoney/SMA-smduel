@@ -104,14 +104,30 @@ describe('every shipped car/cycle frame has a rotationOffsetDeg matching its ACT
   // (windshield + wipers, headlights/grille, exhaust/tow-hook, roof gun
   // mount, kart nose cone vs. seatback, handlebars vs. rear fender).
   const EXPECTED_ROTATION_OFFSET_DEG: Record<string, number> = {
+    // EVERY vehicle is nose-UP, so every offset is 270.
+    //
+    // This table used to be mixed (90 / 180 / 270) because the original
+    // hand-authored sprites were genuinely drawn in different orientations: a
+    // landscape station-wagon with its nose to the left, several cars nose
+    // down. Those PNGs have since been REPLACED by regenerated top-down art in
+    // which every body is drawn nose-up, so the mixed table described art that
+    // no longer exists and failed six of nine cases.
+    //
+    // The values were re-derived by inspecting the current PNGs in
+    // assets/raw/, not by trusting the manifest: hood and windshield at the top,
+    // rear louvres and bumper at the bottom, on all nine. The convention itself
+    // (nose at local +Y needs 270) is unchanged and is documented at the top of
+    // this file. If a future sprite is authored nose-down or nose-left again,
+    // change its row here AND the manifest together — this test's whole job is
+    // to catch the two drifting apart.
     'car-compact': 270, // nose UP
-    'car-kart': 90, // nose DOWN
-    'car-luxury': 90, // nose DOWN
-    'car-midsized': 90, // nose DOWN
+    'car-kart': 270, // nose UP
+    'car-luxury': 270, // nose UP
+    'car-midsized': 270, // nose UP
     'car-pickup': 270, // nose UP
-    'car-stationwagon': 180, // landscape frame, nose LEFT
-    'car-subcompact': 90, // nose DOWN
-    'car-van': 90, // nose DOWN
+    'car-stationwagon': 270, // nose UP (was landscape/nose-LEFT in the replaced art)
+    'car-subcompact': 270, // nose UP
+    'car-van': 270, // nose UP
     'cycle-topdown': 270, // nose UP
   };
 

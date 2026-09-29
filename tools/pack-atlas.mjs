@@ -726,29 +726,91 @@ function flipVertical(rgba, w, h) {
 }
 
 /**
- * Turns a `qSize`x`qSize` tile into a `2*qSize`x`2*qSize` SEAMLESS tile by
- * 4-way mirroring it into quadrants (original / h-flip / v-flip / both) —
- * the fix chosen for assets/ASSET-NOTES.md section 3 ("tile-* textures are
- * NOT seamless"), over the "offset 50% + heal the seam cross" alternative,
- * because it's deterministic and needs no per-tile manual retouching.
+ * Turns a `qSize`x`qSize` source into a `2*qSize`x`2*qSize` SEAMLESS tile.
  *
- * This also means a ground shader never needs hardware GL_REPEAT / an
- * unshared standalone texture (section 3's other complaint, about tiles
- * sharing a packed atlas at non-zero offsets): repeating THIS image via
- * manual `fract()` addressing inside its own atlas sub-rect is seamless on
- * its own, because opposite edges of a 4-way mirror are pixel-identical by
- * construction (verified in tests/unit/atlas.test.ts).
+ * ## Why this is not the 4-way mirror any more
+ *
+ * The original approach mirrored a quadrant into all four quadrants
+ * (original / h-flip / v-flip / both). That IS seamless — opposite edges are
+ * pixel-identical by construction — but it is symmetric about both centre
+ * lines, so every single tile wears a visible cross/bowtie through its middle.
+ *
+ * assets/ASSET-NOTES.md called that "a slight symmetry artifact, acceptable for
+ * ground texture viewed at speed". It was not acceptable. It was the single
+ * most damaging thing on screen: the ground rendered as a grid of identical
+ * tan squares each stamped with the same cross, which is why the arena and the
+ * road read as tiled wallpaper. A screenshot of the shipped game is the proof;
+ * no amount of post-processing hides a cross on every tile.
+ *
+ * ## What this does instead
+ *
+ * A cross-fade against the opposite edge, band by band:
+ *
+ *   - `avg` is the per-channel mean of the source pixel and its mirror across
+ *     the axis. Both sides of the wrap are blended TOWARD that same value, so
+ *     the first and last column come out exactly equal — which is the
+ *     definition of seamless.
+ *   - The blend weight falls off smoothly from 1 at the edge to 0 at `band`
+ *     pixels in, so the correction fades out and the interior is untouched.
+ *   - Both axes are handled independently, so there is NO symmetry axis and
+ *     nothing to form a cross.
+ *
+ * The cost is a slightly softened band along two lines of the tile. At the
+ * ~70-140 screen px a ground tile is actually drawn at, that band is invisible;
+ * a mirrored cross is not.
  */
 export function mirrorQuadrantToSeamlessTile(quadrant, qSize) {
   const size = qSize * 2;
+  const src = resizeRGBA(quadrant, qSize, qSize, size, size);
+  const band = Math.max(2, Math.floor(size / 8));
+
+  /** Smoothstep on 1 -> 0, so the correction fades out with no visible kink. */
+  const falloff = (d) => {
+    if (d >= band) return 0;
+    const t = 1 - d / band;
+    return t * t * (3 - 2 * t);
+  };
+
+  // Each axis is a SEPARATE pass over a whole buffer, and each pass reads its
+  // own mirror from the same input it reads its own pixel from.
+  //
+  // Doing both axes in one loop over `out` is subtly wrong: the vertical blend
+  // would then average a horizontally-corrected pixel against a RAW mirrored
+  // one, so the two sides of the vertical seam converge toward different
+  // targets and the tile is not seamless after all. (Measured: the left and
+  // right columns came out [22,5,61] vs [170,57,61].) Reading a whole buffer
+  // per axis keeps both sides of every wrap symmetric by construction.
+  const horizontallyFixed = new Uint8Array(src);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const mx = size - 1 - x;
+      const w = falloff(Math.min(x, mx));
+      if (w === 0) continue;
+      const here = (y * size + x) * 4;
+      const mirrored = (y * size + mx) * 4;
+      for (let c = 0; c < 3; c++) {
+        const a = src[here + c];
+        const avg = (a + src[mirrored + c]) / 2;
+        horizontallyFixed[here + c] = a + (avg - a) * w;
+      }
+    }
+  }
+
   const out = new Uint8Array(size * size * 4);
-  const h = flipHorizontal(quadrant, qSize, qSize);
-  const v = flipVertical(quadrant, qSize, qSize);
-  const hv = flipVertical(h, qSize, qSize);
-  blit(out, size, quadrant, qSize, qSize, 0, 0);
-  blit(out, size, h, qSize, qSize, qSize, 0);
-  blit(out, size, v, qSize, qSize, 0, qSize);
-  blit(out, size, hv, qSize, qSize, qSize, qSize);
+  for (let y = 0; y < size; y++) {
+    const my = size - 1 - y;
+    const w = falloff(Math.min(y, my));
+    for (let x = 0; x < size; x++) {
+      const here = (y * size + x) * 4;
+      const mirrored = (my * size + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const a = horizontallyFixed[here + c];
+        const avg = w === 0 ? a : (a + horizontallyFixed[mirrored + c]) / 2;
+        out[here + c] = a + (avg - a) * w;
+      }
+      out[here + 3] = 255;
+    }
+  }
   return out;
 }
 

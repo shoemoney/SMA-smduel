@@ -149,17 +149,18 @@ describe('packInstances: documented byte layout', () => {
 
     const packed = packInstances([instance]);
 
-    expect(FLOATS_PER_INSTANCE).toBe(16);
-    expect(BYTES_PER_INSTANCE).toBe(64);
+    expect(FLOATS_PER_INSTANCE).toBe(20);
+    expect(BYTES_PER_INSTANCE).toBe(80);
     expect(packed.byteLength).toBe(BYTES_PER_INSTANCE);
     expect(Array.from(packed)).toEqual([
       10, 20, 0, 3, // transform0: position.xy, rotation, layer
-      4, 2, 0, 0, // transform1: size.xy, reserved, reserved
+      4, 2, 0, 0, // transform1: size.xy, shadow/ground params (unused here)
       0, 0, 1, 1, // uvRect: u0,v0,u1,v1
       1, 0.5, 0.25, 1, // tint: r,g,b,a
+      0, 0, 0, 0, // extra: kind = PLAIN (0), then reserved
     ]);
 
-    expect(INSTANCE_FIELD_FLOAT_OFFSETS).toEqual({ transform0: 0, transform1: 4, uvRect: 8, tint: 12 });
+    expect(INSTANCE_FIELD_FLOAT_OFFSETS).toEqual({ transform0: 0, transform1: 4, uvRect: 8, tint: 12, extra: 16 });
   });
 
   it('packs multiple instances back-to-back at stride FLOATS_PER_INSTANCE', () => {
@@ -694,7 +695,7 @@ describe('encodePostPass', () => {
 });
 
 describe('post pipeline factories: make encodePostPass actually reachable', () => {
-  it('createPostBindGroupLayout: binding 0 sampler + binding 1 texture, both fragment-only', () => {
+  it('createPostBindGroupLayout: sampler + source texture + the grade uniform, all fragment-only', () => {
     const { device, createBindGroupLayout } = makeFakeDevice();
     createPostBindGroupLayout(device);
     expect(createBindGroupLayout).toHaveBeenCalledWith({
@@ -702,6 +703,9 @@ describe('post pipeline factories: make encodePostPass actually reachable', () =
       entries: [
         { binding: 0, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
         { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } },
+        // The grade parameters. The pass was originally a pure copy, so it had
+        // no uniform; once it grades, the grade has to come from somewhere.
+        { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       ],
     });
   });
@@ -723,8 +727,9 @@ describe('post pipeline factories: make encodePostPass actually reachable', () =
     const layout = createPostBindGroupLayout(device);
     const sampler = createPostSampler(device);
     const sourceView = { __kind: 'texture-view' } as unknown as GPUTextureView;
+    const uniformBuffer = { __kind: 'buffer' } as unknown as GPUBuffer;
 
-    const bindGroup = createPostBindGroup(device, layout, sampler, sourceView);
+    const bindGroup = createPostBindGroup(device, layout, sampler, sourceView, uniformBuffer);
 
     expect(bindGroup).toEqual({
       label: 'post-bind-group',
@@ -732,6 +737,7 @@ describe('post pipeline factories: make encodePostPass actually reachable', () =
       entries: [
         { binding: 0, resource: sampler },
         { binding: 1, resource: sourceView },
+        { binding: 2, resource: { buffer: uniformBuffer } },
       ],
       __kind: 'bind-group',
     });
@@ -765,7 +771,8 @@ describe('post pipeline factories: make encodePostPass actually reachable', () =
     const pipeline = createPostPipeline({ device, shaderModule, targetFormat: 'bgra8unorm', sourceLayout, label: 'post' });
     const sampler = createPostSampler(device);
     const sourceView = { __kind: 'texture-view' } as unknown as GPUTextureView;
-    const bindGroup = createPostBindGroup(device, sourceLayout, sampler, sourceView);
+    const uniformBuffer = { __kind: 'buffer' } as unknown as GPUBuffer;
+    const bindGroup = createPostBindGroup(device, sourceLayout, sampler, sourceView, uniformBuffer);
 
     encodePostPass(pass, pipeline, bindGroup);
 

@@ -1,46 +1,40 @@
 /*
- * Layout for the on-screen thumbstick + fire button (src/ui/touch.ts).
- * Mounting is already gated in TypeScript (`isCoarsePointer()` returns
- * `null` before any of this DOM exists on a non-coarse pointer), so nothing
- * here is wrapped in a `(pointer: coarse)` media query — a mouse/trackpad
- * session never gets far enough to load this rule set against real markup.
+ * Layout for the on-screen thumbstick + fire button + command buttons
+ * (src/ui/touch.ts).
  *
- * Own `--touch-*` tokens, DARK BY DEFAULT, deliberately NOT `hud.css`'s
- * `--hud-*` tokens — this repo already learned that lesson once
- * (`menu.css`'s own header tells the story): `hud.css` defines `--hud-bg`/
- * `--hud-accent`/`--hud-border` at `:root` with LIGHT values by default,
- * only flipping dark inside `@media (prefers-color-scheme: dark)`. The game
- * canvas behind this pad is always near-black, so a device reporting a
- * light OS colour scheme got two near-white blobs floating on a near-black
- * screen — measured on a real touch device, not assumed. Scoped to
- * `.sm-touch` exactly like `menu.css` scopes `--menu-*` to `.sm-menu`, with
- * the same `:root[data-theme='light']` escape hatch for an explicitly
- * light-themed host page. Values match `menu.css`'s so the pad reads as
- * part of the same system, just declared independently rather than
- * inherited from a token whose own default is wrong here.
+ * All colour/type/space values come from tokens.css. This file owned a fourth
+ * private namespace (`--touch-*`) that duplicated menu.css's values on purpose,
+ * because hud.css's own tokens defaulted to LIGHT and only flipped dark under
+ * `prefers-color-scheme` — so a light-OS device got near-white pads floating on
+ * the near-black canvas, measured on a real touch device. That whole class of
+ * bug is gone: the palette is dark by default unconditionally, so every
+ * stylesheet in the game now inherits the same surface stack.
+ *
+ * `--sm-touch-radius` is NOT a design token: touch.ts writes it inline onto the
+ * root from CONTROLS.touch.stickRadiusPx, so the stick's hit area and its drawn
+ * diameter can never disagree.
+ *
+ * CLASS CONTRACT (src/ui/touch.ts builds all of these; do not rename):
+ *   .sm-touch  root · __stick · __stick-knob (transform written by TS) · __fire
+ *   .sm-touch__commands  column-reverse host, right side · __commands--no-fire
+ *   .sm-touch__cmd  one fixed-hotkey command; `hidden` toggles it at runtime
+ *
+ * Mounting is already gated in TypeScript (`isCoarsePointer()` returns `null`
+ * before any of this DOM exists on a non-coarse pointer), so nothing here is
+ * wrapped in a `(pointer: coarse)` media query — a mouse/trackpad session never
+ * gets far enough to load this rule set against real markup.
  *
  * NO REGRESSION TEST GUARDS THE LAYOUT HERE, same measured limitation as
  * menu.css's own header: happy-dom computes no layout, so
- * `getBoundingClientRect()` always answers zero and this file's actual
- * on-screen sizing/positioning is verified by opening the game on a phone.
+ * getBoundingClientRect() always answers zero and this file's actual on-screen
+ * sizing/positioning is verified by opening the game on a phone. The 44px
+ * minimums below are NOT negotiable — they are tap targets.
  */
 
 .sm-touch {
-  --touch-bg: #141a22;
-  --touch-fg: #e6edf3;
-  --touch-border: rgba(230, 237, 243, 0.18);
-  --touch-accent: #6fd3c2;
-
   position: absolute;
   inset: 0;
   pointer-events: none;
-}
-
-:root[data-theme='light'] .sm-touch {
-  --touch-bg: rgba(248, 250, 252, 0.94);
-  --touch-fg: #10151b;
-  --touch-border: rgba(16, 21, 27, 0.28);
-  --touch-accent: #0a5f8a;
 }
 
 .sm-touch__stick,
@@ -53,43 +47,48 @@
 }
 
 .sm-touch__stick {
-  left: max(24px, env(safe-area-inset-left, 0px));
-  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  left: max(var(--ui-space-8), env(safe-area-inset-left, 0px));
+  bottom: max(var(--ui-space-8), env(safe-area-inset-bottom, 0px));
   width: calc(var(--sm-touch-radius) * 2);
   height: calc(var(--sm-touch-radius) * 2);
+  background: var(--ui-glass);
+  border: 1px solid var(--ui-line-strong);
   border-radius: 50%;
-  background: var(--touch-bg);
-  border: 1px solid var(--touch-border);
+  box-shadow: var(--ui-shadow-panel);
+  backdrop-filter: blur(6px);
 }
 
 .sm-touch__stick-knob {
   position: absolute;
-  left: 50%;
   top: 50%;
+  left: 50%;
   width: 44%;
   height: 44%;
-  margin-left: -22%;
   margin-top: -22%;
+  margin-left: -22%;
+  background: var(--ui-accent);
   border-radius: 50%;
-  background: var(--touch-accent);
   opacity: 0.85;
 }
 
 .sm-touch__fire {
-  right: max(24px, env(safe-area-inset-right, 0px));
-  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  right: max(var(--ui-space-8), env(safe-area-inset-right, 0px));
+  bottom: max(var(--ui-space-8), env(safe-area-inset-bottom, 0px));
   width: 64px;
   height: 64px;
   min-width: 64px;
   min-height: 64px;
+  color: var(--ui-ink);
+  background: var(--ui-glass);
+  border: 2px solid var(--ui-accent);
   border-radius: 50%;
-  background: var(--touch-bg);
-  border: 1px solid var(--touch-accent);
-  color: var(--touch-fg);
+  box-shadow: var(--ui-shadow-panel);
+  backdrop-filter: blur(6px);
 }
 
 .sm-touch__fire:active {
-  background: var(--touch-accent);
+  background: var(--ui-accent);
+  color: var(--ui-ink-inverse);
 }
 
 /*
@@ -104,38 +103,43 @@
  */
 .sm-touch__commands {
   position: absolute;
-  right: max(24px, env(safe-area-inset-right, 0px));
-  bottom: calc(max(24px, env(safe-area-inset-bottom, 0px)) + 64px + 12px);
+  right: max(var(--ui-space-8), env(safe-area-inset-right, 0px));
+  bottom: calc(max(var(--ui-space-8), env(safe-area-inset-bottom, 0px)) + 64px + var(--ui-space-5));
   display: flex;
   flex-direction: column-reverse;
   align-items: flex-end;
-  gap: 10px;
+  gap: var(--ui-space-5);
   pointer-events: none;
 }
 
 .sm-touch__commands--no-fire {
-  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  bottom: max(var(--ui-space-8), env(safe-area-inset-bottom, 0px));
 }
 
 .sm-touch__cmd {
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--ui-space-4) var(--ui-space-6);
+  color: var(--ui-ink);
+  background: var(--ui-glass);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-panel);
+  backdrop-filter: blur(6px);
+  font-family: var(--ui-font-sans);
+  font-size: var(--ui-text-sm);
+  font-weight: var(--ui-weight-semibold);
+  letter-spacing: var(--ui-tracking-wide);
+  white-space: nowrap;
   pointer-events: auto;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: var(--touch-bg);
-  border: 1px solid var(--touch-border);
-  color: var(--touch-fg);
-  font-family: system-ui, sans-serif;
-  font-size: 13px;
-  white-space: nowrap;
 }
 
 .sm-touch__cmd:active {
-  background: var(--touch-accent);
+  color: var(--ui-ink-inverse);
+  background: var(--ui-accent);
 }
 
 .sm-touch__cmd[hidden] {
