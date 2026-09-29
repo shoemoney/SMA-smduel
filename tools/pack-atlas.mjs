@@ -600,18 +600,41 @@ export function chromaKeyToAlpha(rgba, width, height, { keyColor = MAGENTA, tole
  * higher than green, so we pull the excess back down toward green. Fully
  * transparent and fully opaque pixels are left untouched.
  */
+/**
+ * Removes the key colour's cast from edge pixels.
+ *
+ * ## Why opaque pixels are included
+ *
+ * This used to skip any pixel with `a === 255`, on the reasonable assumption
+ * that a fully opaque pixel is pure subject and needs no despill. That
+ * assumption is wrong, and visibly so: `chromaKeyToAlpha` can leave a blend
+ * strong enough to survive keying at FULL alpha, so a ring of magenta sat around
+ * the outline of every Codex-generated vehicle — the loudest colour on an
+ * otherwise muted screen, and it made a finished car look like it had debug
+ * hitboxes stuck to it. A review of the real frame described it as "stray
+ * magenta mount tabs ... they look like debug hitboxes" and it was the most
+ * visible defect in the game.
+ *
+ * Opaque pixels are therefore despilled too, but on a STRICTER threshold than
+ * partial-alpha ones, because an opaque pixel is more likely to be genuine
+ * subject colour and a legitimate magenta-ish subject should survive.
+ */
 export function despillEdges(rgba, width, height) {
   const n = width * height;
   for (let i = 0; i < n; i++) {
     const idx = i * 4;
     const a = rgba[idx + 3];
-    if (a === 0 || a === 255) continue;
+    if (a === 0) continue;
 
     const r = rgba[idx];
     const g = rgba[idx + 1];
     const b = rgba[idx + 2];
     const spill = Math.min(r, b) - g;
-    if (spill <= 0) continue;
+    // Partial-alpha edges are known blends with the key, so any spill there is
+    // residue. An opaque pixel is only treated as residue when the cast is
+    // strong enough that it cannot plausibly be intended subject colour.
+    const threshold = a === 255 ? 24 : 0;
+    if (spill <= threshold) continue;
 
     if (r > g) rgba[idx] = Math.max(g, r - spill);
     if (b > g) rgba[idx + 2] = Math.max(g, b - spill);
@@ -1162,6 +1185,29 @@ export function buildFrame(name, kind, decoded, meta) {
   let trimY = bbox.y;
   let srcW = width;
   let srcH = height;
+
+  // Clear the RGB of pixels that are (nearly) invisible BEFORE any downscale.
+  //
+  // `chromaKeyToAlpha` sets ALPHA to 0 but leaves the pixel's RGB at the key
+  // colour, so the keyed-away background is magenta with alpha 0. The per-kind
+  // downscale below then resamples this buffer as ORDINARY non-premultiplied
+  // RGBA, and an average of `rgba(255,0,255,0)` with an opaque car pixel pulls
+  // the result toward magenta. At a ~10x reduction that is a pixel of fringe
+  // on every edge of every generated frame, and it survives despilling because
+  // the magenta is introduced AFTER the despill runs, by the resize.
+  //
+  // That is what put a magenta halo around every vehicle: a review of the real
+  // frame called it "stray magenta mount tabs ... they look like debug
+  // hitboxes", and it was the most visible defect in the game. Zeroing the
+  // colour of invisible pixels makes them contribute nothing to the average,
+  // which is exactly what a premultiplied resample would have done.
+  for (let i = 0; i < cropped.length; i += 4) {
+    if (cropped[i + 3] <= 2) {
+      cropped[i] = 0;
+      cropped[i + 1] = 0;
+      cropped[i + 2] = 0;
+    }
+  }
 
   // "UI keep larger" — every other kind downscales to fit its per-kind
   // target (tools/atlas-sizes.json). trimX/trimY/srcW/srcH describe

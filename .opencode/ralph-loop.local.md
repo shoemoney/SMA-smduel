@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 13
+iteration: 14
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9,7 +9,7 @@ lets do a infiniate improving loop each time ask a random state of the art visio
 
 ## Log
 
-Reviewers asked (13 of 82 vision models):
+Reviewers asked (14 of 82 vision models):
 1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
 2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
 3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
@@ -88,6 +88,17 @@ every HUD panel - caught in a screenshot, reverted, redone as weight-only.
        absent, check at full res; when the check says present and they still
        could not see it, believe them about CONTRAST.
      Radar sweep: 7th false report.
+
+14. qwen/qwen3.8-omni-flash -> 1 BIG REAL: MAGENTA FRINGE on every vehicle.
+     "stray magenta mount tabs ... they look like debug hitboxes" - CONFIRMED, the
+     most visible defect in the game. Root cause was NOT the keyer: chromaKey
+     sets alpha=0 but leaves RGB at the key colour, and the per-kind ~10x
+     downscale resamples NON-PREMULTIPLIED RGBA, so transparent magenta bleeds
+     into every edge AFTER despill runs. Fix: zero RGB of near-invisible pixels
+     before the resize. 4.12% -> 0.00% magenta on all three cars. Also widened
+     despill to strong-cast opaque pixels (test updated to the new contract).
+     Other findings: title-art palette mismatch, city street network, constructor
+     row->diagram linking (all real, queued).
 
 DEFERRED (real, documented, not bugs):
 - Ground blockiness: NEAREST sampler is REQUIRED (no atlas gutters, linear would

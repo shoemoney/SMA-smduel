@@ -342,11 +342,27 @@ describe('despillEdges', () => {
     expect(Array.from(rgba)).toEqual([255, 0, 255, 0]);
   });
 
-  it('leaves fully opaque pixels untouched', () => {
-    const rgba = new Uint8Array(4);
-    rgba.set([200, 60, 210, 255]);
-    despillEdges(rgba, 1, 1);
-    expect(Array.from(rgba)).toEqual([200, 60, 210, 255]);
+  it('despills a STRONGLY key-cast opaque pixel, and leaves a mild one alone', () => {
+    // This used to assert that EVERY opaque pixel is untouched. That was the
+    // wrong contract: `chromaKeyToAlpha` can leave a blend strong enough to
+    // survive keying at FULL alpha, so skipping opaque pixels left a magenta
+    // ring around every generated vehicle — a review of the real frame called it
+    // "stray magenta mount tabs ... they look like debug hitboxes", and it was
+    // the most visible defect in the game.
+    //
+    // Opaque pixels are now despilled too, but only when the key cast is strong
+    // enough that it cannot plausibly be intended subject colour. A mild cast is
+    // genuine colour and must survive, which is what the second half pins.
+    const strong = new Uint8Array(4);
+    strong.set([200, 60, 210, 255]);
+    despillEdges(strong, 1, 1);
+    expect(strong[0]).toBeLessThan(200);
+    expect(strong[2]).toBeLessThan(210);
+
+    const mild = new Uint8Array(4);
+    mild.set([200, 190, 210, 255]); // spill = 20, under the threshold
+    despillEdges(mild, 1, 1);
+    expect(Array.from(mild)).toEqual([200, 190, 210, 255]);
   });
 });
 
