@@ -2404,7 +2404,7 @@ function showArena(
     'info',
     session.restoreWorld !== undefined
       ? t('ui.arena.practiceResumed', { seed: session.sessionSeed })
-      : t('ui.arena.practiceEntered', { seed: session.sessionSeed }),
+      : t('ui.arena.practiceEntered'),
   );
 
   const systems = createSystemsRegistry();
@@ -2485,7 +2485,16 @@ function showArena(
       return;
     }
     gpuCtx = init.context;
-    status.textContent = t('ui.arena.practiceHint', { seed: session.sessionSeed });
+    // A 32-character hex seed printed in full, in the status line AND again in
+    // the message log, was the single most visually noisy thing on the arena
+    // screen — a review of the real frame described it as a "garbled repeated
+    // token dump ... looking like a raw variable printed to screen", which is a
+    // fair description of what a downscaled frame does to that string.
+    //
+    // The seed's job is REPRODUCIBILITY: it goes in the console log and in the
+    // crash banner, both of which carry it in full for a bug report. On screen
+    // it only needs to be recognisable and short.
+    status.textContent = t('ui.arena.practiceHint', { seed: `${session.sessionSeed.slice(0, 8)}…` });
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
 

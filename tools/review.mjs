@@ -39,7 +39,23 @@ const OUT_DIR = resolve('.opencode/reviews');
 
 /** Screens worth a design review: the three rendered worlds plus the two frames a player meets first. */
 const DEFAULT_SCREENS = ['title', 'city', 'arena', 'road', 'constructor'];
-const REVIEW_WIDTH = 900;
+/**
+ * Width the captures are downscaled to before upload.
+ *
+ * 900px was too small, and not merely a token saving: SEVERAL reviews have now
+ * reported things that are simply not in the frame. One described the city's
+ * perimeter wall as a "giant dashed debug circle" — at 1440px it is a solid
+ * segmented barrier, and the "dashes" are the segment gaps aliasing at small
+ * size. Two described the radar's rings and sweep as absent, which required
+ * checking a full-resolution crop to disprove. And one quoted a constructor
+ * caption reading "6 mounted" on a frame whose caption reads "0 mounted".
+ *
+ * A reviewer looking at a smaller image than a player does is not a stricter
+ * reviewer, it is a differently-informed one, and its false findings cost more
+ * than its true ones are worth. 1280 keeps the frames near native while still
+ * being a reasonable upload.
+ */
+const REVIEW_WIDTH = 1280;
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
@@ -113,48 +129,88 @@ const shotsDir = resolve(String(arg('shots', '.shots/final4')));
 
 await mkdir(OUT_DIR, { recursive: true });
 
-const content = [{ type: 'text', text: PROMPT }];
-const used = [];
+const frames = [];
 for (const screen of screens) {
   const file = resolve(shotsDir, `${screen}.png`);
   try {
     const sized = await reviewSized(file);
     const b64 = await readFile(sized);
-    used.push(screen);
-    content.push({ type: 'text', text: `Screenshot: ${screen}` });
-    content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${b64.toString('base64')}` } });
+    frames.push({ screen, b64: b64.toString('base64') });
   } catch {
     console.error(`review: no capture for "${screen}" in ${shotsDir} — skipping`);
   }
 }
-if (used.length === 0) throw new Error(`review: none of [${screens}] exist in ${shotsDir}`);
+if (frames.length === 0) throw new Error(`review: none of [${screens}] exist in ${shotsDir}`);
 
-console.error(`review: asking ${model} about [${used.join(', ')}]…`);
+console.error(`review: asking ${model} about [${frames.map((f) => f.screen).join(', ')}]…`);
 
-const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-  method: 'POST',
-  headers: {
-    Authorization: `Bearer ${KEY}`,
-    'Content-Type': 'application/json',
-    'HTTP-Referer': 'https://shoemoney.ai',
-    'X-Title': 'smduel-review-loop',
-  },
-  body: JSON.stringify({
+/**
+ * Sends the request, halving the image count and retrying if the provider
+ * rejects it for too many images.
+ *
+ * Not every provider accepts five images: `inclusionai/ling-3.0-flash-vl`
+ * returned "Too many images in request: 5 > 4" and aborted the whole review.
+ * Rather than hand-tuning a screen list per model — which would quietly give
+ * some reviewers a different view of the game than others, and make the
+ * reviews non-comparable — the harness retries with the most important screens
+ * only, in a fixed priority order, and records how many it actually sent.
+ *
+ * The order is deliberate: the three rendered worlds first, then the two
+ * menu screens, because a review that loses images should lose the least
+ * informative ones.
+ */
+const SCREEN_PRIORITY = ['title', 'arena', 'road', 'city', 'constructor'];
+
+async function send(frames) {
+  const body = {
     model,
-    messages: [{ role: 'user', content }],
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: PROMPT },
+          ...frames.flatMap((f) => [
+            { type: 'text', text: `Screenshot: ${f.screen}` },
+            { type: 'image_url', image_url: { url: `data:image/png;base64,${f.b64}` } },
+          ]),
+        ],
+      },
+    ],
     // Temperature is left at the provider default. We want this model's actual
     // opinion, not a sampled one; and the JSON contract in the prompt is tight
     // enough that a low temperature buys nothing.
-    // DeepSeek's iteration-4 reply was cut off mid-string inside the fifth
-    // object at 4000 tokens, which made the whole review unparseable. 5 detailed
-    // findings plus a preamble is a lot of text; 9000 leaves room for a model
-    // that thinks out loud before it answers.
+    // DeepSeek's iteration-4 reply was cut off mid-string at 4000 tokens, which
+    // made the whole review unparseable. 5 detailed findings plus a preamble is
+    // a lot of text; 9000 leaves room for a model that thinks out loud.
     max_tokens: 9000,
-  }),
-});
+  };
+  return fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://shoemoney.ai',
+      'X-Title': 'smduel-review-loop',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+const ordered = frames.sort((a, b) => SCREEN_PRIORITY.indexOf(a.screen) - SCREEN_PRIORITY.indexOf(b.screen));
+let sent = ordered;
+let res = await send(sent);
+let lastBody = '';
+while (!res.ok && sent.length > 1) {
+  lastBody = await res.text();
+  if (!/too many images|maximum .* image|image limit/i.test(lastBody)) break;
+  sent = sent.slice(0, Math.max(1, sent.length - 1));
+  console.error(`review: provider rejected ${sent.length + 1} images, retrying with ${sent.length}`);
+  res = await send(sent);
+}
+const screensSent = sent.map((f) => f.screen);
 
 if (!res.ok) {
-  const body = await res.text();
+  const body = lastBody || (await res.text());
   throw new Error(`review: ${res.status} ${res.statusText}\n${body.slice(0, 800)}`);
 }
 const json = await res.json();
@@ -187,7 +243,7 @@ await writeFile(
     {
       model,
       modelLabel: json.model ?? model,
-      screens: used,
+      screens: screensSent,
       at: new Date().toISOString(),
       usage: json.usage ?? null,
       findings,

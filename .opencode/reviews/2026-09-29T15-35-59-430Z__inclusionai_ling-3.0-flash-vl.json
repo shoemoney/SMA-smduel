@@ -1,0 +1,74 @@
+{
+  "model": "inclusionai/ling-3.0-flash-vl",
+  "modelLabel": "inclusionai/ling-3.0-flash-vl",
+  "screens": [
+    "title",
+    "arena",
+    "road",
+    "city",
+    "constructor"
+  ],
+  "at": "2026-09-29T15:35:59.430Z",
+  "usage": {
+    "prompt_tokens": 2929,
+    "completion_tokens": 6928,
+    "total_tokens": 9857,
+    "cost": 0.0004882738,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0004882738,
+      "upstream_inference_prompt_cost": 0.000061509,
+      "upstream_inference_completions_cost": 0.0004267648
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6608,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Duplicate debug text banner",
+      "where": "Arena, top-center — the second dark panel stacked directly under the \"Practice arena —\" instruction banner",
+      "problem": "The second box shows a garbled repeated token dump (\"a1IceSeedSeedSeed...\") instead of a coherent message, looking like a raw variable printed to screen",
+      "why": "It reads as a crash/dev leftover on the first screen a player sees in-game, breaking the illusion that the game is finished and undermining the arena's introduction",
+      "fix": "Remove the second panel entirely; if the seed must be visible, print it once as a tidy mono line inside the main banner (e.g. \"Seed: a1Ice... · Press F1 to copy\") rather than repeating raw tokens"
+    },
+    {
+      "title": "Radar with no sweep or contacts",
+      "where": "Arena and road, bottom-left RADAR panel",
+      "problem": "The panel is a black disc with a single dim radial line, a center dot, and range rings, but no moving sweep glow and zero contacts, so it looks dead",
+      "why": "At speed and with a noisy scene the player cannot tell it is an instrument instead of a broken widget; an empty radar should still read as a functioning gauge",
+      "fix": "Animate a rotating sweep with a faint trailing glow, add subtle range rings and a north marker, and raise the panel border/contrast so the disc reads as a live instrument even when blank; later, render contacts as bright blips"
+    },
+    {
+      "title": "Giant dashed debug circle",
+      "where": "City, a thick white dashed ring spanning almost the entire frame over the ground",
+      "problem": "A huge dashed white boundary circle dominates the view with no legend and no solid wall geometry behind it, exactly like a development overlay",
+      "why": "It cheapens the open-world first impression, distracts from the buildings, and makes the city feel like an unclosed test zone rather than a place",
+      "fix": "Convert it to a subtle map edge: mute the dash color to low-opacity gray, replace the circle with low-opacity glow plus proper wall/gate geometry at the entry points, and add labeled gates matching the on-screen entry instructions"
+    },
+    {
+      "title": "Empty constructor schematic and blank weapon rows",
+      "where": "Constructor, right-side top-view panel (featureless neon outline with two empty slot rectangles) and left parts list (Weapon 1–10 all \"(empty)\")",
+      "problem": "The top-view shows only a glowing outline and empty slot boxes, with no mounted hardware, yet the footer claims \"6 mounted\"; the weapon rows have only text and no visible add affordance",
+      "why": "The player cannot visualize or verify their build, so the constructor feels like a placeholder screen right when they should be excited about their vehicle",
+      "fix": "Draw equipped parts as small scaled icons inside the schematic rectangles so the view repaints as parts are added, and put a visible \"+\" add affordance on each empty weapon row instead of relying on the tiny help line alone"
+    },
+    {
+      "title": "Invisible courier progress bar",
+      "where": "Road, top-center hairline track just under the \"En route to Albany — 150mi remaining\" caption",
+      "problem": "The progress indicator is a thin dark line with a single tiny white tick and no proportional fill, so it carries almost no visual information",
+      "why": "Courier distance-progress is core gameplay feedback, and at highway speed with a small HUD the player cannot see how far they have come or how close Albany is",
+      "fix": "Replace it with a thicker bright bar (full width of the caption, cyan or white) that fills proportionally to distance remaining and carries a moving chevron marker; keep the caption text above it"
+    }
+  ],
+  "parseError": null,
+  "raw": "[{\"title\":\"Duplicate debug text banner\",\"where\":\"Arena, top-center — the second dark panel stacked directly under the \\\"Practice arena —\\\" instruction banner\",\"problem\":\"The second box shows a garbled repeated token dump (\\\"a1IceSeedSeedSeed...\\\") instead of a coherent message, looking like a raw variable printed to screen\",\"why\":\"It reads as a crash/dev leftover on the first screen a player sees in-game, breaking the illusion that the game is finished and undermining the arena's introduction\",\"fix\":\"Remove the second panel entirely; if the seed must be visible, print it once as a tidy mono line inside the main banner (e.g. \\\"Seed: a1Ice... · Press F1 to copy\\\") rather than repeating raw tokens\"},{\"title\":\"Radar with no sweep or contacts\",\"where\":\"Arena and road, bottom-left RADAR panel\",\"problem\":\"The panel is a black disc with a single dim radial line, a center dot, and range rings, but no moving sweep glow and zero contacts, so it looks dead\",\"why\":\"At speed and with a noisy scene the player cannot tell it is an instrument instead of a broken widget; an empty radar should still read as a functioning gauge\",\"fix\":\"Animate a rotating sweep with a faint trailing glow, add subtle range rings and a north marker, and raise the panel border/contrast so the disc reads as a live instrument even when blank; later, render contacts as bright blips\"},{\"title\":\"Giant dashed debug circle\",\"where\":\"City, a thick white dashed ring spanning almost the entire frame over the ground\",\"problem\":\"A huge dashed white boundary circle dominates the view with no legend and no solid wall geometry behind it, exactly like a development overlay\",\"why\":\"It cheapens the open-world first impression, distracts from the buildings, and makes the city feel like an unclosed test zone rather than a place\",\"fix\":\"Convert it to a subtle map edge: mute the dash color to low-opacity gray, replace the circle with low-opacity glow plus proper wall/gate geometry at the entry points, and add labeled gates matching the on-screen entry instructions\"},{\"title\":\"Empty constructor schematic and blank weapon rows\",\"where\":\"Constructor, right-side top-view panel (featureless neon outline with two empty slot rectangles) and left parts list (Weapon 1–10 all \\\"(empty)\\\")\",\"problem\":\"The top-view shows only a glowing outline and empty slot boxes, with no mounted hardware, yet the footer claims \\\"6 mounted\\\"; the weapon rows have only text and no visible add affordance\",\"why\":\"The player cannot visualize or verify their build, so the constructor feels like a placeholder screen right when they should be excited about their vehicle\",\"fix\":\"Draw equipped parts as small scaled icons inside the schematic rectangles so the view repaints as parts are added, and put a visible \\\"+\\\" add affordance on each empty weapon row instead of relying on the tiny help line alone\"},{\"title\":\"Invisible courier progress bar\",\"where\":\"Road, top-center hairline track just under the \\\"En route to Albany — 150mi remaining\\\" caption\",\"problem\":\"The progress indicator is a thin dark line with a single tiny white tick and no proportional fill, so it carries almost no visual information\",\"why\":\"Courier distance-progress is core gameplay feedback, and at highway speed with a small HUD the player cannot see how far they have come or how close Albany is\",\"fix\":\"Replace it with a thicker bright bar (full width of the caption, cyan or white) that fills proportionally to distance remaining and carries a moving chevron marker; keep the caption text above it\"}]"
+}
