@@ -133,7 +133,14 @@
  * legend, so the feed yields and sits under it.
  */
 .hud-panel--messages {
-  top: calc(var(--inset) + 26px);
+  /* Clears the screens' own top status banner, which is a `top: 8px` element
+   * built in src/app.ts. 26px was enough to stop them overlapping but left the
+   * log flush against the banner's bottom edge with no breathing room, which
+   * still reads as one collided block. A vision review of the real frame
+   * described them as "overlapping directly" and "causing text collision" —
+   * the honest read was "touching", but the fix is the same: give them a real
+   * gap. 44px clears the 8px offset, the banner's own height and its padding. */
+  top: calc(var(--inset) + 44px);
   left: 50%;
   transform: translateX(-50%);
   width: min(calc(420px * var(--hud-scale)), 62vw);

@@ -63,6 +63,10 @@
     "ui.confirm.buildVehicle": "Build this vehicle",
 
     "ui.title.appName": "smduel",
+    "ui.title.tagline": "One car. Sixteen cities. A highway that wants you dead.",
+    "ui.builder.previewTitleSuffix": "— top view",
+    "ui.builder.previewCaption": "{lengthM} m × {widthM} m · {armor} armour · {weapons} mounted",
+    "ui.builder.legalityPrompt": "Name your car, then fit armor and at least one weapon to make it road-legal.",
     "ui.title.newDriver": "New Driver",
     "ui.title.continue": "Continue",
     "ui.title.controls": "Controls",

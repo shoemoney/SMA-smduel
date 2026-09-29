@@ -669,6 +669,29 @@ function showTitle(
     'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
     `background-image:linear-gradient(rgba(5,7,10,0.55),rgba(5,7,10,0.82)),url("${titleArtUrl}");` +
     'background-size:cover;background-position:center;';
+
+  // --- the wordmark ---------------------------------------------------------
+  // Until this existed the game had NO NAME on its own title screen. The only
+  // "smduel" in the frame was a run of 12px monospace inside the menu panel's
+  // status header, sitting between the date and the city name — visually the
+  // least important string on screen, in a panel that reads as a debug menu
+  // floating over the art. A review flagged it as "an unstyled debug menu
+  // floating over finished concept art", which is exactly what it was.
+  //
+  // A title screen that does not show its title is a branding failure
+  // regardless of how good the art behind it is, so the name now gets the
+  // largest type in the frame, a subtitle to say what the game IS (the art
+  // shows tanks, not cars, so the tagline has to do work), and the panel
+  // steps back to being secondary.
+  const lockup = el('div', 'sm-title-lockup');
+  const wordmark = el('h1', 'sm-title-wordmark');
+  wordmark.textContent = t('ui.title.appName');
+  const tagline = el('p', 'sm-title-tagline');
+  tagline.textContent = t('ui.title.tagline');
+  lockup.appendChild(wordmark);
+  lockup.appendChild(tagline);
+  container.appendChild(lockup);
+
   if (titleOptions.hasWonVictory === true) {
     const wonLine = el('div', undefined, t('ui.title.campaignWon'));
     wonLine.style.cssText = 'color:#4fd6c4;font-weight:600;font-family:system-ui,sans-serif;';
@@ -2109,6 +2132,24 @@ const SHADOW_OPACITY = 0.5;
  * side of the road, because a 90m arena floor is narrower than the view at some
  * window sizes.
  */
+/**
+ * Per-pool colour grade applied to the sampled ground.
+ *
+ * The city is the only entry, and it exists because the pool had to change
+ * texture: `tile-asphalt-clean` carries a painted dashed highway centre line,
+ * which tiled across a walled compound drew a motorway straight through the
+ * perimeter wall. `tile-asphalt-cracked` has no markings but is a much paler
+ * grey, and lifting the city's luma from 78 to 130 cost the buildings their
+ * contrast against the ground.
+ *
+ * Darkening here rather than repacking the atlas keeps the correct texture and
+ * the correct value, and it only works at all because the ground branch of
+ * sprite.wgsl was fixed to read `tint.rgb` instead of discarding it.
+ */
+const GROUND_TINTS: Readonly<Record<string, { r: number; g: number; b: number; a: number }>> = {
+  city: { r: 0.6, g: 0.63, b: 0.68, a: 1 },
+};
+
 function buildGroundQuad(atlasIndex: AtlasIndex, center: Vec2M, halfExtentM: number, pool: string): SpriteInstanceInput[] {
   const scale = GROUND_TILE_METRES[pool] ?? { tileMetres: 24, detailScale: 8.3 };
   return [
@@ -2119,6 +2160,7 @@ function buildGroundQuad(atlasIndex: AtlasIndex, center: Vec2M, halfExtentM: num
       layer: 0,
       tileMetres: scale.tileMetres,
       detailScale: scale.detailScale,
+      ...(GROUND_TINTS[pool] !== undefined ? { tint: GROUND_TINTS[pool] } : {}),
     }),
   ];
 }

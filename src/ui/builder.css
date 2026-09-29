@@ -33,6 +33,40 @@
   outline: none;
 }
 
+/*
+ * The persistent "Arcade" home link is `position: fixed` at the top-left of the
+ * viewport, and the builder's first row is also at the top-left — so the button
+ * was sitting ON TOP of the "Body" label, hiding it completely. A vision review
+ * of the real frame flagged the collision, and it was real: the row was there,
+ * just underneath a fixed header.
+ *
+ * The clearance is a top padding on the grid rather than a margin on the first
+ * row, so it survives the single-column mobile layout (where the rows pane
+ * stacks) and cannot be collapsed by a row's own margins.
+ *
+ * `--ui-space-9` clears a 44px-tall fixed control plus its own 16px inset, with
+ * a little slack so a focus ring on the link is not clipped.
+ */
+.sm-builder {
+  padding-top: calc(var(--ui-space-4) + 52px);
+}
+
+/*
+ * The builder occupied the top ~45% of the frame and left the rest as dead
+ * black. That is both ugly and a waste of the most legible space on the screen:
+ * a vehicle builder whose whole point is the vehicle shows no vehicle.
+ *
+ * The grid grows to fill the viewport and the preview takes the space the row
+ * list does not need. It collapses on short viewports (where squeezing it would
+ * make the row list unusable) rather than unconditionally.
+ */
+@media (min-height: 620px) {
+  .sm-builder {
+    min-height: 100%;
+    align-content: stretch;
+  }
+}
+
 .sm-builder {
   display: grid;
   grid-template-columns: minmax(280px, 1.3fr) minmax(240px, 1fr);
@@ -296,4 +330,105 @@
   border-left: 2px solid var(--ui-critical);
   border-radius: var(--ui-radius-md);
   font-size: var(--ui-text-sm);
+}
+
+/* --- the neutral first-run prompt -----------------------------------------
+ *
+ * A pristine builder has real, deliberate violations (a car must be named and
+ * fitted before it is legal — `canConfirm` is false until then, and that is
+ * tested). Rendering those as a red VIOLATION panel on arrival meant the first
+ * thing on screen was a failure the player had not caused, which reads as a
+ * broken screen.
+ *
+ * This is the same information, framed as a task rather than an error. It is a
+ * paragraph, not a `<ul class="violation-list">`, so it cannot be mistaken for
+ * the violation surface, and it disappears the instant the player does
+ * anything.
+ */
+.sm-builder__legality-prompt {
+  margin: 0;
+  padding: var(--ui-space-4) var(--ui-space-5);
+  border: 1px dashed var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-2);
+  color: var(--ui-ink-muted);
+  font-size: var(--ui-text-sm);
+  line-height: var(--ui-leading-normal);
+}
+
+/* --- live vehicle schematic -----------------------------------------------
+ *
+ * Fills the space the builder left empty, and gives the player feedback on
+ * their own choices while they are making them rather than only after they
+ * leave the screen. See src/ui/builder-preview.ts for what each mark means and
+ * why every number in it comes from the ruleset.
+ */
+.sm-builder__preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-3);
+  padding: var(--ui-space-4);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(79, 214, 196, 0.06) 0%, transparent 70%),
+    var(--ui-surface-2);
+}
+
+.sm-builder__preview-title {
+  margin: 0;
+  font-size: var(--ui-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ui-ink-muted);
+}
+
+.sm-builder__preview-svg {
+  display: block;
+  width: 100%;
+  /* Bounded so a long body cannot push the stats panel off-screen on a short
+     viewport; the viewBox still keeps the silhouette's true proportions. */
+  max-height: min(46vh, 320px);
+  overflow: visible;
+}
+
+.sm-builder__preview-hull {
+  fill: rgba(99, 168, 255, 0.10);
+  stroke: rgba(99, 168, 255, 0.55);
+  stroke-width: 2;
+}
+
+.sm-builder__preview-armor {
+  fill: rgba(79, 214, 196, 0.34);
+  stroke: rgba(79, 214, 196, 0.7);
+  stroke-width: 1;
+}
+
+/* Underbody armour is not visible from above, so it is drawn as a dashed centre
+   stripe rather than pretending to be a solid side band. */
+.sm-builder__preview-armor--under {
+  fill: none;
+  stroke: rgba(79, 214, 196, 0.65);
+  stroke-dasharray: 4 4;
+  stroke-width: 2;
+}
+
+.sm-builder__preview-weapon {
+  fill: rgba(255, 209, 102, 0.85);
+  stroke: rgba(255, 209, 102, 0.95);
+  stroke-width: 1;
+}
+
+.sm-builder__preview-nose {
+  fill: var(--ui-accent-strong);
+}
+
+.sm-builder__preview-caption {
+  margin: 0;
+  font-family: var(--ui-font-mono);
+  font-size: var(--ui-text-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-ink-muted);
+  text-align: center;
 }

@@ -167,3 +167,88 @@
   font-size: var(--ui-text-sm);
   font-style: italic;
 }
+
+/* --- title screen wordmark ------------------------------------------------
+ *
+ * The game had no title on its own title screen: "smduel" existed only as a
+ * 12px monospace run inside the menu panel's status header, between the date
+ * and the city name. A vision review of the real frame called the result "an
+ * unstyled debug menu floating over finished concept art", which is exactly
+ * what it was — the art was carrying the whole screen and the product had no
+ * identity in it.
+ *
+ * The lockup fixes the hierarchy in three moves:
+ *   1. the name is the LARGEST type in the frame, which is the one thing a
+ *      title screen must get right;
+ *   2. a tagline says what the game is, because the art shows tanks in a burnt
+ *      city and nothing in the frame says "car";
+ *   3. the panel below steps back, so the screen reads top-to-bottom as
+ *      title -> premise -> controls rather than as one undifferentiated box.
+ *
+ * The gradient behind the wordmark is a SIBLING of the art's own darkening
+ * scrim, not a replacement: the art already fades toward the bottom, and the
+ * wordmark sits in the upper third where the art is brightest, so without its
+ * own local scrim the text fought the sunset.
+ */
+.sm-title-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 34px 20px;
+  margin-bottom: 4px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(5, 7, 10, 0.62) 0%, rgba(5, 7, 10, 0.18) 100%);
+  position: relative;
+  isolation: isolate;
+}
+
+.sm-title-wordmark {
+  margin: 0;
+  font-family: var(--ui-font-mono);
+  font-size: clamp(44px, 11vw, 92px);
+  font-weight: 700;
+  line-height: 0.92;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  /* The gradient is the game's own accent ramp, so the wordmark reads as
+   * branded rather than as a heading that happened to be big. */
+  background: linear-gradient(180deg, #ffffff 0%, #9fe8dd 52%, #4fd6c4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* A drop shadow rather than a text-shadow, so it sits behind the glyphs
+   * without thinning them — a heavy text-shadow on 92px type makes the
+   * letterforms mushy. */
+  filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.75));
+  /* Fallback for a browser without background-clip:text: without this the
+   * wordmark would render fully transparent and simply vanish. */
+  -webkit-text-fill-color: transparent;
+}
+
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .sm-title-wordmark {
+    color: #4fd6c4;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+.sm-title-tagline {
+  margin: 0;
+  max-width: 34ch;
+  text-align: center;
+  font-family: var(--ui-font-sans);
+  font-size: clamp(12px, 1.6vw, 15px);
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  color: rgba(226, 236, 244, 0.86);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sm-title-lockup { animation: sm-title-rise 620ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+  @keyframes sm-title-rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+}

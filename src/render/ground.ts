@@ -32,6 +32,14 @@ export interface GroundAtlasLike {
   frame(name: string): { readonly atlasIndex: number; readonly uv: { readonly u0: number; readonly v0: number; readonly u1: number; readonly v1: number } };
 }
 
+/** Structural copy of `src/render/sprite.ts`'s Tint. */
+export interface GroundTint {
+  readonly r: number;
+  readonly g: number;
+  readonly b: number;
+  readonly a: number;
+}
+
 /** Structural copy of `src/render/sprite.ts`'s Vec2M. */
 export interface GroundVec2M {
   readonly x: number;
@@ -103,15 +111,29 @@ export const GROUND_POOLS: Readonly<Record<string, readonly GroundEntry[]>> = {
   /** Open country alongside the highway. */
   dirt: [{ frame: 'ground-dirt-a', weight: 1 }],
   /**
-   * City streets: plain asphalt.
+   * City streets: cracked asphalt.
    *
-   * Deliberately NOT `tile-citypave`, which reads as paving but carries a dark
-   * circular feature. A strong feature in a tile that repeats every few metres
-   * stamps that feature across the whole city in a visible regular grid — 30
-   * identical dark dots read far worse than plain asphalt. The city looks like
-   * a city because of its buildings, wall and street furniture, not its paving.
+   * This was `tile-asphalt-clean`, which looked like the obvious choice for a
+   * city and is in fact the worst possible one: it has a white DASHED HIGHWAY
+   * CENTRE LINE painted through the middle of it. Tiled across the whole city
+   * that put a motorway down the middle of a walled compound and ran it
+   * straight through the perimeter wall, which destroys the one read that
+   * matters — that this is an enclosed outpost, not a slice of open highway.
+   * A vision review of the real frame caught it ("lane stripes passing under
+   * the perimeter destroy any sense that this is an enclosed, solid outpost"),
+   * and inspecting the atlas cells confirmed it: the frame really does carry
+   * the markings.
+   *
+   * `tile-asphalt-cracked` is the replacement — still asphalt, still grey, still
+   * urban, and carrying only cracks, which tile as texture rather than as a
+   * repeated graphic feature.
+   *
+   * `tile-citypave` is still rejected, for the original and still correct
+   * reason: it is better-looking cobblestone but carries a dark circular
+   * manhole, and a strong feature in a tile that repeats every few metres
+   * stamps that circle across the whole city in a visible lattice.
    */
-  city: [{ frame: 'tile-asphalt-clean', weight: 1 }],
+  city: [{ frame: 'tile-asphalt-cracked', weight: 1 }],
 };
 
 export interface GroundQuadOptions {
@@ -135,6 +157,19 @@ export interface GroundQuadOptions {
    * period reinforce each other and the repeat comes straight back.
    */
   readonly detailScale?: number;
+  /**
+   * Multiplied into the sampled ground colour. Defaults to white.
+   *
+   * The ground shader ignored tint entirely until the `SPRITE_KIND` work, so
+   * this field used to do nothing at all — and the fix is what makes a pool
+   * adjustable without repacking the atlas. The city is the case that needs it:
+   * swapping it off the marking-bearing asphalt for `tile-asphalt-cracked`
+   * removed a painted motorway from the middle of the compound, but that
+   * texture is a much paler grey, which lifted the whole city and cost the
+   * buildings their contrast against the ground. Darkening through tint keeps
+   * the correct texture AND the correct value.
+   */
+  readonly tint?: GroundTint;
 }
 
 /**
@@ -170,7 +205,7 @@ export function groundQuad(atlasIndex: GroundAtlasLike, options: GroundQuadOptio
     rotationRad: 0,
     sizeM: { x: options.halfExtentM * 2, y: options.halfExtentM * 2 },
     uvRect: frame.uv,
-    tint: { r: 1, g: 1, b: 1, a: 1 },
+    tint: options.tint ?? { r: 1, g: 1, b: 1, a: 1 },
     layer: options.layer,
     uvRepeatMetres: options.tileMetres,
     uvDetailScale: options.detailScale ?? 0,

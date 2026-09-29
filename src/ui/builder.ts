@@ -24,6 +24,8 @@ import type { BuildMetrics, BuildViolation, Facing, MountedWeapon, VehicleDesign
 // legality rule (see `@/sim/construct`'s file header) — its one definition
 // lives in `@/ui/hud`, which this module already sits alongside.
 import { MAX_WEAPON_ROWS as MAX_WEAPON_SLOTS } from '@/ui/hud';
+import { buildVehiclePreview } from '@/ui/builder-preview';
+import { t } from '@/ui/strings';
 
 // ---------------------------------------------------------------------------
 // State
@@ -65,6 +67,21 @@ export interface BuilderKeyResult {
 }
 
 const INVALID_DISPLAY = '?????';
+
+/**
+ * True when the player has not yet made any choice at all: no name, no armour
+ * fitted, no weapons mounted.
+ *
+ * This drives PRESENTATION only — see the legality panel's own note. The rule
+ * that a car must be named is unchanged and still enforced by
+ * `computeViolations`; this exists so the screen can say "here is what to do"
+ * instead of opening on a red failure the player did not cause.
+ */
+function isPristineBuilder(state: BuilderState): boolean {
+  if (state.name.trim().length > 0) return false;
+  if (state.weaponSlots.some((slot) => slot !== null)) return false;
+  return Object.values(state.armor).every((points) => points === 0);
+}
 
 function firstId<T extends { id: string }>(rows: readonly T[], table: string): string {
   const first = rows[0];
@@ -768,6 +785,12 @@ function buildRightPane(state: BuilderState, context: BuilderContext): HTMLEleme
   statRow(stats, 'Battery', `${derived.battery} / ${derived.battery}`, false);
   right.appendChild(stats);
 
+  // The live schematic. Appended before the legality panel so the pane reads
+  // top-to-bottom as "what it costs -> what it looks like -> what is wrong
+  // with it", and so the preview sits in the space that used to be empty
+  // black below the two columns.
+  right.appendChild(buildVehiclePreview(document, state));
+
   const legality = document.createElement('div');
   legality.className = 'sm-builder__legality';
   const title = document.createElement('h3');
@@ -775,7 +798,26 @@ function buildRightPane(state: BuilderState, context: BuilderContext): HTMLEleme
   title.textContent = 'Legality';
   legality.appendChild(title);
 
-  if (derived.violations.length === 0) {
+  // An untouched builder is not a FAILED builder.
+  //
+  // Requiring a car name is deliberate and tested — `canConfirm` is false until
+  // one is typed, and that must not change. But the screen used to render that
+  // requirement as a red VIOLATION panel the instant it opened, before the
+  // player had touched anything, so the first thing anyone saw was a failure
+  // state and the screen read as broken rather than as unfinished. A review of
+  // the real frame flagged it, and it is a fair reading: nothing in that red
+  // box was a mistake anyone had made.
+  //
+  // The violations themselves are untouched and still computed — this only
+  // changes how a PRISTINE state is PRESENTED. Once the player has entered a
+  // name, or moved a single slider, the panel switches to the normal violation
+  // list and starts behaving like a real feedback surface.
+  if (isPristineBuilder(state)) {
+    const prompt = document.createElement('p');
+    prompt.className = 'sm-builder__legality-prompt';
+    prompt.textContent = t('ui.builder.legalityPrompt');
+    legality.appendChild(prompt);
+  } else if (derived.violations.length === 0) {
     const ok = document.createElement('div');
     ok.className = 'sm-builder__violation sm-builder__violation--none';
     ok.textContent = 'No violations — ready to build.';

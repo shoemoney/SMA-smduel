@@ -1,0 +1,74 @@
+{
+  "model": "google/gemini-3.8-flash",
+  "modelLabel": "google/gemini-3.8-flash",
+  "screens": [
+    "title",
+    "city",
+    "arena",
+    "road",
+    "constructor"
+  ],
+  "at": "2026-09-29T14:52:31.500Z",
+  "usage": {
+    "prompt_tokens": 5826,
+    "completion_tokens": 3085,
+    "total_tokens": 8911,
+    "cost": 0.01593825,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.01593825,
+      "upstream_inference_prompt_cost": 0.0043695,
+      "upstream_inference_completions_cost": 0.01156875
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2330,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Missing Game Title and Weak Modal Hierarchy",
+      "where": "Title screen, center and top",
+      "problem": "The title screen lacks a prominent game logo or primary title; the game name 'smduel' is relegated to tiny low-contrast monospace text inside a small floating dialog box.",
+      "why": "It fails to introduce the game's identity or genre, reading as an unstyled debug menu floating over finished concept art rather than a cohesive game start screen.",
+      "fix": "Add a bold, styled graphic logo for 'smduel' centered in the upper third of the screen, and restyle the action modal with clearer button padding and larger typography."
+    },
+    {
+      "title": "Ground Plane Clashing and Building Scale Inconsistency",
+      "where": "City screen, entire playfield",
+      "problem": "The circular compound sits directly atop infinite straight highway lane dashes that clip straight through the perimeter wall, while the 2D building sprites are rendered at the exact same physical footprint as the player's car.",
+      "why": "The car looks like a monster truck compared to dollhouse-sized buildings, and the unbroken lane stripes passing under the perimeter destroy any sense that this is an enclosed, solid outpost.",
+      "fix": "Mask out the highway lane markings inside and around the circular barrier with a dedicated plaza/pavement texture, and increase building footprint scales or add architectural ground elements (sidewalks, aprons, bollards) to establish credible human and vehicle scale."
+    },
+    {
+      "title": "HUD Notification Overlap and Seed Text Clipping",
+      "where": "Arena screen, top center",
+      "problem": "The top guidance banner ('Practice arena — WASD/arrows drive...') overlaps directly with the rectangular log dialog beneath it, causing text collision and obscuring the arena seed string.",
+      "why": "Text illegibility immediately signals broken layout code and unpolished UI composition in the combat view.",
+      "fix": "Anchor transient system log panels to the left margin or enforce a strict vertical flex layout so announcements stack sequentially below the controls banner with distinct margins."
+    },
+    {
+      "title": "Unstructured Asphalt Texture and Lack of Highway Motion Cues",
+      "where": "Road screen, ground plane",
+      "problem": "The road surface is an undifferentiated, blocky low-resolution grey noise texture lacking lane dividers, curbs, roadside shoulders, or directional seams.",
+      "why": "The player loses all spatial reference and directionality; driving feels like sliding across a static pixelated grey sheet rather than traveling down an open highway.",
+      "fix": "Add high-contrast highway lane striping, road edges/shoulders, and directional asphalt wear lines that reinforce forward motion and lane discipline."
+    },
+    {
+      "title": "UI Header Clipping and Total Absence of Vehicle Visualization",
+      "where": "Constructor screen, top-left and lower half",
+      "problem": "The top-left 'Arcade' button collides with and partially obscures the 'Body' configuration row, while the entire lower 45% of the screen is left as dead black space without any vehicle schematic.",
+      "why": "Text collision breaks basic interface legibility, and building a vehicle feels like filling out an accounting spreadsheet without immediate visual payoff or feedback on chassis changes.",
+      "fix": "Add top padding to clear the persistent 'Arcade' button, and utilize the empty lower space to display a live top-down wireframe or 2D silhouette preview of the car that updates as parts and armor are equipped."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Missing Game Title and Weak Modal Hierarchy\",\n    \"where\": \"Title screen, center and top\",\n    \"problem\": \"The title screen lacks a prominent game logo or primary title; the game name 'smduel' is relegated to tiny low-contrast monospace text inside a small floating dialog box.\",\n    \"why\": \"It fails to introduce the game's identity or genre, reading as an unstyled debug menu floating over finished concept art rather than a cohesive game start screen.\",\n    \"fix\": \"Add a bold, styled graphic logo for 'smduel' centered in the upper third of the screen, and restyle the action modal with clearer button padding and larger typography.\"\n  },\n  {\n    \"title\": \"Ground Plane Clashing and Building Scale Inconsistency\",\n    \"where\": \"City screen, entire playfield\",\n    \"problem\": \"The circular compound sits directly atop infinite straight highway lane dashes that clip straight through the perimeter wall, while the 2D building sprites are rendered at the exact same physical footprint as the player's car.\",\n    \"why\": \"The car looks like a monster truck compared to dollhouse-sized buildings, and the unbroken lane stripes passing under the perimeter destroy any sense that this is an enclosed, solid outpost.\",\n    \"fix\": \"Mask out the highway lane markings inside and around the circular barrier with a dedicated plaza/pavement texture, and increase building footprint scales or add architectural ground elements (sidewalks, aprons, bollards) to establish credible human and vehicle scale.\"\n  },\n  {\n    \"title\": \"HUD Notification Overlap and Seed Text Clipping\",\n    \"where\": \"Arena screen, top center\",\n    \"problem\": \"The top guidance banner ('Practice arena — WASD/arrows drive...') overlaps directly with the rectangular log dialog beneath it, causing text collision and obscuring the arena seed string.\",\n    \"why\": \"Text illegibility immediately signals broken layout code and unpolished UI composition in the combat view.\",\n    \"fix\": \"Anchor transient system log panels to the left margin or enforce a strict vertical flex layout so announcements stack sequentially below the controls banner with distinct margins.\"\n  },\n  {\n    \"title\": \"Unstructured Asphalt Texture and Lack of Highway Motion Cues\",\n    \"where\": \"Road screen, ground plane\",\n    \"problem\": \"The road surface is an undifferentiated, blocky low-resolution grey noise texture lacking lane dividers, curbs, roadside shoulders, or directional seams.\",\n    \"why\": \"The player loses all spatial reference and directionality; driving feels like sliding across a static pixelated grey sheet rather than traveling down an open highway.\",\n    \"fix\": \"Add high-contrast highway lane striping, road edges/shoulders, and directional asphalt wear lines that reinforce forward motion and lane discipline.\"\n  },\n  {\n    \"title\": \"UI Header Clipping and Total Absence of Vehicle Visualization\",\n    \"where\": \"Constructor screen, top-left and lower half\",\n    \"problem\": \"The top-left 'Arcade' button collides with and partially obscures the 'Body' configuration row, while the entire lower 45% of the screen is left as dead black space without any vehicle schematic.\",\n    \"why\": \"Text collision breaks basic interface legibility, and building a vehicle feels like filling out an accounting spreadsheet without immediate visual payoff or feedback on chassis changes.\",\n    \"fix\": \"Add top padding to clear the persistent 'Arcade' button, and utilize the empty lower space to display a live top-down wireframe or 2D silhouette preview of the car that updates as parts and armor are equipped.\"\n  }\n]"
+}

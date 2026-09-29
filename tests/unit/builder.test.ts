@@ -318,6 +318,12 @@ class FakeElement {
   readonly children: FakeElement[] = [];
   className = '';
   textContent = '';
+  /**
+   * Stand-in for the real `DOMStringMap`. A plain object is enough because the
+   * builder's DOM layer only ever WRITES through it — the values are asserted
+   * by reading the property back, not by querying `[data-*]` attributes.
+   */
+  readonly dataset: Record<string, string> = {};
   private _tabIndex = -1;
   private readonly attrs = new Set<string>();
   private readonly listeners = new Map<string, Array<(ev: FakeKeyEvent) => void>>();
@@ -327,6 +333,27 @@ class FakeElement {
   }
   appendChild(child: FakeElement): void {
     this.children.push(child);
+  }
+  /**
+   * Insert before an existing child, or append when `reference` is null — the
+   * same contract as the real `Node.insertBefore`.
+   *
+   * Added for the vehicle schematic, which inserts the underbody-armour stripe
+   * BEHIND the hull so it is visible through it. Without this the schematic
+   * would be untestable here, and a test double that silently lacks a method
+   * the code calls is worse than one that is deliberately complete.
+   */
+  insertBefore(child: FakeElement, reference: FakeElement | null): void {
+    if (reference === null) {
+      this.children.push(child);
+      return;
+    }
+    const at = this.children.indexOf(reference);
+    if (at === -1) {
+      this.children.push(child);
+      return;
+    }
+    this.children.splice(at, 0, child);
   }
   set innerHTML(value: string) {
     if (value === '') this.children.length = 0;
@@ -373,7 +400,13 @@ class FakeElement {
 }
 
 function installFakeDom(): void {
-  const fakeDocument = { createElement: (tag: string): FakeElement => new FakeElement(tag) };
+  const fakeDocument = {
+    createElement: (tag: string): FakeElement => new FakeElement(tag),
+    // SVG children must be created in the SVG namespace; `createElement` would
+    // produce HTML elements that never render. The vehicle schematic is real
+    // SVG, so the double needs the real method to exercise it.
+    createElementNS: (_namespace: string, tag: string): FakeElement => new FakeElement(tag),
+  };
   (globalThis as unknown as { document: unknown }).document = fakeDocument;
 }
 

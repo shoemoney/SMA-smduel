@@ -355,6 +355,23 @@ function boundingRadiusM(sizeM: Vec2): number {
 // Instance builders
 // ---------------------------------------------------------------------------
 
+/**
+ * Darkening applied to the city's ground sample.
+ *
+ * The city pool had to change texture — `tile-asphalt-clean` carries a painted
+ * dashed highway centre line, and tiling that across a walled compound drew a
+ * motorway straight through the perimeter wall (see the pool's own note in
+ * @/render/ground). `tile-asphalt-cracked` has no markings, but it is a much
+ * paler grey: swapping it lifted the city's mean luma from 78 to 130 and cost
+ * the buildings their contrast against the ground they sit on.
+ *
+ * This restores the value without touching the texture. It only has any effect
+ * because the ground branch of sprite.wgsl was fixed to read `tint.rgb`; before
+ * that it silently discarded the tint, which is why this constant is worth a
+ * comment rather than being a bare number.
+ */
+const CITY_GROUND_TINT = { r: 0.6, g: 0.63, b: 0.68, a: 1 } as const;
+
 function groundInstances(atlasIndex: AtlasIndex): SpriteInstanceInput[] {
   const scale = GROUND_TILE_METRES[CITY_GROUND_POOL] ?? { tileMetres: 30, detailScale: 11.3 };
   return [
@@ -365,6 +382,7 @@ function groundInstances(atlasIndex: AtlasIndex): SpriteInstanceInput[] {
       tileMetres: scale.tileMetres,
       detailScale: scale.detailScale,
       layer: LAYER_GROUND,
+      tint: CITY_GROUND_TINT,
     }),
   ];
 }
