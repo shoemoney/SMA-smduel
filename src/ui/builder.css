@@ -398,15 +398,21 @@
 }
 
 .sm-builder__preview-hull {
-  fill: rgba(99, 168, 255, 0.10);
-  stroke: rgba(99, 168, 255, 0.55);
-  stroke-width: 2;
+  /* A review of the real frame called the outline "extremely thin and
+     low-opacity against the dark blue background" and said the shape was not
+     readable — correct. This is the one element the whole panel exists to show,
+     so it gets a heavier stroke, a brighter colour and a soft glow rather than
+     a hairline. */
+  fill: rgba(99, 168, 255, 0.16);
+  stroke: #8fd0ff;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px rgba(99, 168, 255, 0.45));
 }
 
 .sm-builder__preview-armor {
-  fill: rgba(79, 214, 196, 0.34);
-  stroke: rgba(79, 214, 196, 0.7);
-  stroke-width: 1;
+  fill: rgba(79, 214, 196, 0.42);
+  stroke: #5fe3d2;
+  stroke-width: 1.5;
 }
 
 /* Underbody armour is not visible from above, so it is drawn as a dashed centre
@@ -419,7 +425,8 @@
 }
 
 .sm-builder__preview-weapon {
-  fill: rgba(255, 209, 102, 0.85);
+  fill: #ffd166;
+  filter: drop-shadow(0 0 5px rgba(255, 209, 102, 0.5));
   stroke: rgba(255, 209, 102, 0.95);
   stroke-width: 1;
 }

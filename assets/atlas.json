@@ -914,9 +914,35 @@
       "kind": "prop",
       "rotationOffsetDeg": 0
     },
-    "prop-crate": {
+    "decal-lane-stripe": {
       "atlas": 0,
       "x": 1312,
+      "y": 1162,
+      "w": 6,
+      "h": 96,
+      "trimX": 0,
+      "trimY": 0,
+      "srcW": 6,
+      "srcH": 96,
+      "kind": "decal",
+      "rotationOffsetDeg": 0
+    },
+    "decal-road-edge": {
+      "atlas": 0,
+      "x": 1320,
+      "y": 1162,
+      "w": 6,
+      "h": 96,
+      "trimX": 0,
+      "trimY": 0,
+      "srcW": 6,
+      "srcH": 96,
+      "kind": "decal",
+      "rotationOffsetDeg": 0
+    },
+    "prop-crate": {
+      "atlas": 0,
+      "x": 1328,
       "y": 1162,
       "w": 96,
       "h": 94,
@@ -929,7 +955,7 @@
     },
     "prop-junkpile": {
       "atlas": 0,
-      "x": 1410,
+      "x": 1426,
       "y": 1162,
       "w": 96,
       "h": 92,
@@ -942,7 +968,7 @@
     },
     "wreck-stripped": {
       "atlas": 0,
-      "x": 1508,
+      "x": 1524,
       "y": 1162,
       "w": 96,
       "h": 91,
@@ -955,7 +981,7 @@
     },
     "ui-speedo-dial": {
       "atlas": 0,
-      "x": 1606,
+      "x": 1622,
       "y": 1162,
       "w": 91,
       "h": 91,
@@ -968,7 +994,7 @@
     },
     "prop-city-gate": {
       "atlas": 0,
-      "x": 1699,
+      "x": 1715,
       "y": 1162,
       "w": 96,
       "h": 90,
@@ -981,7 +1007,7 @@
     },
     "prop-doormarker": {
       "atlas": 0,
-      "x": 1797,
+      "x": 1813,
       "y": 1162,
       "w": 96,
       "h": 90,
@@ -994,7 +1020,7 @@
     },
     "prop-hvac-cluster": {
       "atlas": 0,
-      "x": 1895,
+      "x": 1911,
       "y": 1162,
       "w": 96,
       "h": 68,

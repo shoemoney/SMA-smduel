@@ -8,7 +8,7 @@
       "keyColor": "#FC03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 270
     },
     "car-kart": {
@@ -17,7 +17,7 @@
       "keyColor": "#FC03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 270
     },
     "car-luxury": {
@@ -26,7 +26,7 @@
       "keyColor": "#FC03FA",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 270
     },
     "car-midsized": {
@@ -35,7 +35,7 @@
       "keyColor": "#FC03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 270
     },
     "car-pickup": {
@@ -44,7 +44,7 @@
       "keyColor": "#FC03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 270
     },
     "car-stationwagon": {
@@ -53,7 +53,7 @@
       "keyColor": "#FC03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 270
     },
     "car-subcompact": {
@@ -62,7 +62,7 @@
       "keyColor": "#FB03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 270
     },
     "car-van": {
@@ -71,7 +71,7 @@
       "keyColor": "#FC03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated, true orthographic top-down, nose UP (windshield/hood at the top of the frame, engine deck at the bottom) - verified by eye against a contact sheet of all 8 vehicles 2026-09-29. rotationOffsetDeg 270 places the nose on the quad local +X.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 270
     },
     "cycle-topdown": {
@@ -690,7 +690,7 @@
       "keyColor": "#FB03FA",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "fx-explosion": {
@@ -699,7 +699,7 @@
       "keyColor": "#FC04FA",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "ground-arena-a": {
@@ -708,7 +708,7 @@
       "keyColor": null,
       "keyColorDeviation": null,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "ground-arena-b": {
@@ -717,7 +717,7 @@
       "keyColor": null,
       "keyColorDeviation": null,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "ground-dirt-a": {
@@ -726,7 +726,7 @@
       "keyColor": null,
       "keyColorDeviation": null,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "ground-dirt-b": {
@@ -735,7 +735,7 @@
       "keyColor": null,
       "keyColorDeviation": null,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "ground-road-a": {
@@ -744,7 +744,7 @@
       "keyColor": null,
       "keyColorDeviation": null,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "ground-road-b": {
@@ -753,7 +753,7 @@
       "keyColor": null,
       "keyColorDeviation": null,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "prop-crate": {
@@ -762,7 +762,7 @@
       "keyColor": "#FB02FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "prop-junkpile": {
@@ -771,7 +771,7 @@
       "keyColor": "#FC03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "prop-sandbag": {
@@ -780,7 +780,7 @@
       "keyColor": "#FC03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     },
     "prop-tyres": {
@@ -789,7 +789,7 @@
       "keyColor": "#FB03FB",
       "keyColorDeviation": 0,
       "view": "orthographic",
-      "note": "codex (GPT-6 Astra) generated. codex (GPT-6 Astra) generated.",
+      "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
     }
   },

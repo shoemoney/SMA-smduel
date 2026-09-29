@@ -4515,6 +4515,96 @@ function radarContactsFromVehicles(
   return out;
 }
 
+/**
+ * Road lane markings, placed along the route's frozen forward axis.
+ *
+ * ## Why the road needed this at all
+ *
+ * The road surface is a tiled asphalt texture, which reads as motionless. Two
+ * separate vision reviews of the real frame said the same thing in different
+ * words — "the player loses all spatial reference and directionality; driving
+ * feels like sliding across a static pixelated grey sheet" and "difficult to
+ * perceive vehicle speed, drift, or surface changes". Texture alone cannot carry
+ * speed: it is identical at every point on the road, so nothing in the frame
+ * changes as you move and the eye has no cue to track.
+ *
+ * ## Why placement, not art
+ *
+ * The dash PATTERN is geometry, not pixels. A dash image with painted gaps would
+ * have to be authored at the camera's zoom to avoid looking stretched, and its
+ * period would be baked in at a fixed world scale. One short bar is instead
+ * placed repeatedly, so the dash period is a world-space distance the code owns
+ * and can change.
+ *
+ * `trip.routeHeadingRad` is the route's frozen forward axis, so the markings sit
+ * in a frame that does NOT rotate as the car swerves — correct, because a road's
+ * lane lines are painted on the road rather than attached to the driver.
+ *
+ * Only the stretch within sight is built, snapped to the dash period, so the
+ * instance count is bounded no matter how far the trip runs and the markings
+ * never slide or shimmer as the car moves.
+ */
+const ROAD_LANE_HALF_WIDTH_M = 4.2;
+/** Metres of painted line per dash, and the metres of gap before the next. */
+const ROAD_DASH_LENGTH_M = 3.2;
+const ROAD_DASH_PERIOD_M = 10;
+
+function roadLaneInstances(
+  atlasIndex: AtlasIndex,
+  vehicle: VehicleState,
+  routeHeadingRad: number,
+  visibleHalfExtentM: number,
+): SpriteInstanceInput[] {
+  const centreFrame = atlasIndex.frame('decal-lane-stripe');
+  const edgeFrame = atlasIndex.frame('decal-road-edge');
+  // Both frames are stored as neutral white so the atlas chroma keyer keeps
+  // them (a warm yellow was keyed away entirely). The highway's paint colour
+  // is applied here as a tint instead, which also keeps the look in one place.
+  const centreTint = { r: 1.15, g: 0.98, b: 0.62, a: 0.9 };
+  const edgeTint = { r: 0.7, g: 0.72, b: 0.76, a: 0.62 };
+
+  const forward = { x: Math.cos(routeHeadingRad), y: Math.sin(routeHeadingRad) };
+  const across = { x: -forward.y, y: forward.x };
+
+  // The player's projection onto the route axis, in metres, so the dash lattice
+  // is anchored to the WORLD rather than to the car.
+  const along0 = vehicle.position.x * forward.x + vehicle.position.y * forward.y;
+  const first = Math.ceil((along0 - visibleHalfExtentM) / ROAD_DASH_PERIOD_M);
+  const last = Math.floor((along0 + visibleHalfExtentM) / ROAD_DASH_PERIOD_M);
+
+  const out: SpriteInstanceInput[] = [];
+  for (let i = first; i <= last; i++) {
+    const along = i * ROAD_DASH_PERIOD_M;
+    for (const lateral of [0, -ROAD_LANE_HALF_WIDTH_M, ROAD_LANE_HALF_WIDTH_M]) {
+      const isCentre = lateral === 0;
+      const frame = isCentre ? centreFrame : edgeFrame;
+      out.push({
+        atlasId: String(frame.atlasIndex),
+        position: {
+          x: forward.x * along + across.x * lateral,
+          y: forward.y * along + across.y * lateral,
+        },
+        // The bar's long axis must run ACROSS the direction of travel.
+        //
+        // The frame's long axis is local +Y, and rotating it by the route
+        // heading alone leaves it pointing ALONG the road — which is what the
+        // first pass did, and the result was a continuous stripe running
+        // lengthwise down the carriageway: three long marks end to end with no
+        // visible gaps, so the "dashed centre line" read as a solid line. The
+        // extra quarter turn is what lays the bar across the road.
+        rotationRad: routeHeadingRad + Math.PI / 2,
+        sizeM: isCentre ? { x: 0.45, y: ROAD_DASH_LENGTH_M } : { x: 0.4, y: visibleHalfExtentM * 2 },
+        uvRect: frame.uv,
+        tint: isCentre ? centreTint : edgeTint,
+        // Below the ground quad (layer 0) and the vehicles, but above nothing
+        // else — markings are painted ON the road surface.
+        layer: 0,
+      });
+    }
+  }
+  return out;
+}
+
 function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripState, onArrive: (nextState: CityRunState) => void): void {
   const container = el('div', 'sm-screen sm-screen--road');
   container.style.cssText = 'position:absolute;inset:0;background:#05070a;';
@@ -4967,6 +5057,10 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     const visible = cameraVisibleHalfExtentM(camera);
     const half = Math.max(visible.x, visible.y) + GROUND_MARGIN_M;
     const groundInstances = buildGroundQuad(atlas, trip.vehicle.position, half, 'road');
+    // Lane markings, on the same layer as the ground so they paint onto it. They
+    // are appended to the ground buffer rather than the sprite buffer because
+    // they are part of the road surface, not things standing on it.
+    groundInstances.push(...roadLaneInstances(atlas, trip.vehicle, trip.routeHeadingRad, half));
     writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances), TILE_INSTANCE_CAPACITY);
     writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
 

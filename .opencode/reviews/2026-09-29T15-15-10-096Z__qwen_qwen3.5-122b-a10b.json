@@ -1,0 +1,74 @@
+{
+  "model": "qwen/qwen3.5-122b-a10b",
+  "modelLabel": "qwen/qwen3.5-122b-a10b",
+  "screens": [
+    "title",
+    "city",
+    "arena",
+    "road",
+    "constructor"
+  ],
+  "at": "2026-09-29T15:15:10.098Z",
+  "usage": {
+    "prompt_tokens": 2906,
+    "completion_tokens": 2991,
+    "total_tokens": 5897,
+    "cost": 0.00697684,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00697684,
+      "upstream_inference_prompt_cost": 0.00075556,
+      "upstream_inference_completions_cost": 0.00622128
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2320,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "findings": [
+    {
+      "title": "Menu Selection Visibility",
+      "where": "Title Screen, center menu box",
+      "problem": "The active selection 'New Driver' has a dark teal background that is nearly the same value as the surrounding menu box, with only a thin, low-contrast border.",
+      "why": "Players will struggle to identify which option is currently highlighted, creating friction in the first interaction and making the UI feel unpolished.",
+      "fix": "Brighten the background of the selected row significantly (e.g., to a medium grey or bright cyan) and add a thick, solid border around it to create a clear 'active' state."
+    },
+    {
+      "title": "Ground Texture Noise",
+      "where": "City and Road screens",
+      "problem": "The ground textures (concrete and asphalt) are muddy, low-contrast, and contain excessive high-frequency noise that looks like digital static.",
+      "why": "This visual noise creates a 'muddy' feel that makes it difficult to perceive vehicle speed, drift, or surface changes, reducing the sense of motion and control.",
+      "fix": "Clean up the texture noise to be more subtle, increase the overall contrast between the base color and the grime, and add directional streaks or cracks to imply movement and surface type."
+    },
+    {
+      "title": "Radar Legibility",
+      "where": "Arena and Road screens, bottom-left corner",
+      "problem": "The radar is a black circle with a very faint green sweep and no visible grid lines or distinct center marker.",
+      "why": "It reads as a broken or inactive UI element rather than a functional instrument; players cannot track enemies or orientation at a glance.",
+      "fix": "Add a visible grid overlay (faint white lines), brighten the sweep arc to a vibrant green, and ensure the center 'player' marker is a distinct, bright shape."
+    },
+    {
+      "title": "Chassis Preview Contrast",
+      "where": "Constructor screen, bottom right panel",
+      "problem": "The blue outline of the car chassis is extremely thin and low-opacity against the dark blue background.",
+      "why": "Players cannot clearly see the shape or dimensions of the vehicle they are building, making spatial planning and part placement difficult.",
+      "fix": "Increase the line weight of the chassis outline and brighten the color to a vibrant cyan or white to ensure it stands out clearly against the UI background."
+    },
+    {
+      "title": "Building Obstacle Clarity",
+      "where": "City screen, top-down view",
+      "problem": "The building sprites are flat, low-saturation, and lack drop shadows, causing them to blend into the grey ground texture.",
+      "why": "It is hard to distinguish drivable space from obstacles, leading to confusion about where the player can drive and making the world feel flat.",
+      "fix": "Add distinct drop shadows to the building sprites and increase their saturation or brightness slightly to separate them visually from the background."
+    }
+  ],
+  "parseError": null,
+  "raw": "[\n  {\n    \"title\": \"Menu Selection Visibility\",\n    \"where\": \"Title Screen, center menu box\",\n    \"problem\": \"The active selection 'New Driver' has a dark teal background that is nearly the same value as the surrounding menu box, with only a thin, low-contrast border.\",\n    \"why\": \"Players will struggle to identify which option is currently highlighted, creating friction in the first interaction and making the UI feel unpolished.\",\n    \"fix\": \"Brighten the background of the selected row significantly (e.g., to a medium grey or bright cyan) and add a thick, solid border around it to create a clear 'active' state.\"\n  },\n  {\n    \"title\": \"Ground Texture Noise\",\n    \"where\": \"City and Road screens\",\n    \"problem\": \"The ground textures (concrete and asphalt) are muddy, low-contrast, and contain excessive high-frequency noise that looks like digital static.\",\n    \"why\": \"This visual noise creates a 'muddy' feel that makes it difficult to perceive vehicle speed, drift, or surface changes, reducing the sense of motion and control.\",\n    \"fix\": \"Clean up the texture noise to be more subtle, increase the overall contrast between the base color and the grime, and add directional streaks or cracks to imply movement and surface type.\"\n  },\n  {\n    \"title\": \"Radar Legibility\",\n    \"where\": \"Arena and Road screens, bottom-left corner\",\n    \"problem\": \"The radar is a black circle with a very faint green sweep and no visible grid lines or distinct center marker.\",\n    \"why\": \"It reads as a broken or inactive UI element rather than a functional instrument; players cannot track enemies or orientation at a glance.\",\n    \"fix\": \"Add a visible grid overlay (faint white lines), brighten the sweep arc to a vibrant green, and ensure the center 'player' marker is a distinct, bright shape.\"\n  },\n  {\n    \"title\": \"Chassis Preview Contrast\",\n    \"where\": \"Constructor screen, bottom right panel\",\n    \"problem\": \"The blue outline of the car chassis is extremely thin and low-opacity against the dark blue background.\",\n    \"why\": \"Players cannot clearly see the shape or dimensions of the vehicle they are building, making spatial planning and part placement difficult.\",\n    \"fix\": \"Increase the line weight of the chassis outline and brighten the color to a vibrant cyan or white to ensure it stands out clearly against the UI background.\"\n  },\n  {\n    \"title\": \"Building Obstacle Clarity\",\n    \"where\": \"City screen, top-down view\",\n    \"problem\": \"The building sprites are flat, low-saturation, and lack drop shadows, causing them to blend into the grey ground texture.\",\n    \"why\": \"It is hard to distinguish drivable space from obstacles, leading to confusion about where the player can drive and making the world feel flat.\",\n    \"fix\": \"Add distinct drop shadows to the building sprites and increase their saturation or brightness slightly to separate them visually from the background.\"\n  }\n]"
+}

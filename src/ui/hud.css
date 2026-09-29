@@ -279,7 +279,10 @@
     radial-gradient(circle at 50% 50%, transparent 0 calc(66.6% - 0.5px), var(--ui-line) calc(66.6% - 0.5px) 66.6%, transparent 66%),
     linear-gradient(90deg, transparent calc(50% - 0.5px), var(--ui-line) calc(50% - 0.5px) 50%, transparent 50%),
     linear-gradient(0deg, transparent calc(50% - 0.5px), var(--ui-line) calc(50% - 0.5px) 50%, transparent 50%);
-  opacity: 0.55;
+  /* At the panel's real size (a ~180px dial) 0.55 left the rings faint enough
+     that a reviewer looking at the frame reported the radar had "no visible
+     grid lines" — the rings and crosshair were present, just too quiet. */
+  opacity: 0.8;
 }
 
 /* The sweep. A conic gradient rotating once every 3.6s, masked to the dial.
