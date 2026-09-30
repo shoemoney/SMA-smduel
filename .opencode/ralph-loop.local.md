@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 6
+iteration: 7
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -4544,3 +4544,53 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
    carrying a gun baked into its body artwork while the panel says
    "— none fitted"; and the ground-texel item, which remains the NEAREST-sampler
    art deferral.
+90. The facility-identity item, EXECUTED — asked for TWICE by Codex
+   `gpt-6.1-sol` and both times it came down to the same fact: "The legend
+   promises 'Jobs', but the same briefcase marks different services. I drove
+   into one and reached the Federal Building's 'coming in a future phase'
+   panel. Another opened bus tickets, asking around, battery charging, rooms,
+   and body armour. The map does not distinguish these destinations by name
+   before entry."
+
+   - **ONE LABEL, NOT A NAME ON EVERY DOOR.** Iteration 72 declined "a label
+     plate above each marker" and the reason was right: a dozen plates is a
+     dozen pieces of ink competing with the markers themselves, on the single
+     most contested element in the game (five distinct asks across four
+     directions in the log). A single PROXIMITY readout answers the question
+     the player actually has — "which door am I standing at?" — without adding
+     any of that, and it costs ZERO canvas instances in a layer exactly full at
+     95/95, the same reason the legend is a DOM overlay rather than more
+     sprites.
+   - The radius is `layout.tileSizeM`, which `generateCityLayout` assigns
+     `interactionRadiusM` — i.e. the SAME radius the doorway trigger uses. So
+     the label appears exactly when the door would actually open and never
+     advertises something out of reach. Read from the layout rather than
+     hardcoded, because the two drifting apart is the precise failure mode of
+     the thing this fixes.
+   - The name comes from `facilityName(doorway.facilityKind)` — the identical
+     lookup the trigger uses to build the menu it opens. The label cannot
+     disagree with the panel that appears, which is the whole failure being
+     fixed.
+   - `textContent` is only written when the name actually changes; assigning it
+     every frame would churn the DOM 60x a second for a string that changes
+     when you cross the plaza, not when you breathe.
+
+   - **A MEASUREMENT-SCOPE LESSON, THIRD VARIANT, AND IT FLIPPED THE
+     CONCLUSION AGAIN.** The full suite reported 4 failures on this branch,
+     three of them weapon-slot tests that WALK THROUGH THE GATE — which is
+     exactly what iteration 87's compass fix touches, so it looked like a
+     regression I had just introduced. Measured properly:
+       `screens.test.ts` ALONE, 4 runs each:
+         this branch:  1 failed | 29 passed — every run, and always the SAME
+                       test (campaign "Continue")
+         clean master: 1 failed | 29 passed — every run
+     Isolated, both trees fail exactly one identical test and the three
+     walking tests PASS on both. The compass fix did not destabilise
+     anything; the 1-8 spread is cross-file test pollution that only appears
+     in a full-suite run, which is the same flake iteration 87 measured and
+     the same trap as "a single stashed run is not a baseline".
+     Three times now a conclusion in this log has flipped on measurement SCOPE
+     rather than on any change to the game: one stashed run, then three full
+     runs, then isolated-per-file. The rule worth carrying: when a number moves,
+     the first question is not "what changed" but "what was the scope of the
+     thing I am comparing against".

@@ -185,7 +185,7 @@ import {
   WALL_SETBACK_M as CITY_WALL_SETBACK_M,
 } from '@/ui/city-view';
 import { mountMenu, type MenuAction, type MenuHeaderInfo } from '@/ui/menu';
-import { cityName, t } from '@/ui/strings';
+import { cityName, facilityName, t } from '@/ui/strings';
 import { isCoarsePointer, mountTouchControls, type TouchCommandSpec, type TouchControls } from '@/ui/touch';
 import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
 
@@ -4204,6 +4204,33 @@ function showCity(root: HTMLElement, state: CityRunState): void {
    * A legend is the cheapest possible way to close that, and it costs no
    * instances in a buffer that is exactly full.
    */
+  /**
+   * The NEAREST facility, named. Asked for twice by Codex `gpt-6.1-sol`:
+   * "The legend promises 'Jobs', but the same briefcase marks different
+   * services ... I drove into one and reached the Federal Building's 'coming in
+   * a future phase' panel. Another opened bus tickets, asking around, battery
+   * charging, rooms, and body armour."
+   *
+   * This is deliberately ONE label, not a name on every door. Iteration 72
+   * declined "a label plate above each marker" for a good reason — a dozen
+   * plates is a dozen pieces of ink competing with the markers themselves, on
+   * the most contested element in the game. A single proximity readout answers
+   * the question the player actually has ("which door am I standing at?")
+   * without adding any of that, and it costs ZERO canvas instances in a layer
+   * that is exactly full at 95/95 — the same reason the legend was a DOM
+   * overlay rather than more sprites.
+   *
+   * `facilityName` is the same lookup the doorway trigger uses, so the label
+   * cannot disagree with the menu that opens.
+   */
+  const nearestFacility = el('div');
+  nearestFacility.style.cssText =
+    'position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:none;' +
+    'align-items:center;gap:8px;color:#d7e0ea;font-family:system-ui,sans-serif;' +
+    'font-size:var(--ui-text-sm);background:rgba(10,14,20,0.82);' +
+    'border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-radius:6px;' +
+    'padding:5px 11px;pointer-events:none;white-space:nowrap;';
+
   const legend = el('div');
   // Size and colour are on the token scale rather than hardcoded, which they
   // were: 11px was the "secondary labels" step, chosen by eye when the legend
@@ -4247,6 +4274,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   container.appendChild(canvas);
   container.appendChild(status);
   container.appendChild(carStrip);
+  container.appendChild(nearestFacility);
   container.appendChild(legend);
   container.appendChild(deviceNotice);
   container.appendChild(retryBtn);
@@ -4638,9 +4666,41 @@ function showCity(root: HTMLElement, state: CityRunState): void {
       runState = { ...runState, clock: step.clock, vehicle: driven };
       if (step.trigger.kind !== 'none') handleTrigger(step.trigger);
     }
+    updateNearestFacility();
     updateStatus();
     renderFrame(nowMs / 1000);
     rafHandle = window.requestAnimationFrame(frame);
+  }
+
+  /**
+   * Show the nearest facility's name while the player is close enough to enter
+   * it, and nothing at all otherwise.
+   *
+   * The radius is the same interaction radius the doorway trigger itself uses
+   * (read from `layout.tileSizeM`, which `generateCityLayout` assigns
+   * `interactionRadiusM`), so the label appears exactly when the door would
+   * actually open and never advertises something out of reach. Reading it from
+   * the layout rather than hardcoding a number means the two can never drift
+   * apart — which is the entire failure mode of the thing this is fixing.
+   */
+  function updateNearestFacility(): void {
+    let bestName: string | null = null;
+    let bestDist = Infinity;
+    for (const doorway of layout.doorways) {
+      const d = Math.hypot(player.position.x - doorway.position.x, player.position.y - doorway.position.y);
+      if (d < bestDist) {
+        bestDist = d;
+        bestName = facilityName(doorway.facilityKind);
+      }
+    }
+    if (bestName === null || bestDist > layout.tileSizeM) {
+      nearestFacility.style.display = 'none';
+      return;
+    }
+    // Assigning textContent every frame would churn the DOM 60x a second for
+    // a string that changes rarely; only write it when it actually differs.
+    if (nearestFacility.textContent !== bestName) nearestFacility.textContent = bestName;
+    nearestFacility.style.display = 'flex';
   }
 
   function stop(): void {
