@@ -12,7 +12,7 @@
  * iteration 19 is what that failure costs).
  */
 import { describe, expect, it } from 'vitest';
-import { roadFurnitureInstances, roadLaneInstances, roadLateralOffsetM, roadRecoveryArrow } from '@/app';
+import { roadFurnitureInstances, roadLaneInstances, roadLateralOffsetM, roadRecoveryDirectionDeg } from '@/app';
 
 /**
  * The real `prop-delineator` frame's packed dimensions, 42x67 (the post plus its
@@ -162,16 +162,71 @@ describe('off-road recovery indicator geometry', () => {
     expect(roadLateralOffsetM(0, { x: 500, y: 0 })).toBeCloseTo(0, 6);
   });
 
-  it('points the arrow BACK TOWARD the centreline, not further out', () => {
-    // The inversion this whole describe block exists for. A car on the POSITIVE
-    // side has the road behind it in the negative direction, so the arrow must
-    // be the negative one. Shipping the same sign would produce a confident
-    // arrow pointing deeper into the field.
-    expect(roadRecoveryArrow(+8)).toBe('◀');
-    expect(roadRecoveryArrow(-8)).toBe('▶');
-    // ...and it must never depend on the exact offset beyond its sign.
-    expect(roadRecoveryArrow(+0.001)).toBe('◀');
-    expect(roadRecoveryArrow(-0.001)).toBe('▶');
+  it('points the arrow at the ROAD ON SCREEN, not at a fixed left/right', () => {
+    // THE REGRESSION THIS EXISTS FOR. `roadRecoveryArrow()` returned `◀`/`▶`
+    // from the lateral offset's SIGN, on the stated reasoning that the
+    // world-space `across` axis "cannot disagree with where the road actually
+    // is". It could and did: nothing ever projected it to screen, so the arrow
+    // was only right for an east-west road with the car beside it. Codex drove
+    // the build and got `◀` with the road plainly BELOW the car.
+    //
+    // The expectation is therefore derived from the screen projection rather
+    // than asserted as a glyph, so this test fails if the projection is
+    // removed rather than merely failing if a character changes.
+    //
+    // Reviewer's captured state: heading 0 (east-west road), car north of it.
+    // World +y is screen-up (buildOrthoMatrix sets m[5] positive and WebGPU
+    // puts clip +y at the top), so north-of-the-road is ABOVE on screen and
+    // the road is DOWN: the arrow must point down, i.e. 180deg.
+    expect(roadRecoveryDirectionDeg(+8, 0)).toBeCloseTo(180, 6);
+    expect(roadRecoveryDirectionDeg(-8, 0)).toBeCloseTo(0, 6);
+
+    // Rotate the road a quarter turn and the answer must rotate with it. The
+    // old sign-only function returned `◀` for BOTH of these.
+    // At heading 90deg the carriageway runs north-south, so `across` is -x: a
+    // positive lateral offset puts the car at world -x and the road to its
+    // +x, which is screen RIGHT.
+    expect(roadRecoveryDirectionDeg(+8, Math.PI / 2)).toBeCloseTo(90, 6);
+    expect(roadRecoveryDirectionDeg(-8, Math.PI / 2)).toBeCloseTo(270, 6);
+    expect(roadRecoveryDirectionDeg(+8, Math.PI)).toBeCloseTo(0, 6);
+    expect(roadRecoveryDirectionDeg(-8, Math.PI)).toBeCloseTo(180, 6);
+  });
+
+  it('agrees with the independently projected direction to the road', () => {
+    // The strongest form of the property: compute where the road actually is
+    // on screen from the vehicle's real world position, and check the arrow
+    // points that way. Nothing here knows about `across`, signs or glyphs, so
+    // this is a real cross-check rather than a restatement.
+    for (const heading of [0, Math.PI / 4, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]) {
+      for (const offset of [+30, -30]) {
+        const lateralOffsetM = roadLateralOffsetM(heading, { x: 0, y: offset });
+        const car = {
+          x: Math.cos(heading) * 20 - Math.sin(heading) * lateralOffsetM,
+          y: Math.sin(heading) * 20 + Math.cos(heading) * lateralOffsetM,
+        };
+        // Nearest point on the carriageway: the car's projection onto the route
+        // axis through the origin.
+        const along = car.x * Math.cos(heading) + car.y * Math.sin(heading);
+        const roadPoint = { x: along * Math.cos(heading), y: along * Math.sin(heading) };
+        // World +y is screen-up, so in CSS coordinates (y down) the screen
+        // vector from car to road is (dx, -dy).
+        const sx = roadPoint.x - car.x;
+        const sy = -(roadPoint.y - car.y);
+        const expectedDeg = (Math.atan2(sx, -sy) * 180) / Math.PI;
+        const actualDeg = roadRecoveryDirectionDeg(lateralOffsetM, heading);
+        // Compared as a CIRCULAR difference, not a subtraction: the function
+        // normalises to [0,360) and `atan2` returns (-180,180], so a leftward
+        // answer is legitimately 270 on one side and -90 on the other. What
+        // matters is whether they name the same screen direction, and a plain
+        // subtraction would report a 360-degree disagreement for a perfect
+        // match — a test that fails on representation rather than on meaning.
+        const off = Math.abs((((actualDeg - expectedDeg) % 360) + 540) % 360 - 180);
+        expect(
+          off,
+          `heading ${((heading * 180) / Math.PI).toFixed(0)}deg, offset ${offset}: arrow points ${actualDeg.toFixed(0)}deg but the road is at ${expectedDeg.toFixed(0)}deg on screen`,
+        ).toBeLessThan(1e-6);
+      }
+    }
   });
 
   it('has a threshold a driver on the carriageway never crosses', () => {

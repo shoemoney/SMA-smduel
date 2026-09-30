@@ -3634,7 +3634,17 @@ function showArenaEvent(
     messageCounter += 1;
     if (messages.length > 20) messages.shift();
   }
-  logMessage('info', t('ui.arena.eventEntered', { event: event.name, count: matchState.opponentsTotal }));
+  // The `{leave}` placeholder is filled from the SAME string the button renders,
+  // so the message cannot tell a player to press a control whose label has been
+  // translated or renamed. That was iteration 94's lesson applied forward: the
+  // previous version hardcoded "drive out the gate to exit" and there IS no gate
+  // exit — the arena has no bounds and the event ends through this button or a
+  // terminal match condition, so the sentence instructed an action that cannot
+  // accomplish the thing it promised.
+  logMessage(
+    'info',
+    t('ui.arena.eventEntered', { event: event.name, count: matchState.opponentsTotal, leave: t('ui.arena.leaveArena') }),
+  );
 
   const systems = createSystemsRegistry();
   systems.register('driving', makeArenaDrivingSystem(driverRef, playerVehicleId, opponents, aiInputs));
@@ -5301,29 +5311,58 @@ export function roadLateralOffsetM(
 }
 
 /**
- * Which way the recovery arrow points: TOWARD the centreline, so the opposite
- * sign to the car's own offset. A car on the positive side of the perpendicular
- * has the road behind it.
+ * Which way the recovery arrow points on SCREEN, in degrees clockwise from up
+ * (so the glyph `▲` can be rotated by this and nothing else has to change).
  *
- * WHY THE SIGN IS WHAT IT IS, so a reader can CHECK it rather than trust it:
- * `buildOrthoMatrix` sets `m[5] = sy` positive and WebGPU puts clip +y at the
- * TOP of the frame, so world +y is screen-UP (iteration 87 established this
- * convention and it is why the city's W/S controls were once inverted). At
- * route heading 0, `forward` is +x and `across` is therefore +y — so a positive
- * lateral offset means the car is ABOVE the centreline on screen, and the road
- * is DOWN from it, which is screen-LEFT. Hence `+ -> '◀'`. Reversing either
- * half of that reasoning yields a confident arrow pointing deeper into the
- * field, which is why the direction is pinned by test rather than argued once.
+ * THE BUG THIS REPLACES, because the reason the first version was wrong is the
+ * more useful half. `roadRecoveryArrow()` returned `◀` or `▶` from the sign of
+ * the lateral offset alone, with a comment claiming "the same `across` axis the
+ * geometry uses, so it cannot disagree with where the road actually is". It
+ * could and did: `across` is a WORLD-SPACE vector and was never projected to
+ * screen, so the arrow only pointed correctly for a road running east-west with
+ * the car below it. Codex drove it and reported the exact symptom — "I drove
+ * north of the horizontal carriageway and stopped. The road's delineator posts
+ * were visible along the bottom of the frame, but the indicator read '◀ Road —
+ * 14 m.' The road was below the car, not left of it."
  *
- * Worth being straight about the limits of that test: the arrow CANNOT flip
- * during a straight drive, because crossing the centreline ends the off-road
- * state. So the live check confirms the indicator appears, is hidden on the
- * carriageway, and counts down as the car returns — but the DIRECTION is
- * established by this unit test and the screen-space reasoning above, not by
- * observing it reverse on the road.
+ * The failure was recorded a round earlier and shipped anyway. Iteration 105
+ * said the direction "is not independently verifiable" because crossing the
+ * centreline ends the off-road state, so a straight drive cannot flip it — and
+ * then treated that as a reason to leave it alone rather than as the reason to
+ * do the arithmetic. An honest statement of what you could not check is not a
+ * substitute for checking it, especially when you already had a reason to
+ * suspect it: that round's own reasoning had concluded world +y is screen-up,
+ * which is exactly the case the sign-only arrow got wrong.
+ *
+ * THE PROJECTION, step by step, so a reader can check it rather than trust it:
+ *   1. the nearest point on the carriageway is the car's own projection onto the
+ *      route axis, so "the way back" is purely PERPENDICULAR to the road:
+ *          dir = -sign(lateral) * across,   across = (-sin h, cos h)
+ *      i.e. `dir = (sign*sin h, -sign*cos h)`. The sign is inverted because a
+ *      car on the positive side has the road on the negative side.
+ *   2. `buildOrthoMatrix` sets `m[0] = sx` and `m[5] = sy`, both POSITIVE, and
+ *      WebGPU puts clip +y at the TOP of the frame. So world +x is screen right
+ *      and world +y is screen UP — which means, in CSS pixel coordinates where
+ *      +y points DOWN, the screen vector is `(vx, -vy)`:
+ *          screen = (sign*sin h, sign*cos h)
+ *   3. `▲` already points up, i.e. screen (0,-1), and CSS `rotate()` is
+ *      clockwise, so rotating it by `f` gives `(sin f, -cos f)`. Matching that
+ *      against step 2 gives `sin f = sign*sin h` and `cos f = -sign*cos h`.
+ *
+ * Worked against the reviewer's own captured state — road heading 0, car north
+ * of it, so lateral > 0 — this yields `f = atan2(0, -1) = 180deg`, a `▼`, and
+ * the road was indeed below the car. The old code returned `◀`.
  */
-export function roadRecoveryArrow(lateralM: number): '◀' | '▶' {
-  return lateralM > 0 ? '◀' : '▶';
+export function roadRecoveryDirectionDeg(lateralM: number, routeHeadingRad: number): number {
+  const sign = lateralM > 0 ? 1 : -1;
+  const deg = (Math.atan2(sign * Math.sin(routeHeadingRad), -sign * Math.cos(routeHeadingRad)) * 180) / Math.PI;
+  // Normalised to [0, 360). `atan2` returns (-180, 180], so the leftward answer
+  // arrives as -90 rather than 270 — the same screen direction, but the
+  // function's stated contract is "degrees clockwise from up", and a value
+  // outside that range makes every downstream comparison ambiguous about
+  // whether two equal directions were compared. CSS accepts either; the
+  // contract should not need the reader to know that.
+  return ((deg % 360) + 360) % 360;
 }
 
 export function roadFurnitureInstances(
@@ -5693,6 +5732,16 @@ function showRoad(
    * iterations 11 and 53 were both about.
    */
   const offRoadHint = el('div');
+  // The direction is carried by a ROTATED ELEMENT rather than a `◀`/`▶`
+  // character in the string, because the answer is a screen-space angle and
+  // not one of two glyphs: `roadRecoveryArrow()` picked a left/right pair from
+  // the lateral offset's sign and was wrong whenever the road was above or
+  // below the car rather than beside it (Codex drove it and got `◀` with the
+  // road plainly below). Rotating `▲` handles all eight directions with one
+  // glyph and keeps the wording in strings.json, where every other word lives.
+  const offRoadArrow = el('span');
+  offRoadArrow.style.cssText = 'display:inline-block;transform-origin:50% 50%;margin-right:5px;';
+  offRoadArrow.textContent = '\u25B2';
   offRoadHint.style.cssText =
     'position:absolute;top:120px;left:50%;transform:translateX(-50%);color:#ffd166;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.82);border:1px solid rgba(255,209,102,0.4);padding:5px 11px;border-radius:4px;pointer-events:none;white-space:nowrap;';
   offRoadHint.style.display = 'none';
@@ -5720,6 +5769,7 @@ function showRoad(
   container.appendChild(status);
   container.appendChild(driveHint);
   container.appendChild(menuHint);
+  offRoadHint.prepend(offRoadArrow);
   container.appendChild(offRoadHint);
   container.appendChild(progress);
   container.appendChild(notice);
@@ -6606,11 +6656,15 @@ function showRoad(
     const offRoadThresholdM = ROAD_LANE_HALF_WIDTH_M + ROAD_SHOULDER_M;
     if (Math.abs(lateralOffsetM) > offRoadThresholdM) {
       const metres = Math.round(Math.abs(lateralOffsetM) - offRoadThresholdM);
-      // Negative arrow = toward the centreline. `◀`/`▶` in screen terms is
-      // resolved by the same `across` axis the geometry uses, so it cannot
-      // disagree with where the road actually is.
-      const arrow = roadRecoveryArrow(lateralOffsetM);
-      offRoadHint.textContent = t('ui.road.offRoad', { arrow, metres: String(metres) });
+      // Rotate the arrow to the SCREEN direction of the nearest carriageway
+      // point. The previous `roadRecoveryArrow(lateralM)` picked a left/right
+      // glyph from the sign of the offset, on the stated reasoning that the
+      // world-space `across` axis "cannot disagree with where the road actually
+      // is" — which is precisely what it did, because nothing projected it to
+      // screen. See that function's own comment for the derivation.
+      const deg = roadRecoveryDirectionDeg(lateralOffsetM, trip.routeHeadingRad);
+      offRoadArrow.style.transform = `rotate(${deg.toFixed(1)}deg)`;
+      offRoadHint.lastChild!.textContent = t('ui.road.offRoad', { metres: String(metres) });
       if (offRoadHint.style.display !== 'flex') offRoadHint.style.display = 'flex';
     } else if (offRoadHint.style.display !== 'none') {
       offRoadHint.style.display = 'none';

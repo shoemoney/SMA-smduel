@@ -589,6 +589,11 @@ const EXISTING_VIOLATIONS: ReadonlySet<string> = new Set(
     ['src/ui/hud.ts', 'hostile'],
     ['src/ui/hud.ts', 'contact'],
     ['src/ui/hud.ts', '▲'],
+    // src/app.ts — the off-road recovery arrow's glyph. A symbol rather than a
+    // word, so it belongs here rather than in strings.json: there is no
+    // translation of '▲' and the ROAD STRUCTURE lives in strings.json while
+    // the pointer is rotated in CSS. Same route the '●' durability dot took.
+    ['src/app.ts', '▲'],
     ['src/ui/hud.ts', 'mph'],
     ['src/ui/hud.ts', 'mi'],
     ['src/ui/hud.ts', '0%'],

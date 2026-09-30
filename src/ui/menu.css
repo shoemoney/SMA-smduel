@@ -72,6 +72,34 @@
   backdrop-filter: blur(6px);
 }
 
+/* An OPEN MENU IS ABOVE THE HUD, and this is not a z-index preference — it is
+ * the difference between a reachable control and a swallowed one.
+ *
+ * Codex drove the road, pressed Escape, and hit-tested the trip menu's own
+ * option numbers: `elementFromPoint` returned `hud-radar-face`. The radar
+ * (x 25-179, y 783-937 at 1200x1010) sits bottom-left in WINDOW coordinates,
+ * while `menuHost` is sized to the GAME VIEW (420-480px) and bottom-anchored,
+ * so the menu's lower rows land in exactly the radar's corner. With no stacking
+ * declared here, `.hud-root`'s `z-index: 20` painted the radar over the menu
+ * AND gave it the pointer events — the player could see four numbered options
+ * and be unable to click three of them.
+ *
+ * Two rules, and the second is the real one: a modal that is merely on top can
+ * still leak clicks to whatever is beneath it, so the HUD must stop receiving
+ * them while a menu is open. `pointer-events: none` on the menu container would
+ * be wrong (it carries the keydown); scoping `pointer-events: none` to the HUD
+ * from here cannot be done in CSS at all, since this stylesheet and `hud.css`
+ * meet only at the DOM. So this rule fixes the stacking and the visual overlap,
+ * and the click-through is closed by the same elevation — the radar is now
+ * under the panel, so `elementFromPoint` over a covered number returns the menu.
+ *
+ * 30 is above `.hud-root`'s 20 and below nothing else in the game.
+ */
+.sm-menu-root {
+  position: relative;
+  z-index: 30;
+}
+
 /* mountMenu focuses the CONTAINER (which owns keydown), not a row — so this is
    the menu's focus ring, and it is the only one a keyboard user ever sees. */
 .sm-menu-root:focus-visible {
