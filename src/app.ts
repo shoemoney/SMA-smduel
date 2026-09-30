@@ -187,7 +187,7 @@ import {
   type CityViewSnapshot,
   WALL_SETBACK_M as CITY_WALL_SETBACK_M,
 } from '@/ui/city-view';
-import { mountMenu, type MenuAction, type MenuHeaderInfo } from '@/ui/menu';
+import { mountMenu, type MenuAction, type MenuHeaderInfo, type MountedMenu } from '@/ui/menu';
 import { cityName, facilityName, t } from '@/ui/strings';
 import { isCoarsePointer, mountTouchControls, type TouchCommandSpec, type TouchControls } from '@/ui/touch';
 import { createRecoveryOrchestrator, type RecoveryOrchestrator } from '@/ui/gpu-recovery';
@@ -5399,6 +5399,60 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   retryBtn.style.cssText =
     'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
 
+  /**
+   * The trip menu, and why the road screen needed one at all.
+   *
+   * Codex `gpt-6.1-sol` drove this screen and reported: "I tried Escape and P.
+   * Neither opened a menu or paused the simulation; the car continued
+   * coasting." Correct, and it greps clean — `showRoad` mounted no menu and no
+   * actions of any kind, so there was no pause, no controls reference, and no
+   * way to leave a trip. Every other screen in the game has a menu: the title
+   * has one, the practice arena has an "Exit to Title" button, and every
+   * building interior has a numbered menu. The road was the only screen where a
+   * player who wanted to stop had to use browser navigation.
+   *
+   * That is especially costly HERE, because of the pacing finding this log
+   * carries: a leg is a genuine ~129 minutes of driving, so "check the controls
+   * or stop for a moment" is not a rare impulse on this screen, it is the
+   * normal thing a player wants to do. The reviewer was explicit that the menu
+   * is needed even after travel is shortened.
+   *
+   * `menuHost` stays EMPTY until the menu is opened, so the road renders
+   * exactly as it did before this change while the menu is closed — which is
+   * the only way to be sure the pause overlay does not regress the frame the
+   * capture gate measures.
+   */
+  const menuHost = el('div');
+  menuHost.style.cssText =
+    'position:absolute;left:clamp(16px,4vw,56px);bottom:clamp(20px,5vh,56px);width:min(360px,calc(100vw - 32px));';
+  /**
+   * The menu's own title, mounted into `menuHost` only while the menu is open.
+   *
+   * `@/ui/menu`'s `buildMenuDom` renders the money/date header and a numbered
+   * list and nothing else, so "Trip menu" is this element's job. It lives in
+   * `menuHost` rather than in `container` permanently because `menuHost` is
+   * emptied by `closeTripMenu`, and a title left on screen after the menu
+   * closed would be exactly the orphaned-widget shape iteration 71 caught
+   * (an exit button hidden behind a panel, reading as a stray artifact).
+   */
+  const menuTitle = el('div');
+  menuTitle.style.cssText =
+    'color:#d7e0ea;font-family:system-ui,sans-serif;font-size:15px;font-weight:600;margin:0 0 8px;';
+  /**
+   * A persistent hint that the menu exists.
+   *
+   * A pause control the player does not know about is not a pause control, and
+   * the reviewer's whole point was that they had to GUESS at a key. It is
+   * deliberately permanent rather than one of the fading drive hints: the drive
+   * hint teaches driving, which is learned in the first ten seconds, whereas
+   * "you can stop" is a fact about the screen that has to stay true and stay
+   * discoverable for the whole 129-minute leg.
+   */
+  const menuHint = el('div');
+  menuHint.style.cssText =
+    'position:absolute;top:88px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:3px 9px;border-radius:4px;pointer-events:none;';
+  menuHint.textContent = t('ui.road.menuHint');
+
   // --- route progress -------------------------------------------------------
   // A vision review asked for "a thicker, high-contrast progress bar with a
   // filled portion and a vehicle marker". It is a real ask: the objective line
@@ -5421,9 +5475,11 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   container.appendChild(canvas);
   container.appendChild(status);
   container.appendChild(driveHint);
+  container.appendChild(menuHint);
   container.appendChild(progress);
   container.appendChild(notice);
   container.appendChild(retryBtn);
+  container.appendChild(menuHost);
   clearAndAppend(root, container);
 
   lastSessionSeed = state.sessionSeed;
@@ -5705,6 +5761,127 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     return damage;
   }
 
+  // --- trip menu ----------------------------------------------------------
+  /**
+   * Pause state. The whole point of the menu is that the trip STOPS, so this
+   * gates the fixed-timestep loop in `frame` rather than only covering the
+   * screen with a panel — a translucent menu over a simulation that keeps
+   * running would be worse than no menu, because the player would be choosing
+   * between Resume and Abandon while their car kept driving itself off the
+   * road.
+   *
+   * `roadAccumulator` is deliberately NOT zeroed on resume. It is drained by the
+   * stepping loop every frame, so by the time the menu is open it holds only
+   * the sub-tick remainder (under one `dtSecondsFixed`), and keeping it means
+   * resuming continues the trip from the same sub-tick phase. Zeroing it would
+   * be harmless in practice and would look like it mattered.
+   */
+  let paused = false;
+  let mountedMenu: MountedMenu | null = null;
+  /**
+   * Set when the trip menu's OWN handler consumed this keypress.
+   *
+   * This exists because of event ordering, and the first version of this guard
+   * was wrong in exactly the way its own comment predicted. `mountMenu`
+   * registers keydown on `menuHost` and the screen's pause handler is on
+   * `window`; a keypress on a row inside the menu therefore reaches
+   * `menuHost` FIRST and `window` SECOND. So on Escape while open:
+   *   1. `handleMenuKey` returns BACK -> `closeTripMenu()` -> `paused = false`
+   *   2. the window handler runs, sees `paused === false`, and RE-OPENS the menu
+   * The trip appeared not to respond to Escape at all, which is the shipped
+   * bug the reviewer reported, re-created by the fix for it. `if (paused)
+   * return` cannot catch this: by the time the window handler runs, the menu
+   * has already cleared the flag it was supposed to be guarding.
+   *
+   * The flag is consumed on read and reset on the next keydown, so it applies
+   * to exactly the one keypress the menu handled and cannot mask a later one.
+   */
+  let menuHandledKey = false;
+
+  function openTripMenu(): void {
+    if (mountedMenu !== null) return;
+    paused = true;
+    // Clear held keys so a player who opens the menu while holding W does not
+    // find the car accelerating again the instant they resume — the menu is
+    // where the player is deciding to drive, and `attachCodeTracking` only ever
+    // ADDS codes, so a cleared set is what actually stops the stick.
+    codesDown.clear();
+    menuHost.innerHTML = '';
+    menuHost.appendChild(menuTitle);
+    menuTitle.textContent = t('ui.road.menu');
+    const actions: MenuAction[] = [
+      { id: 'resume', label: t('ui.road.menuResume'), eligible: true },
+      { id: 'controls', label: t('ui.road.menuControls'), eligible: true },
+      { id: 'abandon', label: t('ui.road.menuAbandon'), eligible: true },
+    ];
+    mountedMenu = mountMenu({
+      container: menuHost,
+      // The in-run menus DO show the header: money, day and city are real
+      // status while a trip is in flight, unlike the title screen where this
+      // same line was a phantom readout (see `mountMenu`'s own `showHeader`).
+      header: {
+        cash: driver.cash,
+        dayIndex: trip.clock.dayIndex,
+        phase: trip.clock.phase,
+        cityName: cityName(trip.resolved.originCityId),
+      },
+      actions,
+      onActivate: (id) => {
+        if (id === 'resume') {
+          closeTripMenu();
+          return;
+        }
+        if (id === 'controls') {
+          closeTripMenu();
+          // The controls screen mounts over `root`, so the road is torn down
+          // with it; returning re-runs the whole road screen from `trip`, which
+          // is still the live trip state and not a re-derivation.
+          showControls(root, () => showRoad(root, state, trip, onArrive));
+          return;
+        }
+        finishAbandoned();
+      },
+      onBack: () => {
+        menuHandledKey = true;
+        closeTripMenu();
+      },
+    });
+  }
+
+  function closeTripMenu(): void {
+    mountedMenu?.destroy();
+    mountedMenu = null;
+    menuHost.innerHTML = '';
+    paused = false;
+  }
+
+  /**
+   * Voluntary abandonment: the SPEC's own escape ("the player may continue on
+   * foot"), reached deliberately instead of only by running the battery flat.
+   *
+   * The payload is deliberately IDENTICAL to `finishDestroyed` below — same
+   * origin city, same `vehicleStored: true`, same fleet reconciliation. That
+   * is the point: both routes mean "the car stays on the highway and you walk
+   * back", so a player who abandons deliberately and a player whose car dies
+   * are left in exactly the same world state, and there is one implementation
+   * of what abandonment MEANS rather than two that can drift.
+   */
+  function finishAbandoned(): void {
+    stop();
+    closeTripMenu();
+    logNotice(t('ui.road.abandonDone'));
+    onArrive({
+      ...state,
+      driver: { ...driver, cityId: trip.resolved.originCityId },
+      vehicle: trip.vehicle,
+      vehicleStored: true,
+      cityId: trip.resolved.originCityId,
+      clock: trip.clock,
+      fleet: reconcileFleetWithVehicle(state.fleet, trip.vehicle, true, trip.resolved.originCityId),
+      routeHistory: nextRouteHistory(),
+    });
+  }
+
   // --- input ------------------------------------------------------------
   const codesDown = new Set<string>();
   const inputTracking = attachCodeTracking(codesDown);
@@ -5893,6 +6070,14 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
     window.removeEventListener('keydown', onSearchKey);
+    // The trip menu's own listener and its mounted menu both outlive `frame`
+    // being cancelled, and both are screen-scoped: a road screen that is torn
+    // down with its pause key still attached would have the NEXT screen's
+    // Escape keypress open a trip menu over the city. `mountedMenu` is torn down
+    // through `closeTripMenu` for the same reason — it focuses its container,
+    // and a focused menu left in a dead DOM is a focus trap.
+    window.removeEventListener('keydown', onPauseKey);
+    closeTripMenu();
     touch?.destroy();
     // Release the per-screen GPU set before the context goes. `destroy()` on
     // the context tears down the managed scene texture only; the atlas texture,
@@ -5990,10 +6175,65 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
   }
   window.addEventListener('keydown', onSearchKey);
 
+  /**
+   * Esc / P toggle the trip menu.
+   *
+   * Both keys, because the reviewer tried both and only one being live would be
+   * a coin flip. `Escape` is the game's existing back-out key — `@/ui/menu`'s
+   * own `handleMenuKey` maps it to BACK on every other menu in the game — and
+   * `P` is the near-universal pause key, so this matches player expectation
+   * from both directions.
+   *
+   * Registered BEFORE the drive keys matter: while paused the menu owns the
+   * keyboard, and while driving the menu must not steal a key the car needs.
+   * `P` is not a bound driving action and `Escape` is not bound at all, so
+   * there is no conflict to resolve — verified rather than assumed, because
+   * `controls.json` is rebindable at runtime and a future binding to either key
+   * would make this a real collision.
+   */
+  function onPauseKey(ev: KeyboardEvent): void {
+    // A keypress the menu already handled (BACK, an action, a digit) is not a
+    // second, independent request to pause. Read-and-clear, so the very next
+    // keypress is judged on its own.
+    if (menuHandledKey) {
+      menuHandledKey = false;
+      return;
+    }
+    if (ev.key !== 'Escape' && ev.key.toLowerCase() !== 'p') return;
+    // Only open. Closing is the menu's own job (its BACK maps to `onBack`),
+    // because `mountMenu` focuses its container and therefore owns the keyboard
+    // while it is open — this handler must not also close, or one Escape would
+    // toggle twice and appear to do nothing.
+    if (paused) return;
+    ev.preventDefault();
+    openTripMenu();
+  }
+  window.addEventListener('keydown', onPauseKey);
+
   function frame(nowMs: number): void {
     if (stopped) return;
     const frameDeltaSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
     lastTimeMs = nowMs;
+
+    /**
+     * While the menu is open the trip is FROZEN, and the freeze is a return
+     * before any simulation is read rather than a `paused` check around the
+     * stepping loop. Putting it first means nothing can slip past: not
+     * `stepRoadTrip`, not `stepCombat`, not weapon cooldown, not the route
+     * clock, not contact engagement.
+     *
+     * It still redraws, because the menu is an overlay on a frozen FRAME and a
+     * stale canvas under a menu is fine — but `lastTimeMs` has already been
+     * consumed above, so the frame the menu closes on cannot carry the whole
+     * paused duration as one enormous clamped delta. That is the whole reason
+     * the update is placed here rather than after the delta is read.
+     */
+    if (paused) {
+      renderFrame(nowMs / 1000);
+      renderRoadHudFrame();
+      rafHandle = window.requestAnimationFrame(frame);
+      return;
+    }
 
     const raw = rawInputFrom(codesDown, touch);
     weaponSelection.update(raw);
