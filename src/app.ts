@@ -278,6 +278,22 @@ const PROJECTILE_EFFECT_SIZE_M = {
 };
 /** The muzzle flash is ~2.4x the bolt it fires; see `projectileSpriteInstances`. Exported so a test can assert the ratio rather than restate it. */
 export const MUZZLE_FLASH_SIZE_MULTIPLIER = 2.4;
+
+/**
+ * How long an impact spark survives, in SIMULATION ticks.
+ *
+ * Derived from the sim's own tick rate rather than a wall-clock guess, and
+ * anchored on what the player can actually perceive: the arena runs at 60Hz
+ * (driving.json's `tickRateHz`), so 14 ticks is ~230ms — long enough to catch
+ * in peripheral vision while driving, short enough that it never becomes
+ * scenery. A longer life is not a "brighter" effect, it is a stale one, and a
+ * spark still hanging around a minute later is asserting a hit that has scrolled
+ * out of relevance.
+ */
+const IMPACT_EFFECT_LIFETIME_TICKS = 14;
+
+/** Hard cap on simultaneous sparks, independent of the age bound. */
+const MAX_IMPACT_EFFECTS = 12;
 const FLOOR_TILE_SIZE_M = 10;
 const FLOOR_TILES_PER_SIDE = 9;
 const PIXELS_PER_METER_CSS = 14;
@@ -1708,6 +1724,19 @@ export function makeArenaDamageSystem(
   projectileTargets: Map<string, string>,
   matchStateRef: { current: ArenaMatchState },
   log: (kind: HudMessageKind, text: string) => void,
+  /**
+   * Called with the projectile's position at the instant a hit RESOLVES — not
+   * when the bolt merely reaches a collider, and not when it expires at range.
+   * That distinction is the whole point: a shot that lands and a shot that runs
+   * out of range are different events to the player, and an effect drawn for
+   * both would lie about half of them.
+   *
+   * This exists because a resolving projectile is DROPPED from
+   * `world.entities.projectiles` on the tick it connects, so by render time
+   * there is nothing left to draw. Iteration 118 recorded that as the reason an
+   * impact effect needed a state addition. This is that addition.
+   */
+  onImpact?: (position: Vec2) => void,
 ): SystemFn {
   return (world) => {
     const collisionCfg = drivingConfig().collision;
@@ -1740,6 +1769,9 @@ export function makeArenaDamageSystem(
       const defeated = opponentDefeatedByReport(resolved.report);
       const nextVehicle = defeated ? { ...resolved.target.vehicle, destroyed: true } : resolved.target.vehicle;
       world.entities.vehicles[targetIndex] = nextVehicle;
+      // The bolt is already gone from the world by this point, so this is the
+      // only instant at which the hit has a position that can be drawn.
+      onImpact?.(projectile.position);
 
       if (isTargetPlayer) {
         driverRef.current = resolved.target.driver;
@@ -2479,6 +2511,37 @@ export function vehicleSpriteInstance(
  * after the vehicles. Truncating an effect is the correct failure — a missing
  * tracer on the busiest frame — and a blank screen is not.
  */
+/**
+ * The sparks where shots LAND.
+ *
+ * `fx-impact-spark` is the correct art here and was the WRONG art for the
+ * travelling bolt in iteration 117 — a soft 21%-opaque burst is what a hit looks
+ * like, and a dart in flight needs the sharp flash instead. The two states are
+ * different events and now use different frames, which is the whole reason the
+ * original choice looked wrong only once the size was fixed.
+ *
+ * Sized against the vehicle for the same reason the tracer is: a derived
+ * fraction of something the player already reads, never a number that was
+ * measured too small and then frozen (iteration 118).
+ */
+export function impactSpriteInstances(
+  impacts: readonly { position: Vec2 }[],
+  atlasIndex: AtlasIndex,
+): SpriteInstanceInput[] {
+  return impacts.map((impact) => {
+    const frame = atlasIndex.frame('fx-impact-spark');
+    return {
+      atlasId: String(frame.atlasIndex),
+      position: { ...impact.position },
+      rotationRad: degToRad(frame.rotationOffsetDeg),
+      sizeM: { x: VEHICLE_SPRITE_SIZE_M.x * 0.4, y: VEHICLE_SPRITE_SIZE_M.y * 0.4 },
+      uvRect: frame.uv,
+      tint: { r: 1, g: 1, b: 1, a: 1 },
+      layer: 1,
+    };
+  });
+}
+
 export function projectileSpriteInstances(
   projectiles: readonly ProjectileState[],
   worldTick: number,
@@ -3842,6 +3905,19 @@ function showArenaEvent(
     messageCounter += 1;
     if (messages.length > 20) messages.shift();
   }
+
+  // Where shots LAND, for the fraction of a second a player can actually see
+  // it. Bounded on BOTH axes, because an unbounded effect list is a slow leak
+  // and a long-lived one is a lie about when the hit happened:
+  //   - by AGE, so a spark is gone within IMPACT_EFFECT_LIFETIME_TICKS rather
+  //     than lingering as decoration on a fight that has moved on;
+  //   - by COUNT, so a burst that resolves several shots on one tick cannot grow
+  //     the sprite list past what the buffer holds.
+  const impacts: { position: Vec2; tick: number }[] = [];
+  function recordImpact(position: Vec2): void {
+    impacts.push({ position: { ...position }, tick: world.tick });
+    while (impacts.length > MAX_IMPACT_EFFECTS) impacts.shift();
+  }
   // The `{leave}` placeholder is filled from the SAME string the button renders,
   // so the message cannot tell a player to press a control whose label has been
   // translated or renamed. That was iteration 94's lesson applied forward: the
@@ -3858,7 +3934,7 @@ function showArenaEvent(
   systems.register('driving', makeArenaDrivingSystem(driverRef, playerVehicleId, opponents, aiInputs));
   systems.register('weapons', makeArenaWeaponsSystem(driverRef, playerVehicleId, opponents, aiInputs, projectileTargets, spawnCounter, logMessage));
   systems.register('projectiles', projectilesSystem);
-  systems.register('damage', makeArenaDamageSystem(playerVehicleId, driverRef, opponents, projectileTargets, matchStateRef, logMessage));
+  systems.register('damage', makeArenaDamageSystem(playerVehicleId, driverRef, opponents, projectileTargets, matchStateRef, logMessage, recordImpact));
   systems.register('ai', makeArenaAISystem(playerVehicleId, opponents, aiInputs));
   systems.register('cleanup', cleanupSystem);
 
@@ -4181,7 +4257,17 @@ function showArenaEvent(
     // the busiest frame is invisible; dropping every vehicle is not, so the
     // vehicles keep their claim and the effects yield.
     const effectHeadroom = Math.max(0, SPRITE_INSTANCE_CAPACITY - vehicleInstances.length);
-    const effectInstances = projectileSpriteInstances(world.entities.projectiles, world.tick, atlas).slice(0, effectHeadroom);
+    // Prune BY AGE at the point of drawing, not on a timer: a spark is removed
+    // on the first frame that finds it too old, so the list cannot hold a dead
+    // effect across a pause (where `world.tick` stops advancing) and then dump
+    // a burst of them the frame play resumes.
+    while (impacts.length > 0 && world.tick - impacts[0]!.tick > IMPACT_EFFECT_LIFETIME_TICKS) {
+      impacts.shift();
+    }
+    const effectInstances = [
+      ...projectileSpriteInstances(world.entities.projectiles, world.tick, atlas),
+      ...impactSpriteInstances(impacts, atlas),
+    ].slice(0, effectHeadroom);
     const spriteInstances = cullInstances(
       [...vehicleInstances, ...effectInstances],
       camera.getVisibleBounds(),

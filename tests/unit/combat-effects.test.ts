@@ -30,7 +30,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { MUZZLE_FLASH_SIZE_MULTIPLIER, projectileSpriteInstances } from '@/app';
+import { MUZZLE_FLASH_SIZE_MULTIPLIER, impactSpriteInstances, projectileSpriteInstances } from '@/app';
 import type { ProjectileState } from '@/sim/combat';
 
 /** The real `fx-*` frames' packed dimensions, per name, so a test can tell the two sprites apart. */
@@ -153,5 +153,40 @@ describe('combat effects: the projectile tracer', () => {
     const headroom = Math.max(0, 64 - vehicles);
     const emitted = projectileSpriteInstances(many, TICK, atlasIndex).slice(0, headroom);
     expect(emitted.length + vehicles).toBeLessThanOrEqual(64);
+  });
+});
+
+describe('combat effects: the impact spark', () => {
+  const FX = { width: 110, height: 128, rotationOffsetDeg: 0, uv: { u0: 0, v0: 0, u1: 1, v1: 1 } };
+  const fxAtlas = { frame: () => ({ ...FX, atlasIndex: 0, name: 'fx-impact-spark' }) } as never;
+
+  it('draws one spark per recorded impact, at the position the hit resolved', () => {
+    // The position is the whole value of the effect: a spark drawn anywhere but
+    // where the shot landed is decoration, not feedback.
+    const instances = impactSpriteInstances([{ position: { x: 4, y: -9 } }], fxAtlas);
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.position).toEqual({ x: 4, y: -9 });
+  });
+
+  it('draws nothing when nothing has been hit', () => {
+    expect(impactSpriteInstances([], fxAtlas)).toEqual([]);
+  });
+
+  it('requests the IMPACT art, not the travelling bolt art', () => {
+    // A sharp flash in flight and a soft burst on impact are different events,
+    // and the two once shared a frame — choosing wrong there is exactly what
+    // made the original tracer invisible. The double RECORDS what was asked
+    // for, because asserting on the double's own `name` field would only prove
+    // the double names itself correctly.
+    const asked: string[] = [];
+    const recording = { frame: (name: string) => { asked.push(name); return { ...FX, atlasIndex: 0, name }; } } as never;
+    impactSpriteInstances([{ position: { x: 0, y: 0 } }], recording);
+    expect(asked).toEqual(['fx-impact-spark']);
+  });
+
+  it('scales against the vehicle rather than a frozen literal', () => {
+    const [one] = impactSpriteInstances([{ position: { x: 0, y: 0 } }], fxAtlas);
+    expect(one?.sizeM.x ?? 0).toBeCloseTo(3.2 * 0.4, 6);
+    expect(one?.sizeM.y ?? 0).toBeCloseTo(5.2 * 0.4, 6);
   });
 });
