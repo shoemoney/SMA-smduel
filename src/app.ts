@@ -1549,16 +1549,39 @@ function resolveVehicleCollisions(
       // `(b.speedMps - a.speedMps) * (n.x + n.y)` — zero for ANY head-on
       // meeting where the two cars carry the same signed speed and the axis is
       // axis-aligned. A 100mph head-on therefore charged `applyCollision` a
-      // closing speed of 0 and did no damage whatsoever, which also silently
-      // disabled reverse-ram tactics (reversing into a stationary car reads as
-      // 0 either way). Each body is now projected along its own heading.
+      // KNOWN WRONG, AND DELIBERATELY NOT FIXED YET. The comment that used to
+      // sit here described a per-body velocity projection and claimed "each body
+      // is now projected along its own heading" — which was not true of the
+      // line below it. That is the worst kind of stale comment: it describes
+      // LIVE code incorrectly, in the one function where the bug lives, so a
+      // reader would either trust a fix that does not exist or "restore" one
+      // that was never applied. Recording what the arithmetic actually does:
+      //
+      // `speedMps` is signed along each body's OWN forward axis, so projecting
+      // the two raw scalars onto ONE shared axis collapses to
+      // `(b.speedMps - a.speedMps) * (n.x + n.y)` — which is exactly ZERO for a
+      // head-on meeting where both cars carry the same signed speed. A 100mph
+      // head-on therefore charges `applyCollision` a closing speed of 0 and does
+      // no damage at any speed, and reverse-ramming is dead for the same reason.
+      // The correct form is `|dot(v_a, n) - dot(v_b, n)|` with
+      // `v = speedMps * (cos h, sin h)`.
+      //
+      // It is not applied because it is a BALANCE change, not a tidy-up: with
+      // the per-tick damage gate above in place, correcting this makes a fully
+      // passive player in Amateur Night never die at all (arena still up at tick
+      // 96,000, against a documented 2,863). Gate-only leaves `arena-auto-end`
+      // 6/6; gate+corrected-formula leaves it failing. The mechanism is
+      // probably that a head-on meeting which previously cost nothing now stops
+      // and damages both cars, changing every opponent's approach, but that was
+      // NOT chased and is not claimed. `arena-victory`'s 40-seed winnability gate
+      // (57.3%) holds either way, so this is the death path specifically.
+      // The decision and its measured cost are in the loop log; do not "fix"
+      // this by editing a constant to make a screenshot happier.
       const distanceM = vecLength(subtractVec(b.position, a.position));
       const awayFromA =
         distanceM > 0
           ? { x: (b.position.x - a.position.x) / distanceM, y: (b.position.y - a.position.y) / distanceM }
           : { x: 1, y: 0 };
-      const velA = { x: Math.cos(a.headingRad) * a.speedMps, y: Math.sin(a.headingRad) * a.speedMps };
-      const velB = { x: Math.cos(b.headingRad) * b.speedMps, y: Math.sin(b.headingRad) * b.speedMps };
       // `a` closing on `b` adds to the gap closing; `b` closing on `a` subtracts
       // the same way, and the absolute value covers approach from either side.
       const closingMps = Math.abs(-a.speedMps * awayFromA.x - a.speedMps * awayFromA.y + b.speedMps * awayFromA.x + b.speedMps * awayFromA.y);
@@ -5692,6 +5715,57 @@ export function roadOpponentVehicleId(contactId: string): string {
   return `road-${contactId}`;
 }
 
+/** The half-width of the band a road contact is placed in, in metres, either side of the route centreline. The road has no lateral axis of its own (iteration 61), so this is the ONLY thing that makes a contact anything other than a point on the route — and therefore the number that decides whether a forward mount can converge on it at all. */
+const ROAD_CONTACT_LATERAL_SPAN_M = 12;
+
+export interface RoadContactPlacement {
+  /** Where the contact's vehicle sits in the world this tick. */
+  readonly position: Vec2;
+  /** Which way it faces — production always aims it back down the road at the player. */
+  readonly headingRad: number;
+  /** Signed metres AHEAD of (positive) or BEHIND (negative) the player, along the route axis. */
+  readonly deltaM: number;
+  /** The signed lateral offset actually used, for callers that need to reason about the geometry rather than just place the sprite. */
+  readonly lateralM: number;
+}
+
+/**
+ * WHERE a road contact's vehicle goes, and which way it faces — the single
+ * owner of that placement. Extracted from `showRoad`'s own `updateEngagement`
+ * so a headless test can place a contact the way PRODUCTION places it.
+ *
+ * It is exported because `updateEngagement` itself is a closure over the
+ * screen's canvas, HUD and message log, so it cannot be called headlessly, and
+ * the test that previously covered road combat responded by growing its own
+ * copy of the arithmetic. That copy had drifted in two independent ways: it
+ * used a span of `6` where production uses `ROAD_CONTACT_LATERAL_SPAN_M`, and
+ * it applied the offset along `perp.y` alone where production applies it along
+ * the whole perpendicular. So the one test covering road encounters was
+ * measuring a geometry the game does not use — which is exactly why it read
+ * "6.0m off the line" while production places contacts up to 12m off, and why
+ * it could never have caught the difference. This is the eighth instance of
+ * this log's "one owner, every surface reads it" shape
+ * (`unmetRequirements` 84, `roadLegalityMisses` 92, the city-decal count 82,
+ * `facilityMarkerFamily` 79, `daysPerMile` 96, the operational-kind set 98,
+ * `VEHICLE_LOCAL_FACING` 120-138).
+ */
+export function roadContactPlacement(unit: EncounterUnit, trip: RoadTripState): RoadContactPlacement {
+  const axis: Vec2 = { x: Math.cos(trip.routeHeadingRad), y: Math.sin(trip.routeHeadingRad) };
+  const perp: Vec2 = { x: -axis.y, y: axis.x };
+  const deltaM = (unit.routeMiles - trip.progressMiles) * drivingConfig().metersPerMile;
+  const lateralM = deterministicJitter(unit.id, ROAD_CONTACT_LATERAL_SPAN_M);
+  const position: Vec2 = {
+    x: trip.vehicle.position.x + axis.x * deltaM + perp.x * lateralM,
+    y: trip.vehicle.position.y + axis.y * deltaM + perp.y * lateralM,
+  };
+  return {
+    position,
+    headingRad: Math.atan2(trip.vehicle.position.y - position.y, trip.vehicle.position.x - position.x),
+    deltaM,
+    lateralM,
+  };
+}
+
 /** The one place a defeated road opponent becomes a real `@/sim/road` `RoadWreck` — the fixed `wreck-${unit.id}` id convention `showRoad`'s own `stepCombat` uses, exported so a headless test can drive the exact same production seam instead of a parallel reimplementation. */
 export function createRoadWreckFromDefeat(unit: EncounterUnit, position: Vec2, dayIndex: number, burned = false): RoadWreck {
   return createWreck(`wreck-${unit.id}`, position, dayIndex, burned);
@@ -6560,10 +6634,8 @@ function showRoad(
     return drivingConfig().radar.visualRangeM;
   }
 
-  /** Spawns/despawns opponent vehicles for this tick's `trip.contacts` against `trip.progressMiles`, and logs a peaceful pass-by once per contact. Positions are derived from the player's own live position, offset along the route's fixed heading axis by the contact's remaining route-miles — the road has no independent 2D map, so this IS the contact's world position, exactly as `vehicleSpriteInstance`/combat below expect. */
+  /** Spawns/despawns opponent vehicles for this tick's `trip.contacts` against `trip.progressMiles`, and logs a peaceful pass-by once per contact. Positions come from `roadContactPlacement`, the single owner of where a contact goes and which way it faces — this closure only decides WHETHER a contact is engaged. */
   function updateEngagement(): void {
-    const axis: Vec2 = { x: Math.cos(trip.routeHeadingRad), y: Math.sin(trip.routeHeadingRad) };
-    const perp: Vec2 = { x: -axis.y, y: axis.x };
     const metersPerMile = drivingConfig().metersPerMile;
     const range = engagementRangeM();
 
@@ -6575,13 +6647,7 @@ function showRoad(
       const engaged = willFire(unit) && contactIsCombatCapable(unit) && distanceM <= range;
 
       if (engaged && !opponentVehicles.has(vehicleId)) {
-        const deltaM = (unit.routeMiles - trip.progressMiles) * metersPerMile;
-        const lateralM = deterministicJitter(unit.id, 12);
-        const position: Vec2 = {
-          x: trip.vehicle.position.x + axis.x * deltaM + perp.x * lateralM,
-          y: trip.vehicle.position.y + axis.y * deltaM + perp.y * lateralM,
-        };
-        const headingRad = Math.atan2(trip.vehicle.position.y - position.y, trip.vehicle.position.x - position.x);
+        const { position, headingRad } = roadContactPlacement(unit, trip);
         const vehicle = vehicleStateFromDesign(unit.design, vehicleId, vehicleId, position, headingRad);
         opponentVehicles.set(vehicleId, vehicle);
         opponents.set(vehicleId, {

@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 41
+iteration: 43
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9018,3 +9018,119 @@ ships, and the answer is a placement fact, not a driver or an ammo problem.**
   same value production does rather than restating it — which is the log's
   eighth "one owner, every surface reads it" instance and the reason the test
   could not have caught this.
+## Iteration 142 — the fixture was manufacturing an unwinnable road, and I nearly made you decide about it
+
+Iteration 141 ended by handing you a design decision: road contacts are placed
+up to 12m off the centreline against a 0.85m half-width, the fight is
+unwinnable by placement, pick (a) reduce the span or (b) build a lateral axis.
+**That question dissolves this round, and it dissolves because the number came
+from a test that had drifted from the game.**
+
+- **`roadContactPlacement` IS NOW THE SINGLE OWNER OF WHERE A CONTACT GOES.**
+  `updateEngagement` was a closure over the screen's canvas, HUD and message
+  log, so a headless test could not call it — which is exactly why
+  `phase4.test.ts` had grown its own copy of the placement arithmetic. The
+  eighth instance of this log's "one owner, every surface reads it" shape
+  (`unmetRequirements` 84, `roadLegalityMisses` 92, the city-decal count 82,
+  `facilityMarkerFamily` 79, `daysPerMile` 96, the operational-kind set 98,
+  `VEHICLE_LOCAL_FACING` 120-138).
+  The extracted function returns `position`, `headingRad`, and the signed
+  `deltaM` and `lateralM` it used — the last two so a caller can reason about
+  the geometry rather than reverse-engineer it from a position.
+
+- **THE COPY HAD DRIFTED IN TWO INDEPENDENT WAYS, and both mattered.**
+    production  `deterministicJitter(unit.id, 12)` applied along BOTH `perp.x`
+               and `perp.y`  (a whole perpendicular offset)
+    the test     a hardcoded `6`        applied along `perp.y` alone
+  Different span AND a different formula. So the only test covering road
+  encounters was measuring a geometry the game does not produce — and it
+  reported "6.0m off the line, always", which is why iteration 141's measured
+  histogram had no middle in it. The shape was the fixture's, not the game's.
+
+- **`phase4` NOW PASSES, AND THE FIGHT WAS NEVER UNWINNABLE.**
+  3/3 consecutive runs, and it passes on the REAL placement rather than a
+  friendlier one. `findWinnableEncounter` still demands the real thing —
+  `arrived && opponentsDefeated === 1 && !destroyed` — so this is a genuine
+  win, not a weakened assertion.
+
+- **MY EXPLANATION FOR WHY IT PASSED WAS WRONG, AND MEASUREMENT CAUGHT IT.**
+  My hypothesis was that per-contact jitter produces offsets near zero, so some
+  seeds sit on the line and converge. Measured across all 61 qualifying seeds:
+      min |offset| 4m   max |offset| 12m
+      within 1m of the line:  0 / 61
+      within 2m:              0 / 61
+      within 4m:             23 / 61
+  So production does **NOT** place contacts near the line, and the reason the
+  test now passes is narrower and duller: the fixed 6m the test forced is
+  always WORSE than at least some of the real offsets, several of which are 4m.
+  A better-than-required placement, not a line-hugging one.
+  **AND THE CONSEQUENCE FOR THE DECISION I WAS GOING TO ASK YOU ABOUT:** (a) and
+  (b) are both unnecessary. Reducing `ROAD_CONTACT_LATERAL_SPAN_M` to 0 would
+  make the road MORE line-locked than it already is, on the strength of a
+  fixture defect, and building a lateral axis is a subsystem justified by a
+  number the game never produced. Neither should be built on this evidence.
+
+- **WHAT THIS IS, PRECISELY, AND IT IS THE LOG'S OWN HARDEST LESSON.** Every
+  measurement in iteration 141 was CORRECT — the 6.0m in the test, the ±12m in
+  production, the 0.85m half-width, the two-population convergence histogram.
+  The INFERENCE was wrong, and the reason is that all four numbers were
+  consistent with each other, which is exactly what a correct-looking chain of
+  measurements built on a wrong premise looks like. **A drifted fixture does not
+  produce a wrong answer; it produces a coherent, measured, confidently written
+  wrong answer.** That is materially worse than a probe that finds nothing
+  (iteration 50), and it is the failure iteration 123/124/125 each committed in
+  a different costume — three rounds re-deriving what a file in the repo already
+  said. The corrective is the one the log already has: *when a test restates
+  production logic, the restatement is a claim about production, and the first
+  thing to check is whether the two still agree.*
+  The general rule this round adds: **before escalating a measurement into a
+  design question, confirm the measurement was taken against production code
+  and not against a copy of it.**
+
+- **FIVE NEW TESTS, AND BOTH MUTATIONS PROVEN TO FIRE ON EXACTLY THE RIGHT ONE.**
+  The load-bearing one is the perpendicular, and it has a trap worth naming:
+  at `routeHeadingRad: 0` the perpendicular is `(0,1)`, so a `perp.y`-only
+  implementation is **indistinguishable from the correct one** — the test would
+  pass on the exact bug it exists to catch. It uses a 45-degree heading, where
+  both perpendicular components are non-zero, and it isolates the lateral term
+  by setting `routeMiles === progressMiles` so `deltaM` is 0 and the along-axis
+  component cannot swamp the assertion.
+      apply the offset along perp.y only   -> fails ONLY "offsets the contact
+                                             along the WHOLE perpendicular"
+      freeze the offset to a constant 6    -> fails ONLY "is deterministic, and
+                                             the offset is the real per-contact
+                                             jitter, not a constant"
+  My first draft of the perpendicular test failed for a different reason and the
+  fix is in the test's own comment: a fixture with `routeMiles: 0.1` puts a 161m
+  `deltaM` into the position, so the assertion was reading the along-axis term.
+  A guard that is green for the wrong reason is worse than no guard.
+
+- **AND A STALE COMMENT OF THE WORST KIND, FIXED WHILE I WAS IN THE FUNCTION.**
+  Reverting the closing-speed correction in iteration 140 had left behind the
+  comment that DESCRIBED IT — "Each body is now projected along its own
+  heading", above code that still read
+  `|(b.speedMps - a.speedMps) * (n.x + n.y)|`. That is iteration 107's lesson:
+  a stale explanation of LIVE code is more dangerous than a stale comment about
+  dead code, because the code it describes is still running and a future reader
+  would trust it over the line below it. The comment now states what the
+  arithmetic actually does, why that is wrong, what the correct form is, and
+  why it is still not applied (the measured balance consequence, and the
+  pointer to the decision). tsc also flagged two `velA`/`velB` locals left dead
+  by the revert; removed.
+
+- **GATE.** tsc clean. `driving.test.ts` **36/36** (31 + 5 new). `phase4`
+  **1/1**, 3/3 consecutive. Full suite **1543 passed / 4 failed**, and all four
+  are `screens.test.ts` — measured IDENTICAL in isolation on this branch and on
+  clean master (1 failed / 29 passed both), so it is the documented
+  cross-file pollution flake and not a regression. Iteration 140's baseline was
+  1536/6; the delta is `phase4` turning green. Build `index-CySPMTVi.js`.
+  Tree clean apart from this log.
+
+- **STILL QUEUED, AND UNCHANGED BY THIS ROUND — the two decisions I raised in
+  iteration 140 and 141 are now down to ONE.** The head-on closing-speed
+  formula (iteration 140) is still an open, measured design call, and it is the
+  only one left: gate-only keeps `arena-auto-end` 6/6, and correcting the
+  formula makes a passive player immortal in Amateur Night. Road contact
+  placement is **retired** — not deferred, retired: the game already places
+  contacts where a forward mount can fight them, and the thing that said
+  otherwise was a test.

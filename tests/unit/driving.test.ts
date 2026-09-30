@@ -5,7 +5,7 @@ import encountersJson from '@rulesets/classic/encounters.json';
 
 import { accelerationTiers, allBodies, allPlants, citiesConfig, drivingConfig, getBody, getPlant, getTire, skillsConfig } from '@/data/rulesets';
 import { makeArmorRecord } from '@/sim/types';
-import { makeArenaDrivingSystem, type ArenaOpponentState } from '@/app';
+import { makeArenaDrivingSystem, roadContactPlacement, type ArenaOpponentState } from '@/app';
 import { createWorld } from '@/sim/world';
 import { createDriver } from '@/sim/driver';
 import type { DriverState, TireDPTuple, VehicleDesign, VehicleState } from '@/sim/types';
@@ -413,6 +413,80 @@ describe('control loss and handling', () => {
 });
 
 describe('collisions', () => {
+  describe('road contact placement', () => {
+    const HEADING = Math.PI / 4; // 45 degrees: perp = (-0.707, 0.707), so BOTH
+    // perpendicular components are non-zero. At heading 0 perp is (0,1) and a
+    // perp.y-only implementation is INDISTINGUISHABLE from the correct one —
+    // which is precisely the drift the phase4 copy had, and precisely why this
+    // test must not use an axis-aligned route.
+    function tripAt(headingRad: number, progressMiles = 0) {
+      return {
+        routeHeadingRad: headingRad,
+        progressMiles,
+        vehicle: { position: { x: 0, y: 0 } },
+      } as unknown as Parameters<typeof roadContactPlacement>[1];
+    }
+    function unitAt(routeMiles: number, id: string) {
+      return { id, routeMiles, design: {} } as unknown as Parameters<
+        typeof roadContactPlacement
+      >[0];
+    }
+
+    it('offsets the contact along the WHOLE perpendicular, not just perp.y', () => {
+      // routeMiles === progressMiles, so deltaM is 0 and the position is
+      // PURELY the lateral term — otherwise the along-axis component swamps it
+      // and the test would pass on a perp.y-only implementation by accident.
+      const p = roadContactPlacement(unitAt(0, 'c1'), tripAt(HEADING));
+      const axis = { x: Math.cos(HEADING), y: Math.sin(HEADING) };
+      const perp = { x: -axis.y, y: axis.x };
+      // The offset is present on BOTH perpendicular components. A perp.y-only
+      // copy gets the y right and the x wrong, and at heading 0 would get both
+      // "right" by coincidence.
+      expect(p.position.x).toBeCloseTo(perp.x * p.lateralM, 6);
+      expect(p.position.y).toBeCloseTo(perp.y * p.lateralM, 6);
+      expect(Math.abs(p.position.x)).toBeGreaterThan(0.5);
+    });
+
+    it('signs deltaM by whether the contact is ahead of or behind the player', () => {
+      const ahead = roadContactPlacement(unitAt(1, 'c1'), tripAt(0, 0));
+      const behind = roadContactPlacement(unitAt(1, 'c1'), tripAt(0, 2));
+      expect(ahead.deltaM).toBeGreaterThan(0);
+      expect(behind.deltaM).toBeLessThan(0);
+      // Same magnitude either side of the contact.
+      expect(ahead.deltaM).toBeCloseTo(-behind.deltaM, 6);
+    });
+
+    it('faces the contact back down the road at the player', () => {
+      const trip = tripAt(HEADING, 0);
+      const p = roadContactPlacement(unitAt(1, 'c1'), trip);
+      const toPlayer = {
+        x: trip.vehicle.position.x - p.position.x,
+        y: trip.vehicle.position.y - p.position.y,
+      };
+      const facing = { x: Math.cos(p.headingRad), y: Math.sin(p.headingRad) };
+      const len = Math.hypot(toPlayer.x, toPlayer.y) * Math.hypot(facing.x, facing.y);
+      expect((toPlayer.x * facing.x + toPlayer.y * facing.y) / len).toBeCloseTo(1, 6);
+    });
+
+    it('is deterministic, and the offset is the real per-contact jitter, not a constant', () => {
+      const a = roadContactPlacement(unitAt(0.1, 'same'), tripAt(HEADING));
+      const b = roadContactPlacement(unitAt(0.1, 'same'), tripAt(HEADING));
+      expect(a.position).toEqual(b.position);
+      expect(a.lateralM).toBe(b.lateralM);
+      // Different contacts land in different places — the whole point of the
+      // jitter, and the thing the phase4 copy had flattened to a fixed 6m.
+      const other = roadContactPlacement(unitAt(0.1, 'different'), tripAt(HEADING));
+      expect(other.lateralM).not.toBe(a.lateralM);
+    });
+
+    it('keeps the offset inside the declared band', () => {
+      for (let i = 0; i < 50; i++) {
+        const p = roadContactPlacement(unitAt(0.1, `c${i}`), tripAt(HEADING));
+        expect(Math.abs(p.lateralM)).toBeLessThanOrEqual(12);
+      }
+    });
+  });
+
   it('a sustained contact charges ONE impact, not one per tick of overlap', () => {
     // The real defect this guards: `resolveVehicleCollisions` (src/app.ts) only
     // nudges two overlapping cars `collision.vehicleSeparationM` (0.4m) apart,

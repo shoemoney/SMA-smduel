@@ -47,7 +47,9 @@ import {
   projectilesSystem,
   reconcileFleetWithVehicle,
   roadOpponentAIPersonality,
+  roadContactPlacement,
   roadOpponentVehicleId,
+  deterministicJitter,
   vehicleStateFromConfirmedBuild,
   vehicleStateFromDesign,
   beginRoadTripWithEncounters,
@@ -143,9 +145,22 @@ function newCombatOverlay(trip: RoadTripState, sessionSeed: string): CombatOverl
   };
 }
 
+/**
+ * Engages and disengages the trip's contacts against `trip.progressMiles`.
+ *
+ * WHERE a contact goes and which way it faces is NOT decided here — that is
+ * `roadContactPlacement`'s job, the same function `showRoad`'s own
+ * `updateEngagement` calls. This file used to restate the placement
+ * arithmetic, and its copy had drifted from production in two independent
+ * ways: a lateral span of `6` where production uses 12, and an offset applied
+ * along `perp.y` alone where production applies it along the whole
+ * perpendicular. So the only test covering road encounters was measuring a
+ * geometry the game does not run — it reported contacts sitting "6.0m off the
+ * line" while production places them up to 12m off, and it could not have
+ * noticed. Reading the owner instead means `findWinnableEncounter` now asks
+ * the real question of the real geometry.
+ */
 function updateEngagement(overlay: CombatOverlay, trip: RoadTripState): void {
-  const axis = { x: Math.cos(trip.routeHeadingRad), y: Math.sin(trip.routeHeadingRad) };
-  const perp = { x: -axis.y, y: axis.x };
   const metersPerMile = drivingConfig().metersPerMile;
   const range = drivingConfig().radar.visualRangeM;
 
@@ -157,16 +172,14 @@ function updateEngagement(overlay: CombatOverlay, trip: RoadTripState): void {
     const engaged = willFire(unit) && contactIsCombatCapable(unit) && distanceM <= range;
 
     if (engaged && !overlay.opponentVehicles.has(vehicleId)) {
-      const deltaM = (unit.routeMiles - trip.progressMiles) * metersPerMile;
-      const position = { x: trip.vehicle.position.x + axis.x * deltaM, y: trip.vehicle.position.y + axis.y * deltaM + perp.y * 6 };
-      const headingRad = Math.atan2(trip.vehicle.position.y - position.y, trip.vehicle.position.x - position.x);
+      const { position, headingRad } = roadContactPlacement(unit, trip);
       const vehicle = vehicleStateFromDesign(unit.design, vehicleId, vehicleId, position, headingRad);
       overlay.opponentVehicles.set(vehicleId, vehicle);
       overlay.opponents.set(vehicleId, {
         archetypeId: unit.archetypeId,
         personality: roadOpponentAIPersonality(unit),
         driver: opponentDriverState(unit.skill),
-        seed: 12345,
+        seed: deterministicJitter(`${unit.id}:seed`, 2 ** 30),
       });
       overlay.contactByVehicleId.set(vehicleId, unit);
     } else if (!engaged && overlay.opponentVehicles.has(vehicleId)) {
