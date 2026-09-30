@@ -298,3 +298,86 @@ export function resolveInput(rawState: RawInputState, preset: PresetName, bindin
 
   return { moveX, moveY, fire, weaponSlot };
 }
+
+/**
+ * A keyboard `code` as a player should read it, for on-screen instructions.
+ *
+ * Built from the CODE rather than the `KeyboardEvent.key` because the bindings
+ * are code-keyed, and a `KeyboardEvent` is not available when the hint is
+ * rendered. The table is intentionally small and explicit: an unmapped code
+ * falls through to the code itself, which is ugly but never WRONG, and a
+ * generated instruction that says `KeyZ` is at least honest about what it does
+ * not know.
+ */
+export function keyLabel(code: string): string {
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code.startsWith('Numpad')) return `Num ${code.slice(6)}`;
+  switch (code) {
+    case 'Space':
+      return 'Space';
+    case 'ArrowUp':
+    case 'ArrowDown':
+    case 'ArrowLeft':
+    case 'ArrowRight':
+      return code.slice(5);
+    default:
+      return code;
+  }
+}
+
+/**
+ * One action's keyboard bindings as a slash-joined label: `fire` reads
+ * "Space/J" from the shipped map.
+ *
+ * This exists because the arena's control hint used to be the hardcoded string
+ * "Space/J fire" while `controls.json` bound `fire` to `KeyJ` alone — so the
+ * most prominent instruction on the combat screen named a key that did
+ * nothing, and pressing Space did nothing. `controls.json`'s own note says
+ * every action is remappable at runtime, which means ANY hardcoded key in a
+ * hint is a lie waiting for a rebind; deriving the label from the live
+ * bindings makes that class unrepresentable rather than merely fixed.
+ *
+ * Mouse and gamepad bindings are ignored deliberately: a keyboard hint for a
+ * keyboard player, and the gamepad's own prompts are a separate surface.
+ */
+export function describeAction(bindings: AllBindings, preset: PresetName, actionId: string): string {
+  const presetBindings = bindingsForPreset(bindings, preset);
+  const keys = presetBindings[actionId]?.keyboard ?? [];
+  return keys.map(keyLabel).join('/');
+}
+
+/** True when `code` is bound to any action in the given preset — used to decide whether a key's browser default should be suppressed. */
+export function isBoundToAnyAction(bindings: AllBindings, preset: PresetName, code: string): boolean {
+  return Object.values(bindingsForPreset(bindings, preset)).some((b) => (b.keyboard ?? []).includes(code));
+}
+
+/**
+ * BOTH directions of a cycle pair as one label — `Q/E`, not `E`.
+ *
+ * Added immediately after getting this wrong. The arena hint is generated from
+ * the live bindings, and the first version read only `cycleWeaponNext`, so the
+ * moment the hint became truthful it became INCOMPLETE: the shipped map binds
+ * `cycleWeaponPrev` to KeyQ and `cycleWeaponNext` to KeyE, and the generated
+ * text silently dropped the Q. The old hardcoded literal said "Q/E cycle
+ * weapon", so this was a regression introduced by the fix for a different bug.
+ *
+ * Worth recording how it was caught, because the gate did not catch it and the
+ * screenshot gate reported "0 with problems": the hint is DOM text, and the
+ * numeric statistics cannot see text at all (iteration 92 measured that a
+ * 411-pixel change in a HUD panel moves the frame's mean by 0.068 luma). It was
+ * caught by CROPPING AND READING the string in the capture — the same
+ * iteration-89 discipline of verifying the artefact rather than the source.
+ * A generated hint trades one class of bug (stale literal) for another (an
+ * incomplete derivation), and the second is only visible by reading it.
+ */
+export function describeCyclePair(
+  bindings: AllBindings,
+  preset: PresetName,
+  prevActionId: string,
+  nextActionId: string,
+): string {
+  const prev = describeAction(bindings, preset, prevActionId);
+  const next = describeAction(bindings, preset, nextActionId);
+  return [prev, next].filter((part) => part.length > 0).join('/');
+}

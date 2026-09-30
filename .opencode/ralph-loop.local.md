@@ -4967,3 +4967,70 @@ DEPLOY 2026-09-30 — iteration 93 to arcade.shoemoney.com
   arena rig path was used instead because it reaches the same call site
   deterministically. Reading the store back is the one check that would close
   this properly and it needs a context where IndexedDB actually persists.
+
+94. Codex review finding 3, EXECUTED: **the arena's control hint named a key
+   that did nothing.** "Repeated native Space presses left ammunition
+   unchanged. Native J presses fired the machine gun ... The shipped bindings
+   assign firing to KeyJ, with no Space binding." TRUE, and the diagnosis is
+   sharper than "add the key": `controls.json`'s own note says every action is
+   remappable at runtime via `rebind()`, and the game SHIPS a Controls screen
+   that does it. So the hint's key names were a hardcoded literal in a file
+   that can never match a user's own bindings — a lie on the day it shipped and
+   a lie again after any rebind.
+
+   - FIXED IN THREE PARTS, because the reviewer's recommendation was right that
+     binding Space alone would leave the second half unfixed:
+       1. `Space` bound to `fire` alongside `KeyJ`, in BOTH presets. It was
+          never bound, so the instruction was aspirational.
+       2. Space's browser default is to SCROLL THE PAGE, and gameplay owns
+          input, so a player holding fire would have jerked the view down on
+          the first press — trading a lie in the instructions for a camera
+          that moves when you shoot, which is worse. Suppressed in
+          `attachCodeTracking`, the shared seam every screen uses, and only
+          while the code is genuinely bound to an action, so Space still
+          scrolls normally on menus and the constructor's sliders.
+       3. **THE HINT IS NOW GENERATED FROM THE LIVE BINDINGS.** `keyLabel` and
+          `describeAction` in `@/ui/input` render an action's keys as
+          `Space/J`, and the arena and event-hint strings take `{fire}` and
+          `{cycle}` as parameters. Wording stays in strings.json — its own
+          `_note` says that is the only place wording lives — while the KEY
+          NAMES come from the bindings, so the two cannot disagree and a
+          rebind updates the instructions for free. A test asserting the
+          literal "Space/J" would have passed while a rebind made the on-screen
+          text stale again, which is the same bug slower, so the tests pin the
+          PROPERTY instead.
+   - `controls.json` carries `$schemaVersion` and every action is validated by
+     `validateControls`, so the added binding is checked at module load rather
+     than trusted.
+
+   - **AND THE FIX INTRODUCED A REGRESSION THAT THE CAPTURE GATE COULD NOT
+     SEE.** The first generated hint read `cycleWeaponNext` alone, which is
+     bound to KeyE — so the moment the hint became truthful it became
+     INCOMPLETE, and the text silently dropped the Q that the old hardcoded
+     literal had. The frame read "E cycle weapon".
+     `shoot.mjs` reported "0 with problems" and the whole-screen screenshot
+     looked fine. The gate cannot help here, and iteration 92 measured exactly
+     why: DOM text moves no pixel statistic (a 411-pixel HUD change moved the
+     frame mean by 0.068 luma), so the arena's numbers were unchanged to two
+     decimals across a text change a player reads instantly.
+     It was caught by CROPPING AND READING the string in the capture — the
+     iteration-89 discipline of verifying the artefact instead of the source.
+     A generated hint trades one class of bug (a stale literal) for another (an
+     incomplete derivation), and the second is only visible by reading it.
+     `describeCyclePair` now reports both directions, with a regression test
+     and a mutation proving it: reading only `next` fails exactly that test.
+   - The road screen shares the same input map, so the Space binding applies
+     there too.
+
+   GATE: tsc clean, 67 files / 1472 tests (7 new in `input.test.ts`; the 4
+   failures are the measured `screens.test.ts` flake), 5 browser tests, build
+   clean (`index-CMstRNf8.js`), `.shots/iter94` = 8 screens / 0 problems.
+
+   STILL QUEUED FROM THE SAME REVIEW, unchanged by this round:
+   - #2 the 150-mile / ~129-minute leg (balance; touches route length, resource
+     costs and calendar time together, needs its own measured iteration)
+   - #4 facility names arriving at the entry radius rather than earlier, and the
+     Federal Building presenting as a working service
+   - #5 the weapons panel still truncating at 1200px, where the active-row
+     triangle also wraps to a second line — my iteration-92 fix was verified at
+     1440px only, and the browser test I added pins 1440

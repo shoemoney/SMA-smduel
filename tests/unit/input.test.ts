@@ -8,7 +8,11 @@ import {
   bindingsForPreset,
   cyclePressed,
   defaultBindings,
+  describeAction,
+  describeCyclePair,
   emptyRawInputState,
+  isBoundToAnyAction,
+  keyLabel,
   rebind,
   resolveInput,
   type RawInputState,
@@ -385,5 +389,90 @@ describe('validateControls: cross-action physical-binding collisions', () => {
     const reintroduced = structuredClone(controlsJson) as typeof controlsJson;
     reintroduced.defaultBindings.modern.fire.gamepadButtons = [7];
     expect(() => validateControls(reintroduced)).toThrow();
+  });
+});
+
+/**
+ * On-screen key hints are DERIVED from the live bindings.
+ *
+ * The arena's control hint used to be the literal string "Space/J fire" while
+ * `controls.json` bound `fire` to `KeyJ` alone — so the most prominent
+ * instruction on the combat screen named a key that did nothing. Found by Codex
+ * `gpt-6.1-sol`, who drove the build, pressed Space in the arena, and watched
+ * the ammunition sit still.
+ *
+ * The hint is now generated. These tests pin the property that makes it safe
+ * rather than the string it happens to produce: whatever the bindings say, the
+ * hint says the same thing. A test asserting `describeAction(...) === 'Space/J'`
+ * would pass while a rebind made the on-screen text stale again, which is the
+ * bug in a slower form.
+ */
+describe('key hints are derived from the live bindings', () => {
+  it('maps codes to the labels a player reads', () => {
+    expect(keyLabel('KeyJ')).toBe('J');
+    expect(keyLabel('Space')).toBe('Space');
+    expect(keyLabel('ArrowUp')).toBe('Up');
+    expect(keyLabel('Digit4')).toBe('4');
+    // An unmapped code falls through to itself: ugly, but never a WRONG key.
+    expect(keyLabel('IntlBackslash')).toBe('IntlBackslash');
+  });
+
+  it('joins an action\'s keys with a slash', () => {
+    const b = defaultBindings();
+    expect(describeAction(b, 'classic', 'fire')).toBe('Space/J');
+    expect(describeAction(b, 'classic', 'cycleWeaponNext')).toBe('E');
+  });
+
+  it('says what the SHIPPED map says — and Space is genuinely bound to fire', () => {
+    // The half that was a lie. Asserted against controls.json rather than a
+    // literal so the test tracks the ruleset, and paired with the second half:
+    // the hint and the binding are the same source, so they cannot disagree.
+    const fireKeys = controlsJson.defaultBindings.classic.fire.keyboard;
+    expect(fireKeys).toContain('KeyJ');
+    expect(fireKeys).toContain('Space');
+    const b = defaultBindings();
+    const shown = describeAction(b, 'classic', 'fire');
+    for (const code of fireKeys) expect(shown.split('/')).toContain(keyLabel(code));
+  });
+
+  it('FOLLOWS A REBIND, which is the property the old hardcoded string could not have', () => {
+    // The durable half. `controls.json` documents every action as remappable at
+    // runtime, so a literal in a hint is stale the moment a player rebinds — and
+    // the game offers rebinding on the Controls screen. After moving `fire` to a
+    // single key, the hint must report that key and nothing else.
+    const b = defaultBindings();
+    const rebound = rebind(b, 'classic', 'fire', { device: 'keyboard', code: 'KeyZ' });
+    expect(describeAction(rebound, 'classic', 'fire')).toBe('Z');
+    // The OTHER preset is untouched: rebinding is per-preset by design.
+    expect(describeAction(rebound, 'modern', 'fire')).toBe('Space/J');
+  });
+
+  it('reports a key as bound only while it is, for the scroll guard', () => {
+    const b = defaultBindings();
+    expect(isBoundToAnyAction(b, 'classic', 'Space')).toBe(true);
+    expect(isBoundToAnyAction(b, 'classic', 'KeyZ')).toBe(false);
+    const unbound = rebind(b, 'classic', 'fire', { device: 'keyboard', code: 'KeyZ' });
+    expect(isBoundToAnyAction(unbound, 'classic', 'Space')).toBe(false);
+  });
+
+  it('reports BOTH directions of a cycle pair, because reading one dropped a key', () => {
+    // Regression guard for a bug the fix above introduced: generating the cycle
+    // label from `cycleWeaponNext` alone made the hint TRUTHFUL and INCOMPLETE,
+    // silently dropping the Q that the old hardcoded literal had. The capture
+    // gate reported "0 with problems" — DOM text moves no pixel statistic — so
+    // this was caught by cropping and reading the string in the capture.
+    const b = defaultBindings();
+    expect(describeCyclePair(b, 'classic', 'cycleWeaponPrev', 'cycleWeaponNext')).toBe('Q/E');
+    // A half-bound pair still names what exists, rather than printing a
+    // dangling slash.
+    const oneWay = rebind(b, 'classic', 'cycleWeaponPrev', { device: 'keyboard', code: 'KeyQ' });
+    expect(describeCyclePair(oneWay, 'classic', 'cycleWeaponPrev', 'cycleWeaponNext')).toBe('Q/E');
+  });
+
+  it('returns an empty label for an action nobody has bound, rather than throwing', () => {
+    // An arena hint is built for a fixed action list, so an unknown id is a
+    // programming error — but it should degrade to a blank rather than take the
+    // whole combat screen down with a thrown error.
+    expect(describeAction(defaultBindings(), 'classic', 'no-such-action')).toBe('');
   });
 });

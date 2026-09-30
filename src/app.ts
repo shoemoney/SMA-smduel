@@ -145,7 +145,10 @@ import {
   bindingsForPreset,
   cyclePressed,
   defaultBindings,
+  describeAction,
+  describeCyclePair,
   directWeaponSlot,
+  isBoundToAnyAction,
   rebind,
   resolveInput,
   type AllBindings,
@@ -476,6 +479,14 @@ export function restoreControls(preset: PresetName, bindings: AllBindings): void
 function attachCodeTracking(codesDown: Set<string>): { detach(): void } {
   function onKeyDown(ev: KeyboardEvent): void {
     codesDown.add(ev.code);
+    // Space is now bound to `fire` (controls.json), and Space's browser
+    // default is to SCROLL THE PAGE. Gameplay owns input here, so a player
+    // holding fire would otherwise jerk the view down on the first press —
+    // trading a lie in the instructions for a camera that moves when you shoot,
+    // which is worse. Only suppressed while a code is genuinely bound to an
+    // action, so a Space press on a screen that does not use it (a menu, the
+    // constructor's sliders) still scrolls the way a page normally would.
+    if (ev.code === 'Space' && isBoundToAnyAction(currentControlBindings, currentControlPreset, 'Space')) ev.preventDefault();
   }
   function onKeyUp(ev: KeyboardEvent): void {
     codesDown.delete(ev.code);
@@ -2536,7 +2547,20 @@ function showArena(
   const arenaControls = el('div');
   arenaControls.style.cssText =
     'position:absolute;top:34px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:3px 9px;border-radius:4px;text-align:center;white-space:nowrap;pointer-events:none;animation:sm-road-hint-fade 7s ease-out forwards;';
-  arenaControls.textContent = t(isCoarsePointer() ? 'ui.arena.arenaControlsTouch' : 'ui.arena.arenaControls');
+  // The key names come from the LIVE bindings, not from a literal. The hint used
+  // to hardcode "Space/J fire" while `controls.json` bound `fire` to `KeyJ`
+  // alone, so the most prominent instruction on the combat screen named a key
+  // that did nothing — reported by Codex `gpt-6.1-sol` driving the build and
+  // pressing Space. `controls.json` says every action is remappable at runtime,
+  // so a hardcoded key in a hint is a lie waiting for a rebind; deriving it
+  // makes that unrepresentable. `Space` is now genuinely bound too, so this
+  // reads "Space/J fire" AND means it.
+  arenaControls.textContent = isCoarsePointer()
+    ? t('ui.arena.arenaControlsTouch')
+    : t('ui.arena.arenaControls', {
+        fire: describeAction(currentControlBindings, currentControlPreset, 'fire'),
+        cycle: describeCyclePair(currentControlBindings, currentControlPreset, 'cycleWeaponPrev', 'cycleWeaponNext'),
+      });
   // The seed is announced in the session message feed rather than floating as a
   // chip, and the chip is gone entirely.
   //
@@ -3589,7 +3613,11 @@ function showArenaEvent(
       return;
     }
     gpuCtx = init.context;
-    status.textContent = t('ui.arena.eventHint', { event: event.name });
+    status.textContent = t('ui.arena.eventHint', {
+      event: event.name,
+      fire: describeAction(currentControlBindings, currentControlPreset, 'fire'),
+      cycle: describeCyclePair(currentControlBindings, currentControlPreset, 'cycleWeaponPrev', 'cycleWeaponNext'),
+    });
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
 
