@@ -5304,6 +5304,23 @@ export function roadLateralOffsetM(
  * Which way the recovery arrow points: TOWARD the centreline, so the opposite
  * sign to the car's own offset. A car on the positive side of the perpendicular
  * has the road behind it.
+ *
+ * WHY THE SIGN IS WHAT IT IS, so a reader can CHECK it rather than trust it:
+ * `buildOrthoMatrix` sets `m[5] = sy` positive and WebGPU puts clip +y at the
+ * TOP of the frame, so world +y is screen-UP (iteration 87 established this
+ * convention and it is why the city's W/S controls were once inverted). At
+ * route heading 0, `forward` is +x and `across` is therefore +y — so a positive
+ * lateral offset means the car is ABOVE the centreline on screen, and the road
+ * is DOWN from it, which is screen-LEFT. Hence `+ -> '◀'`. Reversing either
+ * half of that reasoning yields a confident arrow pointing deeper into the
+ * field, which is why the direction is pinned by test rather than argued once.
+ *
+ * Worth being straight about the limits of that test: the arrow CANNOT flip
+ * during a straight drive, because crossing the centreline ends the off-road
+ * state. So the live check confirms the indicator appears, is hidden on the
+ * carriageway, and counts down as the car returns — but the DIRECTION is
+ * established by this unit test and the screen-space reasoning above, not by
+ * observing it reverse on the road.
  */
 export function roadRecoveryArrow(lateralM: number): '◀' | '▶' {
   return lateralM > 0 ? '◀' : '▶';
