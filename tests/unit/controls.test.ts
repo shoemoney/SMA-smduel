@@ -13,6 +13,8 @@
  * `createElementNS` precisely so they exist in this environment as well as in a
  * browser, and a test that only ever ran in a browser would not have caught it.
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { button, field, ignitionButton, panel, setIgnitionCrankMs, stat } from '@/ui/controls';
@@ -218,6 +220,55 @@ describe('ignition switch', () => {
     expect(key?.tagName.toLowerCase()).toBe('svg');
     expect(key?.namespaceURI).toBe(SVG_NS);
     expect(label?.textContent).toBe('Turn the key');
+  });
+
+  it('shows no car until the starter engages, then runs it', () => {
+    // The ask was a switch that "turns over and a car starts". A key that turns
+    // with nothing behind it is half that sentence, and a car silhouette parked
+    // in the button before anyone presses it is decoration pretending to be
+    // feedback. The class is the whole mechanism, so the test reads the class
+    // and the glyph in one place.
+    vi.useFakeTimers();
+    const btn = ignitionButton({ label: 'Turn the key', onIgnite: () => {} });
+    const car = btn.querySelector('.sm-ignition__car');
+
+    // Present in the DOM (so it cannot pop in and reflow the label) but inert.
+    expect(car?.tagName.toLowerCase()).toBe('svg');
+    expect(btn.classList.contains('sm-ignition--cranking')).toBe(false);
+    // The running animation is bound to the cranking class, so at rest the glyph
+    // is governed by the resting rule alone.
+    expect(car?.className).toContain('sm-ignition__car');
+    // The resting/carrying rule is in CSS, which this environment never loads, so
+    // the binding itself is asserted from the stylesheet's source. Without this
+    // the test proves a glyph exists and says nothing about whether it is hidden
+    // until the car starts.
+    // `URL` imported from node:url on purpose. Under `happy-dom` the GLOBAL `URL`
+    // is the DOM implementation, and it throws ERR_INVALID_URL_SCHEME when asked
+    // to resolve a relative path against a `file:` base — which is why the
+    // equivalent read in atlas.test.ts works (it runs in the `node` environment)
+    // and this one did not. Same expression, two environments, one of them lying
+    // about what a URL is.
+    const css = readFileSync(fileURLToPath(new NodeURL('../../src/ui/controls.css', import.meta.url)), 'utf8');
+    const resting = css.slice(css.indexOf('.sm-ignition__car {'), css.indexOf('.sm-ignition--cranking .sm-ignition__car {'));
+    expect(resting).toMatch(/opacity:\s*0/);
+    const running = css.slice(css.indexOf('.sm-ignition--cranking .sm-ignition__car {'));
+    expect(running.slice(0, 200)).toMatch(/opacity:\s*1/);
+    expect(running.slice(0, 400)).toMatch(/animation:\s*sm-ignition-run/);
+
+    btn.click();
+    expect(btn.classList.contains('sm-ignition--cranking')).toBe(true);
+
+    vi.advanceTimersByTime(100);
+    expect(btn.classList.contains('sm-ignition--cranking')).toBe(false);
+  });
+
+  it('keeps the car decorative — the label is the accessible name', () => {
+    const btn = ignitionButton({ label: 'Turn the key', onIgnite: () => {} });
+    // An announced "car" beside the word "Turn the key" is noise for anyone
+    // using a screen reader; the whole icon set is aria-hidden for this reason.
+    expect(btn.querySelector('.sm-ignition__car')?.getAttribute('aria-hidden')).toBe('true');
+    expect(btn.querySelector('.sm-ignition__key')?.getAttribute('aria-hidden')).toBe('true');
+    expect(btn.querySelector('.sm-ignition__label')?.textContent).toBe('Turn the key');
   });
 
   it('rejects a negative or non-finite duration rather than storing it', () => {

@@ -793,15 +793,53 @@ export interface MountedBuilder {
   destroy(): void;
 }
 
+/**
+ * Which glyph stands for each derived stat.
+ *
+ * Keyed by the LABEL, not by position, because the label is the only handle a
+ * caller has: `statRow` is called with a string and a display string, and a
+ * positional table would put the wrong glyph on the wrong number the day a row
+ * is inserted. A label with no entry gets the neutral gauge rather than a
+ * borrowed icon — a wrong glyph is worse than a generic one.
+ */
+const STAT_ICON: Readonly<Record<string, IconName>> = {
+  Cost: 'coin',
+  Budget: 'coin',
+  Remaining: 'coin',
+  Weight: 'scale',
+  Spaces: 'car',
+  'Top Speed': 'gauge',
+  // Deliberately NOT `gauge`, which is Top Speed's. Two different quantities
+  // wearing one glyph is the failure this table exists to avoid: a dial says
+  // "a number about the car" for both, and a player scanning for acceleration
+  // cannot tell which of two dials answers their question. Acceleration is a
+  // RATE, so it gets an arrow.
+  Acceleration: 'accel',
+  'Handling Class': 'steering-wheel',
+  'Armor Total': 'shield',
+  Battery: 'engine',
+};
+
+/**
+ * One derived stat: a glyph, a name, and the value.
+ *
+ * The glyph is the point. Ten label/value pairs in a column is a table; ten
+ * glyph/name/value rows is a read-out, and the icons are what let a player find
+ * "the weight" without reading ten words to get there. `Weight` gets a balance
+ * and `Top Speed` gets a dial rather than one shared glyph for both, because a
+ * column where every icon means the same thing is decoration.
+ */
 function statRow(list: HTMLElement, label: string, value: string, invalid: boolean): void {
   const row = document.createElement('div');
   row.className = 'sm-builder__stat';
+  const glyph = icon(STAT_ICON[label] ?? 'gauge', { className: 'sm-builder__stat-icon' });
   const dt = document.createElement('span');
   dt.className = 'sm-builder__stat-label';
   dt.textContent = label;
   const dd = document.createElement('span');
   dd.className = invalid ? 'sm-builder__stat-value sm-builder__stat-value--invalid' : 'sm-builder__stat-value';
   dd.textContent = value;
+  row.appendChild(glyph);
   row.appendChild(dt);
   row.appendChild(dd);
   list.appendChild(row);

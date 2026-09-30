@@ -449,10 +449,15 @@
 
 .sm-builder__stat {
   display: flex;
-  justify-content: space-between;
-  gap: var(--ui-space-5);
+  align-items: center;
+  /* NOT `space-between`: with a glyph in front, that spreads the LABEL into the
+   * middle of the row and the column stops reading as name-then-value. The
+   * value is pushed right explicitly instead, so the glyph and the name stay
+   * together on the left. */
+  gap: var(--ui-space-3);
   padding: var(--ui-space-1) 0;
 }
+.sm-builder__stat-value { margin-left: auto; }
 
 .sm-builder__stat-label {
   color: var(--ui-ink-muted);
@@ -755,4 +760,16 @@
   stroke: rgba(159, 232, 221, 0.4);
   stroke-width: 1.5;
   stroke-dasharray: 5 4;
+}
+
+/* A glyph in the derived-stats column, so ten label/value pairs read as a
+ * read-out rather than a table. Sized and coloured to sit UNDER the values in
+ * the hierarchy: the number is the loudest thing, the name is legible, and the
+ * icon is the thing that makes a row findable. */
+.sm-builder__stat-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--ui-ink-dim);
 }

@@ -428,6 +428,7 @@ class FakeElement {
   readonly style: { transform?: string } = {};
   private _tabIndex = -1;
   private readonly attrs = new Set<string>();
+  private readonly attrValues = new Map<string, string>();
   private readonly listeners = new Map<string, Array<(ev: FakeKeyEvent) => void>>();
 
   constructor(tag: string) {
@@ -484,6 +485,12 @@ class FakeElement {
   setAttribute(name: string, value = ''): void {
     this.attrs.add(name);
     if (name === 'class') this.className = value;
+    this.attrValues.set(name, value);
+  }
+  /** Read back an attribute's VALUE. The real DOM stores both; storing only the
+   *  name made it impossible to tell two different icons apart in a test. */
+  getAttribute(name: string): string | null {
+    return this.attrValues.get(name) ?? null;
   }
   removeAttribute(name: string): void {
     this.attrs.delete(name);
@@ -585,6 +592,60 @@ describe('builder — mountBuilder DOM layer', () => {
     expect(glyphCount(under!)).toBe(1);
     expect(dirCount(under!)).toBe(0);
 
+    mounted.destroy();
+  });
+
+  it('gives every derived stat a real glyph, sharing one ONLY between the three money rows', () => {
+    // Ten label/value pairs in a column is a table; ten glyph/name/value rows is
+    // a read-out. But a column where every icon means the same thing is
+    // decoration, so the sharing has to be deliberate rather than incidental.
+    //
+    // Cost, Budget and Remaining share a coin ON PURPOSE: they are the same
+    // quantity at three moments, and inventing three different money icons would
+    // be drawing a distinction the numbers do not make. Everything else must be
+    // its own glyph — and the first version of this table gave Top Speed AND
+    // Acceleration the same dial, which is the incidental kind, so the test
+    // names the one permitted group and forbids every other pairing.
+    installFakeDom();
+    const container = new FakeElement('div');
+    const mounted = mountBuilder({
+      container: container as unknown as HTMLElement,
+      context: baseContext(),
+      onBuilt: () => {},
+      onCancel: () => {},
+    });
+
+    const stats = findByClass(container, 'sm-builder__stat');
+    expect(stats.length).toBeGreaterThanOrEqual(8);
+
+    const MONEY = new Set(['Cost', 'Budget', 'Remaining']);
+    const byShape = new Map<string, string[]>();
+    for (const row of stats) {
+      const glyphs = row.children.filter((c) => c.tagName.toLowerCase() === 'svg');
+      const label = row.children.find((c) => c.className === 'sm-builder__stat-label')?.textContent ?? '';
+      // Exactly one: "forgot the icon" and "pasted it twice" are both wrong, and
+      // only an exact count tells them apart.
+      expect(glyphs, `stat "${label}" should carry exactly one glyph`).toHaveLength(1);
+      // A real drawing, not an empty svg.
+      expect(glyphs[0]?.children.length ?? 0, `stat "${label}" glyph is empty`).toBeGreaterThan(0);
+
+      const shape = (glyphs[0]?.children ?? [])
+        .map((c) => `${c.tagName}:${c.getAttribute('d') ?? c.getAttribute('cx') ?? ''}`)
+        .join('|');
+      byShape.set(shape, [...(byShape.get(shape) ?? []), label]);
+    }
+
+    for (const labels of byShape.values()) {
+      // A glyph only ONE stat uses is not sharing anything, and the check below
+      // would otherwise fail every stat for the crime of being unique.
+      if (labels.length < 2) continue;
+      expect(
+        labels.every((l) => MONEY.has(l)),
+        `"${labels.join('" and "')}" share a glyph but are not all money rows`,
+      ).toBe(true);
+    }
+    // And the sharing is not an excuse for a monochrome column.
+    expect(byShape.size).toBeGreaterThanOrEqual(7);
     mounted.destroy();
   });
 

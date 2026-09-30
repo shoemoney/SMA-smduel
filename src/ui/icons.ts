@@ -76,6 +76,14 @@ const ICONS = {
     ['path', { d: 'M3.5 10.5h3v-2h3v-2h3v2h3v-2h3l2 2v6l-2 2h-3v2h-3v-2h-3v2h-3v-2h-3Z' }],
     ['path', { d: 'M9 8.5v7M15 8.5v7' }],
   ],
+  /** A needle sweeping up through speed lines — acceleration, which is a rate
+   *  and not a reading, so it must not share Top Speed's dial. */
+  accel: [
+    ['path', { d: 'M3.4 17.6a9 9 0 0 1 12.2-12.2' }],
+    ['path', { d: 'M12 13.4 17 8.4' }],
+    ['circle', { cx: 12, cy: 15.2, r: 1.5 }],
+    ['path', { d: 'M18.4 4.2h3v3M21.4 4.2l-4.6 4.6' }],
+  ],
   /** A balance — mass. */
   scale: [
     ['path', { d: 'M12 4.2v15.6M7.5 19.8h9M4 9.4h16' }],

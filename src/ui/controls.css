@@ -354,3 +354,43 @@
 /* Nothing left to spend is worth saying louder than a warning. */
 .sm-panel__foot--spent { color: var(--ui-ok); }
 .sm-panel__foot--over { color: var(--ui-critical); }
+
+/* --- The car that starts --------------------------------------------------
+ *
+ * The switch's second half. At rest there is no car — the control is a key and
+ * a label, and adding a car silhouette to a button nobody has pressed yet is
+ * decoration. When the starter engages the car arrives and runs: a short,
+ * decaying vibration rather than a continuous loop, because an engine that
+ * shakes forever reads as a broken animation while one that settles reads as
+ * an engine catching.
+ *
+ * `translateX` rather than `left`, so the vibration is compositor-only and
+ * cannot reflow the button's own label on the frames it runs. */
+
+.sm-ignition__car {
+  width: 26px;
+  height: 26px;
+  color: var(--ui-ink-dim);
+  opacity: 0;
+  transform: translateX(-10px) scale(0.9);
+  transition: opacity 160ms ease, transform 260ms cubic-bezier(0.2, 1.2, 0.4, 1), color 200ms ease;
+}
+.sm-ignition--cranking .sm-ignition__car {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  color: var(--ui-accent-strong);
+  animation: sm-ignition-run 620ms cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+}
+@keyframes sm-ignition-run {
+  0%   { transform: translate(0, 0); }
+  12%  { transform: translate(-1.5px, 0.8px); }
+  24%  { transform: translate(1.2px, -0.6px); }
+  36%  { transform: translate(-0.8px, 0.4px); }
+  48%  { transform: translate(0.6px, -0.3px); }
+  60%  { transform: translate(-0.3px, 0.15px); }
+  100% { transform: translate(0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sm-ignition--cranking .sm-ignition__car { animation: none; }
+}

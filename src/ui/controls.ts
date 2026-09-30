@@ -220,8 +220,15 @@ export function ignitionButton(options: IgnitionOptions): HTMLButtonElement {
   const label = document.createElement('span');
   label.className = 'sm-ignition__label';
   label.textContent = options.label;
+  // The car itself. Absent at rest, and it runs when the starter engages: the
+  // ask was a switch that "turns over and a car starts", and a key that turns
+  // with nothing behind it is only half of that sentence. It is decorative and
+  // `aria-hidden` — the label is the accessible name, and an announced graphic
+  // beside it would be noise.
+  const car = icon('car', { className: 'sm-ignition__car' });
   button.appendChild(key);
   button.appendChild(label);
+  button.appendChild(car);
 
   let timer: ReturnType<typeof setTimeout> | null = null;
 

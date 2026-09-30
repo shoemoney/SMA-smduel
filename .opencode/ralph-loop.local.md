@@ -1,10 +1,11 @@
 ---
 active: true
-iteration: 1
+iteration: 2
 maxIterations: 100
+sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
 
- At the load of the game id like to display prompinatly against a blackbcakground.  Use a styled white font with the style of the game the words in Bold should be yellow.  You can have it scroll out then load the loading screen or fade our whatever you think looks best.
+At the load of the game id like to display prompinatly against a blackbcakground.  Use a styled white font with the style of the game the words in Bold should be yellow.  You can have it scroll out then load the loading screen or fade our whatever you think looks best.
 
 Inspired by a Childhood Classic
 This game is a modern reimagining of Autoduel (1985).
