@@ -5566,3 +5566,84 @@ RESEARCH 2026-09-30 — iteration 99: two of my own findings refuted by measurem
   relabelled from "unwired"), and a persistent "surface a failed save" message
   (93, real). The short-route inversion and the long-route budget truncation
   are BOTH refuted — do not "fix" either.
+
+ITERATION 99 — Codex review of the live deployment; two findings fixed and shipped
+- REVIEW: `.opencode/reviews/codex-20260930-025032.md` (8586 bytes, 1 attempt).
+  Codex drove the LIVE arena/road/city at seed `a11ce5ee`, inspected full
+  2400x2020 @DPR2 stills, and returned 5 ranked findings plus a content-gap
+  note. Finding 1 (a 150-mile trip takes ~128.6 real minutes) independently
+  CONFIRMS the pacing item recorded in iteration 97, by a different route and a
+  different method — worth noting, because it means that finding is now
+  corroborated rather than merely asserted by me.
+
+  | # | finding | verdict this round |
+  |---|---------|--------------------|
+  | 1 | 150 mi ≈ 128.6 real min | real, already queued as the pacing decision (97) |
+  | 2 | no pause / trip-exit on the road | real, NEW — see below, not started |
+  | 3 | facility label appears when entry already happened | real, FIXED + LIVE VERIFIED |
+  | 4 | guardrails imply a barrier that has no collision | real design disagreement, not started |
+  | 5 | per-shot messages flood the feed | real, FIXED + unit-verified |
+
+  Finding 2 is the same underlying hole iteration 99's first half documented:
+  `showRoad` mounts no menu at all, so there is no pause, no controls reference,
+  and no way to abandon a trip. It is the SAME missing screen as the unbuilt
+  on-foot mode — one road menu would serve both. That makes it the single
+  highest-value next build, and it is bigger than one iteration.
+
+- FIX 1 (#3, facility label radius) — SHIPPED, LIVE VERIFIED.
+  The label used the SAME 3.0m radius as the doorway trigger
+  (`layout.tileSizeM` IS `pedestrian.interactionRadiusM`), so it appeared on
+  the precise frame the building's panel opened. Now `2x` the interaction
+  radius (~6m), still derived from `layout.tileSizeM` so the two cannot drift.
+  Live proof from the deployed build, walking the real city:
+      {"label":"Truck Stop","panel":false}
+      {"label":null,        "panel":false}      <- walked away; it hides
+      {"label":"Arena",     "panel":false}      <- VISIBLE BEFORE ENTRY
+      {"label":"Arena",     "panel":true}       <- panel opens after
+  The `"Arena", panel:false` row is the fix: under the old equal-radius code
+  the label could not exist in a state where the panel was closed, because they
+  triggered on the same distance. Label colour `rgb(215,224,234)` = the normal
+  operational ink, unchanged.
+
+- FIX 2 (#5, feed flood) — SHIPPED, UNIT-VERIFIED, NOT live-verified.
+  Adjacent lines sharing kind AND text now collapse to one counted line via
+  `ui.hud.messageRepeat` ("{text} ×{count}"). Coalescing over suppression
+  because dropping per-shot text loses the only confirmation the weapon fired.
+  New tests were mutation-checked: with the coalescing neutralised, 2 of the
+  4 new tests FAIL, so they are load-bearing rather than decorative.
+  I could NOT complete a live arena walk to see it rendered — the approach is
+  a blind key walk and I did not reach the Arena inside it. Recorded as
+  unit-verified + present in the shipped bundle, NOT as a rendered frame.
+
+- PROCESS NOTE, and it is the fifth time this log has hit it: I guessed the
+  facility strip's DOM selector THREE times and got three wrong answers before
+  inspecting the page — `.hud-city-facility`, then `[class*="facility"]`, then a
+  facility-name text match, all of which returned null or the WRONG element
+  (the last matched the LEGEND, not the strip). The strip is a CLASSLESS div
+  carrying its styling entirely in an inline `cssText`; the page has only THREE
+  class names in total, which is exactly why every class-based query missed it.
+  The only thing that worked was dumping every classless absolutely-positioned
+  div and reading its inline background — the strip is the one with
+  `rgba(10,14,20,0.82)`, which is the literal value in the source. A page with
+  no class names defeats class-based probing entirely, and "my selector found
+  nothing" meant "my selector was wrong", not "the element does not exist".
+
+- GATE: tsc clean. 67 files / 1481 tests, 4 failures, all in
+  `tests/integration/screens.test.ts` and all REPRODUCED ON CLEAN MASTER
+  (2 in isolation, 4 in-suite) — the known order-dependent flake, touching
+  neither the feed nor the city. 5 browser tests pass. Build
+  `index-D83WayLo.js`.
+
+- DEPLOY: release `20260930032000-da96099`, bundle `index-D83WayLo.js`.
+  Whole-site snapshot, atomic swap, root + smduel + last-engineer all 200, live
+  bundle hash equals the local build, 0 console errors. The deployer's own
+  hash guard caught a real mistake this round: I rsynced `dist/` to the LOCAL
+  `/tmp` and the box correctly refused to deploy, because it checks the REMOTE
+  `/tmp/smduel-dist` for the expected bundle. That guard is the single most
+  valuable line in the deploy script.
+
+- NEXT: the road menu (finding 2) is now the top build — one screen covering
+  pause, controls reference, save-and-quit, and abandon-trip, which also
+  unblocks the SPEC's on-foot escape. Then #4's rail-vs-collision decision,
+  which is a real design call: either give the rails collision or replace them
+  with delineator posts that do not promise a barrier.
