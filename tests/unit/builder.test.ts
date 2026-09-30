@@ -416,6 +416,16 @@ class FakeElement {
    * by reading the property back, not by querying `[data-*]` attributes.
    */
   readonly dataset: Record<string, string> = {};
+  /**
+   * Stand-in for `CSSStyleDeclaration`, holding only what this codebase writes
+   * through it. Added because `@/ui/icons` sets a computed `transform` per
+   * facing and nothing else — the sizing and flex behaviour moved to
+   * `controls.css` precisely so this double only has to model one property. A
+   * test double missing a property the code writes is not a smaller double, it
+   * is a wrong one: it threw `Cannot set properties of undefined` and took two
+   * unrelated builder tests down with it.
+   */
+  readonly style: { transform?: string } = {};
   private _tabIndex = -1;
   private readonly attrs = new Set<string>();
   private readonly listeners = new Map<string, Array<(ev: FakeKeyEvent) => void>>();
@@ -463,8 +473,17 @@ class FakeElement {
     this._tabIndex = value;
     this.attrs.add('tabindex');
   }
-  setAttribute(name: string): void {
+  /**
+   * Records the attribute AND applies the two that have real DOM side effects on
+   * the reflected property. `setAttribute('class', v)` genuinely sets
+   * `className` in a browser, and `@/ui/icons` sets its glyph's class that way —
+   * so a double that only recorded the NAME made every icon's class read as
+   * empty, which is how a duplicate-glyph count came back as zero and looked
+   * like a missing row rather than a missing reflection.
+   */
+  setAttribute(name: string, value = ''): void {
     this.attrs.add(name);
+    if (name === 'class') this.className = value;
   }
   removeAttribute(name: string): void {
     this.attrs.delete(name);
@@ -503,6 +522,94 @@ function installFakeDom(): void {
 }
 
 describe('builder — mountBuilder DOM layer', () => {
+  /**
+   * The fake DOM has no `querySelectorAll`, so this walks for a class the way
+   * the element actually nests: `container > .sm-builder > .pane > .rows`.
+   * Reaching into `children[0].children[0]` instead would be a guess about the
+   * depth that breaks the moment a wrapper is added — and a test that silently
+   * finds nothing is worse than one that throws.
+   */
+  function findByClass(root: FakeElement, className: string): FakeElement[] {
+    const found: FakeElement[] = [];
+    const walk = (node: FakeElement): void => {
+      if (node.className.split(/\s+/).includes(className)) found.push(node);
+      for (const child of node.children) walk(child);
+    };
+    walk(root);
+    return found;
+  }
+
+  it('gives every armour row exactly the glyphs its facing calls for, and no more', () => {
+    // The duplicate-shield bug: `facingIcons` already returns the shield, and
+    // the renderer appended the generic row icon as well, so every armour row
+    // drew a chevron and TWO shields. It survived a real screenshot — three
+    // small glyphs in a row read as a slightly busy icon — and was only caught
+    // by COUNTING the SVGs in a browser. Hence an exact count here.
+    installFakeDom();
+    const container = new FakeElement('div');
+    const mounted = mountBuilder({
+      container: container as unknown as HTMLElement,
+      context: baseContext(),
+      onBuilt: () => {},
+      onCancel: () => {},
+    });
+
+    const armourRows = findByClass(container, 'sm-builder__row--armor');
+    expect(armourRows).toHaveLength(5);
+
+    const byFacing = new Map<string, FakeElement>();
+    for (const li of armourRows) {
+      const label = li.children.find((c) => c.className === 'sm-builder__row-label')?.textContent ?? '';
+      byFacing.set(label.replace('Armor: ', '').toLowerCase(), li);
+    }
+    // FRONT's chevron points up already, so it carries no transform at all —
+    // which is why "has a rotate()" is the wrong assertion for it.
+    // `tagName` is uppercased by this double (as the real DOM does), so the
+    // comparison is case-insensitive rather than against a literal 'svg'.
+    const isSvg = (c: FakeElement): boolean => c.tagName.toLowerCase() === 'svg';
+    const glyphCount = (li: FakeElement): number => li.children.filter(isSvg).length;
+    const dirCount = (li: FakeElement): number =>
+      li.children.filter((c) => isSvg(c) && c.className.includes('sm-icon--dir')).length;
+
+    for (const facing of ['front', 'rear', 'left', 'right']) {
+      const li = byFacing.get(facing);
+      expect(li, `no armour row for ${facing}`).toBeDefined();
+      expect(glyphCount(li!)).toBe(2);
+      expect(dirCount(li!)).toBe(1);
+    }
+    // UNDERBODY has no lateral direction, so it gets the shield alone — pointing
+    // a chevron "up" at the underside of a car would assert a direction that
+    // does not exist.
+    const under = byFacing.get('underbody');
+    expect(under).toBeDefined();
+    expect(glyphCount(under!)).toBe(1);
+    expect(dirCount(under!)).toBe(0);
+
+    mounted.destroy();
+  });
+
+  it('heads each group with a section marker that is not a selectable row', () => {
+    // Section headings are `<li>`s in the same list as the rows, so the count of
+    // things a player can arrow to must NOT grow because of decoration.
+    installFakeDom();
+    const container = new FakeElement('div');
+    const mounted = mountBuilder({
+      container: container as unknown as HTMLElement,
+      context: baseContext(),
+      onBuilt: () => {},
+      onCancel: () => {},
+    });
+
+    const sections = findByClass(container, 'sm-builder__section');
+    expect(sections.length).toBeGreaterThanOrEqual(4);
+    // A heading carries no `role="button"` and no click listener, so arrowing
+    // through the list can never land on one.
+    for (const section of sections) {
+      expect(section.children.filter((c) => c.tagName.toLowerCase() === 'svg').length).toBeGreaterThan(0);
+    }
+    mounted.destroy();
+  });
+
   it('does not re-render over the screen its own onBuilt callback just installed', () => {
     installFakeDom();
     const container = new FakeElement('div');

@@ -114,13 +114,63 @@
 
 .sm-builder__row {
   display: flex;
-  justify-content: space-between;
-  gap: var(--ui-space-5);
+  align-items: center;
+  gap: var(--ui-space-3);
   padding: var(--ui-space-2) var(--ui-space-4);
   border: 1px solid transparent;
   border-radius: var(--ui-radius-sm);
   cursor: pointer;
 }
+
+/* The value is pushed to the far end, with the glyph and the name holding the
+ * left. It was `justify-content: space-between` over exactly two children; with
+ * a glyph in front of the label that would have spread the label into the
+ * middle of the row, so the spacer is explicit instead. */
+.sm-builder__row-label { flex: 0 1 auto; }
+.sm-builder__row-value,
+.sm-builder__row-controls { margin-left: auto; }
+
+.sm-builder__row-icon {
+  display: block;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  color: var(--ui-ink-dim);
+  transition: color 140ms ease;
+}
+/* The facing chevron sits just inside the shield's own slot, so the pair reads
+ * as one mark rather than two icons of equal weight. */
+.sm-builder__row-icon--dir {
+  display: block;
+  width: 11px;
+  height: 11px;
+  margin-right: -4px;
+  color: var(--ui-accent);
+  opacity: 0.8;
+}
+.sm-builder__row--selected .sm-builder__row-icon { color: var(--ui-accent); }
+.sm-builder__row--needs-input .sm-builder__row-icon { color: var(--ui-damaged); }
+
+/* Section headings. `aria-hidden` in the markup and NOT focusable here, because
+ * every row in this list is keyboard-reachable and a stop in the arrow-key
+ * sequence that does nothing is worse than no heading at all. */
+.sm-builder__section {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  margin: var(--ui-space-4) 0 var(--ui-space-1);
+  padding: 0 var(--ui-space-4);
+  font-family: var(--ui-font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ui-ink-dim);
+  user-select: none;
+}
+/* The first heading has no group above it to separate from. */
+.sm-builder__rows > .sm-builder__section:first-child { margin-top: var(--ui-space-2); }
+.sm-builder__section-icon { display: block; width: 13px; height: 13px; color: var(--ui-accent); }
 
 .sm-builder__row--sub {
   padding-left: var(--ui-space-8);
@@ -275,22 +325,36 @@
   opacity: 0.85;
 }
 
+/* The name box is the one inline input in the game, because it sits INSIDE a
+ * keyboard-navigable row and cannot become a stacked `field()` without moving
+ * what Enter and the arrow keys act on. It borrows the same visual language as
+ * `controls.css` instead — the display face, the accent focus ring, the sunken
+ * fill — so it reads as the same control even though the DOM is necessarily
+ * different. */
 .sm-builder__row-input {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 0 var(--ui-space-2);
+  min-height: 30px;
+  padding: 0 var(--ui-space-3);
   color: var(--ui-ink);
-  background: transparent;
+  font-family: var(--ui-font-display);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  background: var(--ui-surface-sunken);
   border: 1px solid var(--ui-line);
   border-radius: var(--ui-radius-sm);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .sm-builder__row-input:focus {
   outline: none;
-  background: var(--ui-surface-sunken);
+  background: var(--ui-surface-2);
   border-color: var(--ui-accent);
+  /* The same ring `controls.css` draws on a `.sm-field:focus-within`, so the two
+   * name boxes in the game focus identically. */
+  box-shadow: 0 0 0 3px var(--ui-accent-wash);
 }
 
 /* Rendered ALWAYS (see src/ui/builder.ts's buildLeftPane) and hidden here by

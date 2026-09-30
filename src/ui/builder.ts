@@ -26,6 +26,7 @@ import type { BuildMetrics, BuildViolation, Facing, MountedWeapon, VehicleDesign
 import { MAX_WEAPON_ROWS as MAX_WEAPON_SLOTS } from '@/ui/hud';
 import { buildVehiclePreview, type PreviewSelection } from '@/ui/builder-preview';
 import { t } from '@/ui/strings';
+import { facingIcons, icon, type IconName } from '@/ui/icons';
 
 // ---------------------------------------------------------------------------
 // State
@@ -149,6 +150,57 @@ export type BuilderRow =
   | { readonly kind: 'facing'; readonly label: string; readonly valueLabel: string; readonly slot: number }
   | { readonly kind: 'ammo'; readonly label: string; readonly valueLabel: string; readonly slot: number }
   | { readonly kind: 'confirm'; readonly label: string; readonly valueLabel: string };
+
+/**
+ * Which group a row belongs to, derived from its kind.
+ *
+ * One owner, and derived rather than stored: a row already knows what it is, and
+ * a second field saying so would be a second thing to forget to set. The
+ * constructor used to be one flat list of thirteen rows, which is a wall — the
+ * armour facings ran straight into the weapon mounts with nothing marking where
+ * the chassis stopped and the protection began. Sections make the same rows
+ * read as four short lists: what it is, what drives it, what protects it, what
+ * shoots.
+ */
+export type BuilderSection = 'identity' | 'powertrain' | 'armour' | 'weapons' | 'confirm';
+
+const SECTION_BY_KIND: Readonly<Record<BuilderRow['kind'], BuilderSection>> = {
+  name: 'identity',
+  body: 'identity',
+  chassis: 'powertrain',
+  suspension: 'powertrain',
+  plant: 'powertrain',
+  tire: 'powertrain',
+  armor: 'armour',
+  weapon: 'weapons',
+  facing: 'weapons',
+  ammo: 'weapons',
+  confirm: 'confirm',
+};
+
+/** The glyph that heads each section. */
+const SECTION_ICON: Readonly<Record<BuilderSection, IconName>> = {
+  identity: 'id-badge',
+  powertrain: 'engine',
+  armour: 'shield',
+  weapons: 'weapon',
+  confirm: 'key',
+};
+
+/** The glyph for a row. Armour rows are the only ones that vary, by facing. */
+const ROW_ICON: Readonly<Record<BuilderRow['kind'], IconName>> = {
+  name: 'id-badge',
+  body: 'car',
+  chassis: 'car',
+  suspension: 'gauge',
+  plant: 'engine',
+  tire: 'gauge',
+  armor: 'shield',
+  weapon: 'weapon',
+  facing: 'chevron',
+  ammo: 'weapon',
+  confirm: 'key',
+};
 
 function titleCase(word: string): string {
   return word.charAt(0) + word.slice(1).toLowerCase();
@@ -782,6 +834,7 @@ function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLE
   list.className = 'sm-builder__rows';
   const confirmSlot = document.createElement('div');
   confirmSlot.className = 'sm-builder__confirm-slot';
+  let previousSection: BuilderSection | null = null;
   rows.forEach((row, index) => {
     const li = document.createElement('li');
     li.className = `sm-builder__row sm-builder__row--${row.kind}`;
@@ -796,6 +849,43 @@ function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLE
     li.setAttribute('role', 'button');
     if (index === state.selectedIndex) li.setAttribute('aria-selected', 'true');
     li.addEventListener('click', () => handlers.onRowActivate(index));
+
+    // A section header before the first row of each group. It is a `<li>` with
+    // no index and `aria-hidden`, so the arrow-key selection model is untouched:
+    // `rows` is still the only index space, and a header is skipped by
+    // construction because it is not one of its entries. That matters because
+    // every `sm-builder__row` in this list is clickable and keyboard-reachable,
+    // and a focusable heading in the middle of a list is a trap for a player
+    // arrowing through a build.
+    const section = SECTION_BY_KIND[row.kind];
+    if (previousSection !== section) {
+      const heading = document.createElement('li');
+      heading.className = 'sm-builder__section';
+      heading.setAttribute('aria-hidden', 'true');
+      heading.appendChild(icon(SECTION_ICON[section], { className: 'sm-builder__section-icon' }));
+      const headingText = document.createElement('span');
+      headingText.textContent = t(`ui.builder.section.${section}`);
+      heading.appendChild(headingText);
+      list.appendChild(heading);
+      previousSection = section;
+    }
+
+    // The row's glyph, so a row is identifiable without reading it. Armour rows
+    // get a chevron rotated to the facing they protect, which is the one place a
+    // direction genuinely carries meaning: "REAR: 2" and a down-arrow say the
+    // same thing faster than the word does.
+    if (row.kind === 'armor') {
+      // `facingIcons`, and NOT the generic row icon as well: the helper already
+      // returns the shield, so appending both drew every armour row with two
+      // shields and a chevron. A real-browser probe counting the SVGs is what
+      // found it — at a glance, three small glyphs in a row read as a slightly
+      // busy icon rather than as a bug.
+      for (const glyph of facingIcons(row.facing, 'sm-builder__row-icon')) {
+        li.appendChild(glyph);
+      }
+    } else {
+      li.appendChild(icon(ROW_ICON[row.kind], { className: 'sm-builder__row-icon' }));
+    }
 
     const label = document.createElement('span');
     label.className = 'sm-builder__row-label';

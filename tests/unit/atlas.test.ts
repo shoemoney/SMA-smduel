@@ -1382,11 +1382,24 @@ describe('CSS custom properties: every var() reference must resolve to a declare
       .filter((e: fs.Dirent) => e.isFile() && e.name.endsWith('.css'))
       .map((e: fs.Dirent) => resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src', e.parentPath, e.name));
 
+    // index.html's inline <style> is a REAL stylesheet in this project, not
+    // documentation: the loading splash is inlined there precisely so it paints
+    // before any bundled CSS is fetched, and `--ui-font-display` is declared
+    // there for that reason (see the note in index.html and in tokens.css).
+    //
+    // It has to be scanned, because the guard's whole value is that a reference
+    // with no declaration is a BUILD FAILURE rather than a silently invalid
+    // declaration — and a declaration the scan cannot see is indistinguishable,
+    // from here, from no declaration at all. Reading only `src/**/*.css` made
+    // this test fire on correct code the moment a real token moved to the one
+    // file that can style the first paint.
+    const indexHtml = readFileSync(fileURLToPath(new URL('../../index.html', import.meta.url)), 'utf8');
     const srcDir = fileURLToPath(new URL('../../src/', import.meta.url));
     const declared = new Set<string>();
     for (const file of cssFiles) {
       for (const m of stripCssComments(readFileSync(file, 'utf8')).matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)) declared.add(m[1]!);
     }
+    for (const m of stripCssComments(indexHtml).matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)) declared.add(m[1]!);
     // Custom properties set at RUNTIME count as declared. `--hud-radar-x/y` are
     // written into an element's inline style by hud.ts on every contact update, so
     // they exist in the document without ever appearing in a stylesheet — and a

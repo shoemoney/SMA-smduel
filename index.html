@@ -34,6 +34,24 @@
          request, so waiting for one here would defeat the entire point of
          having a splash. Inline costs ~1KB and paints on the first frame. -->
     <style>
+      /* The splash is deliberately self-contained — it has to paint before the
+         module graph, and therefore before any bundled CSS — so the one design
+         token it needs is defined HERE, on :root, rather than in
+         src/ui/tokens.css. tokens.css consumes this same custom property and
+         deliberately does not redefine it, so the display face has exactly one
+         owner even though the first paint cannot read the stylesheet that owns
+         the rest of the system.
+
+         Autoduel's 1985 face was a wide, heavy, mechanical grotesque. This
+         stack gets there with what is actually installed — a condensed heavy
+         grotesque, tightened and tracked out — rather than shipping a font
+         file for four words and a few headings. Uppercase plus tracking is doing
+         as much of the work as the family is. */
+      :root {
+        --ui-font-display: 'Arial Narrow', 'Helvetica Neue Condensed', 'Roboto Condensed',
+          'Liberation Sans Narrow', 'Avenir Next Condensed', system-ui, sans-serif;
+      }
+
       /* Shown from the first paint until src/ui/loading-screen.ts takes over and
          removes the element. aria-busy marks it as transient; the progress bar
          is a real <progress>-shaped role so a screen reader is told it is
@@ -47,12 +65,142 @@
         align-items: center;
         justify-content: center;
         gap: 22px;
-        background: radial-gradient(120% 90% at 50% 15%, #0d1520 0%, #05070a 62%, #030405 100%);
+        /* Pure black, not the old radial gradient. The tribute card is the first
+           thing anyone sees and it is a credit to a 1985 game, so it reads as a
+           title card on a dark screen rather than as part of the loading chrome. */
+        background: #000;
         font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
         transition: opacity 320ms ease;
       }
       .sm-boot[hidden] { display: none; }
       .sm-boot--out { opacity: 0; pointer-events: none; }
+
+      /* --- The Autoduel tribute card ---------------------------------------
+         Two stages share this one splash element. The tribute is on screen
+         first, alone on black; when it hands over, it scrolls up and out while
+         the logo/bar/status fade in behind it. One element means one opaque
+         background, so the handover cannot reveal a seam or double-black.
+
+         The stage is a class on the root rather than a separate screen because
+         the splash has to exist on the FIRST PAINT (see the note on the markup
+         below) — anything created by JS arrives after the browser has already
+         spent real time parsing the module graph, which is the exact stretch a
+         splash exists to cover. */
+      .sm-boot__tribute {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(14px, 2.6vh, 26px);
+        padding: 0 clamp(20px, 7vw, 72px);
+        text-align: center;
+        /* `backwards`, NOT `both` — and the reason is a bug this exact card had
+           on its first run. A filled animation pins its `to` state forever and
+           outranks ordinary declarations, so `both` held the card at
+           `opacity: 1` and the handover class below could never fade it out: the
+           card and the loading chrome rendered on top of each other, the
+           progress bar lying straight across the credit. `backwards` fills only
+           BEFORE the animation starts, which is all the staggered delay needs,
+           and hands the element back to its declared styles the moment the
+           entrance ends. */
+        animation: sm-tribute-in 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+        transition: transform 520ms cubic-bezier(0.7, 0, 0.84, 0), opacity 420ms ease;
+      }
+      @keyframes sm-tribute-in {
+        from { opacity: 0; transform: translateY(14px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .sm-boot--loading .sm-boot__tribute {
+        transform: translateY(-72px);
+        opacity: 0;
+      }
+      /* The four lines stagger in. Each is delayed rather than animated
+         separately so the whole card still costs one element's worth of
+         layout. */
+      .sm-boot__tribute > * { animation: sm-tribute-line 620ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+      .sm-boot__tribute > *:nth-child(1) { animation-delay: 120ms; }
+      .sm-boot__tribute > *:nth-child(2) { animation-delay: 340ms; }
+      .sm-boot__tribute > *:nth-child(3) { animation-delay: 560ms; }
+      .sm-boot__tribute > *:nth-child(4) { animation-delay: 780ms; }
+      @keyframes sm-tribute-line {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      .sm-boot__tribute-kicker {
+        font-size: clamp(9px, 1.5vw, 11px);
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
+        color: rgba(233, 239, 246, 0.42);
+      }
+      .sm-boot__tribute-title {
+        font-family: var(--ui-font-display);
+        font-size: clamp(24px, 6.2vw, 52px);
+        line-height: 1.02;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #ffd23f;
+        text-shadow: 0 0 26px rgba(255, 210, 63, 0.32);
+      }
+      .sm-boot__tribute-line {
+        max-width: 46ch;
+        font-size: clamp(12px, 2.5vw, 17px);
+        line-height: 1.55;
+        color: #f2f6fa;
+        text-wrap: balance;
+      }
+      /* ONE rule for the whole card: bold text is yellow, regular text is
+         white. Stated once so the four lines cannot disagree about it. */
+      .sm-boot__tribute-line strong,
+      .sm-boot__tribute-sign {
+        color: #ffd23f;
+        font-weight: 700;
+      }
+      .sm-boot__tribute-rule {
+        width: min(340px, 62vw);
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255, 210, 63, 0.55), transparent);
+      }
+      .sm-boot__tribute-sign {
+        font-family: var(--ui-font-display);
+        font-size: clamp(12px, 2.6vw, 18px);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sm-boot__tribute,
+        .sm-boot__tribute > * { animation: none; }
+        .sm-boot--loading .sm-boot__tribute { transform: none; opacity: 0; }
+        .sm-boot__tribute { transition: none; }
+      }
+
+      /* The loading chrome is present from the first paint but INVISIBLE while
+         the tribute holds the screen, so the handover is a cross-fade rather
+         than a layout jump. `visibility` (not just opacity) keeps it out of the
+         accessibility tree and out of hit-testing until it is real.
+
+         The chrome's fade is DELAYED so it arrives as the card is already
+         leaving. Undelayed, both were fully opaque at the same time on the
+         first run and the card's text rendered straight through the logo and
+         the progress bar. */
+      .sm-boot__logo,
+      .sm-boot__bar,
+      .sm-boot__status,
+      .sm-boot__brand {
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 420ms ease, visibility 0s linear 420ms;
+      }
+      .sm-boot--loading .sm-boot__logo,
+      .sm-boot--loading .sm-boot__bar,
+      .sm-boot--loading .sm-boot__status,
+      .sm-boot--loading .sm-boot__brand {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 420ms ease 280ms, visibility 0s;
+      }
 
       .sm-boot__logo {
         width: min(168px, 34vw);
@@ -143,6 +291,29 @@
          blank page for that stretch is exactly what a splash is for.
          Removed by src/ui/loading-screen.ts once the first screen is ready. -->
     <div class="sm-boot" id="sm-boot" role="status" aria-live="polite" aria-busy="true">
+      <!-- The tribute card. Sits first in the DOM and covers the loading chrome
+           (which is present but transparent until `.sm-boot--loading`), so the
+           credit is what the player actually reads while the game loads.
+           Bold words are yellow and regular words are white — one rule, applied
+           by the `.sm-boot__tribute-line strong` selector below, so the four
+           lines cannot drift apart. `aria-hidden` on the rule and kicker keeps
+           a screen reader on the meaningful lines rather than the chrome. -->
+      <div class="sm-boot__tribute">
+        <p class="sm-boot__tribute-kicker" aria-hidden="true">Origin Systems &middot; 1985</p>
+        <h1 class="sm-boot__tribute-title">Inspired by a Childhood Classic</h1>
+        <p class="sm-boot__tribute-line">
+          This game is a modern reimagining of <strong>Autoduel (1985)</strong>.
+        </p>
+        <p class="sm-boot__tribute-line">
+          Original game by <strong>Origin Systems</strong>, designed by
+          <strong>Chuckles and Lord British</strong>.
+        </p>
+        <div class="sm-boot__tribute-rule" aria-hidden="true"></div>
+        <p class="sm-boot__tribute-line">
+          Thank you for the memories.
+        </p>
+      </div>
+
       <img class="sm-boot__logo" src="./assets/shoemoney-logo.png" alt="" width="512" height="414" />
       <div
         class="sm-boot__bar"

@@ -49,6 +49,24 @@ const PHASE = {
  */
 const MIN_DISPLAY_MS = 1100;
 
+/**
+ * How long the Autoduel tribute card holds the screen on its own, in ms.
+ *
+ * It is a CREDIT, not chrome: four lines of type that a player has to be able to
+ * actually read. The lines stagger in over roughly 900ms (see the
+ * `sm-tribute-line` delays), so anything under ~1s would hand over mid-fade and
+ * cut the last line off as it appeared. 2600ms leaves the finished card sitting
+ * on black for over a second before it moves.
+ *
+ * This is deliberately NOT tied to load progress. Boot on a warm cache finishes
+ * in ~380ms, so a progress-triggered handover would show the card for a fraction
+ * of a second on exactly the machines that reach the title screen fastest — the
+ * opposite of what a credit is for. The card holds for its own time; the real
+ * progress bar behind it keeps reporting the truth throughout, so a slow load is
+ * still visibly slow after the card has gone.
+ */
+const TRIBUTE_HOLD_MS = 2600;
+
 export interface LoadingScreen {
   /** Push a real progress value (0..1) and an optional status line. */
   report(fraction: number, status?: string): void;
@@ -139,6 +157,22 @@ export function preloadImage(url: string, timeoutMs = 15000): Promise<void> {
   });
 }
 
+/**
+ * How long the handover takes to COMPLETE, in ms — the point at which BOTH the
+ * card has finished leaving and the loading chrome has finished arriving.
+ *
+ * MUST cover the slower of the two CSS transitions in index.html: the card's
+ * 520ms exit and the chrome's 280ms delay + 420ms fade = 700ms. This is a
+ * literal because that CSS is inlined in the HTML and cannot be read at
+ * runtime; retime it and this is the number to retime with it.
+ *
+ * It is only used to stop the splash starting its own fade mid-handover, so
+ * being slightly long is harmless and being slightly short is visible — the
+ * chrome would be caught halfway up and the player would see the title screen
+ * eat it.
+ */
+const TRIBUTE_EXIT_MS = 700;
+
 /** Attaches to the splash already present in index.html. */
 export function createLoadingScreen(): LoadingScreen {
   const root = el('sm-boot');
@@ -154,6 +188,33 @@ export function createLoadingScreen(): LoadingScreen {
       : false;
 
   const createdAtMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+  /**
+   * Hands the screen over from the tribute card to the loading chrome.
+   *
+   * Idempotent, and it does NOT touch any progress value: the class only moves
+   * the card up and out and fades the logo/bar/status in. The bar still shows
+   * real work the whole time, so a player watching a slow load sees the card
+   * leave and then watches the bar sit still at its true value — which is the
+   * behaviour the progress bar's own note insists on.
+   *
+   * Driven by its own timer rather than by `report()` reaching some fraction.
+   * See `TRIBUTE_HOLD_MS` for why progress is the wrong trigger.
+   */
+  let handedOver = false;
+  function handOverToLoading(): void {
+    if (handedOver) return;
+    handedOver = true;
+    root?.classList.add('sm-boot--loading');
+  }
+  if (root !== null && !reducedMotion) {
+    window.setTimeout(handOverToLoading, TRIBUTE_HOLD_MS);
+  } else {
+    // Reduced motion: the card does not animate, so there is nothing to wait
+    // for — hand over immediately rather than holding a static credit on a
+    // machine that asked for no animation.
+    handOverToLoading();
+  }
 
   /** Fades the splash out and removes it, with a timeout as the backstop. */
   function fadeOut(): void {
@@ -221,8 +282,21 @@ export function createLoadingScreen(): LoadingScreen {
       //
       // 1100ms is long enough to read the logo and the line, and short enough
       // that a returning player is not held.
+      //
+      // The floor is now the LATER of two things: the original minimum display
+      // time, and the tribute card having actually finished leaving. Without
+      // the second term this screen had a real bug: a warm-cache boot finishes
+      // in ~380ms, so the splash would begin fading at 1100ms — while the
+      // tribute was still holding the screen until 2600ms — and the credit
+      // would be cut off roughly one line into being read. The card owns the
+      // first seconds of the boot, so the splash waits for the card.
       const elapsedMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      const remainingMs = Math.max(0, MIN_DISPLAY_MS - (elapsedMs - createdAtMs));
+      const handoverMs = reducedMotion ? 0 : TRIBUTE_HOLD_MS;
+      const earliestFadeMs = Math.max(MIN_DISPLAY_MS, handoverMs + TRIBUTE_EXIT_MS);
+      const remainingMs = Math.max(0, earliestFadeMs - (elapsedMs - createdAtMs));
+      // Hand over now if the timer has not fired yet, so the wait below can
+      // never expire on a card that is still covering the chrome.
+      handOverToLoading();
       if (remainingMs > 0) {
         window.setTimeout(() => fadeOut(), remainingMs);
         return;

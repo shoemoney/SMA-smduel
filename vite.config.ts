@@ -18,6 +18,9 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Closes the ignition switch's crank-duration seam for the whole suite; see
+    // the file for why. The deferral itself is proven in controls.test.ts.
+    setupFiles: ['tests/setup/ignition-fast.ts'],
     include: browserSuite ? ['tests/browser/**/*.test.ts'] : ['tests/**/*.test.ts'],
     exclude: browserSuite ? [] : ['tests/browser/**'],
     globals: true,

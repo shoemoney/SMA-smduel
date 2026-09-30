@@ -13,10 +13,14 @@
  * and keeps running the CPU simulation + HUD with no canvas draw — the sim
  * is CPU-authoritative regardless of whether anything can render it.
  */
+import '@/ui/controls.css';
 import '@/ui/builder.css';
 import '@/ui/menu.css';
 import '@/ui/hud.css';
 import '@/ui/touch.css';
+
+import { field, ignitionButton, panel } from '@/ui/controls';
+import { icon, type IconName } from '@/ui/icons';
 
 import {
   citiesConfig,
@@ -988,100 +992,162 @@ function showControls(root: HTMLElement, onExit: () => void): void {
 // Screen 2: Driver creation
 // ---------------------------------------------------------------------------
 
+/**
+ * Which glyph stands for each skill.
+ *
+ * A lookup BY SKILL NAME rather than an index into the icon set, because
+ * `cfg.skills` is the authority on which skills exist and its order is not
+ * guaranteed to be stable — an icon table indexed by position would silently
+ * put the wrench on Marksmanship the day someone reorders skills.json. A skill
+ * with no entry gets no glyph, which is honest; the wrong glyph is not.
+ */
+const SKILL_ICONS: Readonly<Record<string, IconName>> = {
+  driving: 'steering-wheel',
+  marksmanship: 'crosshair',
+  mechanic: 'wrench',
+};
+
 function showDriverCreation(root: HTMLElement, onCreated: (driver: DriverState) => void): void {
   const cfg = skillsConfig();
   const container = el('div', 'sm-screen sm-screen--driver');
   container.style.cssText =
-    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#d7e0ea;font-family:system-ui,sans-serif;';
+    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ui-ink);font-family:var(--ui-font-sans);';
 
   const card = el('div');
-  card.style.cssText = 'width:min(420px,90vw);background:#161d27;border:1px solid #2a3444;border-radius:8px;padding:24px;';
+  card.style.cssText =
+    'width:min(460px,92vw);max-height:92vh;overflow:auto;background:var(--ui-surface);border:1px solid var(--ui-line);border-radius:12px;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,0.45);';
   const title = el('h2', undefined, t('ui.driverCreation.title'));
-  title.style.cssText = 'margin:0 0 16px;';
+  // The display face, set wide and uppercase. This card now leads with a
+  // heading that looks like the same product as the tribute card and the
+  // ignition switch below it, instead of a browser-default h2.
+  title.style.cssText =
+    'margin:0 0 4px;font-family:var(--ui-font-display);font-size:22px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--ui-ink);';
   card.appendChild(title);
+  const subtitle = el('p', undefined, t('ui.driverCreation.subtitle'));
+  subtitle.style.cssText = 'margin:0 0 20px;font-size:12px;line-height:1.5;color:var(--ui-ink-dim);letter-spacing:0.04em;';
+  card.appendChild(subtitle);
 
-  const nameLabel = el('label', undefined, t('ui.driverCreation.nameLabel'));
-  nameLabel.style.cssText = 'display:block;margin-bottom:4px;';
-  card.appendChild(nameLabel);
-  const nameInput = el('input');
-  nameInput.type = 'text';
-  nameInput.maxLength = cfg.driver.nameMaxLength;
-  nameInput.value = 'Driver';
-  nameInput.style.cssText = 'width:100%;box-sizing:border-box;margin-bottom:16px;padding:6px;';
-  card.appendChild(nameInput);
-
+  // --- Skill points ---------------------------------------------------------
+  //
+  // One panel, three rows: glyph, name, points box. The first attempt at this
+  // nested a panel per skill inside the skills panel and gave each its own
+  // "Points" field, which produced three levels of border for three numbers,
+  // said "Points" four times, and drew each skill's icon twice — once in the
+  // sub-panel header and again in the field. The screenshot is what caught it;
+  // the markup read fine. The row now names the skill once and the box says the
+  // number, which is the whole job.
+  //
+  // The icons are looked up BY SKILL NAME (see `SKILL_ICONS`), so a skill
+  // added to skills.json without an entry here gets no glyph rather than
+  // whichever one happened to be next in the table.
   const base = Math.floor(cfg.startingSkillPool / cfg.skills.length);
   const remainder = cfg.startingSkillPool - base * cfg.skills.length;
   const skillInputs = new Map<SkillName, HTMLInputElement>();
-  const remainingLabel = el('div');
-  remainingLabel.style.cssText = 'margin:8px 0;color:#8a97a8;';
 
   function currentTotal(): number {
     let total = 0;
     for (const input of skillInputs.values()) total += Number.parseInt(input.value, 10) || 0;
     return total;
   }
-  function refreshRemaining(): void {
-    remainingLabel.textContent = t('ui.driverCreation.pointsRemaining', {
-      count: cfg.startingSkillPool - currentTotal(),
+
+  const skillsPanel = panel(t('ui.driverCreation.skillsTitle'), 'gauge');
+  for (const [index, skillName] of cfg.skills.entries()) {
+    const glyph = SKILL_ICONS[skillName] ?? 'gauge';
+    const row = el('div', 'sm-skill-row');
+
+    row.appendChild(icon(glyph, { className: 'sm-skill-row__icon' }));
+    const nameEl = el('span', 'sm-skill-row__name', t(`ui.driverCreation.skill.${skillName}`));
+    row.appendChild(nameEl);
+    row.appendChild(el('span', 'sm-skill-row__leader'));
+
+    const skillField = field({
+      label: t(`ui.driverCreation.points.${skillName}`),
+      type: 'number',
+      layout: 'inline',
+      min: cfg.skillMin,
+      max: cfg.skillMax,
+      onInput: () => {
+        refreshRemaining();
+        nameField.setError(null);
+      },
     });
+    skillField.input.value = String(base + (index === cfg.skills.length - 1 ? remainder : 0));
+    row.appendChild(skillField.root);
+    skillsPanel.body.appendChild(row);
+    skillInputs.set(skillName, skillField.input);
   }
 
-  cfg.skills.forEach((skillName, index) => {
-    const row = el('div');
-    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
-    const label = el('span', undefined, skillName);
-    const input = el('input');
-    input.type = 'number';
-    input.min = String(cfg.skillMin);
-    input.max = String(cfg.skillMax);
-    input.value = String(base + (index === cfg.skills.length - 1 ? remainder : 0));
-    input.style.cssText = 'width:80px;padding:4px;';
-    input.addEventListener('input', refreshRemaining);
-    row.appendChild(label);
-    row.appendChild(input);
-    card.appendChild(row);
-    skillInputs.set(skillName, input);
-  });
-  card.appendChild(remainingLabel);
+  // The remaining-points readout lives INSIDE the panel it is about. It used to
+  // sit loose between the skills and the name field, where it collided with the
+  // name field's own label and read as part of it.
+  const remainingLabel = el('div', 'sm-panel__foot');
+  function refreshRemaining(): void {
+    const left = cfg.startingSkillPool - currentTotal();
+    remainingLabel.textContent = t('ui.driverCreation.pointsRemaining', { count: left });
+    // A zero balance and an over-budget split are different states and the
+    // player needs to tell them apart at a glance: one is done, one is a
+    // mistake they have to fix before the key will turn.
+    remainingLabel.classList.toggle('sm-panel__foot--spent', left === 0);
+    remainingLabel.classList.toggle('sm-panel__foot--over', left < 0);
+  }
+  skillsPanel.root.appendChild(remainingLabel);
+  card.appendChild(skillsPanel.root);
   refreshRemaining();
 
-  const message = el('div');
-  message.style.cssText = 'color:#ff6b6b;min-height:20px;margin:8px 0;';
-  card.appendChild(message);
-
-  const submit = el('button', undefined, t('ui.driverCreation.title'));
-  submit.style.cssText = 'width:100%;padding:10px;background:#4fd6c4;border:none;border-radius:4px;cursor:pointer;font-weight:600;';
-  submit.addEventListener('click', () => {
-    const skills = {} as Record<SkillName, number>;
-    for (const [skillName, input] of skillInputs) {
-      skills[skillName] = Number.parseInt(input.value, 10) || 0;
-    }
-    const result = createDriver(nameInput.value.trim(), skills);
-    if (!result.ok) {
-      message.textContent = result.reason;
-      return;
-    }
-    onCreated(result.driver);
+  // --- Driver name ----------------------------------------------------------
+  //
+  // Built from the shared `field()`, so this box and the arcade score name box
+  // are the same control by construction rather than by remembering to style
+  // them alike. They were two hand-built inputs with two different looks.
+  const nameField = field({
+    label: t('ui.driverCreation.nameLabel'),
+    iconName: 'id-badge',
+    placeholder: t('ui.driverCreation.namePlaceholder'),
+    maxLength: cfg.driver.nameMaxLength,
+    // Enter on the name field turns the key, exactly like clicking the switch.
+    // Wired through the field's own onSubmit rather than a second keydown
+    // handler on the input, so the two routes cannot drift.
+    onSubmit: () => submit.click(),
+    onInput: () => nameField.setError(null),
   });
+  nameField.input.value = 'Driver';
+  // Breathing room under the skills panel. Without it the name field's label
+  // sits flush against the panel's bottom border and the two read as one block.
+  nameField.root.style.marginTop = '20px';
+  card.appendChild(nameField.root);
+
+  // --- The ignition switch --------------------------------------------------
+  //
+  // Replaces a flat teal `<button>` whose label was a copy of the page title
+  // ("Create Driver" twice on one screen, the second one as the button). The key
+  // turns, the starter engages, and only then is a driver built.
+  const submit = ignitionButton({
+    label: t('ui.driverCreation.ignite'),
+    onIgnite: () => {
+      const skills = {} as Record<SkillName, number>;
+      for (const [skillName, input] of skillInputs) {
+        skills[skillName] = Number.parseInt(input.value, 10) || 0;
+      }
+      const result = createDriver(nameField.value(), skills);
+      if (!result.ok) {
+        // The failure belongs to the name field when it is the name's fault and
+        // to the points line when it is the split's, rather than to one generic
+        // red line under everything: a player who typed a duplicate name should
+        // be told which box to change.
+        const isNameProblem = /name/i.test(result.reason);
+        nameField.setError(isNameProblem ? result.reason : null);
+        if (!isNameProblem) remainingLabel.textContent = result.reason;
+        return;
+      }
+      onCreated(result.driver);
+    },
+  });
+  submit.style.marginTop = '18px';
   card.appendChild(submit);
-
-  // This screen has no wrapping <form>, so a bare `<input>` gives Enter no
-  // default action at all — reported as "you must arrow down [to the skill
-  // rows and back] to the button; Enter does nothing." Reuses `submit`'s own
-  // click handler (`.click()`, not a copy of its body) so the validation and
-  // navigation behind Enter can never drift from what clicking the button
-  // does. Skill point fields are `type="number"`, not the reported "name
-  // field", and are left alone.
-  nameInput.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Enter') return;
-    ev.preventDefault();
-    submit.click();
-  });
 
   container.appendChild(card);
   clearAndAppend(root, container);
-  nameInput.focus();
+  nameField.input.focus();
 }
 
 // ---------------------------------------------------------------------------
@@ -3778,12 +3844,16 @@ export function showArcadeScoreSubmit(
   panel.style.cssText = 'width:min(420px,90vw);max-height:90vh;overflow:auto;';
   container.appendChild(panel);
 
-  const nameField = document.createElement('input');
-  nameField.type = 'text';
-  nameField.value = driverName;
-  nameField.setAttribute('aria-label', t('ui.arena.scoreSubmit.nameLabel'));
-  nameField.style.cssText = 'display:block;width:100%;box-sizing:border-box;margin:0 0 8px;padding:6px;';
-  panel.appendChild(nameField);
+  // The same `field()` the driver screen uses, so the game's two name boxes are
+  // one control by construction. They were two hand-written inputs with two
+  // different looks and neither had a focus ring.
+  const scoreNameField = field({
+    label: t('ui.arena.scoreSubmit.nameLabel'),
+    iconName: 'id-badge',
+  });
+  scoreNameField.input.value = driverName;
+  scoreNameField.input.style.marginBottom = '8px';
+  panel.appendChild(scoreNameField.root);
 
   const menuHost = el('div');
   panel.appendChild(menuHost);
@@ -3837,7 +3907,7 @@ export function showArcadeScoreSubmit(
       if (id !== ARCADE_SUBMIT_ACTION_ID) return;
       status = { kind: 'submitting' };
       mounted.setActions(actionsFor());
-      void submitArcadeScore({ name: nameField.value, ...payload }).then((result) => {
+      void submitArcadeScore({ name: scoreNameField.value(), ...payload }).then((result) => {
         status = result.ok ? { kind: 'accepted', rank: result.rank } : { kind: 'failed', error: arcadeFailureText(result.failure) };
         mounted.setActions(actionsFor());
       });

@@ -1,0 +1,356 @@
+/* Modernised form controls and section chrome.
+ *
+ * This exists because every input in the game was built with an inline
+ * `style.cssText` string, which means: no hover state, no focus ring, no
+ * disabled treatment, and no shared spacing — four inputs that were supposed to
+ * look like one system looked like four. These classes are that system.
+ *
+ * Everything is token-driven (`--ui-*` from tokens.css) so the controls follow
+ * the palette instead of hardcoding hexes, and `--ui-font-display` (owned by
+ * index.html, because the splash needs it before any stylesheet loads) is what
+ * gives headings and buttons the Autoduel-styled face.
+ */
+
+/* --- Fields ---------------------------------------------------------------
+ *
+ * A field is a wrapper, not just the input: the icon and the label live in it,
+ * so a label can never end up describing a different box than the one it is
+ * next to, and the focus ring can wrap the whole thing rather than hugging the
+ * text caret.
+ *
+ * `position: relative` is load-bearing — the focus ring is drawn with
+ * `::after` at `inset: -2px` so it sits OUTSIDE the field's border. Without a
+ * positioned ancestor that pseudo-element would anchor to the nearest positioned
+ * ancestor (the card) and draw a rectangle around the whole form. */
+
+.sm-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  min-height: 42px;
+  background: var(--ui-surface-sunken);
+  border: 1px solid var(--ui-line);
+  border-radius: 8px;
+  color: var(--ui-ink-muted);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+.sm-field:hover { border-color: var(--ui-line-strong); }
+
+.sm-field__icon {
+  width: 18px;
+  height: 18px;
+  color: var(--ui-accent);
+  opacity: 0.85;
+  transition: color 140ms ease, opacity 140ms ease;
+}
+
+.sm-field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ui-ink);
+  font-family: var(--ui-font-display);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+.sm-field__input:focus { outline: none; }
+.sm-field__input::placeholder { color: var(--ui-ink-dim); letter-spacing: 0.02em; }
+
+/* One focus treatment for every field, on the wrapper so the icon lights up
+ * with the text. `:focus-within` rather than `:focus` on the input, because the
+ * input has no border of its own to draw on. */
+.sm-field:focus-within {
+  border-color: var(--ui-accent);
+  background: var(--ui-surface-2);
+  box-shadow: 0 0 0 3px var(--ui-accent-wash);
+}
+.sm-field:focus-within .sm-field__icon { color: var(--ui-accent-strong); opacity: 1; }
+
+.sm-field--invalid { border-color: var(--ui-critical); }
+.sm-field--invalid:focus-within { box-shadow: 0 0 0 3px var(--ui-critical-wash); }
+
+/* Number fields: the browser's own spinners are unstyleable across engines and
+ * sit badly in a themed row, so they go and the row's own affordance carries
+ * it. The skill rows below this file are the only number fields left. */
+.sm-field--number .sm-field__input { text-align: center; font-variant-numeric: tabular-nums; }
+.sm-field--number input[type='number']::-webkit-outer-spin-button,
+.sm-field--number input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.sm-field--number input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+
+/* A small unit suffix inside the field, e.g. "kg" or "days". */
+.sm-field__suffix {
+  font-family: var(--ui-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ui-ink-dim);
+}
+
+/* --- Buttons -------------------------------------------------------------- */
+
+.sm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 8px;
+  background: var(--ui-surface-2);
+  color: var(--ui-ink);
+  font-family: var(--ui-font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 90ms ease, color 140ms ease;
+}
+.sm-btn:hover { background: var(--ui-surface-raised); border-color: var(--ui-accent); }
+.sm-btn:active { transform: translateY(1px); }
+.sm-btn:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; }
+.sm-btn[disabled] { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.sm-btn--primary {
+  border-color: var(--ui-accent);
+  background: linear-gradient(180deg, var(--ui-accent-wash), transparent);
+  color: var(--ui-accent-strong);
+}
+.sm-btn--primary:hover { background: var(--ui-accent); color: var(--ui-ink-inverse); }
+
+.sm-btn--danger { border-color: var(--ui-critical); color: var(--ui-critical); }
+.sm-btn--danger:hover { background: var(--ui-critical); color: #1a0d05; }
+
+.sm-btn__icon { width: 18px; height: 18px; }
+
+/* --- The ignition switch --------------------------------------------------
+ *
+ * The driver's "create driver" action, as an ignition switch: a real key that
+ * rotates a quarter turn and a starter that engages, and only then the car is
+ * built.
+ *
+ * The rotation is the whole point, so it is a two-state transition on a class
+ * rather than a decorative wobble: `.sm-ignition--cranking` turns the key, and
+ * the crank is held long enough to be seen (420ms) before `onIgnite` fires. A
+ * key that turned for 40ms and jumped to the next screen would read as a glitch
+ * rather than as a car starting.
+ *
+ * `prefers-reduced-motion` drops the rotation to a static state change: the
+ * label and the ring still change, so the affordance survives without the spin. */
+
+.sm-ignition {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 20px;
+  border: 1px solid var(--ui-line-accent);
+  border-radius: 10px;
+  background: var(--ui-surface-sunken);
+  color: var(--ui-ink);
+  font-family: var(--ui-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 200ms ease, color 200ms ease, background-color 200ms ease;
+}
+.sm-ignition:hover { border-color: var(--ui-accent); }
+.sm-ignition:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: 2px; }
+
+/* The energised sweep behind the key. Hidden until cranking, so a button at
+ * rest does not shimmer. */
+.sm-ignition::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--ui-accent-wash) 45%, transparent);
+  transform: translateX(-100%);
+  opacity: 0;
+}
+.sm-ignition--cranking::before { opacity: 1; animation: sm-ignition-crank 700ms ease-in-out infinite; }
+@keyframes sm-ignition-crank {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* The key itself. `--sm-ignition-turn` is the only place the rotation is
+ * defined, so the resting and cranking angles cannot drift apart. */
+.sm-ignition__key {
+  width: 24px;
+  height: 24px;
+  color: var(--ui-ink-dim);
+  transform: rotate(0deg);
+  transition: transform 420ms cubic-bezier(0.34, 1.4, 0.5, 1), color 200ms ease;
+}
+.sm-ignition--cranking .sm-ignition__key {
+  /* A quarter turn, overshooting slightly and settling — the mechanical
+   * truth of a starter is that it snaps past and springs back. */
+  transform: rotate(88deg);
+  color: var(--ui-accent-strong);
+}
+
+.sm-ignition__label { position: relative; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sm-ignition--cranking::before { animation: none; opacity: 0.35; }
+  .sm-ignition--cranking .sm-ignition__key { transform: rotate(45deg); transition: color 200ms ease; }
+}
+
+/* --- Sectioned panels -----------------------------------------------------
+ *
+ * The constructor's armour and upgrade read-outs. Each section is a titled
+ * card with an icon in its header, so a wall of numbers becomes a short list of
+ * named things — which is the difference between a specification and a
+ * control panel. */
+
+.sm-panel {
+  border: 1px solid var(--ui-line);
+  border-radius: 10px;
+  background: var(--ui-surface);
+  overflow: hidden;
+}
+
+.sm-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--ui-line);
+  background: var(--ui-surface-raised);
+  font-family: var(--ui-font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ui-ink-muted);
+}
+.sm-panel__head .sm-icon { width: 15px; height: 15px; color: var(--ui-accent); }
+
+.sm-panel__body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+
+/* One stat line: an icon, a name, and a value that is allowed to be the
+ * loudest thing in the row. */
+.sm-stat {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: var(--ui-ink-muted);
+}
+.sm-stat .sm-icon { width: 15px; height: 15px; color: var(--ui-ink-dim); }
+.sm-stat__name { letter-spacing: 0.04em; }
+.sm-stat__value {
+  font-family: var(--ui-font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-ink);
+}
+
+/* Armour facings get a state colour, because "how hurt am I" is the single most
+ * looked-at number on the screen and a bare number does not answer it at a
+ * glance. These are the same three semantic colours the HUD already uses, so
+ * the constructor and the arena agree. */
+.sm-stat--ok .sm-stat__value { color: var(--ui-ok); }
+.sm-stat--damaged .sm-stat__value { color: var(--ui-damaged); }
+.sm-stat--critical .sm-stat__value { color: var(--ui-critical); }
+.sm-stat--destroyed .sm-stat__value { color: var(--ui-destroyed); }
+
+.sm-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  /* An SVG in a flex row is a flex item like any other, and without this it
+   * stretches and picks up the row's font metrics. The rule lives here rather
+   * than in `icons.ts` so the theme owns it. */
+  flex: 0 0 auto;
+}
+.sm-icon--dir {
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin-right: -5px;
+  color: var(--ui-accent);
+  opacity: 0.8;
+}
+
+/* A two-up grid for the facing rows, so five facings read as a block. */
+.sm-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
+}
+
+/* --- Inline fields --------------------------------------------------------
+ *
+ * A compact box for the end of a row that already names the thing. The
+ * driver's skill rows are three of these: the row says "Driving", so repeating
+ * the word "Points" three times down the card was noise, and a full-width field
+ * per skill made three numbers look like a form to fill in rather than three
+ * things to glance at.
+ *
+ * The label is `hidden` rather than absent — see `field()`'s `layout: 'inline'`
+ * note: a bare "16" with no accessible name is a number nobody can attribute. */
+
+.sm-field--inline {
+  min-height: 34px;
+  width: 78px;
+  padding: 0 10px;
+  flex: 0 0 auto;
+}
+.sm-field--inline .sm-field__icon { display: none; }
+.sm-field--inline .sm-field__input { padding: 6px 0; font-size: 14px; }
+.sm-field__label--inline {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The row a skill occupies: glyph, name, then its points box. The dotted
+ * leader is a `border-bottom` on a flexible spacer rather than a text
+ * character, so it lines up on the box's own baseline instead of drifting with
+ * whatever font the name happens to render in. */
+.sm-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sm-skill-row__icon { width: 17px; height: 17px; color: var(--ui-accent); }
+.sm-skill-row__name {
+  font-family: var(--ui-font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-ink);
+}
+.sm-skill-row__leader { flex: 1 1 auto; border-bottom: 1px dotted var(--ui-line); }
+
+/* A footer line inside a panel — used for the points-remaining readout, which
+ * belongs to the skills panel rather than floating between two sections. */
+.sm-panel__foot {
+  padding: 8px 12px;
+  border-top: 1px solid var(--ui-line);
+  font-family: var(--ui-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-ink-muted);
+}
+/* Nothing left to spend is worth saying louder than a warning. */
+.sm-panel__foot--spent { color: var(--ui-ok); }
+.sm-panel__foot--over { color: var(--ui-critical); }
