@@ -16,6 +16,7 @@ import {
   type BuilderConfirmedBuild,
   type BuilderContext,
   type BuilderState,
+  unmetRequirements,
 } from '@/ui/builder';
 
 function baseContext(overrides: Partial<BuilderContext> = {}): BuilderContext {
@@ -119,6 +120,49 @@ describe('builder — navigation', () => {
     const overCapacity = String(firstWeapon.ammoCapacity + 50);
     for (const digit of overCapacity) state = handleKey(state, digit, ctx).state;
     expect(state.weaponSlots[0]?.ammo).toBe(firstWeapon.ammoCapacity);
+  });
+});
+
+describe('builder — unmet requirements reach the legality panel', () => {
+  /**
+   * The screen used to say two contradictory things at once. The amber rails
+   * on the rows came from the name/armour/weapon requirement, and the panel
+   * rendered `validateDesign`'s violations — which cover component validity,
+   * cost and fractional input, but NOT road legality. So naming a car, with
+   * zero armour and zero weapons, produced "No violations — ready to build"
+   * directly beneath rails marking every weapon slot and all five facings as
+   * needing input. Verified in a real browser: Enter on CONFIRM then built the
+   * car, arriving in the city reading "0 armour · 0 mounted · Not road-legal".
+   *
+   * `validateDesign` is deliberately NOT changed here — it answers "is this a
+   * coherent, affordable, physically legal design", and folding the road
+   * requirement into it would put a player-facing prompt into a rules function.
+   * The panel now reads `unmetRequirements`, the same derivation the rails use.
+   */
+  it('lists the unmet requirements instead of claiming a build is ready', () => {
+    const state = createBuilderState();
+    // A build that is untidy in the way that used to hide the problem: a name,
+    // and nothing else. `validateDesign` has nothing to say about this.
+    const named = { ...state, name: 'Halfway' };
+    const unmet = unmetRequirements(named);
+    expect(unmet).toHaveLength(2); // armour + weapon; the name is present
+    expect(unmet.join(' ')).toMatch(/armour/i);
+    expect(unmet.join(' ')).toMatch(/weapon/i);
+  });
+
+  it('reports no unmet requirements once name, armour and a weapon are all present', () => {
+    const base = createBuilderState();
+    const complete = { ...base, name: 'Roadworthy', armor: { ...base.armor, FRONT: 1 } };
+    const withWeapon = { ...complete, weaponSlots: [{ weaponId: 'machinegun', facing: 'FRONT' as const, ammo: 1 }, ...complete.weaponSlots.slice(1)] };
+    expect(unmetRequirements(withWeapon)).toHaveLength(0);
+  });
+
+  it('keeps the pristine onboarding branch, which is a different surface on purpose', () => {
+    // A fresh build shows the bold prompt plus the three steps (iteration 23),
+    // NOT the violation list — the point of pristine is that an untouched build
+    // is not a failure the player caused. The two branches must not collapse.
+    const fresh = createBuilderState();
+    expect(unmetRequirements(fresh)).toHaveLength(3);
   });
 });
 

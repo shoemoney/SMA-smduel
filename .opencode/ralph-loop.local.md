@@ -4133,3 +4133,67 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
    - VERIFIED: tsc clean, 67 files / 1439 tests, 4 browser tests (2 new), build
      clean (`index-Cs2Oosdf.js`), `.shots/iter83` = 8 screens / 0 problems,
      every screen byte-identical (the fix is behaviour, not appearance).
+
+84. The second half of iteration 83's finding 2, EXECUTED: the LEGALITY panel no
+   longer tells the player a build is ready when it is not.
+   - THE BUG, precisely. Two surfaces on one screen said opposite things. The
+     amber "needs input" rails on the rows came from the name/armour/weapon
+     requirement, derived inline in `computeRows`. The panel rendered
+     `validateDesign`'s violations, which cover component validity, cost and
+     fractional input — but NOT road legality, because that rule lives
+     elsewhere in the game. So naming a car with zero armour and zero weapons
+     produced "No violations — ready to build" directly beneath rails marking
+     all five facings and all ten weapon slots as needing input. And CONFIRM did
+     not stop it: pressing Enter built the car, which arrived in the city
+     reading "Duster · 0 armour · 0 mounted · Not road-legal".
+     The panel was the part that lied. The city telling you a car you
+     deliberately built is not road-legal is the game being straight with you,
+     and the constructor's pristine copy has taught those three requirements
+     since iteration 23.
+   - `unmetRequirements(state)` is now exported, and BOTH the rails and the
+     panel read it. That is the whole fix, and it is the same shape as the
+     city-decal count in iteration 82: two surfaces deriving one rule from two
+     places is how they drift, and the fix is to make the second derivation
+     read the first. `validateDesign` is deliberately UNCHANGED — it answers
+     "is this a coherent, affordable, physically legal design", and folding a
+     player-facing onboarding prompt into a rules function would be the wrong
+     layer. The message wording is the existing `legalityStep*` strings, so the
+     first thing a player reads on a fresh build and the thing they read after
+     editing it say the same three things.
+   - The pristine branch is untouched and there is a test saying why: a fresh
+     build shows the bold prompt plus three steps (iteration 23) rather than a
+     violation list, because an untouched build is not a failure the player
+     caused. The two branches are different surfaces on purpose and must not
+     collapse into each other.
+   - VERIFIED IN A REAL BROWSER, not read off the source:
+       pristine        "Name your car, then fit armour and at least one weapon
+                        to make it road-legal. Type a name in the Name row at
+                        the top. Add armour points to any facing on the left.
+                        Mount at least one weapon — press Enter on a Weapon row."
+       named, 0/0      "Add armour points to any facing on the left. Mount at
+                        least one weapon — press Enter on a Weapon row."
+     The false "No violations — ready to build" is unreachable while anything is
+     unmet. 3 new tests; one of them pins the complete case so the panel can
+     still legitimately say "ready to build".
+   - A FOURTH INSTANT OF THE SAME FIXTURE TRAP, and the second time the exact
+     trap: `FACINGS` is UPPERCASE (`'FRONT'`, src/sim/types.ts:17) and my test
+     fixture set `armor.front`. Iteration 25 recorded this precise failure —
+     lowercase facing keys in a fixture, `current` undefined, a guard doing its
+     job on bad input. The first run failed with one unmet requirement instead
+     of zero, which was the fixture lying, not the code. Also guessed a weapon
+     id (`w-machine-gun`) that does not exist; the real ids are unprefixed
+     (`machinegun`). Neither cost more than a minute, but four of these in the
+     log is a pattern worth naming: the fixtures are written from memory of the
+     shape rather than from the type.
+   - VERIFIED: tsc clean, 67 files / 1442 tests (3 new), 4 browser tests, build
+     clean (`index-C0NGogWz.js`), `.shots/iter84` = 8 screens / 0 problems,
+     every screen's luma and spread byte-identical to iteration 83 — this fix
+     changes text on a screen the capture gate measures for appearance only.
+
+   STILL OPEN, and deliberately not fixed this round: whether CONFIRM should
+   HARD-BLOCK an unroad-legal build rather than letting the player build one and
+   telling them at the city. Allowing it is defensible (you can drive around; the
+   highway is what legality gates) and hard-blocking is defensible (the panel
+   exists to gate). It is a design decision, not a defect, and it is the kind
+   that belongs in the loop log as an open question rather than in a patch
+   applied at the end of an unrelated iteration.

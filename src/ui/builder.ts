@@ -154,6 +154,41 @@ function titleCase(word: string): string {
   return word.charAt(0) + word.slice(1).toLowerCase();
 }
 
+/**
+ * The three things a build needs before it is worth taking on the road: a name,
+ * some armour, and at least one mounted weapon.
+ *
+ * WHY THIS IS ITS OWN FUNCTION. It used to be written out inline in
+ * `computeRows`, and the LEGALITY panel never saw it at all — the panel rendered
+ * `validateDesign`'s violations, which cover component validity, cost and
+ * fractional input, but NOT road legality. So the screen said two contradictory
+ * things at once: the amber "needs input" rails on the rows said the build was
+ * incomplete, and the panel directly beneath them said "No violations — ready
+ * to build." A car with zero armour and zero weapons produced exactly that, and
+ * pressing Enter on CONFIRM built it, arriving in the city reading
+ * "0 armour · 0 mounted · Not road-legal".
+ *
+ * Found by Codex `gpt-6.1-sol` driving the live app with computer use; the
+ * second half — that CONFIRM does not block on it either — verified directly in
+ * a browser rather than taken from the review.
+ *
+ * Both surfaces now read THIS, so the rails and the panel cannot drift apart
+ * again. The message wording is deliberately the same as the pristine-branch
+ * steps, so the first thing a player reads on a fresh build and the thing they
+ * read after editing it say the same three things.
+ */
+export function unmetRequirements(state: BuilderState): readonly string[] {
+  const missing: string[] = [];
+  if (state.name.trim().length === 0) missing.push(t('ui.builder.legalityStepName'));
+  if (FACINGS.reduce((sum, facing) => sum + state.armor[facing], 0) === 0) {
+    missing.push(t('ui.builder.legalityStepArmor'));
+  }
+  if (state.weaponSlots.every((slot) => slot === null)) {
+    missing.push(t('ui.builder.legalityStepWeapon'));
+  }
+  return missing;
+}
+
 export function computeRows(state: BuilderState): BuilderRow[] {
   const rows: BuilderRow[] = [];
 
@@ -916,6 +951,7 @@ function buildRightPane(state: BuilderState, context: BuilderContext): HTMLEleme
   // changes how a PRISTINE state is PRESENTED. Once the player has entered a
   // name, or moved a single slider, the panel switches to the normal violation
   // list and starts behaving like a real feedback surface.
+  const unmet = unmetRequirements(state);
   if (isPristineBuilder(state)) {
     const prompt = document.createElement('div');
     prompt.className = 'sm-builder__legality-prompt';
@@ -938,7 +974,7 @@ function buildRightPane(state: BuilderState, context: BuilderContext): HTMLEleme
     }
     prompt.appendChild(steps);
     legality.appendChild(prompt);
-  } else if (derived.violations.length === 0) {
+  } else if (derived.violations.length === 0 && unmet.length === 0) {
     const ok = document.createElement('div');
     ok.className = 'sm-builder__violation sm-builder__violation--none';
     ok.textContent = 'No violations — ready to build.';
@@ -946,6 +982,13 @@ function buildRightPane(state: BuilderState, context: BuilderContext): HTMLEleme
   } else {
     const ul = document.createElement('ul');
     ul.className = 'sm-builder__violation-list';
+    // Unmet requirements first: they are the ones the amber rails on the rows
+    // are already pointing at, and the panel is where the player reads prose.
+    for (const message of unmet) {
+      const li = document.createElement('li');
+      li.textContent = message;
+      ul.appendChild(li);
+    }
     for (const violation of derived.violations) {
       const li = document.createElement('li');
       li.className = 'sm-builder__violation';
