@@ -142,7 +142,7 @@
     "ui.city.stripReady": "Road-legal",
     "ui.city.stripClosed": "{facility} — closed",
     "ui.city.stripNotReady": "Not road-legal",
-    "ui.city.status": "{city} · Day {day}, {phase} · ${cash}\nWASD/arrows move · G enter/exit car (driving is faster) · J journal · F fleet · head into a building or the gate",
+    "ui.city.status": "{city} · Day {day}, {phase} · ${cash}\nWASD/arrows move · {toggle} enter/exit car (driving is faster) · {journal} journal · {fleet} fleet · head into a building or the gate",
     "ui.city.statusTouch": "{city} — Day {day}, {phase} — ${cash}\nDrag the stick to move · tap Car to enter/exit (driving is faster) · head into a building or the gate",
     "ui.city.routeOption": "{city} — {miles}mi, danger {danger}",
     "ui.city.gateNoVehicle": "no car to drive out in — buy one at the assembly plant or retrieve one from the fleet",

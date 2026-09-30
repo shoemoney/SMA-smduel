@@ -32,7 +32,13 @@
  * reassign, so its geometry is its binding and there is nothing to
  * rebind.
  */
-import { validateControls, type ActionBindingDefaults, type ControlsConfig, type GamepadAxisBinding } from '@/data/schema';
+import {
+  DRIVE_ACTION_IDS,
+  validateControls,
+  type ActionBindingDefaults,
+  type ControlsConfig,
+  type GamepadAxisBinding,
+} from '@/data/schema';
 import type { InputFrame } from '@/sim/loop';
 
 import controlsJson from '@rulesets/classic/controls.json';
@@ -276,10 +282,15 @@ export function resolveInput(rawState: RawInputState, preset: PresetName, bindin
   const active = (actionId: string): boolean => isActionActive(rawState, actionId, presetBindings[actionId], axisThreshold);
   const strength = (actionId: string): number => actionStrength(rawState, actionId, presetBindings[actionId], axisThreshold);
 
-  const up = strength('driveUp');
-  const down = strength('driveDown');
-  const left = strength('driveLeft');
-  const right = strength('driveRight');
+  // The four movement strengths, read through the ONE list that also tells the
+  // controls validator which actions a city shortcut may not collide with.
+  // Spelled inline here once, this function and the validator would each own
+  // the same fact and a fifth movement key would land in one and not the other.
+  const [upId, downId, leftId, rightId] = DRIVE_ACTION_IDS;
+  const up = strength(upId);
+  const down = strength(downId);
+  const left = strength(leftId);
+  const right = strength(rightId);
 
   // World convention (`@/render/camera`'s header, `@/sim/driving`'s
   // `forward = {cos(h), sin(h)}`): X right, Y UP, no vertical flip — so
@@ -345,6 +356,38 @@ export function describeAction(bindings: AllBindings, preset: PresetName, action
   const presetBindings = bindingsForPreset(bindings, preset);
   const keys = presetBindings[actionId]?.keyboard ?? [];
   return keys.map(keyLabel).join('/');
+}
+
+/**
+ * The shortcut ids the city screen honours, in the order the status line lists
+ * them. Derived from `CONTROLS.cityShortcuts` rather than typed, so adding a
+ * fourth shortcut to the ruleset makes it appear here automatically instead of
+ * silently going unhinted — which is precisely how `J journal · F fleet` ended
+ * up hardcoded in the first place.
+ */
+export function cityShortcutIds(): string[] {
+  return Object.keys(CONTROLS.cityShortcuts);
+}
+
+/** One city shortcut's keys as a label — `journal` reads "J". Same rule as `describeAction`: generated from the live table, never a literal. */
+export function describeCityShortcut(shortcutId: string): string {
+  return (CONTROLS.cityShortcuts[shortcutId] ?? []).map(keyLabel).join('/');
+}
+
+/**
+ * Which city shortcut, if any, this `code` triggers.
+ *
+ * Keyed by CODE rather than `ev.key`, because that is how `controls.json`
+ * declares bindings and how every other lookup in this module works: matching
+ * on `ev.key` is what made the old city handler accept both `'j'` and `'J'`
+ * with a pair of literal comparisons, and would have ignored a rebind to a
+ * non-letter key entirely (Shift+J reports `key: 'J'` but `code: 'KeyJ'`).
+ */
+export function cityShortcutForCode(code: string): string | undefined {
+  for (const [shortcutId, codes] of Object.entries(CONTROLS.cityShortcuts)) {
+    if (codes.includes(code)) return shortcutId;
+  }
+  return undefined;
 }
 
 /** True when `code` is bound to any action in the given preset — used to decide whether a key's browser default should be suppressed. */

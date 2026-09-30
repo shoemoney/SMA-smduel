@@ -783,6 +783,14 @@ export const controlsSchema: SchemaObject = obj({
   }),
   presets: arrayOf(NON_EMPTY_STR, { minItems: 1 }),
   actions: arrayOf(ACTION_ID, { minItems: 1 }),
+  cityShortcuts: {
+    type: 'object',
+    // Keyed by shortcut id, valued by keyboard CODES — a flat array rather
+    // than an ActionBindingDefaults because these are keyboard-only screen
+    // commands with no analog and no gamepad story yet, and pretending
+    // otherwise would mean shipping four always-empty arrays per shortcut.
+    additionalProperties: arrayOf(ACTION_ID, { minItems: 1 }),
+  },
   defaultBindings: {
     type: 'object',
     additionalProperties: actionBindingsMapSchema,
@@ -810,8 +818,23 @@ export interface ControlsConfig {
   touch: { axisDeadzone: number; stickRadiusPx: number };
   presets: string[];
   actions: string[];
+  cityShortcuts: Record<string, string[]>;
   defaultBindings: Record<string, Record<string, ActionBindingDefaults>>;
 }
+
+/**
+ * The action ids that mean "move the driver", in one place.
+ *
+ * This is the ONE owner of that list. `@/ui/input`'s `resolveInput` used to
+ * spell `driveUp/Down/Left/Right` inline, and the controls validator needed the
+ * same set to decide which actions a city shortcut is allowed to collide with —
+ * two independent spellings of one fact, which is exactly how a fifth movement
+ * key would end up wired into one and missing from the other.
+ *
+ * It lives here rather than in `input.ts` because `input.ts` already imports
+ * from this module; exporting it the other way round would be a cycle.
+ */
+export const DRIVE_ACTION_IDS = ['driveUp', 'driveDown', 'driveLeft', 'driveRight'] as const;
 
 export class ControlsValidationError extends Error {
   override readonly name = 'ControlsValidationError';
@@ -919,6 +942,47 @@ function checkControlsInvariants(controls: ControlsConfig): void {
   for (const preset of Object.keys(controls.defaultBindings)) {
     if (!seenPresets.has(preset)) {
       problems.push(`controls.json:/defaultBindings has bindings for unlisted preset "${preset}"`);
+    }
+  }
+
+  // City shortcuts are checked against each other, and against the DRIVE
+  // actions — which is a narrower rule than the one above on purpose, and the
+  // narrowness is the design, not an oversight.
+  //
+  // The rule above exists because two actions on ONE screen mean the player
+  // can never trigger one without the other. A city shortcut and `fire` are not
+  // on one screen: `fire` is arena-only and `journal` is city-only, so J
+  // meaning "fire" in the arena and "journal" in the city costs the player
+  // nothing. Forbidding that overlap would mean moving KeyJ off `fire`, taking
+  // a working, tested, on-screen-documented arena key away from players (the
+  // arena's own tests fire with KeyJ) purely to tidy a namespace the city never
+  // shares with it.
+  //
+  // The pairs that DO coexist are the ones worth the check: two city shortcuts,
+  // and a city shortcut against the WASD/arrow/stick movement the city reads.
+  const shortcutClaimedBy = new Map<string, string>();
+  for (const [shortcutId, codes] of Object.entries(controls.cityShortcuts)) {
+    for (const code of codes) {
+      const existing = shortcutClaimedBy.get(code);
+      if (existing !== undefined && existing !== shortcutId) {
+        problems.push(
+          `controls.json:/cityShortcuts "${existing}" and "${shortcutId}" are both bound to keyboard "${code}" — one can never fire without the other`,
+        );
+      } else {
+        shortcutClaimedBy.set(code, shortcutId);
+      }
+    }
+  }
+  for (const actionId of DRIVE_ACTION_IDS) {
+    const binding = controls.defaultBindings[controls.presets[0] ?? 'classic']?.[actionId];
+    if (binding === undefined) continue;
+    for (const code of binding.keyboard) {
+      const owner = shortcutClaimedBy.get(code);
+      if (owner !== undefined) {
+        problems.push(
+          `controls.json:/cityShortcuts "${owner}" is bound to keyboard "${code}", which is also the "${actionId}" drive action — walking the city and pressing it would do both`,
+        );
+      }
     }
   }
 

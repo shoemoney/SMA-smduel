@@ -6,9 +6,11 @@ import controlsJson from '@rulesets/classic/controls.json';
 import {
   CONTROLS,
   bindingsForPreset,
+  cityShortcutForCode,
   cyclePressed,
   defaultBindings,
   describeAction,
+  describeCityShortcut,
   describeCyclePair,
   emptyRawInputState,
   isBoundToAnyAction,
@@ -474,5 +476,55 @@ describe('key hints are derived from the live bindings', () => {
     // programming error — but it should degrade to a blank rather than take the
     // whole combat screen down with a thrown error.
     expect(describeAction(defaultBindings(), 'classic', 'no-such-action')).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// City shortcuts: their own namespace, read by CODE, labelled from the table
+// ---------------------------------------------------------------------------
+
+describe('city shortcuts', () => {
+  it('ships the three city commands with the keys the status line used to hardcode', () => {
+    // The regression this guards is subtle and invisible: the city's on-screen
+    // instruction said "G enter/exit car · J journal · F fleet" while the
+    // handler listened for `ev.key` letters. Both were right, so nothing looked
+    // wrong, and neither could be changed. These are the same three keys.
+    expect(describeCityShortcut('toggleVehicle')).toBe('G');
+    expect(describeCityShortcut('journal')).toBe('J');
+    expect(describeCityShortcut('fleet')).toBe('F');
+  });
+
+  it('resolves a code through the table, so a rebound key moves the feature', () => {
+    expect(cityShortcutForCode('KeyJ')).toBe('journal');
+    expect(cityShortcutForCode('KeyF')).toBe('fleet');
+    expect(cityShortcutForCode('KeyG')).toBe('toggleVehicle');
+    // Not bound, and must say so rather than falling through to some default.
+    expect(cityShortcutForCode('KeyQ')).toBeUndefined();
+  });
+
+  it('is genuinely ruleset-sourced — a mocked controls.json moves BOTH the lookup and the label', async () => {
+    // Two assertions in one test on purpose, because they can pass
+    // independently for the wrong reason: a handler still matching literals
+    // would keep the real lookup working while the label moved, and a label
+    // still hardcoded would keep the real lookup moving while the text did not.
+    vi.resetModules();
+    vi.doMock('@rulesets/classic/controls.json', async (importOriginal) => {
+      const actual = await importOriginal<{ default: typeof controlsJson }>();
+      return {
+        default: {
+          ...actual.default,
+          cityShortcuts: { ...actual.default.cityShortcuts, journal: ['KeyK'] },
+        },
+      };
+    });
+    try {
+      const mod = await import('@/ui/input');
+      expect(mod.describeCityShortcut('journal'), 'the label did not follow the ruleset').toBe('K');
+      expect(mod.cityShortcutForCode('KeyK'), 'the lookup did not follow the ruleset').toBe('journal');
+      expect(mod.cityShortcutForCode('KeyJ'), 'the OLD key still resolves; the lookup is not table-driven').toBeUndefined();
+    } finally {
+      vi.doUnmock('@rulesets/classic/controls.json');
+      vi.resetModules();
+    }
   });
 });

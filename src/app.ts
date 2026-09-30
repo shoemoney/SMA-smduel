@@ -146,9 +146,11 @@ import { createJournalState, journalEngine, questDef as journalQuestDef, type Jo
 import {
   CONTROLS,
   bindingsForPreset,
+  cityShortcutForCode,
   cyclePressed,
   defaultBindings,
   describeAction,
+  describeCityShortcut,
   describeCyclePair,
   directWeaponSlot,
   isBoundToAnyAction,
@@ -4779,6 +4781,13 @@ function showCity(root: HTMLElement, state: CityRunState): void {
       day: runState.clock.dayIndex,
       phase: t(PHASE_LABEL_KEY[runState.clock.phase]),
       cash: runState.driver.cash,
+      // Generated from the same `cityShortcuts` table the key handler reads.
+      // The literal "G enter/exit car · J journal · F fleet" this replaced was
+      // correct only for as long as nobody rebound anything, and it had no way
+      // to say so — iteration 94's stale-instruction bug, on a second screen.
+      toggle: describeCityShortcut('toggleVehicle'),
+      journal: describeCityShortcut('journal'),
+      fleet: describeCityShortcut('fleet'),
     });
   }
 
@@ -4969,9 +4978,23 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   }
   function onKeyDown(ev: KeyboardEvent): void {
     codesDown.add(ev.code);
-    if (ev.key === 'g' || ev.key === 'G') doToggleVehicle();
-    if (ev.key === 'f' || ev.key === 'F') openFleetScreen();
-    if (ev.key === 'j' || ev.key === 'J') openJournalScreen();
+    // The city reads its commands from `controls.json`'s `cityShortcuts` by
+    // CODE. It used to be three literal `ev.key === 'j' | 'J'` comparisons,
+    // which is the gap this closes: with no table entry there was no `keyLabel`
+    // to render, so the on-screen instruction could only ever be a hardcoded
+    // guess, and rebinding was impossible — the status line literally said
+    // "J journal" while the handler listened for the letter.
+    //
+    // `G`/`J`/`F` keep their shipped keys exactly. `fire` owns `KeyJ` in both
+    // presets and `validateControls` refuses two actions sharing one physical
+    // input, so moving journal into `actions` would have meant taking a
+    // working, tested, documented arena key away from players to tidy a
+    // namespace the city never shares with the arena. See `cityShortcuts` in
+    // the ruleset for that trade in full.
+    const shortcut = cityShortcutForCode(ev.code);
+    if (shortcut === 'toggleVehicle') doToggleVehicle();
+    if (shortcut === 'fleet') openFleetScreen();
+    if (shortcut === 'journal') openJournalScreen();
     // J and F are now named in `ui.city.status`, because Codex drove the city
     // and reported: "J opens Journal and F opens Fleet, but neither shortcut
     // appears in the city's visible instructions or as a desktop action
@@ -4980,15 +5003,10 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     // which is iteration 100's "a pause control nobody knows about is not one"
     // in a different screen.
     //
-    // NOT generated from `controls.json`, and that is a KNOWN GAP rather than an
-    // oversight: J and F are hardcoded screen shortcuts with no entry in the
-    // binding table, so there is no `keyLabel` to read and no rebind to honour.
-    // Writing them into the status string makes them at least VISIBLE, but they
-    // remain un-rebindable — the same stale-instruction risk iteration 94 fixed
-    // for `fire`. Moving them into the binding system is the correct follow-up
-    // and is recorded as queued rather than smuggled in here at the end of a
-    // round, because `controls.json` is validated at module load and a new
-    // action is a schema change, not a copy edit.
+    // The instruction is GENERATED from the same table this handler reads, so
+    // it cannot drift from the binding the way the literal "J journal · F
+    // fleet" did — the exact stale-instruction risk iteration 94 fixed for
+    // `fire`, which this closed rather than queued.
   }
   function onKeyUp(ev: KeyboardEvent): void {
     codesDown.delete(ev.code);

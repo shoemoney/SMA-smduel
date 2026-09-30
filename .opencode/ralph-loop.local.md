@@ -7025,3 +7025,70 @@ was unnecessary: the arena was mounting perfectly well the whole time.
   printed nothing at all. A deploy that produces zero output is not a deploy
   that succeeded quietly; it is a deploy that never ran. The live hash check is
   what caught it, which is the only reason it was caught.
+
+## ITERATION 113 — the city's J/F/G shortcuts are now ruleset-sourced
+
+Closing the gap iteration 108 recorded in its own source comment: the city
+status line said "G enter/exit car · J journal · F fleet" while the handler
+listened for `ev.key` letters. Both were right, so nothing looked wrong, and
+neither could be changed.
+
+- NOT A SIMPLE ADD TO `actions`. `fire` already owns `KeyJ` in both presets,
+  and `validateControls` refuses two actions sharing one physical input. Moving
+  journal into `actions` therefore meant taking `KeyJ` off `fire` — a working,
+  tested (the arena's own `FIRE_KEY` is KeyJ), on-screen-documented arena key —
+  to tidy a namespace the city never shares with the arena, because the city
+  cannot fire. So `cityShortcuts` is its own namespace in the same ruleset file,
+  and the keys are unchanged: G/J/F, exactly as shipped.
+
+- THE VALIDATOR IS DELIBERATELY NARROWER HERE, and that narrowness is the
+  design. The action-vs-action rule is "two actions on ONE screen" and is
+  enforced in full. A city shortcut vs `fire` is not one screen, so it is
+  allowed. What IS enforced is the pairs that genuinely coexist: two city
+  shortcuts with each other, and a city shortcut against the DRIVE actions the
+  city actually reads.
+
+- ONE OWNER FOR THE MOVEMENT LIST. `resolveInput` spelled `driveUp/Down/Left/
+  Right` inline and the validator needed the same four, so a fifth movement key
+  would have landed in one and missed the other. `DRIVE_ACTION_IDS` is now
+  exported from `@/data/schema` (where the validator lives; `input.ts` already
+  imports from there, so exporting the other way would be a cycle) and both
+  read it.
+
+- TESTS, in `tests/unit/input.test.ts`. The mocked-ruleset test asserts the
+  label AND the lookup AND that the old key stops resolving, in one test on
+  purpose: a handler still matching literals keeps the real lookup working while
+  the label moves, and a label still hardcoded keeps the real lookup moving while
+  the text does not — each passes for the wrong reason alone. Both mutations
+  proven: hardcoding `describeCityShortcut` fails the label assertion,
+  hardcoding `cityShortcutForCode` fails the lookup assertion.
+
+- MY OWN MISTAKE, RECORDED. I first rewrote `controls.json` through
+  `json.dumps`, which exploded the compact `"touch": { ... }` one-liners into
+  multi-line objects (389 changed lines for a 6-line addition) and escaped the
+  file's em-dash to `—`. Reverted and re-applied as a targeted text edit.
+  A formatter round-trip is an edit to every line it touches, and the second
+  one silently downgrades the file's own punctuation.
+
+- A PROBE THAT MEASURED THE WRONG THING. First city probe pressed `j` and
+  reported "Journal did not open" because it asserted on which `.sm-screen` was
+  mounted. `openJournalScreen` opens a PANEL over the city via `openPanel()`;
+  `openFleetScreen` mounts a whole new screen. Both worked. Re-probed against
+  what each actually renders.
+
+- LIVE-BROWSER VERIFIED (real Chrome, shipped bundle). The generated status line
+  renders `WASD/arrows move · G enter/exit car (driving is faster) · J journal ·
+  F fleet · head into a building or the gate`; `j` opens the journal panel
+  (Fight/Build/Care/Jobs) over the city, `f` mounts the fleet screen, 0 page
+  errors. The text is read from the DOM rather than trusted, because a
+  GENERATED hint trades a stale literal for an incomplete derivation and only
+  looking at it catches that — `describeCyclePair` exists because the first
+  generated hint silently dropped the Q.
+
+- GATE: tsc clean, 1517 tests, 4 failures — the same 4 `screens.test.ts` that
+  fail on clean master. 7 browser tests pass. Build `index-CL2CYju4.js`.
+
+- NEXT. The on-foot road phase is still unbuilt: `abandonVehicle()` in
+  `src/sim/road.ts` returns a `PedestrianState`, nothing in `@/app` consumes
+  it, and the trip menu's abandon is a forfeit rather than a walk. Then a fresh
+  Codex review — the last one predates iterations 109-113.
