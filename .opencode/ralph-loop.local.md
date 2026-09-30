@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 0
+iteration: 1
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -3570,10 +3570,118 @@ TOOLING - the review harness got audited by its own failure this round:
    Gate: tsc clean, 65 files / 1423 tests, 2 browser tests, build clean,
    `.shots/iter78` = 8 screens, 0 problems. Deployed to arcade.shoemoney.com.
 
+79. NO NEW REVIEWER (pool exhausted at 75/75) — the second deferred art item,
+   EXECUTED. And executing it uncovered the worst silent-revert in the log.
+   - **CITY MARKERS ARE NOW PICTOGRAMS.** The finding came from iteration 77:
+     "the icons are colored chevrons ... their meaning is not intuitive from the
+     design alone ... replace the abstract chevrons with simple, recognizable
+     pictograms", with the vocabulary supplied: wrench for garage, cart for
+     market, reticle for arena, briefcase for jobs.
+     Twelve reviews had asked for something about this element and every one had
+     been answered on the SIZE axis (iterations 19, 20, 26) or the VOLUME axis
+     (33, 47, 60) — which is why a shape change was still sitting untouched.
+     The marker was never a floating chevron: it is a doorstep MAT at the
+     building's inner face, which is exactly why reviewers kept reading it as a
+     UI overlay. So the fix is the mat's own art, not its size.
+       combat   reticle            (arena)
+       workshop crossed hammer+wrench (garage, weaponshop, salvage, assembly)
+       care     medical cross      (medical, bar)
+       trade    briefcase          (truckstop, federal, courierguild, + unknown)
+     Colour still carries the family (iteration 37) and the legend (iteration 39)
+     still teaches it, but the SHAPE now carries it too — so a player who cannot
+     match cyan to "Jobs" can still read the briefcase, and the legend's swatches
+     visibly match the mats below them.
+     Art: 4 Seedream 4.5 renders, prompted for a flat orthographic square mat in
+     a cracked stone kerb, magenta flat background for the keyer. Composition was
+     checked before integration rather than after: 3 of the 8 first-wave
+     candidates were rejected for perspective drift, and BOTH workshop
+     candidates were rejected because the model rendered the literal word
+     "WRECROSS" — the prompt token read as text. Re-asked with a symbol-only
+     description and one instruction ("a single open-ended wrench drawn as a
+     plain bold shape") and it complied. This is the same lesson as the title
+     art's first wave: state the composition as a CONSTRAINT, and expect a
+     rejected wave.
+     The key colour had to be NORMALISED, and the reason is a real trap. The
+     existing prop-doormarker carries `keyColorDeviation: 59` — 59 degrees of
+     magenta tolerance, which comfortably contains the RED combat mat's hue. Had
+     these gone in as generated, the red mat would have been keyed away and the
+     fight marker would have rendered as a hole. All four were trimmed to content
+     and recomposited onto a uniform #F03C80 canvas, so all four corners and
+     edges sample the exact key and the measured deviation is 0.
+     - ONE FAMILY MAPPING NOW FEEDS BOTH THE FRAME AND THE TINT. It was a
+       `switch` duplicated in two places, which the pictograms turned into a real
+       hazard: a family added to the tint table but not the frame table renders a
+       RED WRENCH. `facilityMarkerFamily` is now the single mapping, exported as
+       a runtime const so `MARKER_TINTS` is exhaustively typed and the test
+       fixture can enumerate families instead of hardcoding them.
+     - THIS IS A FRAME SWAP, NOT AN EXTRA INSTANCE, so the exactly-full city actor
+       buffer is untouched — the buffer was the reason iteration 19 had to revert
+       these shadows, and no count edit was needed here at all.
+   - **AND IT SILENTLY REVERTED THE TITLE ART. The worst bug in the log.**
+     `assets/ui-title-art.png` is not source art. It is a BUILD ARTIFACT: any
+     frame in `tools/atlas-sizes.json` `extractStandalone` is re-encoded from
+     `assets/raw/<name>.png` into `assets/<name>.png` on EVERY `pack-atlas` run.
+     And `integrate-codex-assets.mjs` runs the packer.
+     Iteration 78 wrote the regenerated car art by hand straight into
+     `assets/ui-title-art.png` and never touched `assets/raw/ui-title-art.png`,
+     which still held the September 26 tank plate. So the moment this iteration
+     ran the packer to fold in four unrelated markers, the title art was rebuilt
+     from the stale source: 270,524 pixels changed, 26% of the screen, back to
+     the two armoured tanks that iterations 36 and 77 had both demanded be
+     removed. A green suite, a clean build, and a passing capture gate all
+     straight through it.
+     It survived iteration 78 only because iteration 78 never ran the packer.
+     The class is the one this log keeps meeting — a healthy signal standing in
+     for a fact — but the specific shape is new: **a fix written to a build
+     output rather than its input, which no test in the repo claimed any
+     relationship over.** `configFingerprint` ties the atlas to
+     `tools/atlas-sizes.json`; nothing tied it to the pixels.
+     FIXED IN THREE PARTS, because one would have left the hole open:
+       1. the correct art was written to the SOURCE, and the artifact regenerated
+          from it — verified pixel-identical to the version iteration 78 measured
+          (compare AE = 0), and independently confirmed by the capture gate
+          reporting title luma 39.07 / spread 40.24, the exact iteration-78
+          numbers;
+       2. `.gitignore` now tracks the SOURCE of a standalone frame. This needed
+          the pattern changed from `assets/raw/` to `assets/raw/*`, because git
+          does not descend into an ignored DIRECTORY, so a file-level exception
+          inside one is silently inert — the first version of this fix looked
+          correct and tracked nothing;
+       3. a new test asserts every `extractStandalone` artifact is
+          pixel-identical to what its raw source produces, AND that the source is
+          tracked. PROVEN both ways: tampering the artifact by one red circle
+          fails with "differs ... in 27 bytes ... edit the raw source and repack,
+          or the next pack-atlas run will overwrite it", and repacking restores
+          it. Renaming a family to `combatX` was used the same way on the
+          iteration-39 marker test.
+   - PIPELINE FIXES THE ROUND FORCED OUT, both in
+     `tools/integrate-codex-assets.mjs`:
+     - `--only name,name` now exists. Without it, integrating four new frames
+       re-processes all 26 existing ones, and because the per-frame note is
+       derived from whether a meta entry already exists, every one of them would
+       have been stamped "— replacing previous art" for art this run was not
+       touching. That is a false provenance record, in the one tool whose job is
+       keeping provenance honest. It also accepts both `--only a,b` and
+       `--only=a,b`, and REFUSES an empty list rather than defaulting to every
+       frame;
+     - the note template hardcoded "codex (GPT-6 Astra) generated", but this art
+       came from Seedream. The generator is now a per-frame field defaulting to
+       the old wording, so a non-codex render records where it actually came
+       from instead of inheriting a false one.
+   - Also worth recording as a small trap: the generated PNGs came out of ImageMagick
+     at 16-BIT depth, and the keyer's hand-rolled decoder sizes its scanline
+     stride without a 2x multiplier for 16-bit samples — so it read garbage
+     filter bytes and threw `bad filter 255`. Every existing raw asset is 8-bit.
+     One `-depth 8` fixed it; the failure was loud, which is the good kind.
+   - VERIFIED: tsc clean, 65 files / 1424 tests (one new guard), 2 browser tests,
+     build clean, `.shots/iter79` = 8 screens / 0 problems, title luma 39.07 and
+     city luma 93.34 — both matching their iteration-78 values, which is the
+     check that the art swap cost the frame none of its measured range.
+
 DEFERRED (real, documented, not bugs):
 - ~~TITLE ART SHOWS TANKS~~ — DONE at iteration 78.
-- City chevron pictograms (iteration 77 review supplied the vocabulary: wrench /
-  cart / reticle / briefcase, with colour meaning STATUS not type).
+- ~~City chevron pictograms~~ — DONE at iteration 79 (reticle / crossed tools /
+  medical cross / briefcase, one mat per facility family).
 - Ground decals — oil stains, tyre marks, lane paint, unique crack patterns.
   Note the gameplay half from iteration 77 is NOT an art item: on the road a
   static ground plane makes speed hard to judge, and only fixed roadside

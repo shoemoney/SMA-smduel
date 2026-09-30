@@ -794,41 +794,91 @@ function gateInstances(layout: CityLayout, gate: Gate, atlasIndex: AtlasIndex): 
  * (nothing in `@/sim/city` collides against props at all), so it cannot block
  * the walk-up that fires the trigger.
  */
-export function facilityMarkerTint(facilityKind: string): SpriteInstanceInput['tint'] {
-  const TINTS = {
-    /** Somewhere you fight. */
-    combat: { r: 1.2, g: 0.34, b: 0.34, a: 1 },
-    /** Somewhere you build or buy the machine. */
-    workshop: { r: 1.2, g: 0.6, b: 0.14, a: 1 },
-    /** Somewhere that keeps the driver alive. */
-    care: { r: 0.28, g: 1.2, b: 0.52, a: 1 },
-    /** Somewhere the job comes from. */
-    trade: { r: 0.26, g: 0.84, b: 1.25, a: 1 },
-  } as const;
+/**
+ * What a facility is FOR. Ten kinds collapse into four families, and BOTH the
+ * marker's pictogram and its tint are derived from this one mapping, so the
+ * shape and the colour can never disagree about what a place does.
+ *
+ * It was a `switch` duplicated in two places until iteration 79 added the
+ * pictograms, which made the duplication a real hazard: a family added to the
+ * tint table but not the frame table renders a red wrench.
+ */
+export const FACILITY_FAMILIES = ['combat', 'workshop', 'care', 'trade'] as const;
+export type FacilityFamily = (typeof FACILITY_FAMILIES)[number];
+
+export function facilityMarkerFamily(facilityKind: string): FacilityFamily {
   switch (facilityKind) {
     case 'arena':
-      return TINTS.combat;
+      return 'combat';
     case 'garage':
     case 'weaponshop':
     case 'salvage':
     case 'assembly':
-      return TINTS.workshop;
+      return 'workshop';
     case 'medical':
     case 'bar':
-      return TINTS.care;
+      return 'care';
+    // `default` is trade, which is also a NEW facility's bucket, so a kind
+    // added to the sim later still gets a marker rather than a white one.
     default:
-      return TINTS.trade;
+      return 'trade';
   }
 }
 
+/**
+ * The marker's art: one painted mat per family, each carrying a pictogram —
+ * reticle, crossed tools, medical cross, briefcase. A review named the gap
+ * exactly: "the icons are colored chevrons ... their meaning is not intuitive
+ * from the design alone". The colour was already carrying function; the SHAPE
+ * now does too, so a player who cannot match cyan to "Jobs" can still read the
+ * briefcase.
+ */
+function facilityMarkerFrame(family: FacilityFamily): string {
+  return `${DOORMARKER_FRAME}-${family}`;
+}
+
+const MARKER_TINTS: Record<FacilityFamily, SpriteInstanceInput['tint']> = {
+  /** Somewhere you fight. */
+  combat: { r: 1.2, g: 0.34, b: 0.34, a: 1 },
+  /** Somewhere you build or buy the machine. */
+  workshop: { r: 1.2, g: 0.6, b: 0.14, a: 1 },
+  /** Somewhere that keeps the driver alive. */
+  care: { r: 0.28, g: 1.2, b: 0.52, a: 1 },
+  /** Somewhere the job comes from. */
+  trade: { r: 0.26, g: 0.84, b: 1.25, a: 1 },
+};
+
+/**
+ * Tinted by what the facility IS FOR, which is the one colour distinction in
+ * this scene that is information rather than decoration.
+ *
+ * Eight reviews have called the city an undifferentiated grey box field, and
+ * most wanted per-BUILDING colour - the collage problem iteration 16 spent a
+ * whole round undoing, and which iteration 34 was asked to reverse for the
+ * fifth time. This is the other thing: a review asked for "a colour-coded icon
+ * above it (wrench for garage, dollar sign for shop, crossed swords for
+ * arena)". The ten facility kinds are grouped by what they are FOR, so a player
+ * can read the plaza - can I fix this car, can I buy a gun, is that a fight -
+ * without driving up to each door. It lands on the entrance MARKER, so the
+ * building sprites themselves stay in one palette.
+ */
+export function facilityMarkerTint(facilityKind: string): SpriteInstanceInput['tint'] {
+  return MARKER_TINTS[facilityMarkerFamily(facilityKind)];
+}
+
 function doormarkerInstances(layout: CityLayout, atlasIndex: AtlasIndex): SpriteInstanceInput[] {
-  const frame = atlasIndex.frame(DOORMARKER_FRAME);
   const radiusM = layout.boundsRadiusM - (layout.tileSizeM / 2 + DOORMARKER_SIZE_M.y / 2);
   const out: SpriteInstanceInput[] = [];
   // The marker carries a ground shadow (below) and its own functional tint, so
   // it is drawn shadow-then-marker, in that order, within LAYER_BUILDING.
   for (const doorway of layout.doorways) {
-    // Ground shadow beneath the marker, so the chevron is ANCHORED to the
+    // Per-doorway, because the frame is per-FAMILY: one painted mat art per
+    // facility family, each with its own pictogram. This is a frame SWAP, not an
+    // extra instance, so the exactly-full city actor buffer is untouched - the
+    // count `cityLayer1InstanceCount` derives still holds without an edit.
+    const family = facilityMarkerFamily(doorway.facilityKind);
+    const frame = atlasIndex.frame(facilityMarkerFrame(family));
+    // Ground shadow beneath the marker, so it is ANCHORED to the
     // building it belongs to instead of floating over the map as a UI overlay.
     //
     // A review named this precisely: the markers are "flat, 2D vectors layered
@@ -859,20 +909,13 @@ function doormarkerInstances(layout: CityLayout, atlasIndex: AtlasIndex): Sprite
     out.push(
       shadowInstance(frame, polar(radiusM, angleOf(doorway.position)), 0, DOORMARKER_SIZE_M, DOORMARKER_SHADOW_SOFTNESS, DOORMARKER_SHADOW_OPACITY, LAYER_BUILDING),
     );
-    // Tinted by what the facility IS FOR, which is the one colour distinction
-    // in this scene that is information rather than decoration.
+    // Tinted from the SAME family lookup that picked the frame, so the mat's
+    // pictogram and its colour cannot disagree about what this place is.
     //
-    // Eight reviews have called the city an undifferentiated grey box field, and
-    // most wanted per-BUILDING colour - the collage problem iteration 16 spent a
-    // whole round undoing, and which iteration 34 was asked to reverse for the
-    // fifth time. This is the other thing: a review asked for "a colour-coded
-    // icon above it (wrench for garage, dollar sign for shop, crossed swords for
-    // arena)". The ten facility kinds are grouped by what they are FOR, so a
-    // player can read the plaza - can I fix this car, can I buy a gun, is that a
-    // fight - without driving up to each door. It lands on the entrance MARKER,
-    // so the building sprites themselves stay in one palette. The tint costs no
-    // instances; the marker's ground shadow adds one per doorway, which
-    // `cityLayer1InstanceCount` accounts for (see that function for why the
+    // The tint costs no instances, and neither does the per-family frame: this
+    // loop emits the same two instances per doorway it always did. The marker's
+    // ground shadow is the one thing that DID add an instance per doorway, and
+    // `cityLayer1InstanceCount` accounts for it (see that function for why the
     // count is the contract rather than a fixed budget).
     out.push(
       spriteInstance(
@@ -882,7 +925,7 @@ function doormarkerInstances(layout: CityLayout, atlasIndex: AtlasIndex): Sprite
         DOORMARKER_SIZE_M,
         LAYER_BUILDING,
         { desaturate: 0, tone: 0 },
-        facilityMarkerTint(doorway.facilityKind),
+        MARKER_TINTS[family],
       ),
     );
   }

@@ -791,6 +791,42 @@
       "view": "orthographic",
       "note": "codex (GPT-6 Astra) generated — replacing previous art. codex (GPT-6 Astra) generated.",
       "rotationOffsetDeg": 0
+    },
+    "prop-doormarker-combat": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#F03C80",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "seedream-4.5 (zimg) generated. reticle pictogram — somewhere you fight. Replaces the generic double-chevron mat so the shape names the facility family. Iter 79.",
+      "rotationOffsetDeg": 0
+    },
+    "prop-doormarker-workshop": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#F03C80",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "seedream-4.5 (zimg) generated. crossed hammer + wrench pictogram — somewhere you build or buy the machine. Iter 79.",
+      "rotationOffsetDeg": 0
+    },
+    "prop-doormarker-care": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#F03C80",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "seedream-4.5 (zimg) generated. medical cross pictogram — somewhere that keeps the driver alive. Iter 79.",
+      "rotationOffsetDeg": 0
+    },
+    "prop-doormarker-trade": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#F03C80",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "seedream-4.5 (zimg) generated. briefcase pictogram — somewhere the job comes from. Iter 79.",
+      "rotationOffsetDeg": 0
     }
   },
   "keyingNote": "Key by HUE (magenta/pink band) with a saturation floor, NOT by RGB distance. Regenerated sprites carry a drop shadow and a background gradient that RGB-distance keying leaves as a dark halo.",

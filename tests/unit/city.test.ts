@@ -5,7 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { citiesConfig, drivingConfig, economy } from '@/data/rulesets';
 import { UnknownRulesetIdError } from '@/data/rulesets';
 import { groundQuad } from '@/render/ground';
-import { cityLayer1InstanceCount, facilityMarkerTint } from '@/ui/city-view';
+import {
+  FACILITY_FAMILIES,
+  cityLayer1InstanceCount,
+  facilityMarkerTint,
+} from '@/ui/city-view';
 import { advanceDays, closeOutDay, formatDate, initialClock, type Clock } from '@/sim/calendar';
 import {
   CITY_DIRECTIONS,
@@ -101,6 +105,11 @@ function fixtureAtlasIndex() {
     bodies?: { id: string }[];
   };
   for (const body of bodies.bodies ?? []) frames[`car-${body.id}`] = frame('car');
+  // The facility markers are the same shape of request — `prop-doormarker-
+  // ${family}` — for the same reason. Derived from the exported family list
+  // rather than hardcoded, so adding a family without art fails here instead of
+  // throwing UnknownAtlasFrameError in a test that never exercises the city.
+  for (const family of FACILITY_FAMILIES) frames[`prop-doormarker-${family}`] = frame('prop');
   return loadAtlasIndex({
     atlases: [{ file: 'fixture.png', width: 64, height: 64 }],
     frames,
@@ -126,6 +135,15 @@ it('every frame the city view asks for exists in the real manifest', () => {
     .join('\n');
   const asked = [...new Set([...sources.matchAll(/'([a-z]+-[a-z0-9-]+)'/g)].map((m) => m[1]!))];
   expect(asked.filter((name) => !(name in real.frames))).toEqual([]);
+  // The regex above CANNOT see a frame requested through a template literal, so
+  // the frames that are built that way are pinned explicitly. Without this the
+  // test passes while the real manifest is missing exactly the frames that are
+  // hardest to notice — a vehicle body or a facility marker art that was never
+  // generated ships as a thrown UnknownAtlasFrameError on that screen only.
+  const templated = [
+    ...FACILITY_FAMILIES.map((family) => `prop-doormarker-${family}`),
+  ];
+  expect(templated.filter((name) => !(name in real.frames))).toEqual([]);
 });
 
 function clockAt(dayIndex: number, phase: 'DAY' | 'NIGHT'): Clock {

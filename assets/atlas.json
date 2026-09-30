@@ -13,7 +13,7 @@
       "w": 1344,
       "h": 768,
       "kind": "ui",
-      "bytes": 1769082
+      "bytes": 1609034
     }
   },
   "frames": {
@@ -667,9 +667,22 @@
       "kind": "decal",
       "rotationOffsetDeg": 0
     },
-    "prop-fence-post": {
+    "prop-doormarker-workshop": {
       "atlas": 0,
       "x": 98,
+      "y": 1162,
+      "w": 96,
+      "h": 96,
+      "trimX": 9,
+      "trimY": 9,
+      "srcW": 114,
+      "srcH": 114,
+      "kind": "prop",
+      "rotationOffsetDeg": 0
+    },
+    "prop-fence-post": {
+      "atlas": 0,
+      "x": 196,
       "y": 1162,
       "w": 95,
       "h": 96,
@@ -682,7 +695,7 @@
     },
     "decal-spikes": {
       "atlas": 0,
-      "x": 195,
+      "x": 293,
       "y": 1162,
       "w": 92,
       "h": 96,
@@ -695,7 +708,7 @@
     },
     "decal-oil-slick": {
       "atlas": 0,
-      "x": 289,
+      "x": 387,
       "y": 1162,
       "w": 88,
       "h": 96,
@@ -708,7 +721,7 @@
     },
     "prop-streetlight": {
       "atlas": 0,
-      "x": 379,
+      "x": 477,
       "y": 1162,
       "w": 86,
       "h": 96,
@@ -721,7 +734,7 @@
     },
     "decal-scorch": {
       "atlas": 0,
-      "x": 467,
+      "x": 565,
       "y": 1162,
       "w": 85,
       "h": 96,
@@ -734,7 +747,7 @@
     },
     "prop-fuel-drum": {
       "atlas": 0,
-      "x": 554,
+      "x": 652,
       "y": 1162,
       "w": 85,
       "h": 96,
@@ -747,7 +760,7 @@
     },
     "prop-tyres": {
       "atlas": 0,
-      "x": 641,
+      "x": 739,
       "y": 1162,
       "w": 81,
       "h": 96,
@@ -760,7 +773,7 @@
     },
     "car-kart": {
       "atlas": 0,
-      "x": 724,
+      "x": 822,
       "y": 1162,
       "w": 65,
       "h": 96,
@@ -773,7 +786,7 @@
     },
     "wreck-burning": {
       "atlas": 0,
-      "x": 791,
+      "x": 889,
       "y": 1162,
       "w": 62,
       "h": 96,
@@ -786,7 +799,7 @@
     },
     "decal-tire-marks": {
       "atlas": 0,
-      "x": 855,
+      "x": 953,
       "y": 1162,
       "w": 60,
       "h": 96,
@@ -799,7 +812,7 @@
     },
     "cycle-topdown": {
       "atlas": 0,
-      "x": 917,
+      "x": 1015,
       "y": 1162,
       "w": 52,
       "h": 96,
@@ -812,7 +825,7 @@
     },
     "car-subcompact": {
       "atlas": 0,
-      "x": 971,
+      "x": 1069,
       "y": 1162,
       "w": 48,
       "h": 96,
@@ -825,7 +838,7 @@
     },
     "car-midsized": {
       "atlas": 0,
-      "x": 1021,
+      "x": 1119,
       "y": 1162,
       "w": 46,
       "h": 96,
@@ -838,7 +851,7 @@
     },
     "car-van": {
       "atlas": 0,
-      "x": 1069,
+      "x": 1167,
       "y": 1162,
       "w": 43,
       "h": 96,
@@ -851,7 +864,7 @@
     },
     "car-compact": {
       "atlas": 0,
-      "x": 1114,
+      "x": 1212,
       "y": 1162,
       "w": 42,
       "h": 96,
@@ -864,7 +877,7 @@
     },
     "car-pickup": {
       "atlas": 0,
-      "x": 1158,
+      "x": 1256,
       "y": 1162,
       "w": 42,
       "h": 96,
@@ -877,7 +890,7 @@
     },
     "car-stationwagon": {
       "atlas": 0,
-      "x": 1202,
+      "x": 1300,
       "y": 1162,
       "w": 42,
       "h": 96,
@@ -890,7 +903,7 @@
     },
     "car-luxury": {
       "atlas": 0,
-      "x": 1246,
+      "x": 1344,
       "y": 1162,
       "w": 37,
       "h": 96,
@@ -903,7 +916,7 @@
     },
     "prop-citywall": {
       "atlas": 0,
-      "x": 1285,
+      "x": 1383,
       "y": 1162,
       "w": 25,
       "h": 96,
@@ -916,7 +929,7 @@
     },
     "decal-lane-stripe": {
       "atlas": 0,
-      "x": 1312,
+      "x": 1410,
       "y": 1162,
       "w": 6,
       "h": 96,
@@ -929,7 +942,7 @@
     },
     "decal-road-edge": {
       "atlas": 0,
-      "x": 1320,
+      "x": 1418,
       "y": 1162,
       "w": 6,
       "h": 96,
@@ -942,7 +955,7 @@
     },
     "prop-crate": {
       "atlas": 0,
-      "x": 1328,
+      "x": 1426,
       "y": 1162,
       "w": 96,
       "h": 94,
@@ -953,9 +966,22 @@
       "kind": "prop",
       "rotationOffsetDeg": 0
     },
+    "prop-doormarker-combat": {
+      "atlas": 0,
+      "x": 1524,
+      "y": 1162,
+      "w": 96,
+      "h": 93,
+      "trimX": 9,
+      "trimY": 13,
+      "srcW": 114,
+      "srcH": 114,
+      "kind": "prop",
+      "rotationOffsetDeg": 0
+    },
     "prop-junkpile": {
       "atlas": 0,
-      "x": 1426,
+      "x": 1622,
       "y": 1162,
       "w": 96,
       "h": 92,
@@ -968,7 +994,7 @@
     },
     "wreck-stripped": {
       "atlas": 0,
-      "x": 1524,
+      "x": 1720,
       "y": 1162,
       "w": 96,
       "h": 91,
@@ -981,7 +1007,7 @@
     },
     "ui-speedo-dial": {
       "atlas": 0,
-      "x": 1622,
+      "x": 1818,
       "y": 1162,
       "w": 91,
       "h": 91,
@@ -994,7 +1020,7 @@
     },
     "prop-city-gate": {
       "atlas": 0,
-      "x": 1715,
+      "x": 1911,
       "y": 1162,
       "w": 96,
       "h": 90,
@@ -1007,8 +1033,8 @@
     },
     "prop-doormarker": {
       "atlas": 0,
-      "x": 1813,
-      "y": 1162,
+      "x": 0,
+      "y": 1260,
       "w": 96,
       "h": 90,
       "trimX": 4,
@@ -1018,10 +1044,23 @@
       "kind": "prop",
       "rotationOffsetDeg": 0
     },
+    "prop-doormarker-trade": {
+      "atlas": 0,
+      "x": 98,
+      "y": 1260,
+      "w": 96,
+      "h": 90,
+      "trimX": 9,
+      "trimY": 14,
+      "srcW": 114,
+      "srcH": 114,
+      "kind": "prop",
+      "rotationOffsetDeg": 0
+    },
     "decal-waypoint": {
       "atlas": 0,
-      "x": 1911,
-      "y": 1162,
+      "x": 196,
+      "y": 1260,
       "w": 64,
       "h": 80,
       "trimX": 0,
@@ -1031,9 +1070,22 @@
       "kind": "decal",
       "rotationOffsetDeg": 0
     },
+    "prop-doormarker-care": {
+      "atlas": 0,
+      "x": 262,
+      "y": 1260,
+      "w": 96,
+      "h": 79,
+      "trimX": 9,
+      "trimY": 18,
+      "srcW": 114,
+      "srcH": 114,
+      "kind": "prop",
+      "rotationOffsetDeg": 0
+    },
     "prop-hvac-cluster": {
       "atlas": 0,
-      "x": 0,
+      "x": 360,
       "y": 1260,
       "w": 96,
       "h": 68,
@@ -1046,7 +1098,7 @@
     },
     "fx-explosion-5": {
       "atlas": 0,
-      "x": 98,
+      "x": 458,
       "y": 1260,
       "w": 128,
       "h": 63,
@@ -1059,7 +1111,7 @@
     },
     "prop-concrete-barrier": {
       "atlas": 0,
-      "x": 228,
+      "x": 588,
       "y": 1260,
       "w": 96,
       "h": 47,
@@ -1072,7 +1124,7 @@
     },
     "prop-sandbag": {
       "atlas": 0,
-      "x": 326,
+      "x": 686,
       "y": 1260,
       "w": 96,
       "h": 28,
@@ -1085,7 +1137,7 @@
     },
     "prop-barricade": {
       "atlas": 0,
-      "x": 424,
+      "x": 784,
       "y": 1260,
       "w": 96,
       "h": 27,
@@ -1098,7 +1150,7 @@
     },
     "prop-chainlink-fence": {
       "atlas": 0,
-      "x": 522,
+      "x": 882,
       "y": 1260,
       "w": 96,
       "h": 21,

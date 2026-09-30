@@ -22,7 +22,7 @@
  * (3): for vehicles it emits a loud warning naming the frame, because only a
  * human looking at the art can set that value.
  *
- * usage: node tools/integrate-codex-assets.mjs [--dry-run]
+ * usage: node tools/integrate-codex-assets.mjs [--dry-run] [--only name,name]
  */
 import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
@@ -37,6 +37,28 @@ const META_PATH = resolve(ROOT, 'assets/sprite-meta.json');
 const ATLAS_JSON = resolve(ROOT, 'assets/atlas.json');
 
 const dryRun = process.argv.includes('--dry-run');
+
+/**
+ * `--only` restricts integration to named frames. It exists because the
+ * per-frame `note` is derived from whether a meta entry ALREADY exists, so
+ * re-running over the whole manifest would stamp "— replacing previous art"
+ * onto every previously-integrated frame — including ones this run is not
+ * touching. That is a false provenance record, and provenance is the one thing
+ * this script exists to keep honest. Mirrors `gen-codex-assets.mjs --only`.
+ */
+// Accepts both `--only a,b` and `--only=a,b`, matching how the flag reads in
+// gen-codex-assets.mjs and how anyone types it.
+const onlyIdx = process.argv.findIndex((a) => a === '--only' || a.startsWith('--only='));
+const onlyValue = onlyIdx === -1
+  ? null
+  : process.argv[onlyIdx].includes('=')
+    ? process.argv[onlyIdx].slice('--only='.length)
+    : process.argv[onlyIdx + 1] ?? '';
+const only = onlyValue === null ? null : new Set(onlyValue.split(',').map((s) => s.trim()).filter(Boolean));
+if (onlyValue !== null && only.size === 0) {
+  console.error('integrate: --only was given an empty list; refusing to touch every frame');
+  process.exit(1);
+}
 
 /** Only kinds that get chroma-keyed. `tile` is full-bleed and must be keyed:false. */
 const KEYED_KINDS = new Set(['car', 'prop', 'fx', 'decal', 'wreck', 'cycle', 'building']);
@@ -185,6 +207,7 @@ const atlasFrames = new Set(Object.keys(atlas.frames));
 const report = { added: [], replaced: [], skipped: [], needsRotationReview: [] };
 
 for (const [name, info] of Object.entries(codexManifest.frames)) {
+  if (only && !only.has(name)) { report.skipped.push({ name, reason: 'not in --only' }); continue; }
   const src = join(CODEX_DIR, `${name}.png`);
   if (!existsSync(src)) { report.skipped.push({ name, reason: 'no generated png' }); continue; }
 
@@ -195,13 +218,18 @@ for (const [name, info] of Object.entries(codexManifest.frames)) {
   // An existing frame keeps its hand-set rotationOffsetDeg; a new one has none
   // yet, which for a vehicle means it will render sideways until a human sets
   // it. Both cases are reported rather than guessed.
+  // The generator is per-frame, not hardcoded: art integrated through this
+  // script does not have to come from codex, and a note that names the wrong
+  // generator is exactly the kind of false provenance this file exists to
+  // prevent. Unlabelled frames keep the original wording.
+  const generator = info.generator ?? 'codex (GPT-6 Astra)';
   const entry = {
     kind,
     keyed,
     keyColor: keyed ? sampleCornerKeyColor(src) : null,
     keyColorDeviation: keyed ? cornerKeyDeviation(src) : null,
     view: 'orthographic',
-    note: `codex (GPT-6 Astra) generated${existing ? ' — replacing previous art' : ''}. ${info.note ?? ''}`.trim(),
+    note: `${generator} generated${existing ? ' — replacing previous art' : ''}. ${info.note ?? ''}`.trim(),
   };
   if (existing?.rotationOffsetDeg !== undefined) {
     entry.rotationOffsetDeg = existing.rotationOffsetDeg;
