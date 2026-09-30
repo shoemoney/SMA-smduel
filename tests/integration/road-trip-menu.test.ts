@@ -23,9 +23,12 @@
  */
 import 'fake-indexeddb/auto';
 
+import 'fake-indexeddb/auto';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { skillsConfig } from '@/data/rulesets';
+import { DB_NAME, openSaveDatabase } from '@/persist/save';
 
 // ---------------------------------------------------------------------------
 // rAF stub: capture, never auto-run.
@@ -80,13 +83,66 @@ function queryAll(selector: string): Element[] {
 
 const TEST_SEED = 'screens-test-seed-1';
 
+/**
+ * The game's OWN `openSaveDatabase`, not a hand-built schema.
+ *
+ * This file's first attempt created a `saves` object store by hand, and the
+ * real `load()` then failed with "No object store named pointer" — the
+ * fourteenth fixture in this log written from memory of a shape rather than
+ * from the thing itself, and the second one in this session to guess a
+ * persistence detail that already had an owner. The database layout is
+ * `STORE_GENERATIONS` + `STORE_POINTER` at `DB_VERSION` 1, and
+ * `openSaveDatabase` already knows all three.
+ */
+let dbPromise: Promise<IDBDatabase> | null = null;
+let openDb_: IDBDatabase | null = null;
+function openTestDb(): Promise<IDBDatabase> {
+  if (dbPromise === null) {
+    dbPromise = openSaveDatabase().then((db) => {
+      openDb_ = db;
+      return db;
+    });
+  }
+  return dbPromise;
+}
+
+beforeEach(() => {
+  root = document.createElement('div');
+  document.body.appendChild(root);
+  vi.restoreAllMocks();
+});
+
+/** The live road's progress, read off the screen the player is looking at. */
+async function progressMiles(): Promise<number> {
+  const txt = requireOne('.sm-screen--road').textContent ?? '';
+  const m = txt.match(/(\d+)mi remaining/);
+  return m === null ? NaN : 150 - Number(m[1]);
+}
+
+/** Reads whatever the game actually wrote, through the real loader. */
+async function readSavedGame(): Promise<{ roadTrip?: { originCityId: string; progressMiles: number } } | null> {
+  const { load } = await import('@/persist/save');
+  try {
+    const result = await load(await openTestDb());
+    return (result as unknown as { game: { roadTrip?: { originCityId: string; progressMiles: number } } }).game ?? null;
+  } catch {
+    return null; // nothing saved — the caller's assertion says so
+  }
+}
+
 async function bootFresh(root: HTMLElement): Promise<Element> {
   const { boot } = await import('@/app');
   installRafStub();
   const bootPromise = boot(root, {
     search: '',
     randomSeed: () => TEST_SEED,
-    openDb: () => Promise.reject(new Error('test: no save database — always start a fresh session')),
+    // A REAL per-test database, not a rejecting stub. The save has to be
+    // readable back, because "Save and quit" and "Abandon trip" both leave the
+    // road for the city and the only honest difference between them is what one
+    // writes and the other does not. Asserting only the screen transition let a
+    // mutation that swapped the two paths pass — this file caught that, and the
+    // fix is to observe the artefact rather than the symptom.
+    openDb: () => openTestDb(),
   });
   await bootPromise;
   return requireOne('.sm-menu');
@@ -167,12 +223,31 @@ async function bootToRoad(root: HTMLElement): Promise<void> {
 
 let root: HTMLElement;
 
-beforeEach(() => {
+beforeEach(async () => {
   document.body.innerHTML = '';
+  // Wipe between tests, and CLOSE the previous connection first —
+  // `deleteDatabase` blocks forever while any connection is open, which is what
+  // turned every test after the first into a 10s hook timeout. A stale blob
+  // from a prior test would otherwise satisfy the assertion below without this
+  // feature writing anything.
+  openDb_?.close();
+  openDb_ = null;
+  await new Promise<void>((resolve) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => resolve();
+    req.onblocked = () => resolve();
+  });
+  dbPromise = null;
   root = document.createElement('div');
   document.body.appendChild(root);
   vi.restoreAllMocks();
 });
+
+/** Reads the trip's identity straight off the screen, so the assertion is about game state. */
+async function p3(): Promise<{ origin: string }> {
+  return { origin: await import('@/data/rulesets').then((m) => m.skillsConfig().startingLocation) };
+}
 
 describe('road trip menu', () => {
   it('opens on Escape and the trip FREEZES while it is open', async () => {
@@ -208,16 +283,66 @@ describe('road trip menu', () => {
     window.dispatchEvent(new KeyboardEvent('keyup', { key: 'w', code: 'KeyW', bubbles: true }));
   });
 
-  it('offers Resume, Controls and Abandon trip', async () => {
+  it('offers Resume, Controls, Save and quit and Abandon trip', async () => {
     await bootToRoad(root);
     dispatchKey(window, { key: 'Escape' });
     await flushMicrotasks();
 
     const labels = queryAll('.sm-menu__item').map((i) => (i.textContent ?? '').trim());
-    expect(labels.length).toBe(3);
+    expect(labels.length).toBe(4);
     expect(labels.join('|')).toMatch(/Resume/i);
     expect(labels.join('|')).toMatch(/Controls/i);
-    expect(labels.join('|')).toMatch(/Abandon/i);
+    // Save-and-quit sits ABOVE abandon on purpose: both leave the trip, but one
+    // is resumable and one forfeits the car, so the recoverable option must not
+    // be the one a player has to read past.
+    expect(labels.join('|')).toMatch(/Save/i);
+    expect(labels.findIndex((l) => /Save/i.test(l)))
+      .toBeLessThan(labels.findIndex((l) => /Abandon/i.test(l)));
+  });
+
+  it('Save and quit leaves the trip RESUMABLE rather than forfeiting the car', async () => {
+    await bootToRoad(root);
+    const before = await p3();
+    // Drive a measurable distance FIRST, so the saved blob can be matched
+    // against a number this test controls.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW', bubbles: true }));
+    for (let i = 0; i < 10; i++) stepFrame();
+    const droveMiles = await progressMiles();
+
+    dispatchKey(window, { key: 'Escape' });
+    await flushMicrotasks();
+    // row 3 is Save and quit; `handleMenuKey` maps digit 3 to index 2
+    dispatchKey(requireOne('.sm-menu'), { key: '3' });
+    // `saveAndQuit` AWAITS the write before it navigates, so the screen change
+    // is deliberately not synchronous. Drain the microtask chain rather than
+    // asserting immediately — and note that this ordering is the assertion that
+    // the save is written BEFORE the player leaves, which is the whole reason
+    // it is awaited rather than fire-and-forget.
+    for (let i = 0; i < 8; i++) await flushMicrotasks();
+
+    expect(queryAll('.sm-screen--road').length).toBe(0);
+    expect(queryAll('.sm-screen--city').length).toBe(1);
+
+    // The load-bearing assertion: the trip was actually WRITTEN, read back out
+    // of the real database. The first version of this test only checked the
+    // screen transition, and a mutation that made Save-and-quit take the
+    // ABANDON path passed it — both leave the road for the city, so the
+    // transition proves nothing about which one ran. Reading the artefact back
+    // is the only thing that separates them, and it is the same discipline
+    // iteration 102 applied to the converter.
+    const saved = await readSavedGame();
+    expect(saved).not.toBeNull();
+    expect(saved!.roadTrip).toBeDefined();
+    expect(saved!.roadTrip!.originCityId).toBe(before.origin);
+    // The trip the player was DRIVING, not some other writer's blob. Several
+    // test files share `fake-indexeddb` on the REAL `DB_NAME`, so this file
+    // deliberately does NOT delete the database — doing that in `beforeEach`
+    // wiped a store other files were using and made this test itself flaky (1
+    // failure in 2 full-suite runs, with the delete as the cause). The assertion
+    // is self-discriminating instead: drive a measurable distance first, then
+    // require the saved progress to MATCH IT. A stale or foreign blob cannot
+    // satisfy that, so no destructive cleanup is needed.
+    expect(saved!.roadTrip!.progressMiles).toBeCloseTo(droveMiles, 2);
   });
 
   it('opens on P as well as Escape — the reviewer tried both', async () => {

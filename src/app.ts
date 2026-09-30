@@ -2386,6 +2386,12 @@ export interface PersistSessionInput {
   readonly sessionSeed: string;
   /** The live arena tick-loop `World` when mid-fight, or `null` once back in a city with no simulation in flight - `SaveGame.world`'s own documented contract. */
   readonly world: World | null;
+  /**
+   * The road trip to record, when the save is being taken mid-route. Omitted
+   * for every city and arena save, and `roadTripToSave(trip)` is the only
+   * sanctioned way to build one so the blob's shape has a single owner.
+   */
+  readonly roadTrip?: RoadTripSave;
 }
 
 /**
@@ -2529,6 +2535,10 @@ export async function persistArenaSession(input: PersistSessionInput): Promise<v
     },
     controlPreset: currentControlPreset,
     controlBindings: currentControlBindings,
+    // `exactOptionalPropertyTypes` is on, so an absent trip is an absent KEY,
+    // never `roadTrip: undefined` — which would serialise to a value the
+    // nullable schema has to reason about for no reason.
+    ...(input.roadTrip !== undefined ? { roadTrip: input.roadTrip } : {}),
   };
   try {
     const db = await input.openDb();
@@ -5494,7 +5504,21 @@ export function roadLaneInstances(
   return out;
 }
 
-function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripState, onArrive: (nextState: CityRunState) => void): void {
+/**
+ * `onExitToTitle` is threaded the same way the arena's `onExit` is: returning to
+ * the title needs `resumeSession`/`startNewSession`, which are closures inside
+ * `boot()`, so a screen that is not itself inside `boot()` cannot reach them.
+ * Adding a second callback is a small cost for keeping the trip menu's Save and
+ * quit honest — a save-and-quit that cannot actually return to a title with a
+ * working Continue would be the worst version of this feature.
+ */
+function showRoad(
+  root: HTMLElement,
+  state: CityRunState,
+  initialTrip: RoadTripState,
+  onArrive: (nextState: CityRunState) => void,
+  onExitToTitle?: () => void,
+): void {
   const container = el('div', 'sm-screen sm-screen--road');
   container.style.cssText = 'position:absolute;inset:0;background:#05070a;';
   const canvas = el('canvas');
@@ -5961,6 +5985,12 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     const actions: MenuAction[] = [
       { id: 'resume', label: t('ui.road.menuResume'), eligible: true },
       { id: 'controls', label: t('ui.road.menuControls'), eligible: true },
+      // Save and quit is what makes a long leg interruptible rather than an
+      // atomic commitment — the reason `SaveGame.roadTrip` exists. It is placed
+      // ABOVE abandon deliberately: both leave the trip, but one is resumable
+      // and one forfeits the car, so the recoverable option must not be the
+      // one a player has to read past.
+      { id: 'save-quit', label: t('ui.road.menuSaveQuit'), eligible: true },
       { id: 'abandon', label: t('ui.road.menuAbandon'), eligible: true },
     ];
     mountedMenu = mountMenu({
@@ -5985,7 +6015,11 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
           // The controls screen mounts over `root`, so the road is torn down
           // with it; returning re-runs the whole road screen from `trip`, which
           // is still the live trip state and not a re-derivation.
-          showControls(root, () => showRoad(root, state, trip, onArrive));
+          showControls(root, () => showRoad(root, state, trip, onArrive, onExitToTitle));
+          return;
+        }
+        if (id === 'save-quit') {
+          saveAndQuit();
           return;
         }
         finishAbandoned();
@@ -6002,6 +6036,46 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     mountedMenu = null;
     menuHost.innerHTML = '';
     paused = false;
+  }
+
+  /**
+   * Write the live trip, THEN leave — in that order, and the order is the fix.
+   *
+   * This was first written `void persistArenaSession(...)` and then navigated,
+   * matching the arena exit's fire-and-forget. The integration test caught it
+   * immediately: reading the database straight after the menu action found
+   * NOTHING, because the write had not landed yet. For most screens that race
+   * is harmless, but "Save and quit" whose save can be lost by quitting is
+   * precisely the class of defect this log has spent a hundred iterations
+   * removing — a control that says it saved something it may not have.
+   *
+   * `persistArenaSession` swallows its own failures (private browsing, quota),
+   * so awaiting it cannot hang the screen: the worst case is that the write
+   * failed and the player returns to the title with no save, which is the
+   * honest outcome.
+   */
+  async function saveAndQuit(): Promise<void> {
+    stop();
+    closeTripMenu();
+    await persistArenaSession({
+      openDb: state.openDb,
+      driver,
+      vehicle: trip.vehicle,
+      clock: trip.clock,
+      location: trip.resolved.originCityId,
+      quests: state.quests,
+      sessionSeed: state.sessionSeed,
+      world: null,
+      roadTrip: roadTripToSave(trip),
+    });
+    // Where the player LANDS is secondary; that the save is written is the
+    // whole feature. With no title callback threaded (the gate and capture-rig
+    // call sites do not have one, because `startNewSession` is a closure inside
+    // `boot()`), the fallback is the arrival screen at the origin city — the
+    // trip is saved, the car is not forfeited, and the title's Continue still
+    // picks the trip up if they walk out through Arcade.
+    if (onExitToTitle !== undefined) onExitToTitle();
+    else onArrive({ ...state, driver: { ...driver, cityId: trip.resolved.originCityId }, cityId: trip.resolved.originCityId });
   }
 
   /**
@@ -6609,6 +6683,32 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
         () => void start(),
       );
       return;
+    }
+    // A road trip in progress resumes INTO the trip, not into the origin city.
+    // This branch exists because the alternative was a save that silently threw
+    // away the exact thing it was taken to preserve: a player who stopped at
+    // mile 40 would come back to a city and a fresh road, having been told
+    // their trip was saved. That is iteration 93's bug class (a save that
+    // loses what it exists to keep) and it is why this check is before the
+    // city rebuild rather than inside it.
+    if (existing.game.roadTrip != null) {
+      if (vehicle === null) {
+        // No car means no trip: the blob's vehicle is the save's, so without
+        // one there is nothing to drive. Fall through to the city, which
+        // resumes a carless driver on foot rather than losing the run.
+        console.info('smduel: road trip save has no active vehicle; resuming in the city instead');
+      } else {
+        const cityState = cityRunStateFromSaveGame(existing.game, vehicle, { openDb, search, randomSeed });
+        const trip = rehydrateRoadTrip(
+          existing.game.roadTrip,
+          vehicle,
+          { dayIndex: existing.game.currentDay, phase: existing.game.phase },
+        );
+        lastSessionSeed = cityState.sessionSeed;
+        console.info(`smduel: resumed road trip ${trip.resolved.route.id} at ${trip.progressMiles.toFixed(1)} mi, seed ${cityState.sessionSeed}`);
+        showRoad(root, cityState, trip, (nextState) => showCity(root, nextState));
+        return;
+      }
     }
     // Safely in a city (no live arena World) - the far more common case for
     // a real campaign session, and the one `resumeSession` used to just

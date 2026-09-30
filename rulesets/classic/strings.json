@@ -156,6 +156,8 @@
     "ui.road.menuResume": "Resume driving",
     "ui.road.menuControls": "Controls",
     "ui.road.menuAbandon": "Abandon trip",
+    "ui.road.menuSaveQuit": "Save and quit",
+    "ui.road.savedQuit": "Trip saved. Continue driving, or pick it up from the title screen.",
     "ui.road.menuHint": "Esc — trip menu",
     "ui.road.abandonConfirm": "Abandoning leaves the car behind and returns you to {city} on foot. Continue?",
     "ui.road.abandonDone": "Trip abandoned — you left the car on the highway.",
