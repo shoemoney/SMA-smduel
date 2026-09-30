@@ -288,6 +288,22 @@
   white-space: nowrap;
 }
 
+/*
+ * The readiness dot and the durability dot are BOTH round and BOTH green on a
+ * healthy weapon, so with the "READY" word gone (see `buildWeaponRow` — the
+ * word cost the weapon name 37px of a 260px panel and the name is what
+ * identifies the row) they sat shoulder to shoulder as "● ● 3/3" and read as
+ * one decorative flourish rather than two separate readouts.
+ *
+ * The row's uniform `gap` is not enough to separate two same-shaped glyphs at
+ * this size, so the durability cell gets extra leading space specifically. Not
+ * a global gap change: every other pair in this row is separated adequately
+ * because at most one of them is a bare dot.
+ */
+.hud-weapon-dp {
+  margin-left: 6px;
+}
+
 .hud-weapon-cooldown--ready {
   color: var(--ui-ok);
 }

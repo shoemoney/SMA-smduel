@@ -326,7 +326,16 @@ function buildWeaponRow(doc: HudDocument, index: number, state: WeaponState, act
         'data-ready': String(ready),
         'aria-label': ready ? t('ui.hud.readyToFire') : t('ui.hud.coolingDown', { percent: cooldownPct }),
       },
-      ready ? '● READY' : `◔ ${cooldownPct}%`,
+      // The dot ALONE when ready. It used to read "● READY", and the word was
+      // costing the weapon name 33px of a 260px panel — the one column whose
+      // content is actually load-bearing, since it is what identifies the row.
+      // "READY" is redundant here in three separate channels: the dot's colour
+      // is `--ui-ok` when ready and the warning tone when not, its SHAPE
+      // differs from the cooling `◔`, and the cooling state already carries a
+      // percentage. The `aria-label` says "ready to fire" in full for anyone
+      // who needs it, which is the same answer the facing arrow settled in
+      // iteration 92.
+      ready ? '●' : `◔ ${cooldownPct}%`,
     ),
   );
   const dpState = damageState(state.dp, state.maxDP);

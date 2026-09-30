@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 9
+iteration: 10
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -5070,3 +5070,100 @@ DEPLOY 2026-09-30 — iteration 94 to arcade.shoemoney.com
   fixing it would mean latching keydown edges — a real change to input
   semantics, not a bug fix. Recorded so a future review of "Space does nothing"
   is answered with the frame-sampling explanation rather than re-litigated.
+95. Codex review finding 5, EXECUTED — and HALF the finding was false, which
+   measurement established before any code changed.
+
+   - **"At the tested 1200-pixel-wide viewport, Machine Gun displays as
+     Machin… ... The active-slot triangle also wraps beneath the slot number,
+     making a single weapon row occupy two lines."**
+     The TRUNCATION is real. The WRAP is false, and so is the viewport.
+     Measured across 1440 / 1280 / 1200 / 1024 / 900 in real Chrome: the panel
+     is 260px and the grid is `14.4 12.4 57.6 31 43.4 31` at EVERY one of them,
+     and `rowH` is 40px at every one. Nothing wraps anywhere, and the name
+     track is the same width at 1440 as at 900 — **the panel is fixed-size and
+     does not respond to the viewport at all.** So "at 1200px" was a red
+     herring: the reviewer saw a real truncation and attributed it to the
+     window, and the honest description is that a 260px corner panel holding
+     six fields gives the name 58px against a name that needs 81.
+   - **THE STATED CONSEQUENCE ALSO DID NOT HOLD, AND CHECKING IT CHANGED THE
+     PRIORITY.** The reviewer's worry was that truncation "impairs recognition
+     when players have multiple weapons". Measured against the real ruleset:
+     all twelve shipped weapons are unique on their first FOUR characters
+     ("Machine Gun", "Recoilless Rifle", "Rocket Launcher", "Minedropper",
+     "Spikedropper", …), so every truncated name is still distinguishable and
+     the worry does not apply to the shipped set. The real risk is a future
+     weapon added with a colliding prefix, and NOTHING pinned that — so that is
+     the guard that got written instead of a pixel tweak.
+   - FIXED BY RECLAIMING THE ONE GENUINELY REDUNDANT WORD. The cooldown cell
+     read "● READY"; the word cost the weapon name 37px. "READY" is redundant
+     in three separate channels — the dot's colour is `--ui-ok` when ready and
+     the warning tone when not, its SHAPE differs from the cooling `◔`, and the
+     cooling state already carries a percentage — and the `aria-label` says
+     "ready to fire" in full. This is the same answer the facing arrow settled
+     in iteration 92, applied to the next redundant token in the same row.
+       name track   58px -> 81px   "Machin…" -> "Machine Gun" IN FULL
+       cooldown     43px ->  6px
+       row height   40px -> 40px    (no height growth, no reflow)
+     Measured in real Chrome at 1440, 1200 and 900: identical at all three, and
+     the name's 81px of content FITS its 81px track at every width.
+   - **AND THE FIX CREATED A NEW DEFECT THAT I CAUGHT MYSELF, IN THE CAPTURE.**
+     With the word gone the row read "● ● 3/3" — two identical green dots
+     shoulder to shoulder, which read as one decorative flourish rather than two
+     readouts. That is iteration 17's trap (a fix that trades one axis for
+     another gets caught by the next reviewer) arriving from me instead, and it
+     was visible only by CROPPING AND LOOKING, because DOM text moves no pixel
+     statistic (iteration 92 measured that: a 411-pixel HUD change moved the
+     frame mean by 0.068 luma). Fixed by giving the durability cell 6px of extra
+     leading space — not a global gap change, because every other pair in the
+     row is separated adequately and at most one of them is a bare dot.
+     The durability dot itself was considered and KEPT: it is `damageState`'s
+     glyph, the four-state colour-AND-shape system iteration 9 verified end to
+     end, and it changes as the weapon takes damage. It was the cooldown word
+     that was redundant, not this.
+
+   - **THREE TESTS, AND TWO OF MY OWN MUTATIONS WERE WRONG FIRST — which is
+     the part worth recording.**
+     The new browser test measures how many characters the name track can
+     actually show by growing a string in real Chrome until it clips (13, not
+     the 11 I had estimated by hand), then asserts every shipped weapon name is
+     unique at exactly that length against `weapons.json`. A future weapon with
+     a colliding prefix fails there rather than shipping as an ambiguous row.
+     A second test pins the geometry: one line tall and the SAME grid columns at
+     every viewport, so a future report of this class is checked against the
+     panel's own numbers before anyone theorises about the window.
+     Mutations, and the honest score:
+       - restoring "● READY"              -> FIRES, "expected 7 to be >= 11" ✓
+       - a colliding weapon name          -> DID NOT FIRE, twice, and BOTH times
+         my mutation was too weak rather than the test being wrong: "Machine
+         Cannon" collides at 7 characters and "Machine Gun Mk2" at 10, but the
+         track shows 13, so neither actually collides. The third attempt
+         ("Recoilless Rifle" -> "Rocket Launcher Mk2", sharing 13) was the real
+         test of the guard and I ran out of round before re-confirming it.
+       - forcing a wrap (0.5em tracks)    -> FIRES ✓
+     So one of the three guards is mutation-proven, one is proven, and the
+     uniqueness guard is proven only in the sense that its assertion was shown
+     to be computed from the real ruleset and the real measured width — which is
+     weaker than the other two and is recorded as such rather than claimed.
+   - **`strings.test.ts` CAUGHT MY OWN CHANGE, which is the third time in three
+     rounds that a gate earned its place by failing loudly.** Removing the word
+     "READY" left a bare `'●'` literal in a DOM-text position, and the scanner
+     rejects any string not in strings.json or its allowlist. The allowlist pins
+     exact pairs (`['src/ui/hud.ts', '● READY']`), so it became `['●']` — the
+     grouped-exemption route iteration 85 used for Cost/Budget/Remaining, rather
+     than inventing a `t()` lookup for a glyph that is a symbol, not a word.
+   - **AND `screens.test.ts` IS NOW WORSE THAN I HAD IT RECORDED.** It failed 4
+     tests in isolation this round, against iteration 90's measurement of 1.
+     Measured rather than reconciled with the old note: BRANCH 4 failed / 26
+     passed on two consecutive isolated runs, and so did CLEAN MASTER, with the
+     same two test groups both times ("the weapon slot a player selects is the
+     slot that fires" and "winning the campaign ... Continue"). So it is not mine,
+     the flake has simply spread from one test to a group since iteration 90,
+     and the earlier figure should be read as a snapshot of a moving target
+     rather than a fixed baseline. Worth stating plainly because the standing
+     instruction in this log is to measure scope before blaming a change, and
+     this round is where that rule paid: the first reaction was that I had
+     broken the city walk.
+
+   GATE: tsc clean, 67 files / 1472 tests, 5 browser tests (2 new),
+   build clean (`index-dkmliIAX.js`), `.shots/iter95` = 8 screens / 0 problems.
+   The 4 failures are the `screens.test.ts` flake, measured identical on master.

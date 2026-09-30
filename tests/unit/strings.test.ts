@@ -592,7 +592,7 @@ const EXISTING_VIOLATIONS: ReadonlySet<string> = new Set(
     ['src/ui/hud.ts', 'mph'],
     ['src/ui/hud.ts', 'mi'],
     ['src/ui/hud.ts', '0%'],
-    ['src/ui/hud.ts', '● READY'],
+    ['src/ui/hud.ts', '●'],
     ['src/ui/hud.ts', '◔'],
     ['src/ui/hud.ts', '%'],
     ['src/ui/hud.ts', ':'],
