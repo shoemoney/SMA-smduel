@@ -27,6 +27,8 @@ import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildRoadLegalCar, dispatchKey } from './constructor-fixture';
+
 import { citiesConfig, skillsConfig } from '@/data/rulesets';
 import { DB_NAME, openSaveDatabase } from '@/persist/save';
 
@@ -61,10 +63,6 @@ function stepFrame(deltaMs = 250): void {
 
 async function flushMicrotasks(): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
-}
-
-function dispatchKey(target: EventTarget, init: KeyboardEventInit): void {
-  target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
 }
 
 function requireOne(selector: string): Element {
@@ -172,22 +170,11 @@ async function bootToCity(root: HTMLElement): Promise<void> {
   dispatchKey(titleMenu, { key: '1' });
   requireOne('.sm-screen--driver button').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-  // A ROAD-LEGAL car: name, one armour facing, one weapon. `roadLegalityMisses`
-  // requires all three, and the gate refuses anything less.
-  const ARMOR_FACING_0_ROW = 6;
-  const WEAPON_SLOT_0_ROW = 11;
+  // A ROAD-LEGAL car, fitted by the one shared owner. This file used to carry
+  // its own row indexes and a hand-rolled keystroke sequence that re-implemented
+  // what `screens.test.ts`'s helpers already did; see constructor-fixture.ts.
   const constructorScreen = requireOne('.sm-screen--constructor');
-  for (const ch of 'MenuRig') dispatchKey(constructorScreen, { key: ch });
-  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowUp' });
-  for (let i = 0; i < ARMOR_FACING_0_ROW; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
-  dispatchKey(constructorScreen, { key: 'ArrowRight' });
-  dispatchKey(constructorScreen, { key: 'ArrowRight' });
-  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowUp' });
-  for (let i = 0; i < WEAPON_SLOT_0_ROW; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
-  dispatchKey(constructorScreen, { key: 'ArrowRight' });
-  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowUp' });
-  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
-  dispatchKey(constructorScreen, { key: 'Enter' });
+  buildRoadLegalCar(constructorScreen, 'MenuRig');
 
   await flushMicrotasks();
   await flushMicrotasks();

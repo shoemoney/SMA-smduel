@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 44
+iteration: 45
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9230,4 +9230,141 @@ round sweeps the suite for the class.
   the formula makes a passive player immortal in Amateur Night (alive at tick
   96,000 against a documented 2,863). `arena-victory`'s 57.3% winnability gate
   holds either way, so it is specifically the death path. Road contact
-  placement stays retired — iteration 142 closed it.
+  placement stays retired — iteration 142 closed it.## Iteration 144 — the four `bootToCity` copies, and a guard from iteration 143 that could not fail
+
+Iteration 143 ended by naming the next move and declining it: collapse the four
+duplicated `bootToCity` helpers. This round takes it, and the round's real
+product is not the consolidation — it is a guard that turned out to be
+incapable of failing on the defect it was written for, caught by a mutation
+that should have worked and did not.
+
+- **THE FOUR WERE NOT FOUR COPIES OF ONE FUNCTION, and reading them first is
+  what stopped a wrong fix.** The two I had actually compared last round were
+  near-identical, so collapsing "four into one" looked obvious. Reading all four:
+
+  | file | boot signature | car it builds | why it differs |
+  |------|---------------|---------------|----------------|
+  | `screens` | `(root, {weaponMounts})` | road-legal | already had the right shape |
+  | `road-bounds-wiring` | `(root)` | road-legal | **hand-rolled keystrokes** |
+  | `road-trip-menu` | `(root)` | road-legal | **hand-rolled keystrokes** |
+  | `arena-auto-end` | `(root, seed, search)` | **deliberately ILLEGAL** | own raf stub, own boot, amateur-night issues its own house loaner |
+
+  So three of them were the same function and the fourth never was. Forcing all
+  four through one helper would have meant either parameterising away a real
+  difference or quietly changing the car `arena-auto-end` depends on being
+  unarmed. **Iteration 143's own recommendation would have been wrong if I had
+  acted on it without reading all four bodies**, which is a first for this log —
+  the mistake is usually deferring a good diagnosis, not acting on a bad one.
+
+- **WHAT WAS ACTUALLY DUPLICATED WAS SMALLER AND WORSE THAN I SAID.** Not
+  `bootToCity` — the boot sequences legitimately differ, because three files
+  need different seeds, search flags and raf stubs. The real duplication was
+  the CONSTRUCTOR: the row indexes, and the keystroke sequence that fits armour
+  and a weapon. `screens.test.ts` already had that as three clean helpers
+  (`selectRow`, `mountArmorInConstructor`, `mountWeaponsInConstructor`); the
+  other two re-implemented it inline with ~20 raw keystrokes each, including
+  their own copies of `ARMOR_FACING_0_ROW = 6` / `WEAPON_SLOT_0_ROW = 11`.
+  All four `dispatchKey` definitions were byte-identical too.
+
+  So `tests/integration/constructor-fixture.ts` is new and owns: the dispatcher,
+  the two row indexes, the three navigation helpers, and `buildRoadLegalCar` —
+  the single "how to build a car that can leave the city" owner. It was copied
+  verbatim out of `screens.test.ts` rather than retyped, and `buildRoadLegalCar`
+  is new because the three call sites were three hand-written variants of the
+  same six lines. Net **93 insertions against 141 deletions**.
+
+- **MUTATION 1 FIRES ON BOTH FILES, AND THAT IS THE ROUND'S REAL PROOF.**
+  Removing the armour from the shared `buildRoadLegalCar` fails 1 test in
+  `road-bounds-wiring` and 7 in `road-trip-menu` — all of them, every gate
+  walking test in both. That is iteration 92's exact bug, and the honest
+  observation is about what changed: **before this round only ONE of the two
+  files would have caught it**, because only that one happened to walk to the
+  gate. The other would have gone on building an illegal car silently. A second
+  copy drifting the same way was not hypothetical — it had already happened once.
+
+- **MUTATION 2 DID NOT FIRE, AND IT SHOULD HAVE.** Shifting the shared
+  `ARMOR_FACING_0_ROW` from 6 to 7 left all 9 tests green. I expected a red
+  test and got none, so I stopped and asked why instead of shipping.
+
+  The mechanism, confirmed by reading rather than guessed: row 7 is also
+  `kind: 'armor'` (the five facings are rows 6-10), and `roadLegalityMisses`
+  only ever asks for "some armour". So the fixture would have quietly fitted
+  the points on REAR instead of FRONT and every gate would still open. FRONT
+  specifically is the one thing `buildRoadLegalCar`'s comment promises, and the
+  reason the condition panel shows one real depleting bar beside four unfitted
+  chips — the mixed state that exercises iteration 21's and iteration 25's
+  treatments at once.
+
+- **SO ITERATION 143'S GUARD WAS ASSERTING THE WRONG HALF OF THE CLAIM.** It
+  read `expect(armor?.kind).toBe('armor')` — the CATEGORY. The fixture's claim
+  is about the FACING, and nothing connected the two. **A guard that cannot fail
+  on the defect it was written for is the iteration-94 shape**, and this one had
+  it: written last round, shipped last round, and wrong from the first line.
+  The fix uses what `computeRows` already stamps on each row — `facing` on the
+  armour rows (pushed by iterating `FACINGS`) and `slot` on the weapon rows — so
+  the assertions are `facing === FACINGS[0]` and `slot === 0`, both derived from
+  production data rather than typed as `'armor'` or `'Armor: Front'`. That
+  survives a reorder and fails with the facing spelled out.
+
+- **AND THEN IT STILL DID NOT FIRE, BECAUSE THE GUARD HAD ITS OWN COPY OF THE
+  NUMBER.** Second attempt, same mutation, still 35/35 — and this is the part
+  worth more than the fix. `builder.test.ts` declared
+  `const ARMOR_FACING_0_ROW = 6` **locally, inside its own `describe`**. It was
+  not checking the shared constant at all; it was checking its own literal
+  against production's row order. So the guard could detect production drifting
+  away from the number and could not detect the number drifting away from
+  production, which is half the failure it existed for.
+
+  **A guard that re-declares the thing it guards is a second copy of it.** That
+  is this entire round's subject, and the guard from the round before was
+  carrying one. The constants are now imported from the fixture, so the guard
+  and the three call sites read the same value — the ninth instance of the
+  "one owner, every surface reads it" shape, and the first two of those nine
+  have now been found in the TEST harness rather than the game.
+
+  Both mutations re-run against the shared owner and both fire, one test each,
+  green on restore:
+    `ARMOR_FACING_0_ROW` 6 -> 7   -> 1 failed | 34 passed
+    `WEAPON_SLOT_0_ROW`  11 -> 12 -> 1 failed | 34 passed
+
+- **AND `arena-auto-end`'s COMMENT WAS MAKING A CLAIM ITERATION 92 BROKE.** It
+  read "Default build (no weapon mounts) is legal except its empty name — same
+  as screens.test.ts's own bootToCity." Both halves false: the car is two
+  `roadLegalityMisses` conditions short of legal, and it stopped matching
+  `screens.test.ts` at iteration 92 when that file was repaired. It survived here
+  because nothing in this file could notice — it never walks to the gate, and
+  Amateur Night supplies its own house loaner, so the illegality is correct and
+  invisible. **A comment describing a sibling's fixture is a claim about a file
+  nobody in the suite re-reads**, which is iteration 143's lesson with a
+  different subject, and the same shape as iteration 114's retired on-foot item
+  (a comment citing a SPEC line that does not say what the comment says). The
+  comment now states what the car is, why that is correct HERE, and why this file
+  is deliberately not a user of the shared fixture.
+
+- **GATE.** tsc clean. `builder.test.ts` **35/35**. Full suite **1545 passed /
+  4 failed**, the same four `screens.test.ts` tests and the same count as
+  iteration 143 — and I had edited `screens.test.ts`, so scope was measured rather
+  than assumed: in isolation it reads **1 failed / 29 passed on two consecutive
+  runs**, which is the documented cross-file-pollution baseline from iterations
+  90/95/142/143. The three files whose behaviour this round actually changed are
+  **44/44** in isolation. No regression.
+  **Zero `src/` files changed**, so the build hash stands at `index-CySPMTVi.js`
+  and there is nothing to deploy — the same correct blast radius as iteration
+  114's comment-only round, and worth stating explicitly because a hash that
+  does NOT move after a real refactor is normally the thing this log treats as
+  suspicious.
+
+- **RECORDED, NOT FIXED.** `road-trip-menu.test.ts` has a duplicate
+  `import 'fake-indexeddb/auto';` on consecutive lines, pre-existing and
+  harmless (ESM dedupes). Not touched, because a round about removing
+  duplication should not quietly widen into tidying unrelated lines, and the
+  diff is meant to be readable as one change.
+
+- **THE GENERALISABLE RULE, and it is the third time this log has paid for
+  learning it.** 143 wrote a guard, shipped it, and it was wrong from the first
+  line. 144 wrote the correction, and the correction was also wrong until a
+  mutation that "should not be possible" went green. **A guard is a claim about
+  production; so is the constant a guard declares.** The only version that works
+  is the one that imports the value under test and asserts a property derived
+  from production's own data — everything else is a second copy that agrees with
+  itself.

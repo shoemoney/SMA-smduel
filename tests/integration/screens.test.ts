@@ -30,6 +30,8 @@ import 'fake-indexeddb/auto';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildRoadLegalCar, dispatchKey } from './constructor-fixture';
+
 import { currentSessionSeed, PLAYER_ID, persistArenaSession, showArcadeScoreSubmit, vehicleStateFromDesign } from '@/app';
 import { initialClock } from '@/sim/calendar';
 import { drivingConfig, economy, skillsConfig } from '@/data/rulesets';
@@ -74,10 +76,6 @@ function stepFrame(deltaMs = 250): void {
 /** Lets any pending microtasks (an in-flight `initRenderer()` promise chain, in particular) settle before the next synchronous step — real time, not `vi.useFakeTimers()`, since this is the one thing this file does NOT want to control down to the millisecond. */
 async function flushMicrotasks(): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
-}
-
-function dispatchKey(target: EventTarget, init: KeyboardEventInit): void {
-  target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
 }
 
 function dispatchKeyUp(target: EventTarget, init: KeyboardEventInit): void {
@@ -134,63 +132,6 @@ async function bootFresh(root: HTMLElement): Promise<Element> {
   return requireOne('.sm-menu');
 }
 
-/**
- * Mounts `count` weapons on the Constructor screen, on consecutive slots,
- * purely with the arrow keys a player has. Each `ArrowRight` on a weapon row
- * advances that slot through `weaponChoiceIds()` and CLAMPS at the last entry
- * (`@/ui/builder`'s `cycleWeaponChoice` uses `Math.min`, not a wrap), so a
- * deliberately-overshooting press count lands on whatever weapons.json's LAST
- * weapon happens to be without this test naming it or counting entries. That
- * matters twice over: the cheapest-per-mount weapon is what keeps two mounts
- * inside a fresh driver's starting cash (`computeBuild`'s `OVER_BUDGET` would
- * otherwise refuse the build and `Enter` on confirm would silently do
- * nothing), and `firstAllowedFacing` gives every mount a legal facing, so no
- * facing row needs touching either.
- *
- * Mounting one slot expands its row into three (weapon/facing/ammo), which is
- * why the step to the next slot's weapon row is exactly 3 `ArrowDown`s.
- */
-/**
- * Row offsets into `@/ui/builder`'s `computeRows`: name, 5 components, 5 armor
- * facings, then the weapon slots, then the pinned confirm footer.
- */
-const ARMOR_FACING_0_ROW = 6;
-const WEAPON_SLOT_0_ROW = 11; // name, 5 components, 5 armor facings — see `@/ui/builder`'s computeRows
-
-/**
- * Moves the selected row back to the top of the list.
- *
- * Both helpers below navigate by pressing ArrowDown a fixed number of times,
- * which silently means "from row 0" — so the order they are called in is part
- * of their contract, and the first version of this pair was called with armour
- * already fitted and armed nothing, because it counted from wherever it landed.
- * `clampSelected` pins at both ends, so an overshoot is free and this makes the
- * helpers order-independent rather than order-sensitive by accident.
- */
-function selectTopRow(constructorScreen: Element): void {
-  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowUp' });
-}
-
-function selectRow(constructorScreen: Element, index: number): void {
-  selectTopRow(constructorScreen);
-  for (let i = 0; i < index; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
-}
-
-function mountArmorInConstructor(constructorScreen: Element, facing: number, points: number): void {
-  selectRow(constructorScreen, ARMOR_FACING_0_ROW + facing);
-  // `applyCycle` steps an armour row by one per press, clamped at 0, so the
-  // overshoot lands on exactly `points` and cannot run away.
-  for (let i = 0; i < points; i++) dispatchKey(constructorScreen, { key: 'ArrowRight' });
-}
-
-function mountWeaponsInConstructor(constructorScreen: Element, count: number): void {
-  selectRow(constructorScreen, WEAPON_SLOT_0_ROW);
-  for (let slot = 0; slot < count; slot++) {
-    if (slot > 0) for (let i = 0; i < 3; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
-    for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowRight' });
-  }
-}
-
 async function bootToCity(root: HTMLElement, options: { readonly weaponMounts?: number } = {}): Promise<void> {
   // --- Title: digit '1' activates the first eligible action. With no save
   // to resume (openDb always rejects above), that's 'new-driver'. ---
@@ -225,11 +166,7 @@ async function bootToCity(root: HTMLElement, options: { readonly weaponMounts?: 
   // chips — the mixed state that represents actual play best, and the one that
   // exercises both of iteration 21's and iteration 25's treatments at once.
   const constructorScreen = requireOne('.sm-screen--constructor');
-  for (const ch of 'TestRig') dispatchKey(constructorScreen, { key: ch });
-  mountArmorInConstructor(constructorScreen, 0, 2);
-  mountWeaponsInConstructor(constructorScreen, options.weaponMounts ?? 1);
-  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
-  dispatchKey(constructorScreen, { key: 'Enter' });
+  buildRoadLegalCar(constructorScreen, 'TestRig', options);
 
   // showCity's own initRenderer() (WebGPU probe, always unavailable under
   // happy-dom -> falls back to text status) resolves on a microtask before

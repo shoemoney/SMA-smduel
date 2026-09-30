@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { allBodies, allWeapons, economy, getBody, skillsConfig } from '@/data/rulesets';
 import { computeBuild, validateDesign } from '@/sim/construct';
+import { FACINGS, type Facing } from '@/sim/types';
+import { ARMOR_FACING_0_ROW, WEAPON_SLOT_0_ROW } from '../integration/constructor-fixture';
 import {
   attemptConfirm,
   computeDerived,
@@ -15,6 +17,7 @@ import {
   toDesign,
   type BuilderConfirmedBuild,
   type BuilderContext,
+  type BuilderRow,
   type BuilderState,
   unmetRequirements,
   formatMoney,
@@ -767,37 +770,59 @@ describe('computeRows: rows that are holding the build up are marked as such', (
 /**
  * The integration tests that drive the constructor by KEYBOARD navigate by
  * row INDEX, and those indexes are a second, unowned copy of the row order
- * `computeRows` produces:
- *     tests/integration/road-trip-menu.test.ts
- *       const ARMOR_FACING_0_ROW = 6;
- *       const WEAPON_SLOT_0_ROW = 11;
+ * `computeRows` produces. They now live in ONE place —
+ * `tests/integration/constructor-fixture.ts`, which `screens`, `road-bounds-wiring`
+ * and `road-trip-menu` all read — so this guard exists to keep that one place
+ * honest.
  *
  * That is the same shape as iteration 142's `roadContactPlacement` copy, which
  * had drifted in two independent ways and produced a confident, measured,
  * entirely wrong finding about the game's road fights. Here the indexes happen
  * to be correct, and nothing keeps them so: inserting a row — or the mount-row
  * change iteration 39 made when CONFIRM moved into a pinned footer — silently
- * points index 6 at some other row, and the test then builds a car with armour
- * on the wrong facing and no weapon. That failure would surface as a
+ * points the index at some other row. That failure surfaces as a
  * legitimate-looking complaint about the city gate refusing an illegal car,
  * which is precisely how iteration 92's identical bug presented.
  *
- * So the row order is asserted HERE, against the real `computeRows`, and the
- * failure names the shift rather than leaving a downstream test to misreport
- * it. It is deliberately a positional assertion: the property that matters is
- * that a keyboard-driven test can still reach the first armour facing and the
- * first weapon slot by index at all.
+ * **AND IT ASSERTS THE FACING AND THE SLOT, NOT THE `kind`.** That correction
+ * came from a mutation that did not fire: shifting `ARMOR_FACING_0_ROW` from 6
+ * to 7 left all nine gate-walking tests green, because row 7 is also
+ * `kind: 'armor'` and `roadLegalityMisses` only ever asks for "some armour".
+ * So the fixture would have quietly put the points on REAR instead of FRONT —
+ * which is the one thing `buildRoadLegalCar`'s comment promises, and the reason
+ * the panel shows one real depleting bar next to four unfitted chips. A guard
+ * that cannot fail on the defect it was written for is the iteration-94 shape,
+ * and this one had it.
+ *
+ * Both assertions read production's own data rather than a typed name:
+ * `computeRows` iterates `FACINGS` and stamps each armour row with its
+ * `facing`, and stamps each weapon row with its `slot`. So the property is
+ * "the row this index names is the one holding `FACINGS[0]`" and it stays true
+ * through a reorder, while a wrong number fails with the facing spelled out.
  */
 describe('builder — row indexes the integration tests navigate by', () => {
-  const ARMOR_FACING_0_ROW = 6;
-  const WEAPON_SLOT_0_ROW = 11;
-
-  it('still points at the first armour facing and the first weapon slot', () => {
+  it('still points at the FIRST armour facing and the FIRST weapon slot', () => {
     const rows = computeRows(createBuilderState());
     const armor = rows[ARMOR_FACING_0_ROW];
     const weapon = rows[WEAPON_SLOT_0_ROW];
-    expect(armor?.kind, `row ${ARMOR_FACING_0_ROW} is "${armor?.label ?? 'missing'}" — a row was inserted or reordered`).toBe('armor');
-    expect(weapon?.kind, `row ${WEAPON_SLOT_0_ROW} is "${weapon?.label ?? 'missing'}" — a row was inserted or reordered`).toBe('weapon');
+    const where = (row: BuilderRow | undefined): string =>
+      row === undefined ? 'missing' : `${row.label} (${row.kind})`;
+    // `BuilderRow` is a discriminated union, so these narrow on `kind` — which
+    // is also what makes the assertion worth more than a `kind` check: a row
+    // that is the right CATEGORY but the wrong facing still fails here.
+    const facingOf = (row: BuilderRow | undefined): Facing | undefined =>
+      row?.kind === 'armor' ? row.facing : undefined;
+    const slotOf = (row: BuilderRow | undefined): number | undefined =>
+      row?.kind === 'weapon' ? row.slot : undefined;
+
+    expect(
+      facingOf(armor),
+      `row ${ARMOR_FACING_0_ROW} is ${where(armor)} — a row was inserted or reordered, and the fixture would fit armour on the wrong facing`,
+    ).toBe(FACINGS[0]);
+    expect(
+      slotOf(weapon),
+      `row ${WEAPON_SLOT_0_ROW} is ${where(weapon)} — a row was inserted or reordered, and the fixture would mount into the wrong slot`,
+    ).toBe(0);
   });
 
   it('keeps CONFIRM last, since iteration 39 gave it a pinned footer', () => {

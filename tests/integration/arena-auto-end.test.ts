@@ -147,9 +147,27 @@ async function bootToCity(root: HTMLElement, seed: string, search: string): Prom
   const submit = requireOne('.sm-screen--driver button');
   submit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-  // Default build (no weapon mounts) is legal except its empty name — same
-  // as screens.test.ts's own bootToCity. amateur-night issues its own house
-  // loaner regardless of what this car is, so it never needs weapons here.
+  // A DELIBERATELY ILLEGAL car: a name and nothing else — 0 armour, 0 mounted
+  // weapons. This file is the one place that is correct, because it never
+  // walks to the gate: Amateur Night issues its OWN house loaner
+  // (`beginArenaMatch` supplies one) regardless of what this car is, so the
+  // player's build is never used.
+  //
+  // The comment this replaces said the default build "is legal except its empty
+  // name — same as screens.test.ts's own bootToCity", and BOTH halves were
+  // false. It is not legal: `roadLegalityMisses` wants a name, some armour and
+  // a mounted weapon, so this car is two conditions short. And it stopped
+  // matching `screens.test.ts` at iteration 92, which is when that file was
+  // found building an unroad-legal car and repaired — `screens.test.ts` now
+  // fits a real car and this one does not. The claim survived here because
+  // nothing in THIS file could notice: a comment describing a sibling's
+  // fixture is a claim about a file nobody in this suite re-reads, which is
+  // iteration 143's whole lesson with a different subject.
+  //
+  // So this file is deliberately NOT a user of `constructor-fixture.ts`, which
+  // owns the road-legal build the three city-walking suites share. What is
+  // shared is the claim that all four build the same thing, and it stopped being
+  // true two iterations before this comment was written.
   const constructorScreen = requireOne('.sm-screen--constructor');
   for (const ch of 'TestRig') dispatchKeyDown(constructorScreen, { key: ch });
   for (let i = 0; i < 40; i++) dispatchKeyDown(constructorScreen, { key: 'ArrowDown' });
