@@ -6066,3 +6066,90 @@ ITERATION 103 — Save and quit: a road trip is interruptible at last
   but it is longer than most people want to sit through. The pacing item stays
   open at a lower priority than it was, and the honest framing is now "the leg
   can be paused", not "the leg is short".
+ITERATION 104 — the resume gap iteration 103 recorded against itself, closed
+- ITERATION 103 SHIPPED THE SAVE AND THEN WROTE, IN ITS OWN ENTRY: "Neuter
+  `resumeSession`'s `roadTrip` branch and every test in the suite still passes,
+  because nothing drives a save-then-reload through the real boot path." That was
+  measured and true. It is now false — the mutation fails exactly one test — and
+  the limit is closed rather than merely noted a second time.
+- The failure it would have caused is the worst class in this log: a player who
+  saved mid-journey reloads and silently finds themselves in a CITY with the
+  trip gone. That is iteration 93's bug class (a save that loses what it exists
+  to keep) one layer up, and a save feature whose restore path is unprotected is
+  half a feature.
+
+- THREE TESTS, and they drive the only path that reaches the closure: write a
+  real save through the real `persistArenaSession`, boot the real app against the
+  real database, press the real Continue row, and read the real rendered
+  screen. Nothing calls an unexported function.
+    1. Continue returns the driver to the ROAD, at the right destination,
+       carrying the saved progress. A resume that rebuilt a city would look
+       IDENTICAL to the pre-iteration-103 behaviour and lose the trip without
+       emitting an error, which is why "it renders something" was never a
+       sufficient assertion.
+    2. a save with no `roadTrip` still resumes into a city — the field is
+       optional, and a resume path that demanded it would strand every
+       pre-existing save.
+    3. a trip save with no active vehicle falls through to the city rather than
+       resuming into a road with no car in it.
+
+- **THE FIXTURE LIED, AND IT COST THREE ROUNDS AND A FALSE ALARM.**
+  The first version hand-set `progressMiles: 3.25` and asserted the screen showed
+  147 miles remaining; it showed 150. `progressMiles` is DERIVED state:
+  `stepRoadTrip` recomputes it every tick from
+  `vehicle.position - startPosition` projected on the route axis, and writes
+  position and progressMiles into the SAME next-state. A saved progressMiles
+  with the vehicle still parked at the start is a state the simulation can never
+  be in, and the first tick after resume overwrites it with 0. The fixture now
+  DRIVES the real `stepRoadTrip` and saves what it produces, which is also the
+  better test: it asserts against state the game can actually reach.
+  **The game was right the whole way through.** Production saves `trip.vehicle`
+  with its live position and the two always agree.
+  Worth recording as a class: a fixture that encodes a value the system DERIVES
+  will disagree with the system on the first tick, and the failure looks exactly
+  like a persistence bug.
+
+- Two smaller harness facts, both of which produced confident wrong readings
+  before they were identified:
+  - the status pill is written only on a frame that ran at least one SIM TICK.
+    `frame` returns early on `ticks === 0` — correct behaviour, since a
+    zero-tick frame must still redraw — but it means a single 250ms rAF step can
+    land on one. Two steps, and the node must be re-queried afterwards, because a
+    reference captured before the render pass reads a stale tree.
+  - `afterEach` reset `dbHandle` but not `dbPromise`, so every later
+    `openDbHandle()` returned a CLOSED connection and the save silently vanished.
+    It surfaced as "the title offers no Continue", which reads exactly like a
+    broken resume path, and sent me auditing code that was correct. A stale
+    cache of a resource you closed is the same shape as every other silent
+    failure in this log.
+
+- **FIFTEEN THROUGH SEVENTEEN OF THE FIXTURE-FROM-MEMORY CLASS, IN ONE FILE.**
+  `@/sim/construct` for `vehicleStateFromDesign` and `makeArmorRecord`,
+  `@/persist/save` for `persistArenaSession`, `@/sim/types` for `QuestState` —
+  all three are exported from `@/app` or `@/persist/save`, and
+  `screens.test.ts` already had the correct import block sitting in the repo.
+  The rule has not changed since iteration 25 and it has now cost more than any
+  other lesson here: **read the neighbouring test file before writing a fixture.**
+  Combined with iteration 102's four, the last two rounds have produced eleven
+  guessed shapes between them. That is no longer a slip, it is a habit, and the
+  corrective is cheap and mechanical — grep the sibling test for the import
+  before writing a line of fixture.
+
+- GATE: tsc clean, 70 files / 1496 tests. 4 failures, all `screens.test.ts`
+  (2 in isolation) — the known order-dependent flake, reproduced on clean master.
+  This file is green across two consecutive FULL runs, which is the check that
+  matters after iteration 103 made its sibling flaky. 5 browser tests pass. Build
+  hash UNCHANGED at `index-DYtBmWcD.js`, which is the correct blast radius: this
+  round added tests and no runtime code, so there is nothing to deploy and
+  nothing to re-verify live.
+
+- NEXT. The save feature is now protected on both halves. What remains is the
+  decision iteration 102 deliberately left open — Option A, rescaling the world
+  so a leg is ~20 real minutes instead of ~107. It is a genuine design call
+  (smaller world, battery loosened from a 2-leg to a 10-leg economy) rather than
+  a defect, and the log now carries the measured cost of every column. The
+  smaller remaining items are the "surface a failed save" message (93) and the
+  unbuilt on-foot mode, which finally has both a reachable trigger (iteration
+  100's trip menu) and, since iteration 103, a save point — so abandoning on
+  foot is no longer a total loss of the run, which lowers the cost of building
+  the movement half.
