@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 43
+iteration: 44
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9134,3 +9134,100 @@ from a test that had drifted from the game.**
   placement is **retired** — not deferred, retired: the game already places
   contacts where a forward mount can fight them, and the thing that said
   otherwise was a test.
+## Iteration 143 — generalising iteration 142: how many OTHER tests restate production logic, and does anything check?
+
+Iteration 142 found one test that had drifted from the code it was testing and
+produced a confident, measured, entirely wrong finding about the game's road
+fights. Its own stated rule is general: **when a test restates production logic,
+the restatement is a claim about production, and the first thing to check is
+whether the two still agree.** One copy found by hand is a sample of one. This
+round sweeps the suite for the class.
+
+- **THE SWEEP, AND WHAT IT FOUND — a clean class and a dirty one.**
+    8 copies of `evenSkillSplit`   -> ALL 8 DERIVE from
+                                         `skillsConfig().startingSkillPool`.
+                                         This is the fixture that failed with
+                                         "skills must sum to exactly 50" in
+                                         iterations 84 and 104, and every
+                                         current copy reads the pool from the
+                                         ruleset. CLEAN, and worth recording
+                                         as clean: it is the class that has
+                                         burned this log twice and the one
+                                         place the habit actually took.
+    4 copies of `bootToCity`        -> already repaired in iteration 92, which
+                                         found one of them building a car the
+                                         gate refuses. Still duplicated, and the
+                                         comment in `road-bounds-wiring` says
+                                         so in as many words.
+    **1 set of hardcoded row INDEXES -> unguarded, and new.**
+
+- **THE NEW FINDING: `road-trip-menu.test.ts` NAVIGATES THE CONSTRUCTOR BY
+  TYPED INDEX.** It does not press a key or select a label; it counts:
+      const ARMOR_FACING_0_ROW = 6;
+      const WEAPON_SLOT_0_ROW = 11;
+  Those are a second, unowned copy of the row ORDER that `computeRows` produces
+  — the same shape as the `roadContactPlacement` copy, one layer up: not the
+  placement arithmetic, but the ORDER the placement is reached through.
+
+  **BOTH INDEXES ARE CURRENTLY CORRECT**, which is exactly what makes this worth
+  a guard rather than a fix. `computeRows` emits, in order: name(0), body(1),
+  chassis(2), suspension(3), plant(4), tires(5), the five armour facings
+  (6-10), the ten weapon slots (11-20), confirm(21). So 6 is `Armor: Front`
+  and 11 is `Weapon 1` — and nothing keeps them so. Insert a row and index 6
+  silently becomes some other row; the test then builds a car with armour on the
+  wrong facing and no weapon, the city gate correctly refuses it, and the
+  failure surfaces as a **legitimate-looking complaint about the gate refusing
+  an illegal car** rather than as a stale index. That is precisely how
+  iteration 92's identical bug presented, and it is why the same misunderstanding
+  could be paid for twice.
+
+- **AND THE ROW ORDER IS NOT STATIC — IT HAS ALREADY MOVED TWICE.** Iteration 39
+  took CONFIRM out of the scrolling list into a pinned footer, and iteration 48
+  added the amber requirement rails. Neither broke these indexes, and that is
+  luck rather than design: the mount rows (`Facing`, `Ammo`) that
+  `computeRows` pushes per mounted weapon are the obvious next thing to change,
+  and every one of them sits at or after index 11.
+
+- **TWO GUARDS, BOTH AGAINST THE REAL `computeRows`, AND BOTH MUTATION-PROVEN.**
+  The first asserts the two indexes still name the rows the integration test
+  means; the second asserts CONFIRM is still LAST, because that is what makes
+  the keyboard path's Enter act on it. The failure message is the point:
+      row 6 is "Cargo" — a row was inserted or reordered:
+        expected 'tire' to be 'armor'
+  It names WHICH row moved and WHERE, so the next reader is told what to re-derive
+  rather than being handed a downstream assertion about a gate.
+
+- **AND THE HONEST SCORE, because the mutation was not as clean as it looked.**
+  Inserting one row fails my two new guards AND **five pre-existing** builder
+  tests, so the row ORDER is not wholly unguarded — `builder.test.ts` already
+  pins it in five places, incidentally. What it did not have was a test whose
+  FAILURE says "a row was inserted or reordered". The other five fail on
+  builder behaviour, which is correct and useless for diagnosing a stale
+  integration-test index. So the round's contribution is the DIAGNOSTIC, not
+  new coverage, and recording it that way matters more than claiming a
+  previously-unwatched gap.
+
+- **GATE.** tsc clean. `builder.test.ts` **35/35** (33 + 2 new). Full suite
+  **1545 passed / 4 failed**, all four the measured `screens.test.ts` flake
+  (identical in isolation on this branch and on clean master, iteration 142).
+  `phase4` still green. No production code changed, so there is nothing to
+  deploy — and iteration 142's build hash stands.
+
+- **WHAT THIS DOES NOT SETTLE, and the queue is now shorter than it was.**
+  **The class is swept for the two highest-risk shapes, not all of them.** 25
+  test files define their own helpers; the ones that restate a production RULE
+  rather than build a fixture are the ones that can drift this way, and
+  `evenSkillSplit` and the constructor row order were the two that had already
+  cost a round. A third shape — the four `bootToCity` copies — is still
+  duplicated and still relies on four files being edited together, which is
+  exactly the condition that produced iteration 92. Collapsing those into one
+  shared helper is the obvious next move and is not done here, because it
+  touches four integration files and the round had already spent itself on the
+  sweep.
+
+  **And the one open design decision is unchanged: the head-on closing-speed
+  formula** (iteration 140). Gate-only keeps `arena-auto-end` 6/6; correcting
+  the formula makes a passive player immortal in Amateur Night (alive at tick
+  96,000 against a documented 2,863). `arena-victory`'s 57.3% winnability gate
+  holds either way, so it is specifically the death path. Road contact
+  placement stays retired — iteration 142 closed it.

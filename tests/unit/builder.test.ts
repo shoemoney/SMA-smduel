@@ -763,3 +763,48 @@ describe('computeRows: rows that are holding the build up are marked as such', (
     expect(marked(done)).toEqual([]);
   });
 });
+
+/**
+ * The integration tests that drive the constructor by KEYBOARD navigate by
+ * row INDEX, and those indexes are a second, unowned copy of the row order
+ * `computeRows` produces:
+ *     tests/integration/road-trip-menu.test.ts
+ *       const ARMOR_FACING_0_ROW = 6;
+ *       const WEAPON_SLOT_0_ROW = 11;
+ *
+ * That is the same shape as iteration 142's `roadContactPlacement` copy, which
+ * had drifted in two independent ways and produced a confident, measured,
+ * entirely wrong finding about the game's road fights. Here the indexes happen
+ * to be correct, and nothing keeps them so: inserting a row — or the mount-row
+ * change iteration 39 made when CONFIRM moved into a pinned footer — silently
+ * points index 6 at some other row, and the test then builds a car with armour
+ * on the wrong facing and no weapon. That failure would surface as a
+ * legitimate-looking complaint about the city gate refusing an illegal car,
+ * which is precisely how iteration 92's identical bug presented.
+ *
+ * So the row order is asserted HERE, against the real `computeRows`, and the
+ * failure names the shift rather than leaving a downstream test to misreport
+ * it. It is deliberately a positional assertion: the property that matters is
+ * that a keyboard-driven test can still reach the first armour facing and the
+ * first weapon slot by index at all.
+ */
+describe('builder — row indexes the integration tests navigate by', () => {
+  const ARMOR_FACING_0_ROW = 6;
+  const WEAPON_SLOT_0_ROW = 11;
+
+  it('still points at the first armour facing and the first weapon slot', () => {
+    const rows = computeRows(createBuilderState());
+    const armor = rows[ARMOR_FACING_0_ROW];
+    const weapon = rows[WEAPON_SLOT_0_ROW];
+    expect(armor?.kind, `row ${ARMOR_FACING_0_ROW} is "${armor?.label ?? 'missing'}" — a row was inserted or reordered`).toBe('armor');
+    expect(weapon?.kind, `row ${WEAPON_SLOT_0_ROW} is "${weapon?.label ?? 'missing'}" — a row was inserted or reordered`).toBe('weapon');
+  });
+
+  it('keeps CONFIRM last, since iteration 39 gave it a pinned footer', () => {
+    // The keyboard path selects by index across the WHOLE list, and CONFIRM
+    // is what Enter acts on, so a row appearing after it would be unreachable
+    // by the tests that press Enter to build a car.
+    const rows = computeRows(createBuilderState());
+    expect(rows[rows.length - 1]?.kind).toBe('confirm');
+  });
+});
