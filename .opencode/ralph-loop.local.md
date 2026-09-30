@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 16
+iteration: 17
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -5854,3 +5854,100 @@ ITERATION 101 — the guardrails are now delineator posts (Codex finding #4)
 - NEXT: the structural pacing decision (97) is still the largest open item, and
   the "surface a failed save" message (93). The unbuilt on-foot mode now has a
   reachable trigger (iteration 100's trip menu) but still no movement.
+ITERATION 102 — the pacing decision, measured properly (iteration 97's blocker refuted)
+- NO CODE CHANGED. Iteration 97 concluded the pacing fix was "unreachable
+  without a lie in one direction or the other," and recorded a caveat it never
+  checked: shortening the routes is a map lie "if the cities' on-map positions
+  are tied to it." Iteration 82's standing lesson is that an unchecked
+  assumption about geometry produced a shipped-wrong result, so this round
+  checked it rather than inheriting it.
+
+- **THE CAVEAT IS FALSE. `lengthMiles` IS NOT TIED TO ANY MAP GEOMETRY.**
+  `cities.json` routes carry only `{ id, a, b, lengthMiles, danger }` — two city
+  ids and a number. There is no coordinate, no position, no spacing. Every
+  reader of `lengthMiles` is simulation or display, and each is length-relative
+  rather than absolute:
+    - `ui.city.routeOption` prints it ("150mi remaining")
+    - the progress bar is `progressMiles / lengthMiles`
+    - `generateRouteContacts` scales density and contact placement by it
+    - `pursuit.ts` places hazards over `rng * lengthMiles`
+    - `world-map.ts` derives `tripDays` and map density from it
+    - `daysPerMile() = tripDays() / mean(lengthMiles)`, so days-PER-ROUTE is
+      invariant under any uniform rescale
+  So shrinking the routes is not the map lie iteration 97 feared, and
+  "shorten the routes" is available. That does not make it correct, and the
+  measurement below is why.
+
+- **MY OWN TABLE WAS WRONG ON THE FIRST PASS, AND THAT IS THE USEFUL PART.**
+  I computed encounters-per-leg as `density/k * (length/k)`, i.e. density
+  scaled DOWN alongside length. Encounters are `density * length / 100`, so
+  shrinking length by k requires density UP by k or the count falls by k^2 — my
+  table showed 0.04 fights on a 15-minute leg, which would have made option A
+  look catastrophic for the wrong reason. Caught by checking the k=1 row
+  against the real table (2.00 fights on the mean leg) and noticing it was the
+  only row that matched anything. Iteration 97's whole entry was a confident
+  derivation from assumed inputs; this is the same failure mode arriving again
+  one round later, which is the strongest possible argument for the rule this
+  log keeps writing down.
+
+- **THE TWO OPTIONS, WITH MEASURED COSTS.** Nothing here fakes a unit: every
+  number below is a real simulated quantity, and the driving sim, the odometer
+  and the calendar are all untouched.
+                                          k=7        k=5        k=3   (k=1 today)
+    mean route length                   17.9 mi    25.0 mi    41.7 mi   125.0 mi
+    real minutes per leg @70mph         15.3       21.4       35.7      107.1
+    danger-1 density (/100mi)           11.2        8.0        4.8       1.6
+    fights per leg (HELD)                2.00       2.00       2.00      2.00
+    battery points per leg                6.8        9.5       15.8      47.5
+    legs per full charge                 14.6       10.4        6.3       2.1
+    calendar days per leg              (invariant — derived from the mean)
+
+  **OPTION A — rescale the world by k.** Every column above is achievable with
+  two coupled ruleset edits (route lengths and `spawnsPerHundredMiles`) and
+  nothing else, because `daysPerMile` re-derives itself from the mean. The
+  costs are real and are the decision:
+    - the world gets k times smaller, so "sixteen cities" sit k times closer
+      together. Nothing in the game measures this against a reference, but it
+      is a change to the fiction the tagline sells;
+    - the battery stops being a within-leg constraint. Iteration 96 closed a
+      hard blocker by making it a 2-leg economy; k=5 turns that into a
+      10-leg one, which may be too loose to feel like a resource at all;
+    - and the two edits are COUPLED. My own first table got the coupling
+      backwards, which is direct evidence that "shrink the routes" is a change
+      that can be half-made and shipped as an empty game. Whatever is chosen
+      needs a test that derives fights-per-leg from the real table on BOTH
+      axes, the same shape as iteration 96's battery/route reconciliation test.
+
+  **OPTION B — make the trip interruptible.** No number changes at all. The
+  finding is that a 129-minute leg is only a BARRIER because it is atomic:
+  `SaveGame` has no road-trip slot at all (`location` is a city id, and
+  `cityRunStateFromSaveGame` always rebuilds a city), so a player cannot stop
+  at mile 40 and come back. Making the trip saveable turns one 129-minute
+  sitting into two, and changes nothing about the world, the battery, the
+  encounters or the calendar.
+    This is also the half of iteration 99's finding #2 that iteration 100 did
+    not build: that reviewer asked for Resume / Controls / **Save and quit**,
+    and Save-and-quit was left out precisely because mid-trip restore does not
+    exist. Option B is finishing the feature the previous round started.
+    Scoped and de-risked this round: `RoadTripState` is entirely plain data
+    (`RoadContact`, `RoadWreck`, `RoadHazard` are strings/numbers/booleans,
+    `Clock` is two fields), and `ResolvedRoute` is `{ route, originCityId,
+    destinationCityId }` re-derivable by `resolveRoute(a, b)` — so the save
+    stores TWO CITY IDS and the route is looked up on resume. That is the
+    log's own "one owner, every surface reads it" shape: the save cannot
+    disagree with `cities.json` about how long a route is, because it never
+    stores the length. Touches ~5 files.
+
+- **MY RECOMMENDATION IS B, THEN A, AND IT IS NOT A TIE.** Option B has no
+  design cost — it is implementation cost only, and it removes the barrier
+  without touching a single balance number. Option A is a real redesign of the
+  world's scale and the battery's role, and it should be chosen only if a
+  playable 2-hour leg is still wrong AFTER the leg can be paused. Doing A
+  first would mean rescaling the world to solve a problem that B removes, and
+  rescaling is the harder of the two to walk back.
+
+- DEFERRED DELIBERATELY, as iterations 84, 86 and 96 all deferred their own
+  structural items: this is a design decision with two legitimate answers and
+  measured costs on both, and it belongs in the log as a decision rather than
+  in a patch applied at the end of an unrelated round. Option B's schema and
+  resume work is the next code round.
