@@ -5441,3 +5441,51 @@ DEPLOY 2026-09-30 — iteration 96 to arcade.shoemoney.com
    STILL QUEUED: the structural pacing decision (97, recorded), the
    encounter-density inversion on short routes (97), `abandonVehicle` still
    unwired, and a persistent "surface a failed save" message (93).
+
+DEPLOY 2026-09-30 — iteration 98 to arcade.shoemoney.com
+- Release `20260930150000-d21fbb4`, build `index-AJyF_mpX.js`. Whole-site
+  snapshot, atomic swap, root + smduel + last-engineer 200, live bundle hash
+  equals the local build's.
+- LIVE VERIFIED IN REAL CHROME, and this one is PARTIAL, stated as such rather
+  than dressed up — with a note on how the gap was reached, because the way I
+  got there is the useful part.
+   1. WHAT IS CONFIRMED. Walking the production city, the proximity label
+      renders and reports correctly for an OPERATIONAL facility:
+        step 26  "Salvage Yard"   [colour rgb(215, 224, 234)]
+      which is `#d7e0ea`, the normal-operational ink, not the dimmer closed
+      ink — so the existing path is intact and the change did not regress it.
+      0 console errors throughout.
+   2. THE SHIPPED BUNDLE carries the new string: `" — closed"` and the
+      `stripClosed` key each appear once in `index-AJyF_mpX.js`. The
+      identifiers `isOperationalFacilityKind` and `GENERIC_KINDS` appear zero
+      times, as expected — they are minified.
+   3. **WHAT I DID NOT DO: I never walked to the Federal Building**, so I have
+      not seen "Federal Building — closed" rendered in a browser. My walk was a
+      fixed 32-step key cycle and it happened to reach the Salvage Yard and
+      nothing else; reaching a specific building needs the layout's doorway
+      positions, which the page does not expose. The closed path is covered by
+      the two unit tests (which pin that `federal` and `hotel` read as
+      unfinished and that the set cannot drift from the router) and by the
+      string being in the bundle, but that is source-level and bundle-level
+      evidence, not a rendered frame. Recorded as unverified rather than
+      implied.
+   4. WORTH RECORDING, because it is the fourth time this log has hit it: I
+      guessed the probe's DOM selector THREE TIMES and got three confident
+      wrong answers before inspecting the page.
+        attempt 1  filtered on candidate WORDS -> read nothing, because no
+                    facility label had appeared yet and the filter matched
+                    nothing at all;
+        attempt 2  filtered on `transform: translateX(-50%)` -> read the
+                    CITY STATUS PILL, which is also centred and absolute,
+                    and reported its text as the facility label;
+        attempt 3  narrowed to `bottom: 10px; left: 50%` -> read nothing again,
+                    and the reason turned out to be that the CAR STRIP and the
+                    LEGEND are always bottom-anchored, so my loop saw "a
+                    bottom-anchored element exists" and stopped walking at step 0
+                    while the label was still `display: none`.
+      The fix was to stop guessing and DUMP every absolutely-positioned element
+      with its inline style, which identified all three strips at once. The
+      general rule, which this log has now learned three ways: a probe that
+      finds nothing is not a measurement, and a probe that finds the WRONG
+      element is worse than one that finds nothing, because it produces a
+      number.
