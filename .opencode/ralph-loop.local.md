@@ -6161,3 +6161,121 @@ ITERATION 104 — the resume gap iteration 103 recorded against itself, closed
   100's trip menu) and, since iteration 103, a save point — so abandoning on
   foot is no longer a total loss of the run, which lowers the cost of building
   the movement half.
+ITERATION 105 — AGENTS.md, a fresh review, and the two defects it found
+- **THE HABIT GOT A MECHANICAL FIX, AND THAT IS THE FIRST HALF OF THIS
+  ROUND.** Iterations 102–104 between them produced ELEVEN guessed shapes, and
+  the reason is structural rather than moral: the lessons live in a 5,700-line
+  append-only log, and a round reads its TAIL, which by construction contains
+  none of the older ones. So the rules that would have prevented this round's
+  errors were in the repository the whole time and not in the part being read.
+  `AGENTS.md` now holds ~1000 words of them, organised by the failure mode each
+  prevents rather than by subsystem, short enough to actually be read.
+  Every rule was spot-checked BACK against the log rather than written from
+  memory — the non-premultiplied-alpha bug, the green-on-a-zero armour state,
+  `sips` exiting 0, the silent title-art revert, the shared-`fake-indexeddb`
+  deletion are all present and cited by incident number — and no rule contradicts
+  a decision the log has settled.
+  Completing that audit also found a HOLE IN ITERATION 104's OWN ENTRY: it
+  named the three wrong module paths but omitted the most instructive guess, a
+  hardcoded `{ driving: 12, marksmanship: 8, mechanic: 6 }` that failed with
+  "skills must sum to exactly 50 (got 26)". The ruleset stated the constraint
+  in the error message and `screens.test.ts` already had `evenSkillSplit()`
+  derived from `skillsConfig().startingSkillPool`. Added, because that one line
+  is the whole class: the system told me the answer and I typed a plausible
+  value instead.
+
+- **A FRESH REVIEW, WHICH WAS THREE VERSIONS OVERDUE.** Codex
+  `gpt-6.1-sol` (`.opencode/reviews/codex-20260930-044140.md`) drove the live
+  arena/road/city at 1200x1010 DPR 2, first attempt. It also volunteered its own
+  limits: the browser connection closed before it could enter a combat event, so
+  it does not establish opponent behaviour, combat balance, completed trips, or
+  save restoration. Recorded because a review that states what it did not check
+  is worth more than one that implies coverage it lacks.
+
+- **FIX 1 — OFF-ROAD LEFT THE PLAYER WITH NO WAY BACK.** "After steering away
+  from the initial horizontal carriageway, I reached a view where the road and its
+  edge markers had disappeared completely. The banner continued to say 'En route
+  to Albany · 150mi remaining.' There was no arrow or distance telling me where
+  the carriageway was."
+  This is iteration 101's decision arriving as a cost. Leaving the road is now
+  the ONLY way out of a bad line, which makes having no way BACK a recovery gap
+  rather than a missing nicety — and the radar reports contacts while the progress
+  bar reports progress, so neither of them reports the roadway.
+  The indicator computes the car's signed offset on the trip's FROZEN route axis
+  — the same axis `progressMiles` uses and the same one the surface, paint and
+  posts are placed on — so it adds no eighth definition of "where the road is".
+  Shown only beyond the SHOULDER, not the painted edge: tracking the centreline
+  crosses those lines constantly, and an indicator that flickered on every
+  steering correction would be the "UI overlay" objection iterations 11 and 53
+  were both about.
+  **The geometry is exported from the app and pinned against the REAL
+  functions.** The risk is a confident arrow pointing the WRONG WAY, and no
+  screenshot of a single drive would reveal an inverted sign. Two mutations:
+  invert the sign -> only the direction test fails; use the ALONG axis instead
+  of the lateral one -> 2 tests fail. An earlier draft exported the helpers from
+  the TEST file, which would have been a second derivation of the one thing that
+  must not be wrong — caught before it shipped.
+
+- **AND THE DIRECTION IS NOT INDEPENDENTLY OBSERVABLE, which is worth
+  saying plainly.** The arrow CANNOT flip during a straight drive: crossing the
+  centreline ends the off-road state. So no amount of driving would have shown
+  it reversing, and a live check that reported "the arrow looked right" would
+  have been theatre. What IS verified live: hidden on the carriageway, shown
+  off-road, distance counting down as the car returns (59m -> 53m -> 14m
+  across two probes), 0 console errors. The direction rests on the unit test plus
+  the screen-space convention now written into the code — `m[5] = sy` positive
+  puts clip +y at the top, so world +y is screen-up (iteration 87's convention),
+  so a positive lateral offset means the car is ABOVE the centreline and the
+  road is below it, i.e. screen-left. A reader can check that rather than trust
+  it, which is the standard iteration 87 applied when it re-derived its own
+  fixture.
+
+- **FIX 2 — A MENU THAT INSTRUCTED A PLAYER TO DO WHAT THEY HAD DONE.**
+  "I walked into the Arena as the pedestrian, with the Duster parked
+  elsewhere. Amateur Night was disabled with the reason 'Amateur Night is
+  entered on foot.'"
+  The RULE is correct and unchanged — `eligibilityFor` refuses any non-null
+  vehicle, which is the SPEC's on-ramp ("amateur night (entered on foot,
+  house-supplied kart, for drivers under the cash or prestige bar)"). Only the
+  message was wrong, and the comparison that settles it is with its own
+  siblings in the same switch, every one of which states the REQUIREMENT:
+  "requires an active vehicle", "costs $X, you have $Y", "caps vehicle value at
+  $X (yours is $Y)". This one stated a FACT about how the event is entered,
+  which reads as an instruction to the single player it most confuses — and the
+  city strip teaches "G to enter/exit car", so "entered on foot" actively
+  implies that getting out should have sufficed. Now "requires no active car —
+  leave your car behind".
+  Deliberately names no KEY: bindings are remappable (iteration 94), so a
+  literal "press G" here would be exactly the stale-instruction bug that
+  finding was about. Same class as iteration 84's legality panel telling a
+  player a build was ready when it was not — a UI string contradicting the
+  check beside it.
+
+- CORROBORATION WORTH RECORDING: the reviewer independently re-derived the
+  pacing arithmetic iteration 96/97 established — 150 miles at 70 mph ≈ 129 real
+  minutes — and, having driven the trip menu, noted that "Save and quit ... makes
+  that commitment interruptible". Two independent routes to the same number and
+  the same verdict, one of them by a reviewer that never read either entry.
+  It recommends ~20–25 minutes per leg, which is Option A of iteration 102 and
+  the same trade; still a decision, not a defect, and still not taken.
+  It ALSO independently confirmed the Federal Building's approach label reads
+  "closed" and explicitly declined to report its availability as a screen
+  defect — the iteration-98 fix working as intended, from an outside view.
+
+- GATE: tsc clean, 69 files / 1500 tests, 2 failures — all `screens.test.ts`,
+  and fewer than the 4 of the last three rounds (2 in isolation, 4 in-suite),
+  which continues the downward trend iteration 104 noted. 5 browser tests pass.
+  Build `index-B607oBD2.js`. `.shots/iter105` = 8 screens / 0 problems, and the
+  road frame is BYTE-IDENTICAL to iteration 101's — the control that matters
+  here, since a new HUD element appearing in the baseline capture would be a
+  regression rather than a feature.
+
+- DEPLOY: release `20260930050030-da3e441`, bundle `index-B607oBD2.js`.
+  Whole-site snapshot, atomic swap, root + smduel 200, live bundle hash equals
+  the local build's, 0 console errors. LIVE: indicator hidden on the
+  carriageway, shown off-road, counting down as the car returns.
+
+- NEXT. Option A (rescale the world to ~20-minute legs) remains the largest
+  open item and is still a decision rather than a defect; a reviewer has now
+  independently landed on the same target. The "surface a failed save" message
+  (93) and the unbuilt on-foot mode (99) are smaller and unstarted.
