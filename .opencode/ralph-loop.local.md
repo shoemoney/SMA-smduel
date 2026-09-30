@@ -5441,6 +5441,11 @@ DEPLOY 2026-09-30 — iteration 96 to arcade.shoemoney.com
    STILL QUEUED: the structural pacing decision (97, recorded), the
    encounter-density inversion on short routes (97), `abandonVehicle` still
    unwired, and a persistent "surface a failed save" message (93).
+   >> CORRECTED BY ITERATION 99: the short-route inversion is FALSE (arithmetic
+      on a route/danger pair that does not exist; all 26 real routes are
+      non-empty and flat per minute), and `abandonVehicle` is an UNBUILT
+      on-foot mode, not an unwired function. Read the iteration-99 entry before
+      acting on either of the two claims in this list.
 
 DEPLOY 2026-09-30 — iteration 98 to arcade.shoemoney.com
 - Release `20260930150000-d21fbb4`, build `index-AJyF_mpX.js`. Whole-site
