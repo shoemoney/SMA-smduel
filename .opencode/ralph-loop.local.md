@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 1
+iteration: 2
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -3827,3 +3827,91 @@ DEPLOY 2026-09-30 — release `20260930013105-be03afb` (be03afb) to arcade.shoem
   `/tmp/smduel-dist` is uploaded BEFORE the staging script runs — the first
   attempt referenced a path that did not exist yet, and `set -e` did abort there,
   so the live site was never touched by a half-built release.
+81. NO NEW REVIEWER (pool still 75/75) — the DECAL half of the ground-decal
+   deferral, EXECUTED. And the first thing this round did was find out the art
+   was never missing.
+   - **FIVE DECAL FRAMES WERE PACKED INTO THE SHIPPING ATLAS AND DRAWN BY
+     NOTHING.** Checking what `decal-*` art existed before deciding this was an
+     authoring job:
+         decal-mine        decal-oil-slick    decal-spikes
+         decal-scorch      decal-tire-marks
+     `grep -rn "'decal-"' src/` returns ZERO for every one of them. They have
+     been shipping — costing download bytes in the atlas on every load — since
+     long before the loop, referenced by no line of source.
+     So the deferral note's premise was half wrong. It said "a real fix is new
+     ART", and iterations 78/79/80 all treated the ground-decal item as an
+     authoring job for exactly that reason — the note never checked whether the
+     art already existed. The three stains were already drawn, keyed (with
+     uniform key deviation 0 on two of them), packed and ready:
+         decal-oil-slick   88x96   black irregular slick with a gloss highlight
+         decal-tire-marks  60x96   two curved black skid marks
+         decal-scorch      85x96   soft black soot splatter
+     `decal-mine` and `decal-spikes` stay unwired, and deliberately so: those
+     are gameplay HAZARDS, not stains, and nothing in the sim drops either. The
+     distinction is worth keeping in mind — "an unused frame" is not always a
+     wiring bug, and the two left unused here are unused on purpose.
+   - **THE ARENA NOW HAS EVIDENCE OF USE.** The arena-emptiness class is 22+
+     reviews deep (21, 24, 33, 34, 40, 55, 58, 65, 66, 72) and every remedy it
+     asked for was declined for one settled reason: walls, cover and spawn pads
+     are content the simulation does not have, and painting them would make the
+     arena claim affordances it does not offer.
+     Decals survive that test for the reason iteration 58 first named: a decal
+     is PLACED CONTENT. It does not repeat, so it adds the large-scale structure
+     the tiling deliberately refuses to — and `src/render/ground.ts` already
+     measured the alternative (a per-cell grid of different ground textures
+     meeting at hard edges) as "a visible grid of seams", measurably worse than
+     the repetition it was meant to fix. A stain is also honest about the
+     simulation: it is evidence that cars have been here, not something the
+     player can drive into.
+   - SCATTER: 16m cells, 45% of them carrying a stain, per-cell offset capped at
+     0.35 of a cell so a stain can never straddle a boundary and read as a
+     seam. Hashed from INTEGER WORLD CELL COORDS through three `Math.imul`
+     rounds, with no float arithmetic in the chain, so a cell yields the same
+     stain at the same offset, rotation and scale on every frame and every
+     visit. That is the property iteration 21 destroyed by centring its ring on
+     the car, and it is the reason the stains read as ground rather than as
+     particles following the player.
+   - BUFFER: the ground/tile buffer, which the arena was using for exactly ONE
+     instance (its floor quad) out of 2048. Same reasoning as the guardrails in
+     iteration 80 — a decal is painted ON the surface, and `ARENA_GRADE` is a
+     post uniform over the whole composited frame, so it keeps full brightness.
+   - CHECKED FOR THE ITERATION-34 TRAP, which is the real risk here and worth
+     stating: iteration 34 established that a fix damping the ground's high
+     frequencies had also flattened the LOW-frequency slab lattice, because both
+     asks were served by one number. A stain is precisely a large dark
+     low-frequency blob, so it could plausibly have eaten the joints — and the
+     lattice is the arena's ONLY spatial reference, which iteration 21 declined
+     to fake a replacement for.
+       ground mean   150.73 -> 150.17   (-0.56)
+       ground spread  48.40 ->  49.11   (+0.71, structure added)
+       lattice dips  20     ->  20      (IDENTICAL — joints fully intact)
+     The joints survive untouched, which is the right outcome and not a lucky
+     one: stains are sparse, offset within their cells, and never aligned to the
+     lattice period, so they add variation without competing with the reference.
+   - FIVE TESTS, and the world-anchoring one is proven by mutation: making the
+     lattice CAR-RELATIVE — iteration 21's exact defect — fails 3 of the 5,
+     including the anchoring test, and restoring it passes. The determinism
+     test correctly stayed GREEN under that mutation, because a car-relative
+     scatter queried from a fixed car position is still deterministic; the two
+     properties are genuinely orthogonal rather than two names for one thing.
+     One test also asserts all three frame kinds are REACHABLE, since a kind
+     that never draws is the precise state the art was found in.
+   - A TEST-FIXTURE BUG, recorded because it is now the third instance of the
+     class and the second in two rounds: the first draft copied the
+     road-furniture test's `at()` helper, which wraps its argument as
+     `{ position: { x, y } }`, while `groundDecalInstances` takes a FLAT
+     `{ x, y }`. Every cell index was NaN, so the scatter correctly returned
+     nothing and three tests failed with `expected 0 to be less than 0`. The
+     guard was fine, the fixture was wrong — iteration 25's NaN bar fixture
+     again. The real call site passes `player.position` (flat) and the capture
+     proves the feature works, so nothing shipped broken. The helper now
+     documents why its shape differs from the road one.
+   - A STALE COMMENT the iteration-51 cleanup left behind, found while reading
+     the arena's ground path: it still cited `buildGroundField`, a function that
+     was deleted many iterations ago. Same class the log already flagged as
+     "worse than no comment" — a comment that confidently describes an
+     architecture you would need in order to change the code.
+   - VERIFIED: tsc clean, 67 files / 1433 tests (6 new), 2 browser tests, build
+     clean (`index-DyS72v05.js`), `.shots/iter81` = 8 screens / 0 problems. Every
+     other screen byte-identical (title 39.07, city 93.34, constructor 36.09),
+     which is the correct blast radius: the decals are arena-only.
