@@ -7385,3 +7385,87 @@ required for the first fix" — was correct and I talked myself out of it.
 
 - GATE for this correction: unchanged, no code changed yet. tsc clean, 1526
   tests with the measured `screens.test.ts` flake, 7 browser tests.
+
+## ITERATION 117 — combat effects: the art exists, the wiring is trivial, and the RENDER is unproven. Not shipped.
+
+The queued item from iteration 115 was review finding #1: "combat happens
+without visible firing or impact effects." This round built the tracer, proved
+it reaches the GPU buffer, could not show it painting, and reverted it. The
+finding is worth more than the code was.
+
+- **WHAT WAS BUILT AND THEN REMOVED.** `projectileSpriteInstances()` emits one
+  instance per live `ProjectileState` at its real simulated position, rotated
+  along its real velocity, using `fx-impact-spark`; a projectile whose
+  `spawnTick` is the current tick additionally draws a 2.4x `fx-muzzle-flash` at
+  its own spawn position, which IS the shooter's muzzle. So the muzzle flash
+  needs no event queue, no lifetime and no new state — it is derived from a
+  field the projectile already carries. Wired at ALL THREE combat screens
+  (practice, arena event, road) because fixing one and leaving two is
+  iteration 107's shape. Effects are sliced to the headroom the vehicles leave,
+  because an overshoot is not graceful: `writeInstanceBuffer` rejects the write
+  and the screen renders BLANK (iteration 8, iteration 19).
+  Seven unit tests, two mutations proven: hardcoding the rotation fails the
+  "rotated along its OWN velocity" test, and emitting only the first projectile
+  fails two. The road site needed `combatWorld`, not `world` — the road's loop
+  world is explicitly `null` and its combat runs through `stepCombat`.
+
+- **AND IT DOES NOT RENDER.** Instrumented in the real production path, the
+  counter read `{live: 1, emitted: 1, postCullVisible: 1, packed: 20}` — one
+  instance built, surviving culling, packed to 20 floats and handed to
+  `writeInstanceBuffer`. And with the effect scaled 9x (a ~7m, 280px sprite that
+  cannot be missed) and every vehicle suppressed so nothing else could be
+  mistaken for it, the captured frame showed only pale ground.
+  So: the instance is built, survives culling, is packed, and is not visible.
+  Those are the stages of a render path, and the last one is not happening.
+  Most likely a blend-mode or alpha interaction with art that is only 13% opaque
+  against a 144-luma floor, but I did not establish WHICH, so nothing is claimed.
+
+- **NOT SHIPPED, and the reasoning is the point.** The wiring is safe —
+  capacity is sliced, the tests are solid, and an invisible instance costs 20
+  floats. But a change to the COMBAT screen's appearance that cannot be seen is
+  exactly what this log has twice caught shipping: iteration 94's generated hint
+  silently dropped the Q and every gate was green; iteration 86's guardrail combs
+  sat unreadable in this repo's own captures for two iterations. Deploying a
+  visual I cannot verify, on the one screen where the finding is about
+  perception, is a gamble with a real downside and an unproven upside.
+  Reverted to `3b7223e`; the build hash is `index-Bi6hkndk.js` again, identical
+  to what is live, so the repository and production are in step.
+
+- **THE VERIFICATION ATTEMPT ITSELF WAS THE EXPENSIVE PART, and six distinct
+  confounds had to be eliminated one at a time before the real answer appeared.**
+  Every one of these produced a confident wrong reading:
+    1. threshold on the BLUE channel for a warm orange flash -> "0 bright
+       pixels", which reads exactly like "the feature is broken";
+    2. then a loose threshold that the pale arena ground (144 luma, sum 432)
+       cleared -> "563,928 pixels changed", which reads exactly like "it works";
+    3. diffing two separate browser runs -> the sim diverges in time, so the
+       bbox spanned 998x994 and the opponent cars explained every changed pixel;
+    4. cross-checking against the `.hud-message` feed -> a coalescing, ROTATING
+       feed that cannot serve as an oracle (iteration 115, three versions of that
+       test wrong);
+    5. the DOM HUD is painted OVER the canvas, so an element screenshot carries
+       the ammo counter and message feed, both of which change between frames;
+    6. the post pass has ANIMATED FILM GRAIN (iterations 79/92), so NO static
+       baseline can ever work — every frame differs from every other.
+  And on top of all six: reading the counter and then taking the screenshot are
+  two different instants, so a bolt can be emitted, resolved and gone in between.
+  The only clean instrument turned out to be a per-stage counter on the real
+  render path, and the only clean capture was keying on the frame where the
+  instance was actually PACKED.
+  The generalisable rule, and it belongs beside iteration 50's sample box and
+  iteration 65's four wrong ratios: **for a small bright effect on a bright
+  animated background, frame-diffing is not a measurement at all.** Count the
+  stages in the pipeline instead.
+
+- **NEXT, and it is a specific question rather than a vague one.** Determine why
+  a PLAIN-kind sprite with real atlas pixels, packed and drawn, is invisible:
+  read back the blended result, or check the sprite shader's handling of the
+  `fx` frames' alpha against the arena's bright floor. The art is present and
+  non-blank (13-73% opaque, maxAlpha 255), the sim data is present, and the
+  instance reaches the buffer — so the missing stage is between `packInstances`
+  and the visible frame, and that is a bounded search.
+
+- GATE after the revert: unchanged from iteration 115's ship — tsc clean, 1526
+  tests with the measured `screens.test.ts` flake, 7 browser tests, build
+  `index-Bi6hkndk.js` (unchanged), so nothing to deploy and nothing to
+  re-verify live.
