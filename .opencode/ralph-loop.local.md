@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 12
+iteration: 13
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -5386,3 +5386,58 @@ DEPLOY 2026-09-30 — iteration 96 to arcade.shoemoney.com
    `screens.test.ts` flake), 5 browser tests, build `index-BwDY7m3Q.js`,
    `.shots/iter96` 8 screens / 0 problems. No code change this round, and the
    reason is the finding rather than a shortage of round.
+98. Codex's "Real gap in the game as a whole", EXECUTED: **the Federal
+   Building is an unfinished destination presented as an ordinary usable
+   service.** "Its bright blue Jobs marker gives it the same availability
+   signal as other destinations" and "it also wastes a player's navigation
+   effort before revealing its status" — both reported, twice across the
+   review, and the reviewer's own remedy was to mark it Closed on approach
+   and stop opening a modal there.
+
+   - **AND THE REASON NOBODY COULD FIX IT IS A STRUCTURAL FACT NOBODY HAD
+     LOOKED AT.** `mountFacility` decides a kind is a STUB with a `default:`
+     FALLTHROUGH — anything not explicitly cased above it. So the set of
+     unfinished kinds existed ONLY in a comment on `stub.ts` ("hotel, federal,
+     story, studio, petshop — task brief"). Nothing could read it. There was no
+     list to ask "is this door closed?", which is exactly the question the
+     player is asking while walking toward it, and adding a facility to the
+     switch would have silently promoted it out of "unfinished" with no edit to
+     any list anywhere.
+   - `OPERATIONAL_FACILITY_KINDS` is now built from the SAME constants the
+     switch cases (`GENERIC_KINDS` + assembly + arena), and
+     `isOperationalFacilityKind()` reads it. The city label therefore knows a
+     door leads nowhere, and says so on approach: "Federal Building — closed",
+     in the dimmer secondary ink so a closed door does not compete with a
+     working one. The stub panel itself is unchanged — a player who walks in
+     anyway still gets the real numbered notice, never a dead button.
+   - THIS IS THE ITERATION-84/92 SHAPE ONE MORE TIME, and by now it is a
+     recognisable pattern rather than a coincidence: one rule, one owner, and
+     every surface that needs it READS that owner instead of keeping a copy. The
+     instances are `unmetRequirements` (84), `roadLegalityMisses` (92), the
+     city-decal count (82), `facilityMarkerFamily` (79), `tripDays` (96's
+     `daysPerMile`) and now the operational-kind set. Each one cost a real
+     defect first.
+
+   - **TWO TESTS, AND THEY FIRE IN OPPOSITE DIRECTIONS — which is the part
+     that makes the pair worth having.** The first version of this test
+     compared the exported set against a `GENERIC_MIRROR` list typed into the
+     TEST file, and that was the same drift in a different place: a mirror list
+     disagrees with the router the moment a facility is added, and fails for the
+     wrong reason. Rewritten to import `GENERIC_KINDS` and
+     `RULESETS.cities.facilityKinds` directly, so the assertions read the
+     router's own data.
+       - promote 'federal' in the SET only  -> the "agrees with the router"
+         test fires: `facility "federal": the set and the router disagree`
+       - add a facility to the ROUTER, set left stale -> the "marks exactly
+         the stub kinds" test fires
+     So the two tests cover the two directions drift can travel, which a single
+     assertion could not have.
+
+   GATE: tsc clean, 67 files / 1477 tests (2 new, 2 mutation-proven), 5
+   browser tests, build clean (`index-AJyF_mpX.js`), `.shots/iter98` =
+   8 screens / 0 problems. The 4 failures are the measured `screens.test.ts`
+   flake.
+
+   STILL QUEUED: the structural pacing decision (97, recorded), the
+   encounter-density inversion on short routes (97), `abandonVehicle` still
+   unwired, and a persistent "surface a failed save" message (93).

@@ -1560,3 +1560,56 @@ describe('stub facilities (hotel/federal/story/studio/petshop)', () => {
     }
   });
 });
+
+/**
+ * The unfinished-facility set is DERIVED from the routing, not restated.
+ *
+ * `mountFacility` decided "this kind is a stub" with a `default:` fallthrough,
+ * so the set of unfinished kinds lived ONLY in a comment on `stub.ts` — nothing
+ * could read it, which is why the city's proximity label could not tell the
+ * player a door led anywhere until they walked into it. Codex `gpt-6.1-sol`
+ * reported the consequence twice: the Federal Building carries the same bright
+ * Jobs marker as destinations that work, and the only way to learn it was
+ * closed was to spend the walk.
+ *
+ * `OPERATIONAL_FACILITY_KINDS` is now the single source, built from the same
+ * constants the switch cases. These tests pin the two properties that make that
+ * worth having: the set agrees with what the router actually does, and adding a
+ * facility cannot leave the set quietly stale.
+ */
+describe('the unfinished-facility set is derived, not restated', () => {
+  it('agrees with what mountFacility actually routes to a real interior', () => {
+    // Every kind cities.json defines, checked against the ROUTER rather than
+    // against a list written here — so a new case added to the switch fails
+    // here until OPERATIONAL_FACILITY_KINDS is updated with it.
+    for (const kind of allFacilityKinds()) {
+      const operational = isOperationalFacilityKind(kind);
+      // `mountFacility` opens the stub for anything not in GENERIC_KINDS and
+      // not assembly/arena, so "operational" must mean exactly that.
+      const routed = GENERIC_KINDS.has(kind) || kind === 'assembly' || kind === 'arena';
+      expect(operational, `facility "${kind}": the set and the router disagree`).toBe(routed);
+    }
+  });
+
+  it('marks exactly the kinds whose interior is a stub panel', () => {
+    // Pinned because these are the destinations a player can walk to and be
+    // turned away by. The Federal Building is the one the reviews named.
+    const unfinished = allFacilityKinds().filter((k) => !isOperationalFacilityKind(k));
+    expect(unfinished).toContain('federal');
+    expect(unfinished).toContain('hotel');
+    // And nothing that actually works may be caught by it.
+    for (const working of ['garage', 'weaponshop', 'salvage', 'courierguild', 'medical', 'bar', 'truckstop', 'casino', 'arena', 'assembly']) {
+      expect(isOperationalFacilityKind(working), `${working} must read as operational`).toBe(true);
+    }
+  });
+});
+
+// The test reads the ROUTER's own data, never a list typed here. A mirror list
+// would be the same drift in a different file: it would disagree with the router
+// the moment a facility was added, and fail for the wrong reason.
+import { GENERIC_KINDS, isOperationalFacilityKind } from '@/ui/buildings';
+import { RULESETS } from '@/data/rulesets';
+
+function allFacilityKinds(): readonly string[] {
+  return RULESETS.cities.facilityKinds;
+}

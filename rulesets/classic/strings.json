@@ -147,6 +147,7 @@
     "ui.city.stripUnnamed": "Unnamed car",
     "ui.city.stripStats": "{armour} armour · {weapons} mounted",
     "ui.city.stripReady": "Road-legal",
+    "ui.city.stripClosed": "{facility} — closed",
     "ui.city.stripNotReady": "Not road-legal",
     "ui.city.status": "{city} · Day {day}, {phase} · ${cash}\nWASD/arrows move · G enter/exit car (driving is faster) · head into a building or the gate",
     "ui.city.statusTouch": "{city} — Day {day}, {phase} — ${cash}\nDrag the stick to move · tap Car to enter/exit (driving is faster) · head into a building or the gate",

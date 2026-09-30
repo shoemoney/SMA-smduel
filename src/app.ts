@@ -167,7 +167,7 @@ import {
   type HudSnapshot,
 } from '@/ui/hud';
 import { mountBuilder, type BuilderConfirmedBuild } from '@/ui/builder';
-import { mountFacility, type ArenaEntryResult, type BuildingContext, type MountedFacility } from '@/ui/buildings';
+import { isOperationalFacilityKind, mountFacility, type ArenaEntryResult, type BuildingContext, type MountedFacility } from '@/ui/buildings';
 import { leaveAction, LEAVE_ACTION_ID, mountBuildingPanel, type RumorId } from '@/ui/buildings/shared';
 import {
   buildCityActorInstances,
@@ -4764,11 +4764,24 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   function updateNearestFacility(): void {
     let bestName: string | null = null;
     let bestDist = Infinity;
+    let bestOpen = true;
     for (const doorway of layout.doorways) {
       const d = Math.hypot(player.position.x - doorway.position.x, player.position.y - doorway.position.y);
       if (d < bestDist) {
         bestDist = d;
-        bestName = facilityName(doorway.facilityKind);
+        bestOpen = isOperationalFacilityKind(doorway.facilityKind);
+        // An unfinished facility says so HERE, on approach, rather than letting
+        // the player walk in and be told by the stub panel. The Federal Building
+        // carries the same bright Jobs marker as destinations that work, so
+        // before this the only way to learn it was closed was to spend the
+        // walk — and Codex `gpt-6.1-sol` reported exactly that, twice, as "its
+        // bright blue Jobs marker gives it the same availability signal as other
+        // destinations". A label that names a state the player cannot otherwise
+        // see is the same class of lie as "Not road-legal" naming a
+        // restriction the gate did not enforce, and iteration 92 fixed that half.
+        bestName = bestOpen
+          ? facilityName(doorway.facilityKind)
+          : t('ui.city.stripClosed', { facility: facilityName(doorway.facilityKind) });
       }
     }
     if (bestName === null || bestDist > layout.tileSizeM) {
@@ -4778,6 +4791,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     // Assigning textContent every frame would churn the DOM 60x a second for
     // a string that changes rarely; only write it when it actually differs.
     if (nearestFacility.textContent !== bestName) nearestFacility.textContent = bestName;
+    nearestFacility.style.color = bestOpen ? '#d7e0ea' : '#9fb0c2';
     nearestFacility.style.display = 'flex';
   }
 

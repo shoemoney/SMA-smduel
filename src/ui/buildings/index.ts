@@ -24,7 +24,11 @@ export type { BuildingContext } from '@/ui/buildings/shared';
 export type { ArenaEntryResult } from '@/ui/buildings/arena';
 
 /** Every cities.json facilityKind that already has a real (non-stub) gameplay panel. */
-const GENERIC_KINDS = new Set([
+/** The facility kinds `mountFacility` serves from a per-kind engine below. Exported so
+ *  `OPERATIONAL_FACILITY_KINDS` and its test both read THIS list rather than each
+ *  keeping a copy — a test that restates the router's cases is the same drift in a
+ *  different file, and would fail for the wrong reason when the two diverge. */
+export const GENERIC_KINDS = new Set([
   GARAGE_KIND,
   WEAPONSHOP_KIND,
   SALVAGE_KIND,
@@ -34,6 +38,34 @@ const GENERIC_KINDS = new Set([
   TRUCKSTOP_KIND,
   CASINO_KIND,
 ]);
+
+/**
+ * Every facility kind that opens a panel with real gameplay behind it.
+ *
+ * This exists because the stub decision was a `default:` FALLTHROUGH, so the
+ * set of unfinished kinds existed only in a comment on `stub.ts` ("hotel,
+ * federal, story, studio, petshop — task brief"). That is a comment, not a
+ * contract: nothing could read it, so the city's proximity label could not know
+ * which doors lead anywhere, and adding a facility to the switch above would
+ * have silently promoted it out of "unfinished" with no edit to any list.
+ *
+ * Exported so the city can mark an unfinished destination ON APPROACH rather
+ * than letting the player walk in and be told. Same lesson as iteration 84's
+ * `unmetRequirements` and iteration 92's `roadLegalityMisses`: one rule, one
+ * owner, and every surface that needs it reads that owner instead of keeping a
+ * copy. Derived from the same constants the switch cases, so the two cannot
+ * drift.
+ */
+export const OPERATIONAL_FACILITY_KINDS: ReadonlySet<string> = new Set([
+  ...GENERIC_KINDS,
+  ASSEMBLY_KIND,
+  ARENA_KIND,
+]);
+
+/** True when `kind` opens a real interior. False means the stub panel — an unfinished destination. */
+export function isOperationalFacilityKind(kind: string): boolean {
+  return OPERATIONAL_FACILITY_KINDS.has(kind);
+}
 
 export class UnknownFacilityKindError extends Error {
   override readonly name = 'UnknownFacilityKindError';
