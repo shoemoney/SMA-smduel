@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 40
+iteration: 41
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -8902,3 +8902,119 @@ walkover.
   So the pre-rolled `hit: true, damage: 5` outcomes are not being converted
   into applications in the road path, and that is the NEXT thing to measure.
   I did not establish why, and I am not guessing at it here.
+## Iteration 141 — the road contact is placed up to 12m OFF the line, and the car is 0.85m wide
+
+Iteration 140 left one measured question: the player's rockets roll `hit: true,
+damage: 5` and the damage is never applied. This round answers it. **No code
+ships, and the answer is a placement fact, not a driver or an ammo problem.**
+
+- **THE ROCKET'S PRE-ROLLED HIT IS DISCARDED, AND THE REASON IS `target-gone`.**
+  Replicating `makeRoadDamageSystem` verbatim with per-projectile logging gives
+  the whole distribution, and it is one line long:
+    ```
+    dmg tick=652 reached=true  expired=false hit=false dmg=0 -> outcome-miss
+    dmg tick=679 reached=true  expired=false hit=true  dmg=5 -> APPLIED
+    dmg tick=822 reached=false expired=true  hit=false dmg=0 -> target-gone
+    dmg tick=876 reached=false expired=true  hit=false dmg=0 -> target-gone
+    ... 12+ per seed, hit=false AND hit=true alike
+    ```
+  Only `reached=true` applies damage. Everything that flies past its target
+  expires into `target === undefined` — **because the opponent has already been
+  despawned** — and the roll is thrown away. `findBearingTarget`'s own docblock
+  is explicit that a shot with no bearing target has "no real target to pre-roll
+  a hit against", so the roll is meaningless in that state; the sim is coherent.
+  The defect is that the target is GONE, not that the roll was wrong.
+
+- **AND THE ROCKET'S BEST CONVERGENCE IS 2.4m AGAINST A 0.85m HALF-WIDTH.**
+  Closest approach, every rocket, per seed:
+    ```
+    encounter-9    2.4  2.7  3.0 | 3.1 3.1 3.4 3.8 | 10.4 16.7 40.4 45.2 62.4
+    encounter-38   3.8  4.0  4.1 | 11.2 23.3 31.9 34.0 37.5 41.2 44.6 55.3 63.2
+    encounter-27   3.0  3.1  3.2 | 3.3 3.5 3.6 3.8 | 10.4 16.0 40.4 44.8 62.5
+    ```
+    Target collider: compact, 4.3m x 1.7m, so **half-extents 2.15 x 0.85**, plus
+    a 0.25m projectile radius. So a shot can connect inside ~2.4m down the long
+    axis, and the CLUSTER of shots at 2.4-4.1m is exactly the ones that land.
+    The CLIFF to 10m, 16m, 40m, 62m is everything else. The distribution has two
+    populations and no middle, which is the signature of a geometry that
+    sometimes converges and mostly does not.
+  - **AND THE REASON IS ONE NUMBER.** The measured lateral offset of the contact
+    from the route centreline is **6.0m, every sample, every seed** — the test's
+    own `updateEngagement` hardcodes `perp.y * 6`, and **production is worse:
+    `deterministicJitter(unit.id, 12)` places a contact anywhere in +/-12m**
+    (`app.ts:6579`, `deterministicJitter` = `n % (2*span+1) - span`).
+    The player drives the centreline, the rocket is committed to a straight line
+    the instant it is fired, and the car's turn rate is the only thing that can
+    close the angle. **A 12m offset onto a 0.85m half-width is a 14:1
+    convergence requirement**, and iteration 61 established the road has NO
+    lateral dimension at all: every position is a scalar route-mile, so there is
+    no lane to be in and no steering axis to correct with.
+  - **SO THE FIGHT IS UNWINNABLE BY PLACEMENT, NOT BY BALANCE.** 26 points of
+    damage are needed (12 FRONT armor + 3 machinegun + 8 plant, or the driver's
+    3). Twenty rockets at 40-60% would be ample. The problem is that the shots
+    that would deliver it are fired before the aim has converged, and the ones
+    fired later find the contact already despawned — `updateEngagement` drops it
+    once route-mile distance passes `radar.visualRangeM` (160m), and a rocket
+    needs 60-77 ticks to cross 110m at 90 m/s while the player closes ~40m in
+    that time. **The despawn and the projectile flight time are the same
+    window, and the despawn wins.**
+
+- **THREE OF MY OWN RECENT CLAIMS WERE WRONG, AND MEASUREMENT CAUGHT ALL THREE.**
+  Iteration 139 blamed the driver ("cannot lead a target or switch mounts").
+  Iteration 140 blamed a "damage budget". This round's own first two
+  measurements were wrong as well: I sampled `projectileTargets.size` every 400
+  ticks, read `mapSize=0`, and nearly wrote "the weapons system never registers
+  a target" — the map is populated and drained per shot, so the samples landed
+  between shots. Then a `findBearingTarget` call from MY OWN probe returned
+  `bearing=ok` on every fire tick, which contradicted the pipeline reading and
+  should have been read as "my probe is not the pipeline" rather than as "the
+  quadrant is fine". Calling it on the real `world.entities.vehicles` at the
+  exact tick the weapons system runs was what settled it (`mapSize=1`,
+  `lastProjTarget=road-ny-philadelphia-pack-0-0`). Iteration 116's lesson, sixth
+  sighting: a probe that finds nothing is not a measurement, and a probe that
+  finds the wrong thing is worse.
+  Also worth recording: the `projectileTargets` leak named last round is
+  **not** the cause of anything. The map is drained on expiry; the entries that
+  survive are for projectiles whose target is gone, and they are bounded by the
+  20-round magazine, not unbounded. **I over-claimed that last round and it
+  should not be carried forward as a defect.**
+
+- **THE FIX IS A DESIGN CALL AND HAS TWO HONEST SHAPES, and the data now picks
+  between them.** Iteration 139 listed three ("spawn inside weapon range", "a
+  rear mount on the road", "let the car turn around") and this round measured
+  which one is actually load-bearing: **it is the lateral offset**, and the third
+  of those three is a consequence of it rather than a separate need — a car that
+  cannot leave the centreline cannot converge on a target that is not on it.
+    (a) **PLACE CONTACTS ON THE DRIVING LINE.** One number, `deterministicJitter`
+       span 12 -> 0. A forward mount then bears on a contact the way it bears on
+       anything else, and the whole fight becomes about the guns again. Cost,
+       stated: the contact is then exactly in the player's path, so it reads as a
+       roadblock rather than as a vehicle in the next lane, and the road's
+       1-dimensionality becomes visible instead of incidental.
+    (b) **GIVE THE ROAD A LATERAL AXIS.** The honest fix for "what is a highway
+       fight", and a real sim change: contacts hold a lane, the player changes
+       lane, and aim convergence becomes a driving problem the player solves.
+       Cost: `progressMiles`, the contact placement, the salvage/proximity
+       triggers and the off-road indicator (iteration 105) are all expressed in
+       route-miles and would each need revisiting.
+  (a) is one constant and (b) is a subsystem, and this log's own record is that
+  picking the small one to avoid the large one is how a road fight stays
+  unwinnable. But (a) is still a change to what a road contact IS, and iteration
+  140 already deferred one design call at the end of a round for exactly this
+  reason. **Recorded with the numbers rather than patched**, and the numbers are
+  the deliverable: whoever takes this has 6.0m measured in the test and +/-12m
+  measured in production against a 0.85m half-width, and a shot-convergence
+  histogram with two populations and nothing between them.
+
+- **GATE, inherited from iteration 140 and re-confirmed on the focused files.**
+  tsc clean. `driving.test.ts` 31/31, `arena-victory` 14/14, `arena-auto-end`
+  6/6 (51 across the three). `phase4` still red, unchanged and now fully
+  explained rather than mysterious. Tree clean apart from this log; the probe
+  was deleted rather than committed.
+
+- **NEXT, and it is one decision, not an investigation:** choose (a) or (b) for
+  road contact placement, then re-run `findWinnableEncounter`. If (a) is taken,
+  `phase4`'s own `updateEngagement` hardcoded `perp.y * 6` and must read the
+  same value production does rather than restating it — which is the log's
+  eighth "one owner, every surface reads it" instance and the reason the test
+  could not have caught this.
