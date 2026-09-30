@@ -54,6 +54,7 @@ import {
   type ArenaOpponentArchetype,
   type ArenaResolution,
   type ArenaRoster,
+  isArenaEventId,
 } from '@/sim/arena';
 import { decideAI, type AIContext, type AIPersonality, type ArenaBounds } from '@/sim/ai';
 import { advanceDays, initialClock, type Clock } from '@/sim/calendar';
@@ -84,7 +85,7 @@ import {
 import type { AcceptedJob } from '@/sim/courier';
 import { subtractVec, vecLength } from '@/sim/damage';
 import { createDriver, getSkill, isDead } from '@/sim/driver';
-import { applyCollision, stepDriving, stopAtObstacle, isRadarDisabled, type DriveInput } from '@/sim/driving';
+import { applyCollision, closingSpeedMps, stepDriving, stopAtObstacle, isRadarDisabled, type DriveInput } from '@/sim/driving';
 import {
   createGameLoop,
   createSystemsRegistry,
@@ -1544,39 +1545,35 @@ function resolveVehicleCollisions(
       // `speedMps` is signed along each body's OWN forward axis
       // (`{cos h, sin h}`, see sim/driving.ts), so it has to be turned into
       // that body's world velocity before it can be projected onto the ONE
-      // shared separation axis. This code used to project the two raw scalars
-      // onto `awayFromA` directly, which collapsed to
-      // `(b.speedMps - a.speedMps) * (n.x + n.y)` — zero for ANY head-on
-      // meeting where the two cars carry the same signed speed and the axis is
+      // shared separation axis. The code below used to project the two raw
+      // scalars onto `awayFromA` directly, which collapsed to
+      // `(b.speedMps - a.speedMps) * (n.x + n.y)` — exactly ZERO for a head-on
+      // meeting where both cars carry the same signed speed and the axis is
       // axis-aligned. A 100mph head-on therefore charged `applyCollision` a
-      // KNOWN WRONG, AND DELIBERATELY NOT FIXED YET. The comment that used to
-      // sit here described a per-body velocity projection and claimed "each body
-      // is now projected along its own heading" — which was not true of the
-      // line below it. That is the worst kind of stale comment: it describes
-      // LIVE code incorrectly, in the one function where the bug lives, so a
-      // reader would either trust a fix that does not exist or "restore" one
-      // that was never applied. Recording what the arithmetic actually does:
+      // closing speed of 0 and did no damage at any speed, and reverse-ramming
+      // was dead for the same reason. It is now `|dot(v_a, n) - dot(v_b, n)|`
+      // with each body's own world velocity.
       //
-      // `speedMps` is signed along each body's OWN forward axis, so projecting
-      // the two raw scalars onto ONE shared axis collapses to
-      // `(b.speedMps - a.speedMps) * (n.x + n.y)` — which is exactly ZERO for a
-      // head-on meeting where both cars carry the same signed speed. A 100mph
-      // head-on therefore charges `applyCollision` a closing speed of 0 and does
-      // no damage at any speed, and reverse-ramming is dead for the same reason.
-      // The correct form is `|dot(v_a, n) - dot(v_b, n)|` with
-      // `v = speedMps * (cos h, sin h)`.
+      // **IT WAS DEFERRED FOR FOUR ITERATIONS AS A BALANCE CALL, AND THAT
+      // FRAMING WAS WRONG.** The recorded evidence was "with the per-tick
+      // damage gate in place, this makes a fully passive player in Amateur
+      // Night never die at all — arena still up at tick 96,000 against a
+      // documented 2,863", and a number that contradicts the mechanism is
+      // evidence about the measurement.
       //
-      // It is not applied because it is a BALANCE change, not a tidy-up: with
-      // the per-tick damage gate above in place, correcting this makes a fully
-      // passive player in Amateur Night never die at all (arena still up at tick
-      // 96,000, against a documented 2,863). Gate-only leaves `arena-auto-end`
-      // 6/6; gate+corrected-formula leaves it failing. The mechanism is
-      // probably that a head-on meeting which previously cost nothing now stops
-      // and damages both cars, changing every opponent's approach, but that was
-      // NOT chased and is not claimed. `arena-victory`'s 40-seed winnability gate
-      // (57.3%) holds either way, so this is the death path specifically.
-      // The decision and its measured cost are in the loop log; do not "fix"
-      // this by editing a constant to make a screenshot happier.
+      // What was actually happening (iterations 145-147, each superseding the
+      // last): the two opponents that survived the pile-up were not failing to
+      // fire for any range reason — they were sitting at a heading error of
+      // 125-176 degrees FROM the player, moving in REVERSE, because
+      // `computeAlignmentInput` emitted a stick the driving model reads as
+      // reverse, and a reversing car does not steer at all. They were parked
+      // facing away from a stationary target, in range, ready, and structurally
+      // unable to turn around. Correcting the physics let them reach the
+      // contact range where that deadlock is reachable; it did not create it.
+      //
+      // With the steering-cone clamp in `computeAlignmentInput` the same
+      // passive run now resolves, and the corrected formula ships on the same
+      // evidence that every other formula change in this file ships on.
       const distanceM = vecLength(subtractVec(b.position, a.position));
       const awayFromA =
         distanceM > 0
@@ -1584,7 +1581,7 @@ function resolveVehicleCollisions(
           : { x: 1, y: 0 };
       // `a` closing on `b` adds to the gap closing; `b` closing on `a` subtracts
       // the same way, and the absolute value covers approach from either side.
-      const closingMps = Math.abs(-a.speedMps * awayFromA.x - a.speedMps * awayFromA.y + b.speedMps * awayFromA.x + b.speedMps * awayFromA.y);
+      const closingMps = closingSpeedMps(a, b, awayFromA);
       const impactSpeedMph = closingMps * mphPerMps;
       const nudgeM = drivingCfg.collision.vehicleSeparationM / 2;
 
@@ -7820,7 +7817,28 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
       // `VehicleState | null` because a real city session can have the car
       // parked, and reading it here would mean a null check for a state this
       // rig constructs non-null two lines earlier.
-      const begun = beginArenaMatch(cityState.driver, vehicle, 'division-5');
+      // `?event=` selects which event this route mounts, validated against the
+      // same `eventIndex` the ruleset loader built. It exists because a
+      // three-opponent match RESOLVES underneath a probe: with the AI's
+      // steering-cone clamp (iteration 147) opponents can actually turn to
+      // bear, so a stationary rig player dies in ~500 ticks — about eight
+      // seconds, which is exactly how long the Controls round-trip browser test
+      // takes. `practice` carries `opponentCount: 0`, so it cannot resolve at
+      // all, and it is still the REAL `showArenaEvent` rather than the
+      // separate `showArena` practice field. That test's own comment already
+      // asked for this rig; the code just never passed it.
+      //
+      // An unrecognised id WARNS rather than falling back, for the reason the
+      // rest of this route warns: a silent fallback is what makes a capture
+      // route rot, because the next reader is then looking at a different
+      // screen than they think.
+      const requestedEvent = new URLSearchParams(search).get('event');
+      const eventId: ArenaEventId =
+        requestedEvent !== null && isArenaEventId(requestedEvent) ? requestedEvent : 'division-5';
+      if (requestedEvent !== null && !isArenaEventId(requestedEvent)) {
+        console.warn(`smduel: screencap arena-event got unknown event "${requestedEvent}", mounting ${eventId}`);
+      }
+      const begun = beginArenaMatch(cityState.driver, vehicle, eventId);
       if (!begun.ok) {
         // Refuse loudly rather than falling through to the practice screen,
         // because a silent fallback is what makes a capture route rot: the next

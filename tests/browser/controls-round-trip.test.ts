@@ -53,7 +53,7 @@ describe('real-browser controls round trip: returning lands on a live match', ()
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(String(e)));
 
-    await page.goto(`${baseUrl}?screen=arena-event&seed=${SEED}`, { waitUntil: 'load' });
+    await page.goto(`${baseUrl}?screen=arena-event&event=practice&seed=${SEED}`, { waitUntil: 'load' });
     await page.waitForSelector('.sm-screen--arena');
     await page.waitForTimeout(6000);
 

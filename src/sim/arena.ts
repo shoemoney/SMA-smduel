@@ -302,6 +302,16 @@ export function getArenaEvent(id: ArenaEventId): ArenaEventDef {
   return event;
 }
 
+/**
+ * Membership test derived from the same `eventIndex` `getArenaEvent` reads, so
+ * a capture route or a query parameter can validate an id at runtime without
+ * keeping a second copy of the list. One owner, two views — the same shape as
+ * `SCREEN_TARGETS`/`SCREEN_SCREEN_SET` in `@/app`.
+ */
+export function isArenaEventId(id: string): id is ArenaEventId {
+  return eventIndex.has(id as ArenaEventId);
+}
+
 export function allArenaEvents(): readonly ArenaEventDef[] {
   return ARENAS.events;
 }

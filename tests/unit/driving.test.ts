@@ -15,6 +15,7 @@ import {
   computeHandlingResponse,
   computeVehicleWeightLb,
   isRadarDisabled,
+  closingSpeedMps,
   mpsToMph,
   rechargeBattery,
   stepDriving,
@@ -485,6 +486,75 @@ describe('collisions', () => {
         expect(Math.abs(p.lateralM)).toBeLessThanOrEqual(12);
       }
     });
+  });
+
+  it('closingSpeedMps reads a HEAD-ON meeting as the sum of the two speeds, not as zero', () => {
+    // The arithmetic bug this pins, and the one iteration 140 said could not be
+    // tested. It said so because it tried to observe it THROUGH DAMAGE — and
+    // `applyCollision` charges a flat `armorLossPoints` and ignores the speed it
+    // is handed, so a head-on losing armour is identical under the old broken
+    // projection and the correct one. That is why the formula is now a named
+    // function with a direct test rather than an inline expression measured by
+    // its side effects: this assertion is the only kind that can tell them
+    // apart.
+    //
+    // The broken form was `(b.speedMps - a.speedMps) * (n.x + n.y)`. Two cars
+    // meeting nose-to-nose carry the SAME signed speed, so that expression is
+    // exactly 0 at every speed and on every axis — a 100mph head-on computed
+    // a closing speed of zero, and reverse-ramming was dead for the same reason.
+    const a = makeVehicle({ id: 'a', headingRad: 0, speedMps: fromMph(50) });
+    const b = makeVehicle({ id: 'b', headingRad: Math.PI, speedMps: fromMph(50) });
+    // `a` at the origin, `b` on +x, so the separation axis is +x.
+    expect(closingSpeedMps(a, b, { x: 1, y: 0 })).toBeCloseTo(fromMph(100), 6);
+    // ...and the broken expression it replaces, evaluated on the same inputs,
+    // is the zero this guards against. Stated rather than merely implied, so a
+    // future reader can see the exact failure being prevented.
+    expect(Math.abs((b.speedMps - a.speedMps) * (1 + 0))).toBe(0);
+  });
+
+  it('closingSpeedMps is the relative velocity along the line of centres, so a rear-end and a same-speed overtake both read correctly', () => {
+    // The property, across the shapes a road actually produces, rather than one
+    // more hand-picked case: two bodies closing at `n` must report `n`
+    // regardless of which way each is pointed, and two bodies moving the SAME
+    // way at the SAME speed must report 0 (they are not closing).
+    const rearEnd =
+      closingSpeedMps(
+        makeVehicle({ id: 'a', headingRad: 0, speedMps: fromMph(50) }),
+        makeVehicle({ id: 'b', headingRad: 0, speedMps: fromMph(20) }),
+        { x: 1, y: 0 },
+      );
+    expect(rearEnd).toBeCloseTo(fromMph(30), 6);
+
+    const sameWay =
+      closingSpeedMps(
+        makeVehicle({ id: 'a', headingRad: 0, speedMps: fromMph(50) }),
+        makeVehicle({ id: 'b', headingRad: 0, speedMps: fromMph(50) }),
+        { x: 1, y: 0 },
+      );
+    expect(sameWay).toBeCloseTo(0, 6);
+
+    // Approach from either side must be the same magnitude — that is what the
+    // absolute value buys, and it is why a car reversing into you is charged.
+    const headOnOtherSide =
+      closingSpeedMps(
+        makeVehicle({ id: 'a', headingRad: Math.PI, speedMps: fromMph(50) }),
+        makeVehicle({ id: 'b', headingRad: 0, speedMps: fromMph(50) }),
+        { x: 1, y: 0 },
+      );
+    expect(headOnOtherSide).toBeCloseTo(fromMph(100), 6);
+
+    // Perpendicular approach along a DIAGONAL axis is the case the old
+    // `* (n.x + n.y)` form got wrong by a factor of the axis length: a 45-degree
+    // axis has |x| = |y| = 0.707, so the broken form reported
+    // (0 - 0) * 1.414 = 0 for a genuine closing pair.
+    const diagonal = { x: Math.SQRT1_2, y: Math.SQRT1_2 };
+    expect(
+      closingSpeedMps(
+        makeVehicle({ id: 'a', headingRad: 0, speedMps: fromMph(50) }),
+        makeVehicle({ id: 'b', headingRad: 0, speedMps: fromMph(20) }),
+        diagonal,
+      ),
+    ).toBeCloseTo(fromMph(30) * Math.SQRT1_2, 6);
   });
 
   it('a sustained contact charges ONE impact, not one per tick of overlap', () => {

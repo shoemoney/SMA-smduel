@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 47
+iteration: 48
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9591,4 +9591,205 @@ the correction matters more than the fix.
   node `ALIGN_AND_FIRE`, `inR`/`los`/`rdy` all true, `bearsNow` false, range
   2-4m, unmoved. A `bearsNow` relaxation at contact range, or a back-off
   behaviour, are the two honest shapes — and the second is the one this log's
-  own rules prefer, because it is the one that changes no firing rule.
+  own rules prefer, because it is the one that changes no firing rule.## Iteration 147 — the standoff was never an AI node. It was a REVERSING CAR CANNOT STEER.
+
+Iteration 146 left a design question with a measured mechanism: what a
+single-front-mount AI should do at contact range. The log's own rule after three
+consecutive rounds of re-deriving what a file already said is to READ the code
+before designing anything. So this round read `engagementNode` and its
+collaborators in full first, and the answer was not a design question at all.
+
+- **THE MECHANISM, AND IT IS ONE COMMENT AND ONE `else if`.**
+  `src/sim/driving.ts:360-364`, unchanged since it shipped:
+      // Pulling the stick opposite to the car's current heading is a special
+      // case (SPEC "Controls"): it brakes then reverses IN PLACE. It must NOT
+      // be read as "steer the nose to face this direction" — that would spin
+      // the car around instead of backing up...
+      const wantsOpposite = stickLen > 0 && dir.x*forward.x + dir.y*forward.y
+        < config.reverseInputDotThreshold;
+  and the heading block, eleven lines later:
+      } else if (stickLen > 0 && !wantsOpposite) {
+  **A reversing car does not steer at all.** `reverseInputDotThreshold` is
+  -0.5, so the stick must be within +/-120 degrees of the nose to count as a
+  forward steer.
+
+  `computeAlignmentInput` computed a desired HEADING and returned it as a stick
+  DIRECTION, and — before this round — took no argument for the car's own
+  heading, so it could not know its output would be re-read as reverse. For a
+  FRONT mount the desired heading IS the bearing, so an AI asked to face
+  something more than ~120 degrees behind its nose emits exactly the vector the
+  sim calls "reverse".
+
+- **AND THAT IS A STABLE EQUILIBRIUM, WHICH IS WHY IT NEVER RESOLVED.** Backing
+  away along the axis you already face keeps the target dead ahead *in
+  reverse*, so the bearing does not change either. The car cannot turn (reverse
+  suppresses steering), cannot advance toward the target (it is in reverse), and
+  cannot fire (its mount cannot bear). Nothing about it is random and nothing
+  about it is a tuning number — it is a fixed point.
+
+- **MEASURED THROUGH THE REAL PIPELINE, and the numbers are the finding.** The
+  same temporary `decideAI` trace from iteration 146, extended to read heading
+  and speed, on the real amateur-night match with a passive player:
+      before   opp-1  d=4.59  mps=-1.07  bearing=-17.6  headingErrDeg=-176.3
+               opp-1  d=4.80  mps=-0.42  bearing=-11.8  headingErrDeg=-170.5
+               opp-1  d=5.32  mps=-0.18  bearing= -8.8  headingErrDeg=-167.5
+               opp-1  d=6.06  mps=-1.13  bearing= -4.5  headingErrDeg=-163.2
+               opp-2  d=4.15  mps=-0.60  bearing= 46.2  headingErrDeg= 175.5
+               opp-3  d=3.23  mps=-1.13  bearing=113.8  headingErrDeg= 171.1
+  **`headingErrDeg` is 125-176 degrees — beyond the 120-degree cone — and
+  `mps` is NEGATIVE, which is reverse.** Not "straining against the player", the
+  thing iteration 146 called it. Facing away, backing up, structurally unable to
+  turn. In range, ready, and never firing, exactly as the previous round said,
+  for a reason three rounds of range reasoning could not reach.
+
+- **AFTER THE FIX, THE SAME PROBE, NO OTHER CHANGE:**
+      after    opp-1  d=2.81  mps=+0.30  headingErrDeg=  22.1
+               opp-2  d=3.73  mps=+0.30  headingErrDeg=  19.3
+               opp-3  d=2.42  mps=+0.97  headingErrDeg= -15.7
+               player armour at t=610: FRONT 16, REAR 3, RIGHT 0  (was five 24s)
+  Inside the cone, moving FORWARD, and shooting — the player's right facing was
+  stripped to zero. The same instrument, the same seed, the same passive player.
+
+- **THE FIX IS IN THE ONE FUNCTION BOTH AI DRIVERS CALL, which is why it needed
+  no new seam and no second implementation.** `computeAlignmentInput` gained a
+  `currentHeadingRad` parameter and now caps its emitted stick at the cone edge
+  on the SHORTER-ARC side, so the input stays a forward steer and the car arcs
+  around onto the bearing. `engageWeaponNode` passes `ctx.self.headingRad`;
+  `arena-autopilot.ts` (the sim's own competent bot) passes
+  `player.headingRad` and had the identical defect. This changes no firing
+  rule — only whether the AI's intent to turn is expressible at all.
+
+- **THE CONE ANGLE IS DERIVED, NOT TYPED, and the 0.999 margin is LOAD-BEARING
+  rather than cosmetic — which took a mutation to discover.** The angle is
+  `acos(drivingConfig().reverseInputDotThreshold)`, so the AI cannot drift from
+  the sim's own definition of "reverse". The `* 0.999` looks like a fudge until
+  you evaluate it: **`Math.cos(Math.acos(-0.5))` is `-0.5000000000000002`**, one
+  ULP BELOW the threshold, and `stepDriving`'s test is `dot < threshold` — so
+  clamping to the exact edge emits a stick the sim still reads as reverse, which
+  is the very defect the function exists to remove. Reverting `* 0.999` fails two
+  tests. The margin is a fraction of a derived quantity so it cannot drift the
+  way a typed epsilon in degrees could.
+
+- **THREE MUTATIONS, EACH FIRING ON EXACTLY THE RIGHT TEST, and the third is
+  the one that mattered:**
+      clamp removed (always emit the desired heading)
+        -> the cone test AND the KITE_REAR test fail; 49 others pass
+      always take the + arc
+        -> ONLY the shorter-arc test fails, and the cone test correctly stays
+           green — so the two guards cover the two different claims rather
+           than one guard covering both
+      clamp to the exact cone edge (the ULP)
+        -> the cone test AND KITE_REAR fail, which is what proves the margin
+
+- **AND A PRE-EXISTING TEST WAS PINNING THE OLD BEHAVIOUR — the fifth time this
+  log has found that shape.** `runs while aiming a REAR weapon (KITE_REAR):
+  steers toward the heading that brings REAR to bear` asserted the emitted stick
+  equalled the REAR-bearing heading exactly. In that fixture that heading is
+  180 degrees from the nose, i.e. precisely the reverse vector — so the test
+  was pinning the defect while its name claimed the opposite, the same shape as
+  iteration 146's `still rams once the target is within its mounted weapon's
+  range`. It now asserts the three things that are actually true: the stick is
+  not the reverse vector, it stays inside the cone, and it moved TOWARD the
+  desired heading. Its "moved toward" comparison is a cosine rather than an
+  angle difference so it is wrap-safe at 180 degrees without needing either of
+  the two private angle helpers (`normalizeAngle`, `angleDelta`) exported for a
+  test.
+
+- **SO THE CLOSING-SPEED FORMULA SHIPS, AND WHY IT WAS DEFERRED FOR FOUR
+  ITERATIONS IS THE MOST USEFFUL THING IN THIS ROUND.** The recorded reason was
+  a balance call: "with the per-tick damage gate in place, this makes a fully
+  passive player in Amateur Night never die at all — arena still up at tick
+  96,000 against a documented 2,863." Correcting the physics let the opponents
+  reach the contact range where the reverse deadlock is reachable; it did not
+  create the deadlock, and it never was a balance property. A number that
+  contradicts the mechanism is evidence about the measurement.
+
+  **AND THE FORMULA IS INERT FOR DAMAGE, WHICH IS WHY NO TEST COULD HAVE CAUGHT
+  IT.** The first thing I did after fixing the AI was mutate the formula back to
+  the old broken projection — and `arena-auto-end` passed 6/6. Not a flake: a
+  fact. `applyCollision` charges a FLAT `collision.armorLossPoints` and ignores
+  the `impactSpeedMph` it is handed, so the impact speed changes no armour
+  outcome at all, and a head-on losing armour is identical under the old
+  arithmetic and the correct one. That is why iteration 140 said this case
+  "could not be tested" — it tried to observe it through damage, where it is
+  unobservable by construction.
+
+  So the formula is now a NAMED function, `closingSpeedMps` in
+  `src/sim/driving.ts` (the module that already owns `applyCollision` and
+  `stopAtObstacle`), with two direct tests including the head-on case that
+  iteration 140 said it could not write: a 100mph nose-to-nose meeting reads
+  100mph of closing speed, and the broken expression it replaces is stated in
+  the test as the exact zero it guards against. Both fail on reverting the
+  function; the 36 pre-existing driving tests stay green. The docblock records
+  what the function is currently WORTH, so the next reader knows the damage path
+  does not depend on it yet.
+
+- **THE PASSIVE DEATH TICK HAS NOW MOVED FOUR TIMES, AND THE REASONS ARE THE
+  POINT** (each superseded the last, iterations 138/140/145/147):
+      ~347    before the body-frame rotation — the collider measured its LENGTH
+              along the aim axis, so opponents met a 4.8m target
+      ~2863   after it — the collider became 1.8m, glancing shots missed, the
+              fight ran eight times longer. So the 90-degree bug was not what
+              was killing a passive player; a FAT COLLIDER was
+      never   with the formula corrected but the AI unfixed — arena up at 96,000
+      ~500    with the steering-cone clamp as well: they fight, and real head-on
+              damage has something to apply
+  The mid-beat checkpoint moved 1000 -> 250 to stay genuinely mid-beat, and it
+  is commented as a DERIVED fixture rather than a number that means anything on
+  its own — iteration 104's rule, learned from a hand-set `progressMiles` that
+  the first tick after resume overwrote.
+
+- **A BROWSER TEST FAILED, AND ITS OWN COMMENT HAD ALREADY ASKED FOR THE FIX.**
+  `controls-round-trip.test.ts` timed out at 30s. Its header says "`practice`
+  is the event to use: zero opponents, already covered by a test proving it
+  never auto-ends, so the match cannot resolve underneath the probe — the exact
+  rig mistake that made iteration 111 misdiagnose this" — and the code passed
+  `?screen=arena-event`, which iteration 110 hardcoded to `division-5`, three
+  opponents. With the AI now able to turn, a stationary rig player dies in ~500
+  ticks, about eight seconds, which is how long that test takes. **A comment
+  describing a rig the code does not use is the stale-comment class, and this one
+  was load-bearing.**
+  The capture route now takes `?event=`, validated by a new `isArenaEventId`
+  derived from the same `eventIndex` `getArenaEvent` reads (one owner, two views
+  — the `SCREEN_TARGETS`/`SCREEN_SCREEN_SET` shape). An unrecognised id WARNS
+  rather than falling back, for the reason the rest of that route warns. The test
+  passes `?event=practice` and its comment is now true.
+
+- **SIX PROBE BUGS BEFORE ONE NUMBER, each producing a confident wrong reading,
+  and this file has now produced them three rounds running (111, 112, 137).**
+  The world hook was on a helper the death test does not use (`showArenaEvent`
+  reached by walking the city gets no seam); `installRafStub()` was missing, so
+  no frame ever ran; `simNowMs = 0` against a `lastTimeMs` seeded from
+  `performance.now()` clamps the delta to 0 until the stub overtakes the seed —
+  **iteration 137's constant-timestamp trap, which I read about and then walked
+  into**; the world wraps its entities (`w.entities.vehicles`, not `w.vehicles`);
+  the player vehicle's id is `'veh-player'` while `PLAYER_ID` is the DRIVER's;
+  and the speed field is `speedMps`, not `speedMph`. Not one of them produced an
+  error, and the sixth would have produced a perfectly plausible set of numbers
+  about the wrong quantity.
+
+- **GATE.** tsc clean. Full suite **1550 passed / 4 failed**, and all four are
+  `tests/integration/screens.test.ts` — measured **1 failed / 29 passed in
+  isolation on this branch AND on stashed clean master**, so it is the documented
+  cross-file pollution and not this change (iteration 95 recorded the same four
+  on the same two test groups). `ai.test.ts` 51/51, `driving.test.ts` 38/38,
+  `arena-auto-end` + `arena-victory` **20/20** including the 40-seed 57.3%
+  winnability gate, `phase4` green. **7 browser tests pass.** Build clean,
+  `index-C5_m3G6-.js`. `.shots/iter147` = 8 screens / 0 problems, every screen
+  rendering.
+
+- **NOT DEPLOYED YET.** The bundle hash moved and it is a real behaviour change —
+  opponents can now turn to bear — so this is a genuine deploy, not a
+  comment-only round's null diff. The next step is the whole-site snapshot
+  deploy plus a live drive: enter amateur-night, hold throttle and steering, and
+  confirm the opponents close, turn, and shoot rather than parking.
+
+- **WHAT THIS DOES TO THE QUEUE.** The head-on closing-speed formula is CLOSED
+  (shipped, with the caveat that `applyCollision` does not yet scale with impact
+  speed, so the sim has the right number in hand for when it does). The AI
+  contact-range deadlock is CLOSED, and it was the blocker behind it. The
+  eight-times-longer passive arena fight that iteration 138 flagged as an
+  unintended consequence of the rotation is now measured at ~500 ticks with the
+  corrected physics in place, which is close to the pre-rotation 347 — worth
+  noting as a balance observation, but it is a consequence of two bug fixes
+  rather than a tuning change, and nobody has chosen it.

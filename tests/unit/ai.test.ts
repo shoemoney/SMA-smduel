@@ -20,7 +20,7 @@ import {
   type AIWorldView,
   type HazardInstance,
 } from '@/sim/ai';
-import { getPlant, getWeapon } from '@/data/rulesets';
+import { drivingConfig, getPlant, getWeapon } from '@/data/rulesets';
 import { FACINGS, makeArmorRecord, VEHICLE_LOCAL_FACING, type Facing, type VehicleDesign, type VehicleState, type WeaponState } from '@/sim/types';
 // The authoritative fire pipeline itself — used throughout below as an
 // INDEPENDENT cross-check, so these tests actually fail if ai.ts's geometry
@@ -149,15 +149,69 @@ describe('facing alignment', () => {
   it('computeAlignmentInput points the joystick at whatever heading makes `facing`\'s combat.ts world direction match the bearing', () => {
     // Independent of any hardcoded expected numbers: derive the expectation
     // from combat.ts's own `facingWorldDirection` for each facing/bearing.
+    //
+    // The car's own heading is held 30 degrees off the DESIRED one (which is
+    // facing-dependent — REAR's is 180 degrees from the bearing's), so this
+    // stays inside the steering cone and keeps asserting the ALIGNMENT math.
+    // The cone edge itself is a separate test below, because one assertion
+    // covering both would pass for the wrong reason on half its cases.
     for (const bearing of BEARINGS) {
       for (const facing of FACINGS_TO_CHECK) {
-        const { moveX, moveY } = computeAlignmentInput(bearing, facing);
+        const { moveX, moveY } = computeAlignmentInput(bearing, facing, alignHeadingFor(bearing, facing) - Math.PI / 6);
         const heading = Math.atan2(moveY, moveX);
         const worldDir = facingWorldDirection(heading, facing);
         expect(worldDir.x).toBeCloseTo(Math.cos(bearing), 5);
         expect(worldDir.y).toBeCloseTo(Math.sin(bearing), 5);
       }
     }
+  });
+
+  it('computeAlignmentInput never emits a stick the sim would read as REVERSE, and clamps to the cone edge on the shorter arc', () => {
+    // The defect this guards (iteration 147): a desired heading is not a stick
+    // direction. `driving.ts` reads a stick further than
+    // `reverseInputDotThreshold` off the nose as REVERSE and then SKIPS
+    // STEERING ENTIRELY, so an AI asking to face something more than the cone
+    // away reverses forever without its heading ever changing — measured live
+    // as a -125..-176 degree heading error with negative speed, in range,
+    // ready, and never firing.
+    //
+    // The contract asserted here is the one the sim actually reads: whatever
+    // heading the car has, the emitted stick must stay within the cone of the
+    // NOSE, read from the same ruleset field the sim reads.
+    const threshold = drivingConfig().reverseInputDotThreshold;
+    for (const heading of [0, 0.7, Math.PI / 2, 2.4, Math.PI, -2.4, -Math.PI / 2, -0.7]) {
+      for (const bearing of BEARINGS) {
+        for (const facing of FACINGS_TO_CHECK) {
+          const { moveX, moveY } = computeAlignmentInput(bearing, facing, heading);
+          const stickDot = moveX * Math.cos(heading) + moveY * Math.sin(heading);
+          expect(
+            stickDot,
+            `heading ${heading} bearing ${bearing} facing ${facing}: emitted stick is ${stickDot.toFixed(3)} from the nose, which stepDriving would read as REVERSE (threshold ${threshold})`,
+          ).toBeGreaterThanOrEqual(threshold);
+        }
+      }
+    }
+  });
+
+  it('computeAlignmentInput clamps toward the SHORTER arc, so a car facing away arcs around rather than the long way', () => {
+    // Two requests that are equally out of cone, one just clockwise and one
+    // just counter-clockwise, must clamp in OPPOSITE directions. A clamp that
+    // always picked +1 would still satisfy the cone test above and would send
+    // every turn the long way round.
+    const threshold = drivingConfig().reverseInputDotThreshold;
+    const coneRad = Math.acos(threshold);
+
+    const ccw = computeAlignmentInput(0, 'FRONT', coneRad + 0.2);
+    const cw = computeAlignmentInput(0, 'FRONT', -(coneRad + 0.2));
+    const ccwAngle = Math.atan2(ccw.moveY, ccw.moveX);
+    const cwAngle = Math.atan2(cw.moveY, cw.moveX);
+
+    // Nose at +coneRad+0.2 asking for 0: the shorter way is back toward 0, so
+    // the clamp must land BELOW the nose, not above it.
+    expect(ccwAngle).toBeLessThan(coneRad + 0.2);
+    expect(cwAngle).toBeGreaterThan(-(coneRad + 0.2));
+    // And the two clamps are mirror images of each other.
+    expect(ccwAngle).toBeCloseTo(-cwAngle, 6);
   });
 });
 
@@ -243,9 +297,26 @@ describe('engageWeaponNode', () => {
     expect(validateFire(self, 0, target.position).reason).toBe('WRONG_FACING');
     // Not the naive "seek target" vector (1, 0) — it steers toward the
     // heading `alignHeadingFor` names for REAR at this bearing.
+    //
+    // WHICH IS EXACTLY THE CASE THE STEERING CONLEAP EXISTS FOR (iteration
+    // 147). That heading is 180 degrees from the nose here, and a stick that
+    // far off the nose is read by `stepDriving` as REVERSE — which brakes,
+    // backs up, and then SKIPS STEERING ENTIRELY, so a car trying to bring a
+    // REAR mount to bear reverses forever and its heading never changes. The
+    // emitted stick is therefore the cone edge on the shorter arc, not the
+    // desired heading itself: the car arcs around and arrives.
     const expectedHeading = alignHeadingFor(Math.atan2(0, 50), 'REAR');
-    expect(decision!.input.moveX).toBeCloseTo(Math.cos(expectedHeading), 5);
-    expect(decision!.input.moveY).toBeCloseTo(Math.sin(expectedHeading), 5);
+    expect(decision!.input.moveX).not.toBeCloseTo(Math.cos(expectedHeading), 2);
+    const emitted = Math.atan2(decision!.input.moveY, decision!.input.moveX);
+    const stickDot = decision!.input.moveX * Math.cos(self.headingRad) + decision!.input.moveY * Math.sin(self.headingRad);
+    expect(stickDot).toBeGreaterThanOrEqual(drivingConfig().reverseInputDotThreshold);
+    // ...and it moved toward the desired heading, not away from it. Compared as
+    // a cosine rather than an angle difference, so it is wrap-safe at 180
+    // degrees and needs no local angle-normalising helper (the two that exist
+    // in the codebase, `normalizeAngle` and `angleDelta`, are both private).
+    expect(Math.cos(emitted - expectedHeading)).toBeGreaterThan(
+      Math.cos(self.headingRad - expectedHeading),
+    );
   });
 
   it('once heading is turned so REAR actually bears (per combat.ts), it fires', () => {

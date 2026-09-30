@@ -34,7 +34,7 @@
  * Every node is exported by name so a test can assert exactly which one fired.
  */
 
-import { getBody, getPlant, getTire, getWeapon } from '@/data/rulesets';
+import { drivingConfig, getBody, getPlant, getTire, getWeapon } from '@/data/rulesets';
 import type { Facing, Vec2, VehicleState, WeaponDeployable, WeaponState } from '@/sim/types';
 import { sumArmor } from '@/sim/types';
 import { facingWorldDirection } from '@/sim/combat';
@@ -282,10 +282,55 @@ export function alignHeadingFor(bearingRad: number, facing: Facing): number {
  * how a future reader would have "restored" the 90 degrees as intentional.
  * `facingOffsetRad` still DERIVES from `facingWorldDirection` rather than
  * keeping its own table, which is why it followed the rotation with no edit.
+ *
+ * **AND IT CLAMPS THE EMITTED STICK INTO THE STEERING CONE, which is the
+ * whole reason this function takes the car's own heading.** A desired heading
+ * is not a stick direction: `src/sim/driving.ts` reads a stick further than
+ * `reverseInputDotThreshold` off the nose as REVERSE (SPEC "Controls" — it
+ * brakes then backs up IN PLACE, and "must NOT be read as 'steer the nose to
+ * face this direction'"), and its heading block is `else if (stickLen > 0 &&
+ * !wantsOpposite)`, so **a reversing car does not steer at all.**
+ *
+ * An AI that can only emit one stick vector could therefore never turn by more
+ * than the cone: asking to face something more than ~120 degrees behind the
+ * nose produced reverse, reverse suppressed steering, the heading never
+ * changed, the bearing to the target never changed either (backing away along
+ * the axis you face keeps it dead ahead IN REVERSE), and the mount could never
+ * come to bear. That is a stable equilibrium, not a bad frame: measured live in
+ * iteration 147, every amateur-night opponent sat at a heading error of
+ * -125 to -176 degrees with NEGATIVE speed, in range, ready, and never firing.
+ *
+ * So the emitted direction is capped at the cone edge, on the SHORTER-ARC side,
+ * which keeps the input a forward steer and lets the car arc around onto the
+ * bearing. The cone angle is read from the ruleset rather than typed as a
+ * number, so the AI cannot drift from the sim's own definition of "reverse",
+ * and this changes no firing rule — only whether the AI's intent to turn is
+ * expressible at all.
  */
-export function computeAlignmentInput(bearingRad: number, facing: Facing): { moveX: number; moveY: number } {
+export function computeAlignmentInput(
+  bearingRad: number,
+  facing: Facing,
+  currentHeadingRad: number,
+): { moveX: number; moveY: number } {
   const heading = alignHeadingFor(bearingRad, facing);
-  return { moveX: Math.cos(heading), moveY: Math.sin(heading) };
+  const errorRad = heading - currentHeadingRad;
+  if (Math.cos(errorRad) >= drivingConfig().reverseInputDotThreshold) {
+    return { moveX: Math.cos(heading), moveY: Math.sin(heading) };
+  }
+  // Beyond the cone. `sin` of the raw error picks the shorter arc (and is
+  // 0 at exactly 180 degrees, where either side is equally short).
+  const sign = Math.sin(errorRad) >= 0 ? 1 : -1;
+  // Clamped to a hair INSIDE the cone, not exactly on its edge, and that
+  // fraction is load-bearing rather than cosmetic: `Math.cos(Math.acos(-0.5))`
+  // evaluates to -0.5000000000000002, one ULP BELOW the threshold, and
+  // `stepDriving`'s test is `dot < threshold` — so clamping to the exact edge
+  // emits a stick the sim reads as REVERSE, which is the very defect this
+  // function exists to remove. A margin expressed as a fraction of the derived
+  // cone angle cannot drift from the ruleset the way a typed epsilon in
+  // degrees could.
+  const coneRad = Math.acos(drivingConfig().reverseInputDotThreshold) * 0.999;
+  const clamped = currentHeadingRad + sign * coneRad;
+  return { moveX: Math.cos(clamped), moveY: Math.sin(clamped) };
 }
 
 /** Segment-circle intersection, used for smoke line-of-sight blocking. */
@@ -639,7 +684,7 @@ export function engageWeaponNode(ctx: AIContext, target: VehicleState): AIDecisi
   if (best === null) return null;
 
   const bearing = bearingTo(ctx.self.position, target.position);
-  const { moveX, moveY } = computeAlignmentInput(bearing, best.facing);
+  const { moveX, moveY } = computeAlignmentInput(bearing, best.facing, ctx.self.headingRad);
   const fire = best.bearsNow && best.inRange && best.losClear && best.readyToFire;
 
   return buildDecision(behaviorForFacing(best.facing), target.id, {

@@ -733,23 +733,37 @@ describe('showArenaEvent: the match ends itself', () => {
     const staleExitBtn = findArenaExitButton();
 
     const driver = makeCombatDriver(passiveScheduleAt);
-    // Measured under the ROTATED body frame, on this seed: the player is
-    // destroyed at tick 2863 and `endMatch` runs at 2939, the 76-tick
-    // `arenaOutcomeDelayMs` beat after it.
+    // Measured on this seed: the player is destroyed around tick 500 and the
+    // arena unmounts by 520.
     //
-    // It used to be 347. That is not a tuning change anyone made — it is the
-    // collider rotation showing up as balance. Before the body-frame fix the
-    // player's collider measured its LENGTH along the aim axis, so opponents
-    // firing along their own mounts met a 4.8m target; they now fire along the
-    // nose and meet a 1.8m one, so glancing shots miss and the fight runs
-    // about eight times longer. The 90-degree bug was not what was killing a
-    // passive player; a fat collider was, and correcting it is what made the
-    // honest number 2863.
+    // **THE NUMBER MOVED THREE TIMES FOR THREE DIFFERENT REASONS, AND THE
+    // REASONS ARE THE POINT** (each superseded the last, across iterations
+    // 138/140/147):
+    //   ~347   before the body-frame rotation — the player's collider measured
+    //          its LENGTH along the aim axis, so opponents met a 4.8m target;
+    //   ~2863  after it — the collider became 1.8m, glancing shots missed, and
+    //          the fight ran eight times longer. So the 90-degree bug was not
+    //          what was killing a passive player; a FAT COLLIDER was;
+    //   never   with the head-on closing-speed formula corrected but the AI
+    //          still unfixed — arena up at tick 96,000. Read as a balance
+    //          question for four iterations, which it was not;
+    //   ~500   now, with the AI's steering-cone clamp as well. The two
+    //          survivors were sitting 125-176 degrees from the player IN
+    //          REVERSE — `computeAlignmentInput` emitted a stick the driving
+    //          model reads as reverse, and a reversing car does not steer, so
+    //          they were structurally unable to turn and simply parked. With
+    //          that fixed they fight, and the corrected head-on physics has
+    //          real damage to apply, so a passive player dies on a schedule
+    //          that is a property of the fight rather than of a deadlock.
     //
-    // A MID-BEAT checkpoint is kept because "the arena is still up" is a
-    // distinct claim from "the arena eventually goes away" — without it, a
-    // screen that unmounts on frame 1 satisfies the same assertion.
-    driver.advanceTo(1000);
+    // This checkpoint is a FIXTURE, and the value is DERIVED, so it is stated
+    // as "comfortably before the measured unmount" rather than as a number that
+    // means nothing on its own — iteration 104's rule, learned from a hand-set
+    // `progressMiles` that the first tick after resume overwrote. It stays
+    // because "the arena is still up" is a distinct claim from "the arena
+    // eventually goes away": without a genuinely mid-beat sample, a screen that
+    // unmounts on frame 1 satisfies the same assertions.
+    driver.advanceTo(250);
     requireOne('.sm-screen--arena');
 
     // Past the death tick and the full outcome delay.

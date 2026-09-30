@@ -277,7 +277,7 @@ function scriptedRoadInput(trip: RoadTripState, overlay: CombatOverlay): InputFr
   if (distanceM > ownRangeM) {
     return { moveX: Math.cos(bearingRad), moveY: Math.sin(bearingRad), fire: false, weaponSlot: 0 };
   }
-  const { moveX, moveY } = computeAlignmentInput(bearingRad, 'FRONT');
+  const { moveX, moveY } = computeAlignmentInput(bearingRad, 'FRONT', trip.vehicle.headingRad);
   return { moveX, moveY, fire: true, weaponSlot: 0 };
 }
 

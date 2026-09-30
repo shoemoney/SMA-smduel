@@ -271,6 +271,38 @@ function seededLockTicks(rng: Rng, coefficients: DrivingSkillCoefficients): numb
 // ---------------------------------------------------------------------------
 
 /**
+ * Relative closing speed along the line of centres, in m/s.
+ *
+ * `speedMps` is signed along each body's OWN forward axis (`{cos h, sin h}`),
+ * so the two raw scalars are not in the same frame as the shared separation
+ * axis and must be turned into world velocities before they can be projected
+ * onto it. Doing the naive thing — projecting the scalars straight onto the axis
+ * — collapses to `(b.speedMps - a.speedMps) * (n.x + n.y)`, which is exactly
+ * ZERO for a head-on meeting where both cars carry the same signed speed and
+ * the axis is axis-aligned. That is the arithmetic this function exists to
+ * stop: a 100mph head-on computed a closing speed of 0 at every speed, and
+ * reverse-ramming was dead for the same reason.
+ *
+ * `awayFromA` must be the UNIT vector pointing from `a` toward `b`. The
+ * absolute value covers approach from either side.
+ *
+ * **NOTE WHAT THIS IS CURRENTLY WORTH, because it is less than it looks.**
+ * `applyCollision` below charges a FLAT `collision.armorLossPoints` and
+ * ignores the `impactSpeedMph` it is handed, so no amount of damage testing
+ * can observe this function's value — a test asserting "the head-on car lost
+ * armour" passes identically with the old broken arithmetic. That is why this
+ * is a named, directly-tested function rather than an inline expression
+ * measured through the damage path: the arithmetic is correct and independently
+ * pinned, and the moment `applyCollision` starts scaling with impact speed the
+ * sim already has the right number to hand it.
+ */
+export function closingSpeedMps(a: VehicleState, b: VehicleState, awayFromA: Vec2): number {
+  const velA: Vec2 = { x: a.speedMps * Math.cos(a.headingRad), y: a.speedMps * Math.sin(a.headingRad) };
+  const velB: Vec2 = { x: b.speedMps * Math.cos(b.headingRad), y: b.speedMps * Math.sin(b.headingRad) };
+  return Math.abs((velA.x - velB.x) * awayFromA.x + (velA.y - velB.y) * awayFromA.y);
+}
+
+/**
  * A collision above `collision.armorLossSpeedMph` removes exactly
  * `collision.armorLossPoints` from `collision.armorLossFacing` (FRONT),
  * regardless of what was struck. Below the threshold, nothing changes.

@@ -80,7 +80,7 @@ export function createArenaAutopilot(
     if (target === undefined) return defaultInputFrame();
 
     const bearingRad = Math.atan2(target.position.y - player.position.y, target.position.x - player.position.x);
-    const { moveX, moveY } = computeAlignmentInput(bearingRad, 'FRONT');
+    const { moveX, moveY } = computeAlignmentInput(bearingRad, 'FRONT', player.headingRad);
     const weaponSlot =
       policy === 'naive' ? 0 : Math.max(0, player.weapons.findIndex((weapon) => !weapon.destroyed && weapon.ammo > 0));
     return { moveX, moveY, fire: true, weaponSlot };
