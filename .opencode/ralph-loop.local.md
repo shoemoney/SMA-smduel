@@ -8573,3 +8573,121 @@ Iteration 135 built the seam and the production autopilot and left exactly one w
   are now behind us. The test that proves the bug — a FRONT-mounted shot leaving
   along the rendered nose at all four cardinal headings, derived from
   `headingRad` rather than from the table — is already written and failing.
+## ITERATION 138 — THE ROTATION LANDS. The most severe defect in this log is closed.
+
+Eighteen iterations (120-138) on a 90-degree disagreement between the car's combat geometry and the car you drive. It ships this round.
+
+- **THE CONVENTION HAS ONE OWNER, AND FOUR OF THE FIVE COPIES PLUS A COMMENT WERE THE BUG.** `VEHICLE_LOCAL_FACING` now lives in `src/sim/types.ts` beside `Vec2`, with the derivation written out at the definition: the atlas's verified 270 offset (which `tests/unit/vehicle-sprite-orientation.test.ts` derives from the RAW ART and documents the method for), `driving.ts`'s `newForward`, and `sprite.wgsl`'s world-space CCW rotation. Handedness spelled out, because a rotated table quietly gets it backwards: **CCW in an up-positive frame means RIGHT is (0,-1) at heading 0.** `PenetratingFacing` moved there too and `damage.ts` re-exports it, since a second declaration of the same type is the same drift in a different costume.
+
+- **`ai.ts`'s `facingOffsetRad` IS A SIXTH COPY THAT NEEDED NO EDIT — and whose
+  COMMENT NEEDED THE MOST.** It derives from `facingWorldDirection` rather than
+  keeping a table, so it followed the rotation by itself. But its docblock still
+  asserted the OLD relationship — "because combat.ts's mounted-facing frame is
+  rotated from driving.ts's own forward vector ... those two do not coincide for
+  ANY facing, FRONT included" — and would have convinced a future reader to
+  "restore" the 90 degrees as intentional. **A stale explanation of live code is
+  more dangerous than a stale comment about dead code**, because the code it
+  describes is still running. This is the iteration-51/81/103 stale-comment
+  class, and the first time one described something the author had just changed
+  correctly.
+
+- **THE PREVIEW WAS NOT A TRANSFORM, AND EVERY PRIOR ROUND WAS RIGHT.** The
+  viewBox is non-square, so `rotate(90)` leaves the content outside the box.
+  Both halves are now derived: the content is still drawn length-vertical and
+  carried by a group rotation, and the viewBox's extent is swapped with an
+  origin COMPUTED from where a quarter-turn clockwise maps the content —
+  `(x,y) -> (w-y, h/2 + x - w/2)` — rather than eyeballed. The nose marker's
+  comment claimed "the world convention is +Y forward, which on a screen is UP",
+  which is the old convention stated as fact.
+
+- **THE END-TO-END PROOF DID NOT EXIST, AND I HAD BEEN CITING IT FOR SIX
+  ROUNDS.** Iterations 121 through 137 all name `the vehicle forward
+  convention` as the test that demonstrates the bug. It was written in 121,
+  failed as predicted, and went back out with the reverted rotation — so what
+  survived was a **fixture comment citing a test that was not in the file.** My
+  own comment, written an hour earlier, repeated the citation. It is written
+  now: it derives the nose from `headingRad` the way the renderer does, at all
+  four cardinals, for FRONT and for RIGHT, by cosine similarity. **A comment is
+  not a test, and a citation is not a derivation** — the fourth time this log
+  has confused the two.
+
+- **MUTATION-PROVEN, AND THE END-TO-END GUARD REPRODUCES THE ORIGINAL BUG
+  VERBATIM.** Reverting the owner table fails 13 tests, and the end-to-end one
+  reports `expected +0 to be close to 1, received difference is 1` — the dot
+  product between the mount and the rendered nose is **zero**, which is
+  iteration 121's exact recorded output. Swapping the collider back to
+  length-on-Y fails all four new collider tests. Dropping the preview's quarter
+  turn fails the nose-direction test.
+
+- **THE COLLIDER HAD NO TEST AT ALL, which is why a wide-short collider
+  survived 120 iterations.** A collider is invisible until a shot misses the
+  nose it was aimed at. Four tests now, the load-bearing one asserting the
+  relationship to the owner at every quarter turn rather than four literals.
+  Two of my own expectations were wrong on the first run — x=-2 is *inside* a
+  2.4m half-length, and y=1 is within a 0.15m projectile of a 0.9m half-width —
+  and the code was right both times.
+
+- **THE FIXTURES ARE RE-DERIVED, NOT EDITED, AND THREE OF THEM WERE THE CLASS
+  THIS LOG HAS RECORDED ELEVEN TIMES.** `AHEAD`/`BEHIND` were `{x:0, y:±50}`
+  hand-placed against the old frame, so every test beneath them inherited which
+  way the nose pointed without saying so — and failed one at a time for
+  unrelated-looking reasons. `facingWorldDirection` **restated the table**, so
+  it agreed with the bug for its whole life: iteration 87's lesson, third
+  sighting, and the reason a correct table change looks like 16 broken tests.
+  `damage.test.ts`'s quadrant table became a **360-degree sweep** for the
+  nearest mount, plus a test asserting the exact inverse property — whatever a
+  mount fires along, a hit arriving back down that line is credited to that
+  mount — which is the relationship four named cases could never express and is
+  the one that would have caught the disagreement directly.
+
+- **I HAND-DERIVED A COMPASS DIRECTION TWICE AND GOT IT WRONG BOTH TIMES.** The
+  rotation test wanted to say "+Y is off the LEFT at heading 0, FRONT at
+  pi/2"; I asserted REAR at pi and it answered RIGHT, because pi/2 puts the nose
+  on +Y itself. The fix was to stop naming compass directions and assert the
+  PROPERTY — four quarter turns must produce four different answers. **This is
+  the same error the fixtures themselves encoded**, which is a sharper way to
+  say it: the mistake was not a typo, it was the wrong frame.
+
+- **AND A REAL BALANCE FINDING FELL OUT, IN THE DIRECTION I DID NOT PREDICT.** A
+  passive player in amateur-night used to die at tick **347** and now dies at
+  **2863** — eight times later. The 90-degree bug was not what was killing a
+  passive player; a **fat collider** was. Correcting the frame means opponents
+  firing along their own mounts meet a 1.8m target instead of a 4.8m one, so
+  glancing shots miss and the fight runs to eight times its length. Measured
+  across 14 seeds: a passive player now survives ~3000 ticks, where the old
+  frame killed it inside 400. `DEATH_SEED` is a seed **measured** under this
+  frame rather than swept for a property the bug used to supply — re-sweeping
+  for that would be how the old one got there in the first place.
+
+- **A 44-FAILURE CASCADE I CAUSED, AND WHO CAUGHT IT.** Wrapping the preview in
+  a group left one `root.insertBefore(rect, hull)` pointing at a node that had
+  moved, and happy-dom threw a `DOMException` from the constructor screen — so
+  every integration test that BOOTS the game died at once. The unit preview
+  test did not catch it, because its DOM double does not model
+  `insertBefore`'s parent check. **The unit test could not have; the integration
+  test did, immediately.** That is the iteration-92 harness finding again: the
+  right assertion in the wrong harness is an assertion that cannot fire.
+
+- **GATE.** tsc clean. 1516/1517 unit+integration — the one failure is
+  `phase4.test.ts`, detailed below, and the known `screens.test.ts` flake did not
+  appear on this run. 7 browser tests pass. Build `index-DTCAr0rm.js`.
+
+- **WHAT IS NOT FIXED, STATED AS A RED TEST RATHER THAN A NOTE IN A QUEUE.**
+  `tests/integration/phase4.test.ts` **fails**, and it is real coverage:
+  `findWinnableEncounter` sweeps 400 seeds for a scriptable winnable road
+  contact. Every qualifying seed now reports
+  `arrived=false defeated=0 destroyed=false` — the player neither dies, nor
+  kills, nor arrives. Its driver is hand-written and cannot lead a target or
+  switch mounts, and the same collider change that made the passive arena fight
+  eight times longer defeats it here. **The fix is a road-world driver, not a
+  loosened assertion**, and `createArenaAutopilot` is arena-shaped (it takes a
+  `World`, not a road `CombatOverlay`). Deferred to its own round rather than
+  actioned at the end of this one, and deliberately NOT reverted: the bug this
+  rotation closes is a player shooting 90 degrees from where they are pointing,
+  and eighteen iterations of deferral is the log's own standing indictment.
+
+- NEXT. A road-world driver for `phase4` — the same shape as iteration 137's
+  arena work: move the competent policy where the data actually is, rather than
+  tuning a driver that structurally cannot win. Then re-check the balance
+  consequence above as a deliberate item, because an eight-times-longer passive
+  fight is a real change to how amateur-night plays and nobody chose it.
