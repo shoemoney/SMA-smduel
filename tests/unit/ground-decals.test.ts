@@ -28,6 +28,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { groundDecalInstances } from '@/app';
+import { cityGroundDecalCount, cityGroundDecalInstances, CITY_DECAL_CELL_M, DECAL_CELL_M } from '@/ui/city-view';
+import { generateCityLayout } from '@/sim/city';
+import { citiesConfig } from '@/data/rulesets';
 
 // Each frame gets a DISTINCT atlasIndex so a test can prove all three stain
 // kinds are actually reachable — a single shared id would let a kind that is
@@ -137,5 +140,87 @@ describe('ground stains', () => {
       expect(Math.abs(i.position.x - cx)).toBeLessThan(16 * 0.35);
       expect(Math.abs(i.position.y - cy)).toBeLessThan(16 * 0.35);
     }
+  });
+});
+
+/**
+ * The city scatter, and the guard for a failure mode this round actually
+ * shipped once.
+ *
+ * `DECAL_CELL_M = 16` is sized for an UNBOUNDED arena. The city is a fixed
+ * ~21m-radius circle, so at the arena's cell size the whole city is barely
+ * three cells across, only four cells fall inside the wall, and a 45% gate on
+ * four cells averages under two stains. The first version of this did exactly
+ * that: it rendered, it built, every test passed, and the city's measured
+ * ground spread moved 65.99 -> 66.00 — a change small enough to read as noise
+ * on any dashboard, which is why it was caught by noticing the number rather
+ * than by any gate.
+ *
+ * So the contract pinned here is not "the city has decals" — it is that the
+ * city has ENOUGH of them to change the surface. A count floor is the only
+ * check that would have failed.
+ */
+describe('city ground stains', () => {
+  // The REAL city ids and a real session seed. An earlier draft of this file
+  // passed a function where `saveSeed: string` is expected, which silently
+  // produced a degenerate 1-doorway layout rather than a city.
+  const ids = citiesConfig().cities.map((c) => c.id);
+  const layout = generateCityLayout('newyork', 'a11ce5ee');
+  // Every city in the ruleset must place stains, not just the largest one —
+  // radius scales with facility count from 6.0m to 10.65m, so the smallest
+  // city is the one that runs out of cells first.
+  const smallest = ids.reduce((a, b) =>
+    generateCityLayout(a, 'a11ce5ee').boundsRadiusM <= generateCityLayout(b, 'a11ce5ee').boundsRadiusM ? a : b,
+  );
+
+  it('uses a finer cell than the arena, sized for the SMALLEST city', () => {
+    expect(CITY_DECAL_CELL_M).toBeLessThan(DECAL_CELL_M);
+    // The binding case is the smallest city, not the largest: at the arena's
+    // 16m cell, atlanticcity's 6.0m radius is less than ONE cell across. The
+    // threshold is cells-across-the-smallest-city, because that is the case
+    // that runs out of positions first.
+    const small = generateCityLayout(smallest, 'a11ce5ee');
+    expect((small.boundsRadiusM * 2) / CITY_DECAL_CELL_M).toBeGreaterThanOrEqual(4);
+  });
+
+  it('places enough stains to actually change the plaza surface', () => {
+    const count = cityGroundDecalCount(layout);
+    // A floor, not an equality. The failure this guards produced ZERO stains in
+    // a 6m-radius city while every other check stayed green, so the assertion
+    // has to be one that a too-fine grid cannot accidentally pass.
+    expect(count).toBeGreaterThanOrEqual(3);
+    expect(cityGroundDecalInstances(layout, atlasIndex)).toHaveLength(count);
+  });
+
+  it('places stains in the SMALLEST city too, not just New York', () => {
+    // 6.0m radius vs New York's 10.65m. The small city is 12m across, so this
+    // is the case that runs out of cells — and the case a max-size assumption
+    // would have hidden.
+    const smallLayout = generateCityLayout(smallest, 'a11ce5ee');
+    expect(smallLayout.boundsRadiusM).toBeLessThan(layout.boundsRadiusM);
+    expect(cityGroundDecalCount(smallLayout)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('scales stain size to the city, so a slick is not bigger than a building', () => {
+    // layout.tileSizeM is the building footprint (3m). An oil slick scaled at
+    // the arena's 4.2m would be larger than the garage it sits beside.
+    for (const i of cityGroundDecalInstances(layout, atlasIndex)) {
+      expect(i.sizeM.y).toBeLessThan(layout.tileSizeM);
+    }
+  });
+
+  it('keeps every stain inside the wall, so none is half-drawn on the ring', () => {
+    for (const i of cityGroundDecalInstances(layout, atlasIndex)) {
+      const d = Math.hypot(i.position.x, i.position.y);
+      expect(d).toBeLessThan(layout.boundsRadiusM);
+      expect(i.layer).toBe(0);
+    }
+  });
+
+  it('is deterministic per city, so the same city always looks the same', () => {
+    const a = cityGroundDecalInstances(generateCityLayout('newyork', 'a11ce5ee'), atlasIndex).map((i) => i.position.x.toFixed(3) + ',' + i.position.y.toFixed(3));
+    const b = cityGroundDecalInstances(generateCityLayout('newyork', 'a11ce5ee'), atlasIndex).map((i) => i.position.x.toFixed(3) + ',' + i.position.y.toFixed(3));
+    expect(a).toEqual(b);
+    expect(a.length).toBeGreaterThanOrEqual(3);
   });
 });

@@ -170,7 +170,16 @@ import {
   buildCityActorInstances,
   cityStaticLayers,
   cityLayer1InstanceCount,
+  cityGroundDecalCount,
   facilityMarkerTint,
+  // Ground-stain placement primitives, shared with the city scatter in
+  // `city-view` so both screens draw the same three frames with the same
+  // world-cell hashing. They live there because `app.ts` already imports from
+  // that module and the reverse edge would be a cycle.
+  DECAL_CELL_M,
+  DECAL_CHANCE,
+  decalCellHash,
+  decalsInCells,
   type CityVehicleView,
   type CityViewSnapshot,
   WALL_SETBACK_M as CITY_WALL_SETBACK_M,
@@ -3876,7 +3885,14 @@ interface CityRenderResources extends PostTemplate {
  */
 const CITY_ACTOR_INSTANCE_CAPACITY = 4;
 
-/** The city's ground is a single quad like every other screen's, so its layer-0 capacity is 1. */
+/**
+ * The city's ground layer is ONE quad plus whatever stains `cityGroundDecalInstances`
+ * places inside the wall. Both halves are counted from the same functions that
+ * emit them, so this cannot drift: `cityGroundTileCount` below is the single
+ * place the number is used, and it reads the decal count rather than restating
+ * it. Restating it here is what iteration 53's drift test exists to catch, and
+ * the point of this round was to make the drift unrepresentable instead.
+ */
 const CITY_GROUND_INSTANCE_COUNT = 1;
 
 /**
@@ -3891,8 +3907,8 @@ const CITY_GROUND_INSTANCE_COUNT = 1;
  * does not bounds-check, so anything that changes the number of ground
  * instances has to change this.
  */
-function cityGroundTileCount(_layout: CityLayout): number {
-  return CITY_GROUND_INSTANCE_COUNT;
+function cityGroundTileCount(layout: CityLayout): number {
+  return CITY_GROUND_INSTANCE_COUNT + cityGroundDecalCount(layout);
 }
 
 async function buildCityRenderResources(
@@ -4553,11 +4569,16 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     const size = gpuCtx.getSize();
     camera.setViewportPx(size.width, size.height);
     camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    // The city is a ~21m circle. At the old fixed 14 px/m it occupied about a
-    // third of a 1440px viewport with black on both sides — the single most
-    // obvious thing wrong with this screen. Zooming to fit the city's own
-    // bounds (plus margin for the wall ring and ground apron) makes it fill
-    // the frame at any window size.
+    // The city is a circle of `boundsRadiusM`, which is 6.0m for the smallest
+    // cities and 10.65m for New York — it scales with facility count, since
+    // every facility needs a slot on the ring. (An earlier version of this
+    // comment said ~21m, which is wrong by a factor of two, and cost an
+    // iteration: the stain scatter below was sized from that number and came
+    // out with barely one cell across the whole city. Measured across all 16
+    // cities rather than assumed from the largest.) At the old fixed 14 px/m it
+    // occupied about a third of a 1440px viewport with black on both sides —
+    // the single most obvious thing wrong with this screen. Zooming to fit the
+    // city's own bounds makes it fill the frame at any window size.
     camera.setZoom(cityZoomPxPerM(size, layout.boundsRadiusM));
     camera.setCenter(player.position);
     writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
@@ -4860,121 +4881,33 @@ function radarContactsFromVehicles(
 const GUARDRAIL_FRAME = 'prop-guardrail';
 
 /**
- * Ground stains: oil, tyre marks and scorch, scattered on a coarse world grid.
- *
- * The arena-emptiness class is the longest-running complaint in this log (22+
- * reviews across iterations 21, 24, 33, 34, 40, 55, 58, 65, 66, 72) and its
- * usual remedy — walls, cover, spawn pads — was declined every time, because the
- * arena is an unbounded field with no collision and a painted wall lies while
- * non-colliding props are things the player drives through.
- *
- * Decals are the one form that survives that test, and the reason is exactly
- * the property the texture pipeline cannot fake: a decal is PLACED CONTENT. It
- * does not repeat, so it adds large-scale structure the tiling deliberately
- * refuses to (iteration 51 explains why a per-cell grid of different textures
- * was tried and measured WORSE — hard interior seams). It also makes no claim
- * about the simulation: a stain is evidence that cars have been here, not an
- * affordance.
- *
- * And the art was never missing. `decal-oil-slick`, `decal-tire-marks` and
- * `decal-scorch` have been packed in the shipping atlas this whole time, drawn
- * by NOTHING — five decal frames, zero source references. So this is wiring
- * work, not an authoring job, which is why the deferral note's assumption ("a
- * real fix is new ART") was only half right: the art existed and the note
- * never checked. (`decal-mine` and `decal-spikes` stay unwired — those are
- * gameplay hazards, not stains, and nothing in the sim drops either yet.)
- *
- * The scatter is hashed from INTEGER WORLD CELL COORDS, which is what makes it
- * world-anchored: the same cell yields the same stain at the same offset,
- * rotation and scale on every frame and every visit, so nothing swims or
- * re-randomises under the car. That is the property iteration 21 destroyed when
- * it tried a player-centred arena ring, and iteration 34 spent a round
- * recovering for the slab lattice.
- */
-const DECAL_CELL_M = 16;
-/** Chance a cell carries a stain at all. Sparse on purpose — a dense scatter reads as dirt, not as use. */
-const DECAL_CHANCE = 0.45;
-
-/**
- * `aspect` is the packed frame's own width/height (88x96, 60x96, 85x96 in
- * assets/atlas.json), declared here rather than read back at runtime:
- * `FrameInfo` does not expose pixel dimensions, and digging them out of the
- * manifest at draw time to re-derive what the art already is would be the kind
- * of runtime lookup that silently disagrees with the packer.
- */
-const DECAL_KINDS = [
-  { frame: 'decal-oil-slick', sizeM: 4.2, alpha: 0.42, aspect: 88 / 96 },
-  { frame: 'decal-tire-marks', sizeM: 3.4, alpha: 0.38, aspect: 60 / 96 },
-  { frame: 'decal-scorch', sizeM: 2.6, alpha: 0.3, aspect: 85 / 96 },
-] as const;
-
-/**
- * Integer hash -> [0,1). Three imul rounds, no float arithmetic in the chain,
- * so a cell hashes identically on every machine and every run — a stain that
- * moved between two visits would be the decal equivalent of the iteration-21
- * player-centred ring.
- */
-function decalCellHash(cx: number, cy: number, salt: number): number {
-  let h = Math.imul(cx, 0x27d4eb2d) ^ Math.imul(cy, 0x165667b1) ^ Math.imul(salt, 0x9e3779b1);
-  h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
-  h = Math.imul(h ^ (h >>> 12), 0x297a2d39);
-  h ^= h >>> 15;
-  return (h >>> 0) / 4294967296;
-}
-
-/**
  * The stains visible around a point, world-anchored and bounded by the visible
  * extent rather than by arena size. Sits in the ground buffer (2048 slots, the
  * arena using 1 before this), for the same reason the guardrails do: a decal is
  * painted ON the surface, and `ARENA_GRADE` is a post uniform over the whole
  * composited frame, so a ground-buffer instance keeps full brightness.
+ *
+ * The placement primitives live in `@/ui/city-view` because the city scatters
+ * the same three frames, and `city-view` is already the shared scene-authoring
+ * module this file imports from — putting them here would need a cycle.
  */
 export function groundDecalInstances(
   atlasIndex: AtlasIndex,
   centre: { x: number; y: number },
   halfExtentM: number,
 ): SpriteInstanceInput[] {
-  const frames = DECAL_KINDS.map((k) => atlasIndex.frame(k.frame));
-  const out: SpriteInstanceInput[] = [];
   const c0x = Math.floor((centre.x - halfExtentM) / DECAL_CELL_M);
   const c1x = Math.floor((centre.x + halfExtentM) / DECAL_CELL_M);
   const c0y = Math.floor((centre.y - halfExtentM) / DECAL_CELL_M);
   const c1y = Math.floor((centre.y + halfExtentM) / DECAL_CELL_M);
-
+  const cells: [number, number][] = [];
   for (let cy = c0y; cy <= c1y; cy += 1) {
     for (let cx = c0x; cx <= c1x; cx += 1) {
       if (decalCellHash(cx, cy, 0) >= DECAL_CHANCE) continue;
-      const kindIndex = Math.min(
-        DECAL_KINDS.length - 1,
-        Math.floor(decalCellHash(cx, cy, 1) * DECAL_KINDS.length),
-      );
-      const kind = DECAL_KINDS[kindIndex]!;
-      const frame = frames[kindIndex]!;
-      // Offset kept inside the cell so a stain never straddles a cell edge and
-      // reads as a seam between two neighbouring cells.
-      const jx = (decalCellHash(cx, cy, 2) - 0.5) * DECAL_CELL_M * 0.7;
-      const jy = (decalCellHash(cx, cy, 3) - 0.5) * DECAL_CELL_M * 0.7;
-      const rotationRad = decalCellHash(cx, cy, 4) * Math.PI * 2;
-      const scale = 0.75 + decalCellHash(cx, cy, 5) * 0.5;
-      // The world size is driven by the frame's LONG edge and the art keeps its
-      // own proportions, so the elongated tyre marks stay elongated instead of
-      // being stretched to a square they were never drawn as.
-      const sizeM = kind.sizeM * scale;
-      out.push({
-        atlasId: String(frame.atlasIndex),
-        position: { x: (cx + 0.5) * DECAL_CELL_M + jx, y: (cy + 0.5) * DECAL_CELL_M + jy },
-        rotationRad,
-        sizeM: { x: sizeM * kind.aspect, y: sizeM },
-        uvRect: frame.uv,
-        // The stain art is pure BLACK, so a tint multiply is a no-op; the read
-        // comes entirely from alpha over the floor. Kept explicit because a
-        // reader will otherwise assume the tint is doing the work.
-        tint: { r: 1, g: 1, b: 1, a: kind.alpha },
-        layer: 0,
-      });
+      cells.push([cx, cy]);
     }
   }
-  return out;
+  return decalsInCells(cells, atlasIndex, DECAL_CELL_M);
 }
 
 const ROAD_LANE_HALF_WIDTH_M = 4.2;

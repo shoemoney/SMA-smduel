@@ -7,6 +7,7 @@ import { UnknownRulesetIdError } from '@/data/rulesets';
 import { groundQuad } from '@/render/ground';
 import {
   FACILITY_FAMILIES,
+  cityGroundDecalCount,
   cityLayer1InstanceCount,
   facilityMarkerTint,
 } from '@/ui/city-view';
@@ -858,7 +859,7 @@ describe('buildCityInstances', () => {
     return { layout, player, vehicle: null };
   }
 
-  it('emits ONE ground quad, a building plus its shadow per doorway and the gate, and one actor for the on-foot player', () => {
+  it('emits ONE ground quad plus its stains, a building plus its shadow per doorway and the gate, and one actor for the on-foot player', () => {
     const snapshot = makeSnapshot();
     const atlasIndex = fixtureAtlasIndex();
     const instances = buildCityInstances(snapshot, atlasIndex);
@@ -875,9 +876,20 @@ describe('buildCityInstances', () => {
     // tiled wallpaper, because every cell boundary is a visible seam. The quad
     // has no interior boundary, and `uvRepeatMetres` carries the tiling into the
     // fragment shader instead.
-    expect(byLayer.get(0)).toBe(1);
-    const groundQuadInstance = instances.find((i) => i.layer === 0);
-    expect(groundQuadInstance?.uvRepeatMetres).toBeGreaterThan(0);
+    // Layer 0 is now ONE quad plus the stains scattered inside the wall, so the
+    // count is derived rather than asserted as a literal — and it is derived
+    // from `cityGroundDecalCount`, the same function the emitter walks, which
+    // is the point of the change. Restating a number here is exactly the drift
+    // the layer-1 test below was written to catch, and it is what made this
+    // assertion fail when the stains landed: the test was pinned to the old
+    // contract, not the code wrong.
+    const ground = instances.filter((i) => i.layer === 0);
+    const quads = ground.filter((i) => (i.uvRepeatMetres ?? 0) > 0);
+    expect(quads).toHaveLength(1);
+    expect(quads[0]!.uvRepeatMetres).toBeGreaterThan(0);
+    // Everything else on layer 0 is a stain, and the total must match what the
+    // buffer was sized for.
+    expect(ground).toHaveLength(1 + cityGroundDecalCount(snapshot.layout));
 
     // Layer 1 is buildings, and it is a MIX: shadow+building pairs for the
     // facilities, the gate and the decorative infill, and shadow+marker pairs

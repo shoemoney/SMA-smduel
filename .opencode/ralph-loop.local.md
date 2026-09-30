@@ -3951,3 +3951,77 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
   arcade's score store is evidently not in this subtree any more — worth
   confirming with the arcade owner alongside the already-recorded point that a
   concurrent deployer builds smduel from a different repo.
+
+82. NO NEW REVIEWER — REVIEWER STRATEGY CHANGED MID-ITERATION. From here the
+   advisory reviewer is Codex CLI running `gpt-6-1-sol`, which can drive the
+   browser with computer use rather than only reading the captures this loop
+   hands it. Every false-finding class in the log above traces to the same root
+   cause: the reviewer was handed a DOWNSCALED still and asked to judge a live
+   WebGPU app from it. Letting it drive the app itself attacks that at the
+   source instead of raising the capture resolution again.
+   This iteration is the city half of iteration 81's stains, and it is the
+   clearest case in the log of a fix whose first two attempts were both wrong
+   for reasons that only measurement found.
+   - WHY THE CITY. It is the flattest surface in the game — measured ground
+     spread 10.26, against 13.25 in the arena and 25.56 on the road — and that
+     number is what fourteen reviews calling it "a monochromatic value wash"
+     are describing. Iterations 16/17 settled WHY the city is grey (mixed-source
+     buildings each carrying their own hue; a multiply tint cannot fix
+     mismatched SATURATION), so the answer is not to put colour back. It is to
+     give the ground large-scale tonal structure, which is what a stain is and
+     what the tiling deliberately refuses to provide.
+     Structurally easier here than in the arena: the city does not scroll (a
+     fixed circle about the plaza centre at (0,0)), so a cell-hashed stain is
+     trivially world-anchored, and its ground layer is MEMOISED per layout, so
+     covering the whole city costs nothing per frame.
+   - ATTEMPT 1 CHANGED NOTHING AND EVERY GATE PASSED. Reusing the arena's
+     16m cell on a city it turns out is only 6.0-10.65m in radius put the whole
+     map inside about two cells, of which four qualified inside the wall, so a
+     45% gate averaged under two stains. It built, every test passed, and the
+     city's measured ground spread moved 65.99 -> 66.00 — a delta small enough
+     to read as noise on any dashboard. Caught by noticing the number, not by
+     a gate, which is why the fix this round is a COUNT FLOOR in the test.
+   - AND THE SOURCE OF THE WRONG NUMBER WAS A STALE COMMENT. `showCity` said
+     "The city is a ~21m circle". It is 6.0m for the smallest city and 10.65m
+     for New York, scaling with facility count. I designed the cell size from
+     that comment. Corrected, and the correction records all sixteen measured
+     radii so the next reader does not have to re-derive them.
+     This is the third stale-comment incident in the log (iteration 51's
+     groundField, iteration 81's buildGroundField) and the first that caused a
+     shipped-wrong result rather than merely misleading a reader.
+   - ATTEMPT 2 WAS ALSO WRONG, IN A NEW DIRECTION. A 8m cell gave the city
+     enough positions, and the stains appeared — but at the ARENA's sizes, and
+     the city's camera is zoomed far tighter (~67 px/m for New York against the
+     arena's 40) while its buildings are only 3m across. A 4.2m oil slick came
+     out LARGER THAN A BUILDING, which is not a stain, it is a car park. So the
+     city now scales cell and size SEPARATELY, for two different reasons: the
+     cell is about how many candidate positions exist (3m, so the smallest
+     city's 12m diameter holds four), and the size is about how big a stain
+     should look (0.45x, so nothing exceeds a building footprint). A test pins
+     the second directly.
+   - THE COUNT CONTRACT IS NOW DERIVED, NOT RESTATED. `cityGroundTileCount`
+     returns 1 + `cityGroundDecalCount(layout)`, and both the count and the
+     emitted instances walk the SAME cell iteration. Iteration 53 added a test
+     catching emitted-vs-claimed drift after the count had already cost two
+     runtime blank-screen bugs; this is the stronger form of that fix — the
+     drift is now unrepresentable rather than merely detected.
+     And the older city test that asserted `layer 0 === 1` failed on the new
+     code, which was the test being pinned to the old contract rather than the
+     code being wrong. It now derives the total the same way, so the two tests
+     cannot disagree.
+   - A THIRD FIXTURE BUG IN THREE ROUNDS, all the same class. The new test called
+     `generateCityLayout('providence', () => 0.5)` — the second parameter is a
+     `saveSeed: string`, not a function — which silently produced a degenerate
+     1-doorway, 6m layout instead of a city. It is now the real city ids from
+     `cities.json` with the capture rig's own seed, and the smallest city is
+     resolved from the ruleset rather than assumed, because the smallest city
+     is the binding case for cell size and New York is not.
+   - The capture gate earned its place a third time: an intermediate build
+     referenced an identifier that had been dropped in a refactor, and the gate
+     reported `arena BLANK-FRAME ... decalsInCells is not defined` rather than
+     shipping a broken screen.
+   - VERIFIED: tsc clean, 67 files / 1439 tests (6 new), 2 browser tests, build
+     clean (`index-SZR-64oQ.js`), `.shots/iter82` = 8 screens / 0 problems.
+     City spread 65.99 -> 66.65 with luma 93.34 -> 93.18, so the stains add
+     structure and take almost nothing off the mean. Every other screen
+     byte-identical.
