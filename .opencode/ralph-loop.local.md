@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 45
+iteration: 46
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9367,4 +9367,114 @@ that should have worked and did not.
   production; so is the constant a guard declares.** The only version that works
   is the one that imports the value under test and asserts a property derived
   from production's own data — everything else is a second copy that agrees with
-  itself.
+  itself.## Iteration 145 — the head-on formula is NOT a balance tradeoff. It is a standoff, and iteration 140's framing was wrong
+
+Iteration 140 deferred the closing-speed formula as a design call with measured
+costs on both sides, and named the one gap it had not filled: "the mechanism is
+probably that a head-on meeting which previously cost nothing now stops and
+damages both cars, changing every opponent's approach, but that was NOT chased
+and is not claimed." That is a MEASUREMENT gap wearing a design decision's
+clothes, and a deferred item that is really an unmeasured mechanism is not a
+decision — it is a question. This round chased it. **No code ships**, because
+chasing it refuted the framing AND the first fix hypothesis.
+
+- **THE PARADOX THAT SAYS THE FRAMING IS WRONG, BEFORE MEASURING ANYTHING.**
+  `applyCollision` (`src/sim/driving.ts:278`) is
+  `Math.max(0, armorDP.FRONT - 1)` with **no overflow to weapon, plant or
+  driver** — `armorLossPoints: 1`, `armorLossFacing: "FRONT"`, and a `return` the
+  moment the facing is already 0. So the corrected formula can only ever strip
+  MORE FRONT armor than the broken one, and FRONT armor is the FIRST system in
+  `applyPenetratingDamage`'s overflow chain (armor -> weapon -> plant -> driver).
+  Stripping it sooner must make the player MORE killable, not immortal. The
+  recorded consequence — passive player alive at tick 96,000 against a
+  documented 2,863 — is backwards on the arithmetic alone, and a number that
+  contradicts the mechanism is evidence about the measurement.
+
+- **SO I MEASURED THE REAL PIPELINE, NOT A SIDE PROBE.** Iteration 141's lesson
+  is that a probe which is not the pipeline proves nothing, so the instrumentation
+  went INTO the existing death test: checkpoints on the live `advanceTo` loop
+  reading the real HUD — hostile-contact count and positions, every `data-state`
+  in the condition panel, and the speed dial. The corrected formula was applied
+  (`|dot(v_a,n) - dot(v_b,n)|` with `v = speedMps * (cos h, sin h)`), tsc clean.
+
+  THE TRACE, with the corrected formula:
+      t=1000   5 contacts   all armor=ok
+      t=2000   5 contacts   all armor=ok
+      t=3000   2 contacts   one armor=critical
+      t=4000   2 contacts   unchanged
+      t= 6000  2 contacts   unchanged
+      t=10000  2 contacts   unchanged
+      t=20000  2 contacts   unchanged
+      t=40000  2 contacts   unchanged      <- FLAT
+  Three opponents die between t=2000 and t=3000, and then **nothing changes for
+  37,000 ticks**. The player's armor is frozen at `critical`, the plant and driver
+  are `ok`, and the last two opponents sit at `(0.012,-0.019)` and `(-0.011,-0.020)`
+  — parked, unmoved, not firing, indefinitely.
+
+- **THE CONTROL, AND IT IS THE PART THAT SETTLES IT.** The same instrument with
+  the formula REVERTED:
+      t=1000   5 contacts   (0.010,0.020)(-0.015,0.014)(-0.008,-0.018)(0.023,-0.016)(0.029,0.006)
+      t=2000   5 contacts   (0.020,0.017)(-0.016,0.011)(-0.002,-0.018)(0.019,-0.017)(0.030,-0.002)
+      t=3000   0 contacts   dial=-        <- the arena screen is GONE
+  **The first 2000 ticks are IDENTICAL — same five contacts, same coordinates,
+  on both formulas.** So the formula changes essentially nothing about the early
+  fight; it only decides who is standing there at t=2000. With the broken
+  formula the player dies at 2863 and the match resolves. With the correct one,
+  three opponents die in the pile-up and two are left unable to finish a
+  stationary target. **This is not a rebalanced fight. It is a different
+  terminal state, reached from an identical opening.**
+
+- **AND THE STANDOFF HAS A NAME AND A MECHANISM, WHICH IS THE ACTUAL DELIVERABLE.**
+  The AI gates firing on `minRangeM` at `ai.ts:407` (`distance >= def.minRangeM`),
+  and the surviving pair sit ~3.7m out (the face maps `radar.visualRangeM` 160m to
+  the unit disc, so 0.020 and 0.011 are ~3.2m and ~1.8m). Inside minimum range
+  no mount can fire, and the two are not moving — their radar positions are
+  static to three decimals across 37,000 ticks, so they are not even OVERLAPPING
+  and the 0.4m separation nudge is not being applied to them at all. They are
+  simply parked at a range from which they cannot shoot, indefinitely.
+  So "correcting the formula makes the player immortal" was never a balance
+  property. It is **an AI standoff that the corrected formula makes reachable**,
+  because with real ramming damage the opponents close to contact range in the
+  first place, and a car that reaches a distance it cannot shoot from has made
+  its own deadlock permanent.
+
+- **MY FIRST FIX WAS `pursueNode`, IT IS CORRECTLY DOCUMENTED AS WRONG, AND THE
+  MEASUREMENT REFUTED IT.** `pursueNode`'s docblock reads "Nothing usable to
+  fight with yet — close the distance", and its sibling `bestUsableWeaponRangeM`
+  states the assumption outright: "no such weapon (nothing usable to fight with
+  at range at all, in which case closing to ram is always the right call, **at any
+  distance**)". That is right for "too far" and catastrophically wrong for "too
+  close" — the AI's own `inRange` test has already decided nothing can fire, and
+  closing is a positive feedback loop into the standoff. So I added
+  `widestUsableMinRangeM` and made `pursueNode` retreat when the target is
+  inside minimum range, reading `minRangeM` off the AI's own weapons.
+  **It changed nothing: byte-identical trace, same two blips, same frozen armor.**
+  Those two opponents are not on `pursueNode`. The node is unidentified, and an
+  unexercised AI change is an unproven one, so it is REVERTED — iteration 139's
+  rule, verbatim: a change justified by a refuted premise, which changes nothing,
+  does not ship just because it is in production code. The reverted diff is the
+  useful part, because it is a falsified hypothesis with the reasoning intact.
+
+- **SO THE ITEM IS NOT A DESIGN CALL AND NEVER WAS, AND THAT IS WHAT CHANGED.**
+  Iteration 140 recorded it as a balance tradeoff between "correct physics" and
+  "a player can die", quoted a number, and deferred. The number was never a
+  balance measurement — it was a deadlock being read as an outcome, and the
+  control above is what separates the two: an identical opening and a different
+  terminal state is a bug signature, not a tuning curve. The formula is
+  arithmetically correct and stays unshipped only because the standoff it exposes
+  is a real regression that must be fixed first. **The queue item has changed
+  from "decide a tradeoff" to "find the node the two stuck opponents are
+  running", which is a bounded question with a named instrument.**
+
+- **GATE.** Nothing shipped: `src/app.ts`, `src/sim/ai.ts` and the instrumented
+  test are all back to `161a8c7`, `git status` clean apart from this log. tsc
+  clean. `ai.test.ts` + `arena-auto-end` + `arena-victory` **68/68**. Build hash
+  unchanged at `index-CySPMTVi.js`, so nothing to deploy.
+
+- **NEXT, and it is a specific probe rather than a redesign.** Read the exported
+  AI node registry (`ai.ts` exports it "so a test can assert exactly which node
+  a...") against the live world at t=4000 and name the node the two stuck
+  opponents are actually running. Everything else about the standoff is already
+  measured: range ~3.7m, inside minimum range, static, not firing, not
+  overlapping, identical opening to the working build. The one thing missing is
+  the name of the behaviour, and that is what this round could not reach.
