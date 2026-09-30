@@ -7005,3 +7005,23 @@ was unnecessary: the arena was mounting perfectly well the whole time.
 - NEXT. Live-verify in a real browser (Escape → Controls → Escape lands on a
   live match, HUD present, odometer moving), then move the hardcoded `J`/`F`
   Journal/Fleet shortcuts into `rulesets/classic/controls.json`.
+
+- LIVE-VERIFIED, IN REAL CHROME. Added `tests/browser/controls-round-trip.test.ts`
+  as a permanent gate. It runs the shipped bundle under `vite preview` in real
+  Chrome with real WebGPU, does Escape → click Controls → Escape, and asserts
+  no menu is mounted inside the arena, the HUD dial exists, and the dial then
+  MOVES. Proven to bite: removing the `aimedAtMenu` arm fails it in the browser
+  with the same message the happy-dom tests produce, which is the first time
+  this defect has been reproduced outside a synthetic DOM.
+  7 browser tests pass.
+
+- DEPLOY: release `20260930073500-9b81404`, bundle `index-B6DxJE9b.js`, live
+  hash matches local, whole site 200 on `/`, `/smduel/`, `/last-engineer/` and
+  `/shoplifter/`.
+
+- MISTAKE WORTH RECORDING: I ran `/tmp/deploy2.sh` LOCALLY first. It is a REMOTE
+  script — it reads `/tmp/smduel-dist` and `/var/www/arcade.shoemoney.com`,
+  which do not exist on this Mac, so `set -e` killed it on the `readlink` and it
+  printed nothing at all. A deploy that produces zero output is not a deploy
+  that succeeded quietly; it is a deploy that never ran. The live hash check is
+  what caught it, which is the only reason it was caught.
