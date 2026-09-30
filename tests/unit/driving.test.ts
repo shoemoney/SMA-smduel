@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import couriersJson from '@rulesets/classic/couriers.json';
+import encountersJson from '@rulesets/classic/encounters.json';
+
 import { accelerationTiers, allBodies, allPlants, citiesConfig, drivingConfig, getBody, getPlant, getTire, skillsConfig } from '@/data/rulesets';
 import { makeArmorRecord } from '@/sim/types';
 import type { TireDPTuple, VehicleDesign, VehicleState } from '@/sim/types';
@@ -583,5 +586,126 @@ describe('battery range is reconciled against route length', () => {
       .filter((r) => r.lengthMiles > best)
       .map((r) => `${r.id} (${r.lengthMiles}mi)`);
     expect(unreachable, `routes beyond even the best car: ${unreachable.join(', ')}`).toEqual([]);
+  });
+});
+
+/**
+ * WORLD SCALE — the four per-mile axes, and why they are one edit and not four.
+ *
+ * The pacing item has been deferred four times (iterations 96, 97, 102, 105) as
+ * "a decision, not a defect". This block is that decision, taken. It rescales
+ * the road so a leg is drivable in the ~20 minutes a reviewer independently
+ * asked for, and it does so by dividing the ROUTE TABLE by 5 — which is
+ * arithmetic on a number the player reads off the HUD, and therefore honest:
+ * the odometer still counts real miles, the car still drives 70mph, and the
+ * highway is simply shorter. Iteration 97 recorded that the alternative levers
+ * (compressing the odometer) cost a 26-64x lie "in one direction or the other";
+ * this is that other direction, and it is the one that lies about nothing.
+ *
+ * BUT a route table is not one number. Three other ruleset values are QUOTIENTS
+ * PER MILE, so dividing the routes by 5 without touching them does not "make the
+ * world smaller" — it makes the world smaller AND rebalances four subsystems in
+ * whichever direction they were left in:
+ *
+ *   routes.lengthMiles            /5   the thing being rescaled
+ *   battery.movementDrainPerMileBase  x5   else the battery stops mattering
+ *   encounters.spawnsPerHundredMiles  x5   else every leg loses ~79% of its fights
+ *   couriers.payWeightPerMile     x5    else every job pays a fifth as much
+ *
+ * The 79% figure is measured, not asserted, and it is NOT the 1/k^2 = 96% that
+ * iteration 102's table predicted for a routes-only shrink: `spawnBudget` is a
+ * per-leg CAP, so on a 25-mile route the cap rather than the density is what
+ * decides most fights. That is the coupling trap in its precise form — a
+ * half-made version of this edit does not merely shift balance, it deletes four
+ * fifths of the road's content while every existing test still passes.
+ *
+ * So the guard below pins FIVE quantities, all derived from the real rulesets:
+ * the one thing that is SUPPOSED to change (real minutes per leg), and the four
+ * things that must not (battery per leg, legs per charge, fights per leg,
+ * courier pay per leg). The four baselines are measured from the tables, not
+ * chosen — they are what the game played like before, which is exactly the
+ * claim worth preserving.
+ */
+describe('world scale: the per-mile axes stay coupled to the route table', () => {
+  /** Every per-leg quantity, computed from the shipped rulesets. */
+  function scale() {
+    const routes = citiesConfig().routes;
+    const meanMiles = routes.reduce((s, r) => s + r.lengthMiles, 0) / routes.length;
+    const topSpeeds = allPlants().map((p) => p.topSpeedMph);
+
+    const bat = drivingConfig().battery;
+    const ratios: number[] = [];
+    for (const b of allBodies()) for (const p of allPlants()) ratios.push(b.weightLb / p.power);
+    const drains = ratios.map(
+      (r) => bat.movementDrainPerMileBase * (1 + bat.weightPowerRatioScale * r) * (1 + bat.speedFractionScale),
+    );
+    const worstDrain = Math.max(...drains);
+
+    const encounters = encountersJson.dangerLevels;
+    const fights = routes.reduce((s, r) => {
+      // `danger` is a 0-4 index into the shipped danger table, but TypeScript
+      // cannot know that from the RouteDef shape alone.
+      const tier = encounters[r.danger];
+      if (!tier) throw new Error(`encounters.json has no danger level ${r.danger}`);
+      return s + Math.min(tier.spawnsPerHundredMiles * (r.lengthMiles / 100), tier.spawnBudget);
+    }, 0);
+
+    const gen = couriersJson.generation;
+    return {
+      meanMiles,
+      slowestMinutes: (meanMiles / Math.min(...topSpeeds)) * 60,
+      fastestMinutes: (meanMiles / Math.max(...topSpeeds)) * 60,
+      batteryPoints: worstDrain * meanMiles,
+      legsPerCharge: bat.full / worstDrain / meanMiles,
+      fightsPerLeg: fights / routes.length,
+      courierPay: gen.payWeightPerMile * meanMiles,
+    };
+  }
+
+  /**
+   * Within 2%. Every invariant below is EXACTLY preserved by the rescale, so a
+   * tight band would pass — but these are game-feel quantities, not byte
+   * hashes, and a 2% band says "this is still the same game" rather than
+   * pinning a float. It is four times tighter than any single reverted axis
+   * moves (reverting one is a 4.8-5x shift), so half-made edits cannot hide.
+   */
+  function expectUnchanged(what: string, actual: number, before: number) {
+    const drift = Math.abs(actual - before) / before;
+    expect(drift, `${what} drifted ${(drift * 100).toFixed(1)}% from its pre-rescale value (${before.toFixed(2)} -> ${actual.toFixed(2)}) — one of the four per-mile axes is not coupled to the route table`).toBeLessThan(0.02);
+  }
+
+  it('makes a leg drivable — the ONE quantity this edit exists to change', () => {
+    const { slowestMinutes, fastestMinutes } = scale();
+    // The band is bracketed at BOTH ends and derived from the shipped plants
+    // rather than typed, because top speed is a per-plant property: `small`
+    // tops out at 70mph and is the plant a new driver starts on, which is
+    // exactly the car Codex drove when it measured 129 minutes and asked for
+    // ~20-25. Lower-bound the SLOWEST case so a further rescale cannot shrink a
+    // leg past the point where its encounters fit, and upper-bound the fastest
+    // so no plant is handed a leg too long to sit through.
+    expect(
+      slowestMinutes,
+      `the slowest shipped plant covers a mean leg in ${slowestMinutes.toFixed(1)} real minutes — that is the starting car, and Codex asked for ~20-25`,
+    ).toBeGreaterThanOrEqual(18);
+    expect(
+      fastestMinutes,
+      `the fastest shipped plant covers a mean leg in ${fastestMinutes.toFixed(1)} real minutes; nothing should exceed ~25`,
+    ).toBeLessThanOrEqual(26);
+  });
+
+  it('keeps the battery a per-leg constraint (measured 47.28 pts/leg before)', () => {
+    expectUnchanged('battery points per leg (worst build)', scale().batteryPoints, 47.28);
+  });
+
+  it('keeps the worst build at ~2.1 legs per charge (measured 2.09 before)', () => {
+    expectUnchanged('legs per charge (worst build)', scale().legsPerCharge, 2.09);
+  });
+
+  it('keeps the fights every leg used to carry (measured 3.05 before)', () => {
+    expectUnchanged('fights per leg', scale().fightsPerLeg, 3.05);
+  });
+
+  it('keeps a courier job paying the same (measured $400/leg before)', () => {
+    expectUnchanged('courier distance pay per leg', scale().courierPay, 400);
   });
 });

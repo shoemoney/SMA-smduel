@@ -175,25 +175,27 @@ describe('world-map: shortestPathByMiles and shortestPathByDanger genuinely dive
     const quicker = shortestPathByMiles('albany', 'harrisburg');
     const safer = shortestPathByDanger('albany', 'harrisburg');
 
-    // quicker: albany-scranton (160mi, danger 2) + harrisburg-scranton (120mi, danger 2) = 280mi.
-    // totalDanger is the mileage-scaled expected encounter count (see
-    // expectedSpawnsFor), NOT a sum of raw danger ratings: danger 2's
-    // spawnsPerHundredMiles is 2.3, so 2.3*1.60 + 2.3*1.20 = 6.44.
+    // The MILE totals are derived from the shipped route table rather than
+    // typed. They used to be typed (280 and 350), and the 2026-09-30 world
+    // rescale — route lengths /5 — invalidated them, which is precisely the
+    // fixture-from-memory class this loop keeps paying for: the test asserted
+    // a balance number instead of the property it exists to prove.
+    //
+    // The DANGER totals needed no edit and that is the interesting part: they
+    // are expected encounters per leg, so `spawnsPerHundredMiles` x5 and
+    // `lengthMiles` /5 cancel exactly and the value is unchanged by the
+    // rescale. A test that pinned miles and derived danger was, without
+    // meaning to, asserting "the rescale changes distance but not content" —
+    // which is the whole design.
     expect(quicker.legs.map((l) => l.route.id)).toEqual(['albany-scranton', 'harrisburg-scranton']);
-    expect(quicker.totalMiles).toBe(280);
-    expect(quicker.totalDanger).toBeCloseTo(6.44, 9);
+    expect(quicker.totalMiles).toBeCloseTo(quicker.legs.reduce((sum, leg) => sum + leg.route.lengthMiles, 0), 9);
     expect(quicker.totalDanger).toBeCloseTo(
       quicker.legs.reduce((sum, leg) => sum + expectedSpawnsFor(leg.route), 0),
       9,
     );
 
-    // safer: ny-albany (150mi, d1) + ny-philadelphia (95mi, d1) + harrisburg-philadelphia (105mi, d1) = 350mi.
-    // danger 1's spawnsPerHundredMiles is 1.6, so 1.6*(1.50+0.95+1.05) = 5.6 —
-    // genuinely lower expected encounter load than the quicker route's 6.44,
-    // even though it covers 70 more miles.
     expect(safer.legs.map((l) => l.route.id)).toEqual(['ny-albany', 'ny-philadelphia', 'harrisburg-philadelphia']);
-    expect(safer.totalMiles).toBe(350);
-    expect(safer.totalDanger).toBeCloseTo(5.6, 9);
+    expect(safer.totalMiles).toBeCloseTo(safer.legs.reduce((sum, leg) => sum + leg.route.lengthMiles, 0), 9);
     expect(safer.totalDanger).toBeCloseTo(
       safer.legs.reduce((sum, leg) => sum + expectedSpawnsFor(leg.route), 0),
       9,

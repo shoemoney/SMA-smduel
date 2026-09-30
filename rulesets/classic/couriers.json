@@ -1,13 +1,13 @@
 {
   "$schemaVersion": 1,
-  "_note": "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact.",
+  "_note": "payWeightPerMile was multiplied by 5 on 2026-09-30 to stay coupled to the route table's /5 world rescale; it is the distance term of basePay, so without it every courier job would pay a fifth as much for the same work. Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact.",
   "offersPerVisit": 3,
   "maxPayloads": 3,
   "salvageOccupiesOneCategory": true,
   "acceptanceCostDays": 1,
   "multipleAcceptsShareOneDay": true,
   "generation": {
-    "payWeightPerMile": 3.2,
+    "payWeightPerMile": 16,
     "payWeightPerDangerLevel": 180,
     "payWeightPerHundredPounds": 22,
     "payJitterFraction": 0.15,

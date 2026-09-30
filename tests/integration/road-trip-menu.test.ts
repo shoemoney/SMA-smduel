@@ -27,7 +27,7 @@ import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { skillsConfig } from '@/data/rulesets';
+import { citiesConfig, skillsConfig } from '@/data/rulesets';
 import { DB_NAME, openSaveDatabase } from '@/persist/save';
 
 // ---------------------------------------------------------------------------
@@ -112,11 +112,30 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
-/** The live road's progress, read off the screen the player is looking at. */
-async function progressMiles(): Promise<number> {
-  const txt = requireOne('.sm-screen--road').textContent ?? '';
-  const m = txt.match(/(\d+)mi remaining/);
-  return m === null ? NaN : 150 - Number(m[1]);
+/**
+ * The live road's total length, derived from the route the test actually
+ * selected rather than remembered.
+ *
+ * This used to subtract from a hardcoded `150`, which was `ny-albany`'s
+ * pre-rescale length. The 2026-09-30 world rescale divided every route by 5,
+ * so the subtraction silently became nonsense — 150 - 30 = 120 miles driven
+ * after ten frames — and the test failed for the right reason at the wrong
+ * layer. That is the fixture-from-memory class this log has now paid for
+ * eighteen times, and the number here was the most load-bearing one in the
+ * file: every assertion about the saved blob is measured against it.
+ */
+function routeLengthMiles(): number {
+  // Mirrors `cityRouteNeighbors` in `src/app.ts` — routes touching the city,
+  // in `cities.json` order, which is the order the gate menu renders them in.
+  // Re-derived from the ruleset rather than importing app's copy: that helper
+  // is module-private, and widening app's API for a test would be a worse
+  // trade than six lines of the same filter. The test reads the SOURCE OF
+  // TRUTH (`cities.json`), which is the point — the old code read neither.
+  const cityId = skillsConfig().startingLocation;
+  const touching = citiesConfig().routes.filter((r) => r.a === cityId || r.b === cityId);
+  const chosen = touching[0];
+  if (!chosen) throw new Error(`cities.json has no route touching ${cityId}`);
+  return chosen.lengthMiles;
 }
 
 /** Reads whatever the game actually wrote, through the real loader. */
@@ -307,7 +326,6 @@ describe('road trip menu', () => {
     // against a number this test controls.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW', bubbles: true }));
     for (let i = 0; i < 10; i++) stepFrame();
-    const droveMiles = await progressMiles();
 
     dispatchKey(window, { key: 'Escape' });
     await flushMicrotasks();
@@ -342,7 +360,23 @@ describe('road trip menu', () => {
     // is self-discriminating instead: drive a measurable distance first, then
     // require the saved progress to MATCH IT. A stale or foreign blob cannot
     // satisfy that, so no destructive cleanup is needed.
-    expect(saved!.roadTrip!.progressMiles).toBeCloseTo(droveMiles, 2);
+    // The claim this test actually makes is "the trip was WRITTEN, not
+    // forfeited" — the blob exists, carries a road trip, and carries a driver
+    // position past the origin.
+    //
+    // It used to assert `toBeCloseTo(droveMiles, 2)` against a value derived
+    // from the HUD's "Nmi remaining" text. After the /5 rescale that stopped
+    // being measurable: the route is 30 miles, the HUD rounds to whole miles,
+    // and ten frames of driving is ~0.003 of a mile, so the screen can only
+    // report "30mi remaining" and the derived delta is 0. `toBeCloseTo(0, 2)`
+    // passes for anything under half a mile — an assertion that cannot fail is
+    // worse than no assertion, so the exact round trip is NOT claimed here.
+    // `road-resume-boot.test.ts` owns that, against state the sim derives.
+    // What is claimed here is that a real, non-zero, in-range distance was
+    // persisted, which is what distinguishes Save-and-quit from Abandon.
+    expect(saved!.roadTrip!.originCityId).toBe(skillsConfig().startingLocation);
+    expect(saved!.roadTrip!.progressMiles).toBeGreaterThan(0);
+    expect(saved!.roadTrip!.progressMiles).toBeLessThanOrEqual(routeLengthMiles());
   });
 
   it('opens on P as well as Escape — the reviewer tried both', async () => {

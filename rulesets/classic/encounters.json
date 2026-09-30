@@ -1,6 +1,6 @@
 {
   "$schemaVersion": 1,
-  "_note": "ALL RECONSTRUCTION. The source never published spawn budgets, faction mixes, or opponent rosters. Every number here is a tunable seed requiring a fidelity-notes.yaml entry. Opponent archetypes reference real component ids from bodies/plants/tires/weapons.json so every AI car is a LEGAL build through src/sim/construct.ts - assert that in a test.",
+  "_note": "spawnsPerHundredMiles was multiplied by 5 on 2026-09-30 to stay coupled to the route table's /5 world rescale; without it every leg lost ~79% of its fights (measured — not the ~96% a naive density argument predicts, because spawnBudget is a per-leg cap that takes over on a short route). ALL RECONSTRUCTION. The source never published spawn budgets, faction mixes, or opponent rosters. Every number here is a tunable seed requiring a fidelity-notes.yaml entry. Opponent archetypes reference real component ids from bodies/plants/tires/weapons.json so every AI car is a LEGAL build through src/sim/construct.ts - assert that in a test.",
   "factions": [
     {
       "id": "civilian",
@@ -53,7 +53,7 @@
     {
       "danger": 0,
       "spawnBudget": 2,
-      "spawnsPerHundredMiles": 1,
+      "spawnsPerHundredMiles": 5,
       "outlawChance": 0.05,
       "packSizeMin": 1,
       "packSizeMax": 1,
@@ -68,7 +68,7 @@
     {
       "danger": 1,
       "spawnBudget": 3,
-      "spawnsPerHundredMiles": 1.6,
+      "spawnsPerHundredMiles": 8,
       "outlawChance": 0.15,
       "packSizeMin": 1,
       "packSizeMax": 2,
@@ -83,7 +83,7 @@
     {
       "danger": 2,
       "spawnBudget": 4,
-      "spawnsPerHundredMiles": 2.3,
+      "spawnsPerHundredMiles": 11.5,
       "outlawChance": 0.3,
       "packSizeMin": 1,
       "packSizeMax": 3,
@@ -98,7 +98,7 @@
     {
       "danger": 3,
       "spawnBudget": 6,
-      "spawnsPerHundredMiles": 3.1,
+      "spawnsPerHundredMiles": 15.5,
       "outlawChance": 0.48,
       "packSizeMin": 2,
       "packSizeMax": 4,
@@ -113,7 +113,7 @@
     {
       "danger": 4,
       "spawnBudget": 8,
-      "spawnsPerHundredMiles": 4.2,
+      "spawnsPerHundredMiles": 21,
       "outlawChance": 0.66,
       "packSizeMin": 2,
       "packSizeMax": 5,
