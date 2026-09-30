@@ -6279,3 +6279,166 @@ ITERATION 105 — AGENTS.md, a fresh review, and the two defects it found
   open item and is still a decision rather than a defect; a reviewer has now
   independently landed on the same target. The "surface a failed save" message
   (93) and the unbuilt on-foot mode (99) are smaller and unstarted.
+ITERATION 106 — the pacing decision, taken. The largest open item in the log,
+deferred four times (96, 97, 102, 105) as "a design decision, not a defect",
+against `AGENTS.md`'s rule that the same item is not deferred twice.
+- **AND THE DECISION IS SMALLER THAN FOUR ROUNDS OF DEFERRAL IMPLIED.** The
+  honest lever was always the route table, and the reason it kept looking unsafe
+  was that I kept reasoning about ONE number. It is four.
+
+  **WHY ROUTES ARE THE HONEST LEVER.** The road simulates literal miles at
+  literal speed, so a 125-mile mean leg took 107 real minutes. Iteration 97
+  established both available levers cost a 26-64x lie "in one direction or the
+  other". Dividing the ROUTE TABLE is that other direction, and it is arithmetic
+  on a number the player reads off the HUD: the odometer still counts real
+  miles, the car still drives at its plant's top speed, and the highway is
+  simply shorter. Nothing is compressed and nothing is renamed.
+      mean leg      125.0 mi -> 25.0 mi
+      real minutes  107.1    -> 21.4  (at the 70mph starting car)
+  21.4 lands inside the ~20-25 minute band Codex asked for, measured off the
+  same rig it drove when it reported 129.
+
+- **A ROUTE TABLE IS NOT ONE NUMBER, AND THAT IS THE ACTUAL RISK.** Three other
+  shipped values are QUOTIENTS PER MILE, so dividing the routes alone does not
+  "make the world smaller" — it makes the world smaller AND silently rebalances
+  three subsystems toward whatever they were left in:
+      cities.routes[].lengthMiles                 /5   the thing being rescaled
+      driving.battery.movementDrainPerMileBase    x5   else the battery stops mattering
+      encounters.dangerLevels[].spawnsPerHundredMiles x5 else every leg loses its fights
+      couriers.generation.payWeightPerMile        x5   else every job pays a fifth
+  **TWO OF THOSE THREE HAD NEVER BEEN LISTED AS CONSUMERS OF `lengthMiles`
+  BEFORE THIS ROUND.** The battery one was known from iteration 96. The COURIER
+  one is new: `basePay = lengthMiles * payWeightPerMile + danger * ...`, so it
+  is money the player is shown, and leaving it would have cut courier income 5x
+  in silence with a green suite. That is the finding underneath the finding —
+  grepping for consumers is not optional diligence, it is how a one-number
+  change becomes safe, and I had been treating the battery as the only one.
+
+  Everything else is either invariant or unread, and each was CHECKED rather
+  than assumed: `radar.rangeMiles` has no consumer in `src/` at all (SPEC
+  fidelity only, so it was left alone); `daysPerMile()` re-derives from the
+  route MEAN, so calendar days per leg are unchanged by construction;
+  `pursuitLevel` comes from the campaign quest and is per-ROUTE, not per-mile;
+  and `dijkstra(from, r => r.lengthMiles)` ranks identically under a uniform
+  scale, so world-map routing is untouched.
+
+- **MEASURED AFTER, and the point of doing it this way is that the four things
+  the game is made of do not move:**
+      battery points/leg  47.28 -> 47.28    legs/charge   2.09 -> 2.09
+      fights/leg          3.05 ->  3.05    quality grad  3.08 -> 3.08
+      courier pay/leg   $400   -> $400      reconciliation headroom 1.091 -> 1.091
+
+- **THE FIGHT NUMBER IS A CORRECTION TO ITERATION 102, MEASURED ON THE REAL
+  TABLE RATHER THAN DERIVED.** Shrinking routes WITHOUT raising density costs
+  **79%** of the road's content, not the ~96% that iteration's table predicted
+  for a routes-only shrink. The reason is `spawnBudget`: it is a per-leg CAP,
+  so on a 25-mile route the cap rather than the density decides most fights, and
+  the cap does not shrink. So a half-made version of this edit would delete four
+  fifths of the road while every pre-existing test still passed — which is a
+  sharper statement of the coupling trap than iteration 102 managed, and it came
+  from reading the table instead of modelling it.
+
+- **FIVE GUARDS, EACH PROVEN BY REVERTING ITS OWN AXIS AND NOTHING ELSE.**
+  Writing the test is not the same as knowing it works, so every one was
+  mutation-checked against the specific quantity it owns:
+      lengthMiles /5              -> pacing + battery + legs/charge + fights
+      spawnsPerHundredMiles x5    -> fights ONLY
+      movementDrainPerMileBase x5 -> battery + legs/charge ONLY
+      payWeightPerMile x5         -> courier pay ONLY
+  The four baselines are MEASURED from the tables and quoted in the failure
+  message, so a future drift names the axis and the magnitude rather than a
+  float. They are the four pre-existing balance numbers this round had to keep.
+
+- **AND THE GUARD ITSELF CAUGHT MY OWN HARD-CODING TWICE, which is the part
+  worth reading.** The new test failed at 83.3 real minutes, not the 107.1 my
+  scratch script had said, because the script TYPED 70mph and the test DERIVES
+  `topSpeedMph` per plant — and the fastest shipped plant is 90. That is
+  `AGENTS.md`'s "derive values from the ruleset, never type them" catching the
+  person who wrote that rule, in the same round it was added. The band is now
+  bracketed at both ends from the shipped plants, and it is anchored on the
+  SLOWEST because that is both the worst case and the starting car's.
+
+- **TWO STALE FIXTURES, both load-bearing, both the fixture-from-memory class:**
+  - `world-map.test.ts` asserted TYPED mile totals (280, 350) alongside derived
+    danger. The danger total needed no edit at all, and that is the interesting
+    half: it is expected encounters per leg, so density x5 and length /5 cancel
+    exactly. The test was, without meaning to, already asserting "the rescale
+    changes distance but not content" — which is the entire design. Both totals
+    now derive from the legs, and the loosened test was re-proven against the
+    bug its own comment names: a Dijkstra that silently ranks by `lengthMiles`
+    still fails it, twice.
+  - `road-trip-menu.test.ts` subtracted from a hardcoded `150`, so after the
+    rescale it computed 120 miles driven following ten frames of input. Now
+    derived from `cities.json` by the same filter app's private
+    `cityRouteNeighbors` uses — re-derived from the source of truth rather than
+    widening app's API for a test.
+  **AND THE SECOND ONE HAD TO STOP CLAIMING SOMETHING IT CAN NO LONGER
+  MEASURE.** Its load-bearing assertion was
+  `expect(saved.roadTrip.progressMiles).toBeCloseTo(droveMiles, 2)` against a
+  value derived from the HUD's "Nmi remaining" text. On a 30-mile route the HUD
+  rounds to whole miles and ten frames is ~0.003 of a mile, so the screen can
+  only ever say "30mi remaining", the derived delta is 0, and
+  `toBeCloseTo(0, 2)` passes for ANYTHING under half a mile. An assertion that
+  cannot fail is worse than no assertion, so it now claims what is actually
+  true — a real, non-zero, in-range distance was persisted, which is what
+  distinguishes Save-and-quit from Abandon — and `road-resume-boot.test.ts`
+  keeps owning the exact round trip against state the sim derives. Three
+  mutations confirm the replacement is load-bearing: no `roadTrip` written,
+  `progressMiles: 0`, and a wrong `originCityId` each fail it, the first of them
+  the abandon-path mutation the ORIGINAL assertion was specifically written to
+  catch.
+
+- GATE: tsc clean, 69 files / 1505 tests, 2 failures — all `screens.test.ts`,
+  measured IDENTICAL on stashed master (1 isolated, 2 in-suite), so pre-existing
+  cross-file pollution rather than this change. 5 browser tests pass. Build
+  `index-BpLOrMO1.js`. `.shots/iter106` = 8 screens / 0 problems, every screen
+  byte-identical to iteration 105 except road (74.29 vs 74.34) — and that 0.05
+  is the control, not a null result: iteration 92 measured that DOM text moves
+  no pixel statistic, so the banner was CROPPED AND READ rather than trusted:
+  "En route to Albany · 30mi remaining · Day 0, daytime".
+
+- DEPLOY: release `20260930053000-51e603f`, bundle `index-BpLOrMO1.js`.
+  Whole-site snapshot, atomic swap, root + smduel 200, live bundle hash equals
+  the local build's, 0 console errors. LIVE reads "En route to Albany ·
+  30mi remaining".
+
+  **AND THE COUPLED SET IS VERIFIED IN THE SERVED BUNDLE RATHER THAN IN THE
+  SOURCE**, because the whole risk of this edit is that three of its four axes
+  ship and one does not — a half-measure that is green in every test this repo
+  has. Grepping the deployed `index-BpLOrMO1.js`:
+      movementDrainPerMileBase:.3      (was .06 — 0 occurrences of the old)
+      payWeightPerMile:16              (was 3.2)
+      spawnsPerHundredMiles: 5, 8, 11.5, 15.5, 21   (was 1, 1.6, 2.3, 3.1, 4.2)
+      lengthMiles: 22 distinct values, ZERO 3-digit values remaining
+  The absent values are the evidence: an old value still present anywhere would
+  mean a mixed table, and "did the old number disappear" is a stronger check
+  than "did the new number appear".
+
+  **WHAT I DID NOT VERIFY, stated rather than implied:** that a full 30-mile leg
+  COMPLETES in production. That drive is ~26 real minutes, longer than a browser
+  session this loop can hold open. The claim rests on the reconciliation test
+  (worst build's range >= longest route, 1.091x headroom, invariant under this
+  edit) plus the shipped constants above — arithmetic and bundle evidence, not
+  a driven arrival. Also note the live battery readout stays at 100% through a
+  6-second drive, which is CORRECT and not a broken instrument: at the new drain
+  6 seconds is ~0.12 of 30 miles, about 0.1 of 99 battery points, and the HUD
+  shows integers.
+
+- **WHAT CHANGED ABOUT HOW THE LOG READS NOW.** Four iterations recorded this
+  as a decision with "measured costs on both sides" and then declined to take
+  it, which is the same failure in a new costume as writing a finding down and
+  not executing it. The thing that would have broken the tie is that I never
+  grepped for the consumers of the number I wanted to change — the courier pay
+  term is a two-line discovery that four rounds of deferral did not surface. The
+  lesson generalises past pacing: before treating a balance number as one
+  number, `grep -rn` for what reads it. Iteration 93 found the save schema by
+  grepping; iteration 106 found a fifth consumer the same way. The deferral
+  itself was the bug, not the diff.
+
+- NEXT. The remaining open items are the unbuilt on-foot mode (99 — a feature,
+  not a wire) and the persistent "surface a failed save" message (93). Both are
+  now unblocked by cheap prerequisites that did not exist when they were
+  queued: abandoning on foot is no longer a total loss of the run (iteration
+  103 gave the trip a save point), and the save path that 93 was about no longer
+  fails (iteration 93's schema fix), so what is left is the quota path. A fresh
+  Codex review is the next reviewer in the cycle.
