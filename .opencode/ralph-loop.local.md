@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 28
+iteration: 29
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -7635,3 +7635,147 @@ nothing left to draw.
   honest compression costs a lie in one direction or the other), and **#4** the
   Federal Building's missing service, which is authored content rather than a
   defect and is the same item iteration 98 marked closed-on-approach.
+## ITERATION 120 — the worst defect in the log, found by the reviewer and CONFIRMED by reading its own evidence frame
+
+Review `.opencode/reviews/codex-20260930-100810.md` (4103 bytes, 2 attempts — the
+first hit the OpenRouter rate limit the harness already backs off), foreground,
+`REVIEW-VERDICT: 3`. It navigated all three gameplay screens at 2400x2020 DPR 2,
+fired weapons, entered a car, entered a building, and exercised pause/resume.
+Evidence PNGs in `.opencode/reviews/evidence-20260930-100810/` (moved out of the
+repo root, where the reviewer had dropped 23 of them — loop hygiene, and they
+are evidence, so kept rather than deleted).
+
+- **1. HIGH — THE CAR'S COMBAT GEOMETRY IS 90° OUT OF STEP WITH ITS DRIVING
+  GEOMETRY. CONFIRMED, AND IT IS THE MOST SEVERE DEFECT IN THIS LOG.**
+
+  Codex's report: "With the car's nose and gun barrel pointing right, firing its
+  front-mounted Machine Gun sends the projectile upward ... ammunition changed
+  20/20 → 19/20, and the paused frame shows the projectile directly above the
+  right-facing car."
+
+  **I confirmed it by LOOKING at the reviewer's own evidence frame rather than
+  by trusting the report**, which is the cheapest possible check and the one this
+  log has most often been burned by skipping. In
+  `evidence-20260930-100810/review-arena-shot-exposed.png` the nose points LEFT
+  and the bright four-pointed bolt sits directly ABOVE the car. Nose and
+  FRONT-mounted shot are 90° apart. No ambiguity, no interpretation.
+
+  **AND THE SOURCE AGREES, IN SEVEN INDEPENDENT PLACES.** This is the part that
+  makes it a structural finding rather than a rendering bug — and the part that
+  explains why 120 iterations and 82 reviews never saw it:
+  ```
+    driving.ts:500    newForward = ( cos(heading), sin(heading) )   -> +X is FORWARD
+    combat.ts:103     FACING_LOCAL_UNIT.FRONT = (0, 1)             -> +Y is FRONT
+    combat.ts:58      facingForLocalDirection reads |x| vs |y| ... -> +Y is FRONT
+    arena.ts:927-928  clamp(local.y, ±halfLengthM)                  -> +Y is LENGTH
+    builder-preview   FRONT armour band at cy - halfL (top)        -> +Y is FRONT
+    sprite.wgsl:99    rotation applied in WORLD space, CCW         -> same frame
+    atlas.json        car frames are 48x96, nose along art +Y, with
+                      rotationOffsetDeg: 270 mapping art +Y -> world +X
+  ```
+  So there are two conventions, and the combat subsystem is the one holding the
+  minority view: facings, the collider AND the constructor preview all say +Y is
+  forward, while driving and the rendered sprite say +X is.
+
+  **THE REASON IT WAS INVISIBLE FOR 120 ITERATIONS, and it is the best finding
+  in this log: EVERY SUBSYSTEM IS INTERNALLY CONSISTENT.** Nothing is broken
+  alone. A shot flies along `FACING_LOCAL_UNIT.FRONT`; the same table decides
+  which facing absorbs it; the collider is measured on the same axis; the preview
+  draws FRONT on the same axis. Read any ONE of them and it looks perfect — I
+  read four of them this round before the disagreement became visible, and each
+  was individually correct. The defect exists only in the SPACES BETWEEN them,
+  and the spaces between subsystems are precisely what a file-by-file review
+  cannot see. This is the same lesson as iteration 39's covered exit button and
+  iteration 55's under-determined city, one level up: those were elements missing
+  from every screen; this is a whole subsystem misaligned with every other
+  subsystem, with nothing missing and nothing obviously wrong.
+
+  **NOT FIXED THIS ROUND, and the reason is specific rather than cautious.** The
+  fix touches four systems and a UI screen:
+    - `FACING_LOCAL_UNIT` rotates to FRONT (1,0) / REAR (-1,0) /
+      RIGHT (0,-1) / LEFT (0,1);
+    - `facingForLocalDirection` swaps which axis is compared first;
+    - `arena.ts:927-928` swaps halfLengthM onto local.x;
+    - `builder-preview.ts` rotates the whole schematic 90° so the diagram's
+      FRONT band lands where the gameplay car actually points — which is the
+      one nobody will notice is broken until it is wrong, because a diagram
+      that disagrees with the car is worse than no diagram;
+    - and every test that pins the OLD convention, which per iteration 87 is
+      the expensive half: `city.test.ts`'s restated table agreed with the code
+      for as long as the code was wrong, and there will be others.
+  Half-rotating the combat frame would put shots and armour on the wrong sides
+  with a green suite, which is this log's single most expensive failure class
+  (iteration 93: a save that discarded what it existed to keep; iteration 111:
+  Controls silently restarting a match). It wants its own round with a
+  mutation per axis, and the first test to write is the end-to-end one: fire a
+  front-mounted weapon at all four cardinal headings and assert the projectile
+  leaves along the RENDERED nose direction, not along a table constant.
+
+  **WHAT I ESTABLISHED AND WHAT I DID NOT, because one measurement failed
+  honestly.** I tried to settle "does the car move nose-first or sideways?" by
+  template-matching the ground between two frames under held W. It returned its
+  best match on a CORNER of the search grid (dx=140, dy=-140, the maximum on
+  both axes), which is impossible for a real result — and the arena also carries
+  iteration 81's decals and iteration 79's animated film grain, so there is no
+  static baseline to match against. A result on a grid boundary is evidence about
+  the probe, not the game: iteration 50's rule. Recorded rather than reported.
+  The direction of the convention is therefore established from source plus the
+  evidence frame, not from that probe, and the probe is discarded.
+
+- **2. LOWER — ENTERING THE CAR FAILS SILENTLY OUTSIDE ITS RANGE. REAL, AND THE
+  SIM ALREADY REFUSES WITH A REASON THAT THE APP THROWS AWAY.**
+
+  `toggleVehicle` returns a structured `{ ok: false, reason: 'outOfRange' }`
+  (city.ts:358, 366) and the app does `if (toggled.ok) player = toggled.player;`
+  — the reason is read by nobody. So a player who walks away from the car and
+  presses G gets no response, no message, and a status line still advertising
+  "G enter/exit car". Indistinguishable from a dead key.
+  This is iteration 92's gate-refusal shape exactly: the sim refuses with a
+  REASON and the surface above drops it. The sim half is already tested
+  (`city.test.ts:773`).
+
+  **ATTEMPTED, THEN REVERTED, and the reason is the round's second honest
+  negative.** The fix needs somewhere to put a transient message, and this
+  screen has nowhere to put one: `showCity` mounts only the car strip, the
+  status pill, the panel and the legend. The obvious host — the status line — is
+  REWRITTEN EVERY FRAME, which is iteration 18's exact trap (a control reminder
+  welded into a per-frame line could not even run its own fade, let alone hold a
+  message for a player to read). A first pass also reached for `log`, which does
+  not exist in this scope — the arena has it, the city has no message sink at
+  all, and tsc caught the guess immediately, which is the gate working.
+  So the correct fix is a real transient notice element with a lifecycle and a
+  test, not a `log()` call, and that is more than belongs at the end of a round
+  already spent on a four-system diagnosis. Reverted; the tree is clean.
+
+- **3. A DISCREPANCY IN THE EVIDENCE FRAME, RECORDED AS UNVERIFIED RATHER THAN
+  AS A FINDING.** The same screenshot shows the weapons row reading
+  **"Machine …"** — truncated. Iteration 95 took this exact bug, reclaimed the
+  redundant "READY" word, widened the name track 58px -> 81px, and recorded
+  "Machine Gun IN FULL" measured in real Chrome at 1440, 1200 AND 900 CSS px,
+  with a browser test that grows a string until it clips. The reviewer was at
+  1200 CSS px (2400 device / DPR 2), which iteration 95 claims is the one width
+  that passes.
+  **I am not calling iteration 95 wrong.** The image I read is itself
+  downscaled, and a downscaled read of a text cell is the precise trap of
+  iterations 12, 30, 33 and 35 — four times a crop disagreed with the code and
+  the crop was the thing that was wrong. The next round re-measures that row in
+  a real browser at DPR 1, reads `scrollWidth` vs `clientWidth` directly, and
+  opens the actual rendered string rather than a re-encoded picture of it. It is
+  recorded here because the alternative — silently believing either the old
+  claim or the new sighting — is how iteration 51's phantom `groundField` and
+  iteration 115's phantom "the atlas has no fx frames" both happened.
+
+- **4. Federal Building remains a placeholder** — the known content gap from
+  iteration 98, and this review independently confirms the "closed" approach
+  label is doing its job. Not new; not actioned.
+
+- GATE: tsc clean. No game code changed this round — the one change attempted
+  was reverted before the gate, so the standing gate from iteration 119 still
+  holds (1538 tests with the 2 measured flakes, 7 browser tests, build
+  `index-Hrr9Wz8r.js` identical to what is live). Re-run next code round.
+  Nothing to deploy.
+
+- **NEXT, and it is not another review.** Finding 1 is the most severe thing in
+  this log and it is fully diagnosed, so the next round executes the rotation
+  with an end-to-end heading test — not another critique pass over a build with
+  a known 90° aim bug in it.

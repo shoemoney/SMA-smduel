@@ -1,0 +1,3070 @@
+Reading additional input from stdin...
+OpenAI Codex v0.159.2
+--------
+workdir: /Users/shoemoney/Projects/smduel
+model: openai/gpt-6.1-sol
+provider: openrouter
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR] (network access enabled)
+reasoning effort: high
+reasoning summaries: concise
+session id: 01a0f2de-bcf0-7380-9b0a-9efc1e627eb2
+--------
+user
+You are the advisory reviewer for a small WebGPU driving game. Your job is to
+find things that are actually wrong with it, ranked by how much they hurt a
+player, and to say what you would do about each one.
+
+# The application
+
+A top-down driving game. You start in a city, take a job, build a car, then
+drive a highway. It is a CANVAS application: the world is rendered with WebGPU
+into a single <canvas>, and almost none of the game is DOM.
+
+Reach any screen directly:
+
+    <BASE>?screen=title&seed=a11ce5ee
+    <BASE>?screen=controls&seed=a11ce5ee
+    <BASE>?screen=driver&seed=a11ce5ee
+    <BASE>?screen=constructor&seed=a11ce5ee
+    <BASE>?screen=city&seed=a11ce5ee
+    <BASE>?screen=arena&seed=a11ce5ee
+    <BASE>?screen=road&seed=a11ce5ee
+    <BASE>?screen=fleet&seed=a11ce5ee
+
+where <BASE> is given below. The screens are also reachable by playing: the
+title screen is pure DOM, and the others are reached by driving.
+
+# How to review it
+
+SCOPE: the three GAMEPLAY screens — arena, road, city. The title, driver and
+constructor were covered by the previous pass, and long MCP-driven runs keep
+dying partway through, so this pass takes fewer screens and finishes.
+
+Use the browser tools. Do NOT review from the repository source alone and do
+NOT review from a description — a canvas game cannot be judged by reading its
+code, and every confident wrong finding in this project's history came from
+reviewing something other than the running thing.
+
+1. Open each screen at the URL above.
+2. Take a SCREENSHOT of each one and actually look at it. A screenshot at the
+   device pixel ratio, not a thumbnail.
+3. Where a finding would be about something that changes over time or on
+   interaction, DRIVE IT: move the car, open the constructor, select rows,
+   change bodies. A single still cannot show you what happens when you press
+   something, and several of the worst findings in this project's history are
+   screenshots judging a state that only exists after an interaction.
+4. Before you report anything as ABSENT, MISSING, EMPTY or NOT IMPLEMENTED,
+   go and look for it properly and confirm it in the source if the frame is
+   ambiguous. Absence claims are the single most over-reported category here.
+
+# Things this project has deliberately decided, so you do not report them as
+# defects. Each of these has been argued at length and the decision stands:
+
+- The radar DOES have concentric range rings, a rotating sweep, a crosshair,
+  and a triangular player marker. On a practice arena with no opponents it
+  shows nothing, and that is correct reporting rather than a missing feature.
+  It does not dim itself when empty, on purpose: an instrument that changes
+  weight teaches the player to distrust it.
+- The constructor preview IS a schematic, not the gameplay car sprite, and it
+  is meant to be. It shows armour zones — where on the chassis the points you
+  buy land — which a top-down car sprite physically cannot carry. It is
+  generated from the selected body, so changing body changes its proportions.
+- The city buildings are deliberately desaturated and pulled toward the
+  ground's slate colour, so the map reads as one environment rather than a
+  collage of mismatched source art. Asking for per-building colour reverses a
+  deliberate fix.
+- The arena is an unbounded field with no collision. There is no wall, and
+  that is deliberate: a painted wall that does not block you lies.
+- The progress bar reads empty at the start of a route because zero miles have
+  been driven. The speedometer reads 0 because the car is stationary.
+- The ten "(empty)" weapon rows are addressed by index — you type 0-9 to
+  select — so they cannot be collapsed or reordered.
+
+# What I want
+
+Things that are genuinely wrong, most damaging first. For each:
+
+- WHICH SCREEN, and where on it (top-left, on the panel headed CONDITION, etc.)
+- WHAT IS WRONG — what a player would experience
+- WHY IT MATTERS — what it costs them
+- WHAT YOU WOULD DO — concrete and specific, and say if it is a code change
+  or new art
+
+Also tell me, separately, anything that is a real gap in the game as a whole
+rather than a defect in one screen.
+
+You are also welcome to disagree with the decisions listed above. If you think
+one of them is wrong, say so and make the case — that is useful information,
+not a rules violation. But do not report a deliberate decision as if it were
+an oversight.
+
+Be concrete. "Improve the contrast" is not a finding. "The CONDITION panel's
+numbers are #9fb0c2 on a #101418 surface at 6.2:1, below AA for body text, and
+they sit next to a 6px bar that carries the same value more legibly" is a
+finding.
+
+Write your review as markdown. Start your reply with "##" and nothing else.
+
+# The verdict line, and it is the most important instruction here
+
+End your reply with a line of exactly this form:
+
+    REVIEW-VERDICT: <number>
+
+where <number> is how many findings you are reporting — 0 is a legitimate and
+useful answer, and this script treats it as a real result rather than a
+failure.
+
+If you could NOT actually inspect the running game — no browser, the host did
+not resolve, a screenshot you needed never arrived — then write
+
+    REVIEW-VERDICT: BLOCKED
+
+instead, and say in one line what stopped you. That is a real and useful
+answer: this script will report it as a failed review and the loop will not
+count it, which is exactly right, because a review that did not happen is not a
+review that found nothing.
+
+Do NOT substitute an opinion, a guess, or a reading of the repository for a
+review you could not perform. Reporting BLOCKED costs a round; guessing costs
+the loop a finding that was never established, which is far more expensive and
+has already happened many times in this project's history. (the live deployment to review is: https://arcade.shoemoney.com/smduel/ — use https://arcade.shoemoney.com/smduel/?screen=NAME&seed=a11ce5ee for each screen)
+warning: Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.
+  user (/Users/shoemoney/Projects/smduel/.opencode/codex-home/.codex/config.toml): `features.skills` is ignored.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+warning: Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.
+  user (/Users/shoemoney/Projects/smduel/.opencode/codex-home/.codex/config.toml): `features.skills` is ignored.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+codex
+## Review in progress
+
+I’ll inspect arena, road, and city in the live browser, capture full-resolution screenshots, and drive each screen to verify any findings about interaction or motion.
+exec
+/bin/zsh -lc "pwd && rg --files -g 'AGENTS.md' -g 'ralph-loop.local.md' -g 'package.json' -g '*playwright*' -g '*browser*' . .opencode" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+/Users/shoemoney/Projects/smduel
+.opencode/ralph-loop.local.md
+./AGENTS.md
+./package.json
+
+**Checking available tools**
+exec
+/bin/zsh -lc "cat AGENTS.md && cat package.json && sed -n '1,140p' .opencode/ralph-loop.local.md" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+# Working rules for this repo
+
+Every rule here was learned by getting it wrong. The incident numbers point at
+`.opencode/ralph-loop.local.md`, which is the full record — read the entry
+before acting on a rule you think you already know.
+
+Read this file at the START of a round, not after something has gone wrong.
+
+## Fixtures and imports
+
+- **Never write a fixture, type, or import path from memory.** Grep the
+  sibling test file first and copy its import block. Seventeen wrong guesses in
+  two rounds (15–17), including three functions that were exported from a
+  different module than the one I assumed, all of which were sitting correctly
+  written in `screens.test.ts` the whole time. (Iter 102, 103, 104)
+- **Derive values from the ruleset, never type them.** A hardcoded
+  `skills: {driving: 12, ...}` failed on "must sum to exactly 50"; `bodyId:
+  'body-standard'` did not exist. Read the real ids out of the ruleset.
+- **A fixture must encode a state the system can actually reach.** `progressMiles`
+  is DERIVED from the vehicle's position every tick, so hand-setting it while the
+  vehicle sat at the start produced a save that "failed" three rounds of
+  debugging while the game was entirely correct. Drive the real function and
+  save what it produces. (Iter 104)
+
+## Probing and measuring
+
+- **Dump the thing; do not guess a selector.** Guessed the facility strip's DOM
+  selector three times and got three confident wrong answers — it is a CLASSLESS
+  div styled entirely in inline `cssText`, on a page with three class names in
+  total. A probe that finds nothing is not a measurement, and one that finds the
+  WRONG element is worse, because it produces a number. (Iter 98, 99)
+- **A flat signal is not a frozen signal.** Two "verified" freeze/resume checks
+  were reading a value that had saturated for an unrelated reason (route-axis
+  projection). Always show the same value MOVING when the thing under test is
+  disengaged, or the check is vacuous. (Iter 100, 103)
+- **Locate an element by scanning for it, never by remembering where it was.**
+  Three confident wrong measurements came from stale coordinates. (Iter 59, 50)
+- **Sample the background from outside the text's own extent.** Every failed
+  contrast measurement sampled the glyphs' own anti-aliased halo. A ratio near
+  1.0 is a sampling error, not a legibility problem. (Iter 65)
+- **A value that cannot move cannot be tested.** The road odometer needs
+  counter-steering, not held throttle, or progress saturates off-axis in ~2s.
+
+## Asserting on meaning
+
+- **Assert on the VALUE, never on presence.** Four separate incidents where a
+  healthy-looking signal stood in for a fact: a phantom "0 models asked" from a
+  swallowed `readFileSync`; `sips` exiting 0 on a missing file; a deploy check
+  that asked "does this path exist" instead of "is it the right build"; and a
+  route returning 200 read as "my deploy is live". (Iter 16, 71, 81, 83)
+- **A test can enforce the bug it was written to prevent.** One asserted
+  `toHaveLength(2)` and was really guaranteeing permanent visibility; another
+  restated the table under test and therefore AGREED WITH THE BUG for its whole
+  life. When a test passes, check what it actually guarantees. (Iter 72, 87)
+- **A mutation that cannot fire is a fact about the system, not a passing
+  test.** Several here were written, failed to fail, and were worth recording
+  anyway. Three of mine were too weak; the fix was a stronger mutation, not a
+  weaker test. (Iter 25, 95, 96)
+- **Check the selector matches real DOM ancestry before believing a rule
+  "isn't applying".** A `color-mix()` on an undeclared custom property is
+  INVALID and silently computes to transparent — it looked correct in the
+  stylesheet for seventeen iterations. (Iter 32, 41)
+
+## Duplication
+
+- **One owner per rule; every other surface READS it.** A second derivation is
+  a second thing to drift. Seven instances: `roadLegalityMisses`,
+  `unmetRequirements`, the city-decal count, `facilityMarkerFamily`,
+  `daysPerMile`, the furniture's art aspect, the operational-kind set.
+- **Never hand-copy a constant the code already holds.** The furniture sized
+  itself from a typed `21/96` beside the atlas entry with the real dimensions.
+- **When a frame becomes unreferenced, decide deliberately.** Silently-unused
+  atlas art is iteration 81's finding; keeping it is fine, leaving it unrecorded
+  is not.
+
+## Scope and honesty
+
+- **A fix written to a BUILD OUTPUT instead of its INPUT will be reverted by
+  the next build.** The regenerated title art survived exactly one iteration
+  because only the next `pack-atlas` run clobbered it. (Iter 79)
+- **Record what you did NOT establish.** Half the value of this log is the
+  rounds that found nothing, the checks that were partial, and the
+  measurements that turned out to be of the wrong element.
+- **One run is not a baseline.** `screens.test.ts` is flaky on BOTH trees
+  (branch 8/4/1, master 3/3/3). Measure scope before blaming a change.
+  (Iter 87, 90, 95, 96)
+- **Do not defer the same item twice.** If an iteration ends by recording a
+  decision, the next round either makes it or says why not.
+- **A design call with measured costs on both sides is a decision, not a
+  defect.** Put the numbers in the log and let it be chosen, rather than
+  applying a patch at the end of an unrelated round. (Iter 84, 97, 102)
+
+## Testing
+
+- **Prove the new test bites before shipping it.** Mutate the code it guards and
+  confirm the right test fails. Writing the test is not the same as knowing it
+  works — and a test that passes for the wrong reason is worse than none.
+- **Never let a test file delete shared state.** `fake-indexeddb` on the real
+  `DB_NAME` is shared with five other files; a `deleteDatabase` in
+  `beforeEach` made this file flaky and nearly sent me auditing correct code.
+  Discriminate on content instead. (Iter 103)
+- **Never cache a resource you close.** Resetting a handle but not the promise
+  that produced it hands out a dead connection to everything after it.
+{
+  "name": "smduel",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "SMDUEL_TEST_BROWSER=1 vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@webgpu/types": "^0.1.60",
+    "ajv": "^8.17.1",
+    "fake-indexeddb": "^6.0.0",
+    "happy-dom": "^20.14.5",
+    "playwright-core": "1.63.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0"
+  }
+}
+---
+active: true
+iteration: 29
+maxIterations: 100
+sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
+---
+
+lets do a infiniate improving loop each time ask a random state of the art vision enabled flash model (gemini 3.8 flash, latest glm, etc) to find 5 things to improve with reasons and suggestions take all feedback create milestones phases and todos. ask for feedback on all key elements of this game from an advisorial reviewer. provide them with any items they need to conduct a detailed review.  execute the plan then restart the loop with a new reviewer until you have asked all the vision enabled latest models on open router.  do not stop until i tell you to. 
+
+## Log
+
+Reviewers asked (74 of 82 vision models):
+1. google/gemini-3.8-flash      -> title wordmark, constructor (3 bugs incl. one I missed), city motorway-through-wall
+2. openai/gpt-5.4-mini         -> radar instrument, condition dashboard, player/opponent contrast, title hierarchy
+3. qwen/qwen3.5-122b-a10b      -> road lane markings (carried x2), preview/menu contrast, radar rings (claim WRONG - checked)
+4. deepseek/deepseek-v4.1-flash -> car silhouette, empty-feed pill + route progress bar, radar weight
+5. inclusionai/ling-3.0-flash-vl -> seed printed twice (FIXED); wall/radar/constructor claims WRONG at full res
+                                  -> root cause: 900px review images. Raised to 1280px.
+6. z-ai/glm-5.3-flash          -> unfitted armour shown GREEN (FIXED); LEGALITY pushed off-screen by MY
+                                  iteration-2 preview growth (FIXED); ground blockiness (nearest sampler, recorded)
+
+RECURRING FALSE-FINDING CLASS: radar rings/sweep, city wall, constructor preview
+reported "missing/empty" - all PRESENT at full res. Cause: review-image downscale.
+Fixed at source by raising review captures 900px -> 1280px.
+A first radar fix (mask-image rim ticks) corrupted CSS and stripped chrome off
+every HUD panel - caught in a screenshot, reverted, redone as weight-only.
+
+7. bytedance-seed/seed-1.6-flash -> constructor onboarding copy too quiet (FIXED, 3 steps);
+                                  banner "cut off" (WRONG - reads in full)
+                                  city waypoint (EXECUTED iteration 8: beacon, 2 bugs found)
+
+8. (no new reviewer - executed iteration 7 carry) -> CITY WAYPOINT beacon
+   2 invisible bugs: layer 3 has no buffer (silently dropped); PNG writer set white RGB
+   on transparent px so the keyer erased the subject. Capacity guard caught the
+   missing count (95 > 94) - first live catch for that check.
+
+9. qwen/qwen3-vl-235b-a22b-thinking -> ALL FIVE CHECKED, NONE HELD UP:
+     - "critical text is dark maroon #8B0000, <2:1 contrast" -> WRONG. Token is
+       #ff5570; measured 6.13:1 on the panel surface. Every status colour clears
+       WCAG AA (ok 10.88, damaged 10.39, critical 8.08, destroyed 6.13).
+     - "'(empty)' is #333 on black, 1.5:1" -> WRONG. .sm-builder__row-value sets
+       no colour, so it inherits --ui-ink (#e9eff6, ~15:1).
+     - "city road is disconnected white segments" -> WRONG. That is the perimeter
+       WALL (prop-citywall), a segmented barrier, verified at full res.
+     - "radar sweep and blips identical dark green" -> the practice arena has no
+       contacts at all (correct); contacts use --ui-ink, not the sweep colour.
+     - "menu box merges with the backdrop" -> it has a cyan border and the
+       selected row is a bright accent fill over glass.
+     This review estimated colours and contrast ratios instead of measuring
+     them. Recorded, not acted on: the loop's value includes knowing when NOT
+     to change things.
+
+10. qwen/qwen3-vl-8b-instruct -> REAL: my "— not fitted" label wrapped to 2 lines in
+     the 2-col grid and misaligned the rows (FIXED: label shortened to a dash,
+     full meaning moved to aria-label). Rest: radar sweep (5th false report),
+     road bar overlap, constructor selected-row indicator (all present).
+     NOTE: first pick from a re-filtered pool - content-safety/classifier models
+     were excluded; they answer safety questions, not design ones.
+
+11. google/gemini-3.1-flash-lite-preview -> 2 REAL, both critiques of MY work:
+     - beacon read as "oversized disconnected cyan arrow floating above the car",
+       "jarring ... makes the objective feel like a UI overlay" (FIXED: smaller, sits
+       low and close to the gate so it reads as a sign AT the building)
+     - preview "lacks orientation markers on the actual chassis"; on a PRISTINE
+       build no armour marks were drawn at all, so nothing showed where
+       "Armor: Front" lives (FIXED: dashed ZONE outline always drawn, fill only
+       where points were bought)
+     This is the first reviewer in two rounds to score above zero, and both finds
+     were regressions or mis-sjudgements of my own earlier iterations.
+
+12. bytedance-seed/seed-2.0-code -> 1 REAL: tagline ~10-13px, too small to read at
+     a glance (FIXED: 13-16px, brighter; hierarchy held by RELATIVE size against
+     the 40-76px wordmark, not by making the tagline tiny - iteration 3 had
+     overshot when it shrank the tagline to fix "three competing layers").
+     Checked and FALSE: condition-panel section spacing (ARMOUR/TYRES/PLANT have
+     rules and gaps), constructor row cramping (rows have clear rhythm).
+     Radar sweep: 6th false report.
+
+13. qwen/qwen3.6-35b-a3b -> 2 REAL:
+     - speedometer secondary text (TIER/0.0 mi) tiny+dim (FIXED: one step larger,
+       off the dimmest ink 4.61:1 -> 8.83:1, still subordinate to the speed figure)
+     - "preview is just a blue rounded rectangle with a dotted line" -> claim
+       WRONG at full res (wheels/cabin/bonnet/zones/nose all present) but the
+       PERCEPTION was the finding: every part was a similar blue on a similar
+       alpha so nothing separated. FIXED by darkening the hull so the parts
+       contrast, rather than by adding more parts.
+       THIS IS THE LOOP'S KEY LESSON, now twice: when a reviewer says a thing is
+       absent, check at full res; when the check says present and they still
+       could not see it, believe them about CONTRAST.
+     Radar sweep: 7th false report.
+
+14. qwen/qwen3.8-omni-flash -> 1 BIG REAL: MAGENTA FRINGE on every vehicle.
+     "stray magenta mount tabs ... they look like debug hitboxes" - CONFIRMED, the
+     most visible defect in the game. Root cause was NOT the keyer: chromaKey
+     sets alpha=0 but leaves RGB at the key colour, and the per-kind ~10x
+     downscale resamples NON-PREMULTIPLIED RGBA, so transparent magenta bleeds
+     into every edge AFTER despill runs. Fix: zero RGB of near-invisible pixels
+     before the resize. 4.12% -> 0.00% magenta on all three cars. Also widened
+     despill to strong-cast opaque pixels (test updated to the new contract).
+     Other findings: title-art palette mismatch, city street network, constructor
+     row->diagram linking (all real, queued).
+
+15. qwen/qwen3.5-flash-02-23 -> 2 REAL, 1 the sharpest UX criticism in the loop:
+     - "The text 'CONFIRM' at the bottom left is styled identically to the
+       adjacent stat labels (dim white text). It lacks any button treatment
+       (border, background, highlight) and is easily mistaken for passive
+       information ... players may hesitate or quit because the primary
+       call-to-action is invisible." TRUE and the best of its kind: every other
+       row on that pane is a VALUE and CONFIRM is the only thing the player can
+       DO, yet it was rendered as another data row. It now carries the button
+       treatment with --ui-accent used nowhere else in the pane, so the single
+       saturated surface on the screen is the thing the screen exists to do.
+     - tagline "extremely thin font weight ... loses definition" (FIXED: weight
+       500 + tighter shadow. Size was fixed in iteration 12; WEIGHT is a
+       separate lever and was never touched.)
+     FALSE: "the player's vehicle sprite sits perfectly flat ... with no shadow
+     or contact occlusion" - the car has a directional shadow in the shader and
+     has had one since iteration 1. Radar: 8th false report.
+     TOOLING (2 real fixes the failure exposed):
+     - picked google/gemini-2.5-pro and got an EMPTY body with no error; the
+       tool recorded nothing that would explain it. finish_reason is now saved
+       so 'content_filter' is distinguishable from a harness bug.
+     - this model burned 9000 tokens on preamble and was cut off mid-JSON, twice.
+       max_tokens -> 16000 and the prompt now demands the reply START with "[".
+     - the model picker also returned google/gemini-3-pro-image-preview, an
+       image GENERATION model, because the exclusion pattern was `-image$` and
+       that id ends in -preview. The pattern now matches the substring anywhere.
+
+16. qwen/qwen3.5-plus-02-15 -> 1 REAL (the long-standing city-cohesion item):
+     - "The building sprites appear to be photographic cutouts with varying
+       lighting directions and perspectives, clashing with the flat, stylized
+       car and map. It makes the world look like a collage of unrelated
+       assets." CONFIRMED at full res - the buildings really were mixed-source
+       art each carrying its own colour identity, scattered on a cool grey map.
+       A multiply TINT cannot fix this: multiplying by a colour only darkens and
+       shifts hue, and the mismatched SATURATION is exactly what survives. So
+       there is now a real GRADED fragment path (SPRITE_KIND 3): desaturate,
+       then pull toward the ground's cool slate AT THE SAME LUMINANCE, keeping
+       each building's own light-to-dark modelling. Actors, the waypoint beacon
+       and doormarkers stay ungraded so the orange car still reads as the focal
+
+**Reviewing dynamic tools registry**
+exec
+/bin/zsh -lc "rg -n '"'^9[89]'"\\.|"'^10[034]'"\\.|iteration 9[89]|iteration 10[034]|"'^98 |''^99 |''^100 |''^103 |''^104 |''^##.*(98|99|100|103|104)'"' .opencode/ralph-loop.local.md" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+5389:98. Codex's "Real gap in the game as a whole", EXECUTED: **the Federal
+5450:DEPLOY 2026-09-30 — iteration 98 to arcade.shoemoney.com
+5497:RESEARCH 2026-09-30 — iteration 99: two of my own findings refuted by measurement
+5509:     covers it," and iteration 98 re-queued it as such. Both are wrong, and the
+5559:  gate from iteration 98 still holds (tsc clean, 67 files / 1477 tests with
+5587:  Finding 2 is the same underlying hole iteration 99's first half documented:
+5651:- The finding, from the review at iteration 99: "The player cannot deliberately
+5856:  reachable trigger (iteration 100's trip menu) but still no movement.
+5928:    This is also the half of iteration 99's finding #2 that iteration 100 did
+5963:  save point was. This also finishes iteration 99's finding #2, whose reviewer
+5964:  asked for Resume / Controls / **Save and quit**, and iteration 100 could not
+6029:  seconds and progress correctly stops. This is iteration 100's finding arriving
+6069:ITERATION 104 — the resume gap iteration 103 recorded against itself, closed
+6149:  matters after iteration 103 made its sibling flaky. 5 browser tests pass. Build
+6161:  100's trip menu) and, since iteration 103, a save point — so abandoning on
+6267:  which continues the downward trend iteration 104 noted. 5 browser tests pass.
+6500:  log's own "a flat signal is not a frozen signal" rule (iteration 100) applied
+6560:  not a substitute). This is the same shape as iteration 100's road menu and is
+6565:  unbuilt feature iteration 99 identified, now restated independently by the
+6630:  as iteration 100's road menu, and the pattern is already built, so it is the
+6642:  and match resolution together". The road got a trip menu at iteration 100 and
+6653:  This is iteration 100's gate reused verbatim, which is the point of having
+6659:  delta. That is the same line, for the same reason, that iteration 100 wrote.
+6689:  why iteration 100's first LIVE verification was vacuous (its odometer read
+6697:                                   closes — iteration 100's double-toggle,
+6807:  not. "A flat signal is not a frozen signal" (iteration 100) applied to a
+6826:  verification failed (iteration 100: a saturated odometer read flat while
+6878:  what it was built to preserve) and iteration 104's road-resume bug in the
+7306:  standard the road's first freeze verification failed (iteration 100). Held the
+7363:  measurement") and iteration 98's ("a probe that finds the wrong thing is worse
+7381:- Recorded before the fix rather than after, because iteration 99's lesson is
+7637:  defect and is the same item iteration 98 marked closed-on-approach.
+
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+exec
+/bin/zsh -lc "sed -n '5497,5550p' .opencode/ralph-loop.local.md; sed -n '5630,5705p' .opencode/ralph-loop.local.md; tail -170 .opencode/ralph-loop.local.md" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+RESEARCH 2026-09-30 — iteration 99: two of my own findings refuted by measurement
+- This round changed NO code. It found that TWO findings I published in
+  iterations 96 and 97 do not survive contact with the actual data. Both were
+  written by me, both were recorded with confidence, and both are wrong. The
+  log's own rule (a probe that finds nothing is not a measurement) applies
+  here in a sharper form: a plausible arithmetic derivation from ASSUMED inputs
+  is not a measurement of the real table either. I derived the encounter
+  density from a route/danger pair I assumed rather than one I read.
+- The two refutations:
+
+  1. **`abandonVehicle` is an UNBUILT FEATURE, not an unwired one.** Iteration
+     96 recorded: "it is a real gap rather than dead code now that nothing else
+     covers it," and iteration 98 re-queued it as such. Both are wrong, and the
+     error is the kind that costs a whole iteration. I checked what
+     `abandonVehicle` would actually be WIRED TO:
+       - `grep -rn "abandonVehicle" src/` -> defined in `src/sim/road.ts:725`,
+         called from NOTHING. Its `PedestrianState` is returned to no one.
+       - `grep -rn "pedestrian" src/app.ts` -> NO MATCHES. There is no on-foot
+         movement code in the app at all, and `showRoad` mounts no menu and no
+         actions (measured again this round, same result as iteration 96).
+     So wiring it is not a one-line fix; it requires building a whole on-foot
+     road mode: a trigger to abandon, a movement system, and a way to arrive on
+     foot. It is half a FEATURE, not a loose wire. Recorded so the next
+     iteration does not spend itself discovering this mid-round. It stays
+     queued, correctly labelled this time: "unbuilt on-foot mode (sim half
+     exists in `abandonVehicle`; no app-side pedestrian movement at all)."
+
+  2. **The "short routes are most likely to contain no fight" finding is
+     FALSE, and it was arithmetic on an invented input.** Iteration 97 wrote:
+         "40 mi, danger 0 (1.0/100mi) -> 0.4 expected encounters"
+     and concluded the shortest routes were the emptiest. I never checked that
+     a 40-mile danger-0 route EXISTS. It does not. Measured over all 26 real
+     routes:
+       - 0 of 26 routes are deterministically empty. The minimum roll is 1.
+       - the ratio is FLAT, not inverted: encounters-per-minute ranges
+         0.0146-0.0467 (a 3.2x spread) with no relationship to length, because
+         spawns-per-100mi and real-minutes-per-mile BOTH scale with route
+         length, so their quotient barely moves. The two lowest-density
+         routes per minute are 80 mi and 150 mi, not 40.
+       - the real, much smaller disagreement is in the OPPOSITE direction: on
+         the LONGEST routes, `spawnsPerHundredMiles * length` wants more
+         contacts than `spawnBudget` allows, so the cap truncates the roll
+         (e.g. washington-pittsburgh 240 mi wants 10.08, budget 8). **I then
+         half-retracted this within the same round**: `spawnBudget` is a
+         documented per-trip CAP, `encounters.json` carries the `_note` "the
+         source never published spawn budgets", SPEC lists spawn budgets among
+         the explicitly non-exact tunables, and BOTH knobs are registered in
+         `fidelity-notes.yaml` at confidence 0.3. So the truncation is the cap
+         working exactly as designed, and it is NOT a finding. Recorded here
+         rather than quietly dropped, because "I found a second thing and then
+         disproved it too" is the honest state of this round.
+
+- WHY THIS ROUND IS WORTH THE ENTRY despite shipping nothing: iteration 97
+  told the next iteration to "fix" short-route emptiness, and the obvious fix
+
+- GATE: tsc clean. 67 files / 1481 tests, 4 failures, all in
+  `tests/integration/screens.test.ts` and all REPRODUCED ON CLEAN MASTER
+  (2 in isolation, 4 in-suite) — the known order-dependent flake, touching
+  neither the feed nor the city. 5 browser tests pass. Build
+  `index-D83WayLo.js`.
+
+- DEPLOY: release `20260930032000-da96099`, bundle `index-D83WayLo.js`.
+  Whole-site snapshot, atomic swap, root + smduel + last-engineer all 200, live
+  bundle hash equals the local build, 0 console errors. The deployer's own
+  hash guard caught a real mistake this round: I rsynced `dist/` to the LOCAL
+  `/tmp` and the box correctly refused to deploy, because it checks the REMOTE
+  `/tmp/smduel-dist` for the expected bundle. That guard is the single most
+  valuable line in the deploy script.
+
+- NEXT: the road menu (finding 2) is now the top build — one screen covering
+  pause, controls reference, save-and-quit, and abandon-trip, which also
+  unblocks the SPEC's on-foot escape. Then #4's rail-vs-collision decision,
+  which is a real design call: either give the rails collision or replace them
+  with delineator posts that do not promise a barrier.
+ITERATION 100 — the road trip menu (Codex finding #2), shipped and live verified
+- The finding, from the review at iteration 99: "The player cannot deliberately
+  pause or leave the trip. I tried Escape and P. Neither opened a menu or
+  paused the simulation; the car continued coasting." It greps clean —
+  `showRoad` mounted no menu and no actions of any kind, so the road was the
+  ONLY screen in the game with no way to stop, and a player who wanted to
+  check the controls had to use browser navigation. The reviewer's note that
+  this is needed "even after travel is shortened" is the right call: a leg is a
+  genuine ~129 minutes of driving, so stopping is the NORMAL impulse here.
+
+- WHAT SHIPS. Esc and P both open it (the reviewer tried both, and only one
+  working would be a coin flip). Neither key is bound to any action in
+  `controls.json` — checked rather than assumed, since the bindings are
+  runtime-rebindable and a future binding to either key would be a real
+  collision. Opening FREEZES the trip: the gate returns before any simulation
+  is read, so nothing slips past — not `stepRoadTrip`, not `stepCombat`, not
+  weapon cooldown, not the route clock, not contact engagement. Resume /
+  Controls / Abandon trip, and a persistent "Esc — trip menu" hint, because a
+  pause control nobody knows about is not one.
+  `finishAbandoned` deliberately reuses the ORIGIN city, stored vehicle and
+  fleet reconciliation of `finishDestroyed`, so a player who abandons
+  deliberately and one whose car dies land in ONE world state via ONE
+  implementation of what abandonment means.
+
+- **THE BUG THE TEST CAUGHT IN MY OWN FIRST ATTEMPT, in exactly the way the
+  comment beside the code predicted.** `mountMenu` listens on `menuHost`; the
+  screen's pause handler is on `window`. A keypress therefore reaches
+  `menuHost` FIRST: `handleMenuKey` returns BACK, `closeTripMenu()` sets
+  `paused = false`, and THEN the window handler runs, sees `paused === false`
+  and re-opens the menu. Escape did nothing — the shipped bug, re-created by
+  its own fix. `if (paused) return` cannot catch it, because by the time the
+  window handler runs the menu has already cleared the flag it was guarding.
+  Replaced with a read-and-clear `menuHandledKey` set by `onBack`. This is the
+  same lesson as iteration 89's two aborts that "looked like they worked": a
+  guard placed on the wrong side of a two-handler keypress is not a guard.
+
+- SIX TESTS, ALL THREE MUTATIONS PROVEN TO FIRE ON EXACTLY THE RIGHT ONE:
+    remove the freeze gate      -> only the FREEZE test fails
+    restore the broken guard    -> only the RESUME test fails
+    remove the `stop()` teardown-> 3 tests fail (the leaked listener)
+  The freeze test asserts on the status LINE, not the screen's whole
+  `textContent`: the first version compared the screen and failed while the
+  freeze was working correctly, because the only difference was the menu the
+  change itself adds. A test that fails for the feature it is testing is
+  worse than no test, and this log has the receipts for both halves of that.
+
+- **A FIXTURE THAT LIED, the tenth instance.** The abandon test asserted
+  `cityText` contains `skillsConfig().startingLocation` — the ruleset id,
+  `'newyork'` — while the screen renders `cityName(id)`, `'New York'`. It
+  failed on a feature that worked. Same class as the lowercase `FACINGS` keys
+  (25, 84), the function-where-a-string-belongs (82), `w-machine-gun` (84), the
+  `{position:{x,y}}` wrapper (81), the million-dollar driver (85) and the rest.
+
+- **THE LIVE FREEZE CHECK WAS VACUOUS ON THE FIRST TWO ATTEMPTS, and finding
+  out why is the most useful thing in this round.** My first production probe
+  held W for 3s, opened the menu, held W for 5.5s, and read the odometer both
+- GATE after the revert: unchanged from iteration 115's ship — tsc clean, 1526
+  tests with the measured `screens.test.ts` flake, 7 browser tests, build
+  `index-Bi6hkndk.js` (unchanged), so nothing to deploy and nothing to
+  re-verify live.
+## ITERATION 118 — combat effects SHIP, and iteration 117's "does not render" was wrong
+
+Iteration 117 built the tracer, watched it reach the GPU buffer and not the
+screen, and REVERTED it as an unproven visual. The caution was right. The
+conclusion was wrong, and finding out why is the whole round.
+
+- **THE FIRST ERROR WAS A PROBE, NOT THE CODE — and it is the same mistake
+  twice removed.** Iteration 117 read the render-path counter and THEN took the
+  screenshot. Those are two different instants, so most of the frames it looked
+  at were frames where no bolt existed. The instance was packed; the picture was
+  of a different tick.
+  Removed the skew by emitting a STATIC marker — fixed position, unconditional,
+  independent of any projectile's lifetime — so a screenshot could not miss it.
+  It appeared on the first attempt: a large bright four-pointed star. So the
+  `fx-*` frames, their UV rects (checked against the real `AtlasIndex`, which
+  returns 0.568-0.628 for the flash — non-degenerate and matching the packed
+  pixels exactly), their alpha (13-73% opaque, maxAlpha 255) and the PLAIN
+  sprite path were all correct the entire time.
+
+- **THE SECOND ERROR WAS MINE, AND IT IS THE INTERESTING ONE: IT RENDERED, AND
+  IT WAS INVISIBLE.** At the original 0.77m the bolt was a faint smudge on
+  144-luma ground. The same sprite at 12m is unmissable. That is this log's
+  iteration-68/64 class exactly — **a cue that is present, measurable, and
+  below the threshold of the frame anyone reviews** — and it has now killed
+  three fixes in this codebase before (the building shadow at 0.8/0.42, the
+  marker shadow at 0.9/0.5, the vehicle shadow at 0.7/0.5) and created a fourth.
+  Each of those was "the reviewer cannot see it, the measurement confirms it
+  exists, and nobody asked whether it was strong enough."
+
+- **BOTH FIXES, AND NEITHER IS A TUNED NUMBER.** The size is now anchored on
+  the thing a player already reads — a third of `VEHICLE_SPRITE_SIZE_M` — rather
+  than on `3m * 110/430`, which was a pixel fraction of the effect frame derived
+  from nothing. The previous number is now a TEST expectation rather than the
+  code, so the property is stated and the constant can move.
+  And the travelling bolt uses `fx-muzzle-flash`, not `fx-impact-spark`: the
+  spark is a soft 21%-opaque burst authored for an IMPACT, so a dart in flight
+  was both the wrong picture and the faintest frame in the set. "It renders" is
+  exactly the assertion that passed while the effect stayed invisible, so the
+  art choice now has its own test.
+
+- **VERIFIED WITH A CONTROL THAT MOVES**, because a static reading cannot
+  distinguish "there is a bolt" from "the car is orange and near the middle":
+      driving, NOT firing    7165 max warm pixels in the play area
+      driving AND firing     7384 max warm pixels        (+219)
+  and the captured frame shows the bolt on open ground beside the car, not
+  camouflaged under it — which the static probe in this round had been
+  doing, and which is why the 2.0m reading looked inconclusive.
+
+- **SHIPPED, AND IT IS THE REVIEWER'S OWN FINDING CLOSED.** Codex reported that
+  ammunition fell 20/20 -> 7/20 and a front facing dropped 2/2 -> 1/2 with
+  nothing on screen showing the exchanges causing either, and that the player was
+  forced to read HUD counters instead of the world. A shot now has a visible
+  path. The impact spark is still NOT wired, and for the reason iteration 117
+  recorded: a resolving projectile is dropped from `world.entities.projectiles`
+  on the tick it connects, so by render time it is gone — an impact needs the
+  damage system to record it, which is a state addition and its own round.
+
+- LIVE VERIFIED IN PRODUCTION (release `20260930103000-a21bf71`, bundle
+  `index-13aRBrtz.js`, live hash equal to the local build, whole site 200):
+  `?screen=arena` drives, holds fire, and the frame shows the bolt with the feed
+  reading "Machine Gun fired x6" and **0 page errors**.
+
+- GATE: tsc clean, 1534 tests, 1 failure — `screens.test.ts`, the measured
+  cross-file flake. 7 browser tests pass.
+
+- WHAT THIS ROUND IS ACTUALLY ABOUT, and it is worth more than the feature.
+  Three conclusions in three consecutive rounds were wrong, and all three came
+  from a probe rather than from the code: the atlas frames "did not exist"
+  (115), the render "did not happen" (117), and a size that "was already
+  correct". Each time the instrument looked healthy and each time it was the
+  instrument. The technique that finally worked every time was the boring one —
+  make the thing under test the ONLY variable, take the reading in the same
+  instant, and show the signal moving when the thing is not engaged.
+## ITERATION 119 — the impact spark, which closed review finding #1 in full
+
+Iteration 118 shipped the tracer and deferred the second half of the same
+finding with a stated reason: a resolving projectile is dropped from
+`world.entities.projectiles` on the tick it connects, so by render time there is
+nothing left to draw.
+
+- **THAT REASON WAS CHECKED BEFORE BUILDING ON IT, not after.** The last two
+  "the code does not work" conclusions in this log (115's missing frames, 117's
+  missing render) both came from trusting a stated reason, so this one was read in
+  the source first. It holds: a projectile that reaches a collider or expires is
+  not pushed to `remaining`, and a third guard then skips anything that did not
+  resolve a hit. So an impact genuinely cannot be drawn from the projectile list,
+  and the state addition iteration 118 named is unavoidable rather than optional.
+
+- **THE HIT/MISS DISTINCTION IS THE WHOLE POINT, AND IT IS WHY THE CALLBACK
+  SITS WHERE IT DOES.** `onImpact` fires after the in-flight skip AND after
+  `if (target === undefined || target.destroyed || !hit || facing === null)
+  continue;` — so a shot that runs out of range draws nothing at all. An effect
+  drawn for both would lie about half of them, and "half the impacts are
+  actually misses" is precisely the kind of decoration this log has declined in
+  iterations 21, 28 and 54.
+  Measured in a real browser, which is the check that matters: firing
+  continuously at a three-opponent roster produced **at most ONE spark alive at a
+  time, not one per trigger pull**. That is the distinction behaving correctly,
+  not the effect being too rare — and it is the same shape as iteration 118's
+  "the contact count only ever falls" test: assert the RELATIONSHIP, because a
+  count on its own cannot tell a rare effect from a broken one.
+
+- **`fx-impact-spark` IS THE RIGHT ART HERE AND WAS THE WRONG ART FOR THE BOLT.**
+  A soft 21%-opaque burst is what a hit looks like; a dart in flight needs the
+  sharp flash. The two states now use different frames, which is the whole
+  reason the original choice looked wrong only after the size was fixed.
+  The test asserts which frame is requested by RECORDING it in the atlas
+  double — the first version asserted on the double's own `name` field, which
+  only proves the double names itself correctly. That was circular, it was
+  caught by reading the assertion rather than the result, and it is the same
+  shape as iteration 115's probe that matched a dict wrongly.
+
+- **BOUNDED ON BOTH AXES, AND PRUNED AT DRAW TIME.** By age (14 ticks, derived
+  from the sim's own 60Hz rather than a wall-clock guess — a longer life is not
+  a "brighter" effect, it is a STALE one, and a spark still hanging around a
+  minute later asserts a hit that has scrolled out of relevance) and by count.
+  Pruning happens where the effect is drawn rather than on a timer, so a spark
+  cannot survive a pause — where `world.tick` stops advancing — and then dump a
+  burst of them on the frame play resumes.
+
+- **4 NEW TESTS, BOTH MUTATIONS PROVEN TO FIRE ON EXACTLY THE RIGHT ONE:**
+  drawing the bolt art on impact fails only the art test, and freezing the size
+  to a literal instead of deriving it from `VEHICLE_SPRITE_SIZE_M` fails only
+  the sizing test. 12 tests in the file, both `combat effects` halves green.
+
+- **THE FULL-SUITE FAILURE WAS MEASURED, NOT BLAMED.** A `road-trip-menu`
+  "abandoning" failure appeared in the suite. In isolation the file passed 4/4,
+  and — the check that actually settles it — the same failure appeared in a
+  full-suite run with my change STASHED. So it is the documented order-dependent
+  flake and the fourth time that exact test has been the intermittent one
+  (iterations 101, 111, 119). Recorded rather than dismissed, and recorded as
+  evidence, because a flake you have measured four times is a known quantity and
+  one you have not is a coin flip.
+
+- LIVE: release `20260930111500-d471fc3`, build `index-Hrr9Wz8r.js`, whole site
+  200, 0 page errors.
+  **WHAT PRODUCTION WAS VERIFIED BY, precisely, because it is not what I would
+  have claimed without checking.** I did NOT get a clean production screenshot
+  of a spark, and the reason is worth recording rather than papering over: the
+  spark lives ~230ms, a headless canvas screenshot costs ~200ms, and the machine
+  gun empties its 20-round magazine in under a second — so sampling production
+  for the effect is a coin flip on three counts at once. Two attempts produced
+  "out of ammo x8" and zero near-white pixels, which read exactly like a broken
+  effect and were not one.
+  What production DID get: the served bundle is **byte-identical** to the local
+  build whose impact spark I watched render (md5 `e937a1e8…`, 482,085 bytes both
+  sides), and `fx-impact-spark` is present in the served bytes. Combined with the
+  local evidence — instrumented count showing sparks fire only on connecting
+  shots, and a captured frame showing a bright radial burst on the car that was
+  hit — that is the same chain iteration 118 used for the tracer, and the part
+  it does NOT cover is a second rendered production frame, which is stated here
+  rather than implied.
+
+- GATE: tsc clean, 1538 tests, 2 failures — `screens.test.ts` and the
+  `road-trip-menu` flake measured above to be pre-existing. 7 browser tests
+  pass.
+
+- WHAT THIS CLOSES, AND WHAT IT DOES NOT. Review finding #1 was "combat
+  happens without visible firing or impact effects ... the player must read HUD
+  counters instead of the world". A shot now has a visible path AND a visible
+  landing, so both halves of that sentence are answered.
+  Still open from the same review: **#2** the 30-mile intro route at ~26 real
+  minutes (the pacing decision, unchanged — iterations 96/102/106 settled that
+  honest compression costs a lie in one direction or the other), and **#4** the
+  Federal Building's missing service, which is authored content rather than a
+  defect and is the same item iteration 98 marked closed-on-approach.
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Determining screenshot source**
+exec
+/bin/zsh -lc "rg --files -g 'review-arena-initial.png' -g 'page-2026-09-30*' -g '*screens*' . .playwright-mcp /private/tmp" in /Users/shoemoney/Projects/smduel
+ succeeded in 101ms:
+.playwright-mcp/page-2026-09-30T04-06-15-059Z.yml
+.playwright-mcp/page-2026-09-30T13-11-01-428Z.yml
+.playwright-mcp/page-2026-09-30T09-42-28-566Z.png
+.playwright-mcp/page-2026-09-30T10-39-51-939Z.yml
+.playwright-mcp/page-2026-09-30T10-35-00-576Z.yml
+.playwright-mcp/page-2026-09-30T07-41-52-764Z.yml
+.playwright-mcp/page-2026-09-30T13-21-59-267Z.yml
+.playwright-mcp/page-2026-09-30T07-37-24-144Z.yml
+.playwright-mcp/page-2026-09-30T07-51-09-156Z.yml
+.playwright-mcp/page-2026-09-30T05-06-25-447Z.yml
+.playwright-mcp/page-2026-09-30T13-16-14-881Z.yml
+.playwright-mcp/page-2026-09-30T10-44-02-274Z.yml
+.playwright-mcp/page-2026-09-30T13-11-45-337Z.yml
+.playwright-mcp/page-2026-09-30T07-35-17-272Z.yml
+.playwright-mcp/page-2026-09-30T06-09-46-434Z.yml
+.playwright-mcp/page-2026-09-30T05-05-54-562Z.yml
+.playwright-mcp/page-2026-09-30T13-25-27-292Z.yml
+.playwright-mcp/page-2026-09-30T13-24-23-387Z.yml
+.playwright-mcp/page-2026-09-30T09-43-37-907Z.png
+.playwright-mcp/page-2026-09-30T07-49-20-938Z.yml
+.playwright-mcp/page-2026-09-30T13-20-17-679Z.yml
+.playwright-mcp/page-2026-09-30T03-58-56-280Z.yml
+.playwright-mcp/page-2026-09-30T05-07-10-947Z.yml
+.playwright-mcp/page-2026-09-30T07-52-29-504Z.yml
+.playwright-mcp/page-2026-09-30T09-41-59-379Z.yml
+.playwright-mcp/page-2026-09-30T07-41-48-352Z.yml
+.playwright-mcp/page-2026-09-30T13-21-57-454Z.yml
+.playwright-mcp/page-2026-09-30T03-58-58-467Z.yml
+.playwright-mcp/page-2026-09-30T04-04-05-178Z.yml
+.playwright-mcp/page-2026-09-30T09-43-56-931Z.png
+.playwright-mcp/page-2026-09-30T07-49-19-904Z.yml
+.playwright-mcp/page-2026-09-30T13-11-34-664Z.yml
+.playwright-mcp/page-2026-09-30T03-56-45-570Z.yml
+.playwright-mcp/page-2026-09-30T10-42-52-324Z.yml
+.playwright-mcp/page-2026-09-30T03-58-43-016Z.yml
+.playwright-mcp/page-2026-09-30T09-42-28-368Z.yml
+.playwright-mcp/page-2026-09-30T03-58-50-074Z.yml
+.playwright-mcp/page-2026-09-30T09-43-08-918Z.yml
+.playwright-mcp/page-2026-09-30T13-18-20-324Z.yml
+.playwright-mcp/page-2026-09-30T03-58-33-809Z.yml
+.playwright-mcp/page-2026-09-30T07-51-33-144Z.yml
+.playwright-mcp/page-2026-09-30T09-42-44-518Z.png
+.playwright-mcp/page-2026-09-30T05-12-26-729Z.yml
+.playwright-mcp/page-2026-09-30T07-50-49-801Z.yml
+.playwright-mcp/page-2026-09-30T07-44-43-026Z.yml
+.playwright-mcp/page-2026-09-30T13-16-46-401Z.yml
+.playwright-mcp/page-2026-09-30T06-10-44-532Z.yml
+.playwright-mcp/page-2026-09-30T08-04-52-796Z.yml
+.playwright-mcp/page-2026-09-30T07-52-30-582Z.yml
+.playwright-mcp/page-2026-09-30T03-58-38-681Z.yml
+.playwright-mcp/page-2026-09-30T07-56-38-188Z.yml
+.playwright-mcp/page-2026-09-30T03-57-13-986Z.yml
+.playwright-mcp/page-2026-09-30T06-07-06-160Z.yml
+.playwright-mcp/page-2026-09-30T06-03-52-297Z.yml
+.playwright-mcp/page-2026-09-30T04-13-40-300Z.yml
+.playwright-mcp/page-2026-09-30T13-38-58-239Z.yml
+.playwright-mcp/page-2026-09-30T04-04-06-272Z.yml
+.playwright-mcp/page-2026-09-30T05-07-13-012Z.yml
+.playwright-mcp/page-2026-09-30T08-04-55-008Z.yml
+.playwright-mcp/page-2026-09-30T10-39-55-861Z.yml
+.playwright-mcp/page-2026-09-30T07-51-21-384Z.yml
+.playwright-mcp/page-2026-09-30T13-33-09-755Z.yml
+.playwright-mcp/page-2026-09-30T09-43-08-649Z.png
+.playwright-mcp/page-2026-09-30T07-56-56-581Z.yml
+.playwright-mcp/page-2026-09-30T06-04-47-533Z.yml
+.playwright-mcp/page-2026-09-30T09-42-03-586Z.png
+.playwright-mcp/page-2026-09-30T02-40-47-378Z.yml
+.playwright-mcp/page-2026-09-30T09-44-13-768Z.png
+.playwright-mcp/page-2026-09-30T05-09-53-094Z.yml
+.playwright-mcp/page-2026-09-30T13-28-05-205Z.yml
+.playwright-mcp/page-2026-09-30T13-20-20-197Z.yml
+.playwright-mcp/page-2026-09-30T04-13-39-159Z.yml
+.playwright-mcp/page-2026-09-30T13-30-32-583Z.yml
+.playwright-mcp/page-2026-09-30T13-16-48-299Z.yml
+.playwright-mcp/page-2026-09-30T06-07-06-263Z.yml
+.playwright-mcp/page-2026-09-30T03-59-47-907Z.yml
+.playwright-mcp/page-2026-09-30T03-59-06-757Z.yml
+.playwright-mcp/page-2026-09-30T04-06-14-012Z.yml
+.playwright-mcp/page-2026-09-30T13-15-50-517Z.yml
+.playwright-mcp/page-2026-09-30T06-09-44-417Z.yml
+.playwright-mcp/page-2026-09-30T10-35-28-642Z.yml
+.playwright-mcp/page-2026-09-30T13-09-51-184Z.yml
+.playwright-mcp/page-2026-09-30T08-00-26-557Z.yml
+.playwright-mcp/page-2026-09-30T10-42-15-577Z.yml
+.playwright-mcp/page-2026-09-30T07-46-19-415Z.yml
+.playwright-mcp/page-2026-09-30T04-05-10-405Z.yml
+.playwright-mcp/page-2026-09-30T10-41-31-847Z.yml
+.playwright-mcp/page-2026-09-30T03-25-38-364Z.yml
+.playwright-mcp/page-2026-09-30T04-02-17-495Z.yml
+.playwright-mcp/page-2026-09-30T09-45-04-187Z.png
+.playwright-mcp/page-2026-09-30T13-33-38-489Z.yml
+.playwright-mcp/page-2026-09-30T04-01-15-100Z.yml
+.playwright-mcp/page-2026-09-30T07-46-20-500Z.yml
+.playwright-mcp/page-2026-09-30T10-37-48-838Z.yml
+.playwright-mcp/page-2026-09-30T06-04-20-526Z.yml
+.playwright-mcp/page-2026-09-30T13-36-23-020Z.yml
+.playwright-mcp/page-2026-09-30T04-07-23-041Z.yml
+.playwright-mcp/page-2026-09-30T04-03-28-065Z.yml
+.playwright-mcp/page-2026-09-30T05-12-28-257Z.yml
+.playwright-mcp/page-2026-09-30T13-28-04-144Z.yml
+.playwright-mcp/page-2026-09-30T13-33-08-746Z.yml
+.playwright-mcp/page-2026-09-30T08-00-28-603Z.yml
+.playwright-mcp/page-2026-09-30T03-57-01-669Z.yml
+.playwright-mcp/page-2026-09-30T13-33-39-498Z.yml
+.playwright-mcp/page-2026-09-30T09-42-35-637Z.png
+.playwright-mcp/page-2026-09-30T13-25-27-301Z.yml
+.playwright-mcp/page-2026-09-30T03-59-28-368Z.yml
+.playwright-mcp/page-2026-09-30T15-11-42-283Z.yml
+.playwright-mcp/page-2026-09-30T07-44-41-965Z.yml
+.playwright-mcp/page-2026-09-30T04-05-12-738Z.yml
+.playwright-mcp/page-2026-09-30T13-08-36-879Z.yml
+.playwright-mcp/page-2026-09-30T09-43-20-477Z.png
+.playwright-mcp/page-2026-09-30T03-58-15-689Z.yml
+.playwright-mcp/page-2026-09-30T13-11-35-671Z.yml
+.playwright-mcp/page-2026-09-30T07-35-45-666Z.yml
+.playwright-mcp/page-2026-09-30T13-26-05-263Z.yml
+.playwright-mcp/page-2026-09-30T13-24-53-547Z.yml
+.playwright-mcp/page-2026-09-30T05-09-54-609Z.yml
+.playwright-mcp/page-2026-09-30T07-37-22-121Z.yml
+.playwright-mcp/page-2026-09-30T03-59-45-894Z.yml
+.playwright-mcp/page-2026-09-30T10-34-18-343Z.yml
+.playwright-mcp/page-2026-09-30T09-42-19-176Z.png
+.playwright-mcp/page-2026-09-30T03-26-10-807Z.yml
+.playwright-mcp/page-2026-09-30T04-07-21-874Z.yml
+./review-arena-initial.png
+./tests/integration/screens.test.ts
+/private/tmp/screens.bak
+/private/tmp/headab/src/ui/screens.js
+/private/tmp/screens.fixonly.ts
+/private/tmp/gap2_screens.txt
+/private/tmp/texadv/base/src/ui/screens.js
+/private/tmp/claude-502/-Users-shoemoney-Projects-smduel/68b9150e-4f9b-495a-9472-ef5adae691a0/scratchpad/patch_screens3.py
+/private/tmp/claude-502/-Users-shoemoney-Projects-smduel/68b9150e-4f9b-495a-9472-ef5adae691a0/scratchpad/patch_screens2.py
+/private/tmp/claude-502/-Users-shoemoney-Projects-smduel/68b9150e-4f9b-495a-9472-ef5adae691a0/scratchpad/test-screenshot.png
+/private/tmp/claude-502/-Users-shoemoney-Projects-smduel/68b9150e-4f9b-495a-9472-ef5adae691a0/scratchpad/patch_screens.py
+/private/tmp/claude-502/-Users-shoemoney-Projects-smduel/68b9150e-4f9b-495a-9472-ef5adae691a0/scratchpad/good/screens.test.ts
+/private/tmp/claude-502/-Users-shoemoney-Projects-smduel/68b9150e-4f9b-495a-9472-ef5adae691a0/scratchpad/screens.test.full.ts
+/private/tmp/claude-502/-Users-shoemoney-Projects-Shoeinator/f95f830e-87c3-4bc9-bb14-5895e908a73f/scratchpad/work/three.js/manual/examples/tips-screenshot-good.html
+/private/tmp/claude-502/-Users-shoemoney-Projects-smduel/68b9150e-4f9b-495a-9472-ef5adae691a0/scratchpad/screenshot_city.cjs
+/private/tmp/claude-502/-Users-shoemoney-Projects-Shoeinator/f95f830e-87c3-4bc9-bb14-5895e908a73f/scratchpad/work/three.js/manual/examples/tips-screenshot-bad.html
+/private/tmp/claude-502/-Users-shoemoney-Projects-Shoeinator/f95f830e-87c3-4bc9-bb14-5895e908a73f/scratchpad/work/three.js/devtools/screenshot.png
+/private/tmp/claude-502/-Users-shoemoney-Projects-Shoeinator/f95f830e-87c3-4bc9-bb14-5895e908a73f/scratchpad/work/three.js/examples/models/gltf/MaterialsVariantsShoe/screenshot/screenshot.jpg
+/private/tmp/claude-502/-Users-shoemoney-Projects-Shoeinator/f95f830e-87c3-4bc9-bb14-5895e908a73f/scratchpad/work/three.js/examples/models/gltf/AnimatedMorphSphere/screenshot/screenshot.gif
+
+mcp: playwright/browser_run_code_unsafe started
+mcp: playwright/browser_run_code_unsafe (failed)
+MCP tool call requires approval, but approval policy is never
+**Evaluating keyboard event dispatch**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+**Reviewing image rendering details**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+ERROR: Reconnecting... 1/5
+ERROR: Reconnecting... 2/5
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+**Waiting for screenshot load**
+codex
+## Live checks
+
+The arena responds to throttle, steering, and firing; ammunition fell from 20 to 17 during the firing check. I’ve captured it at device pixel ratio 2 and am checking road movement and the trip menu next.
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+ERROR: Reconnecting... 1/5
+**Analyzing car steering behavior**
+exec
+/bin/zsh -lc "rg -n 'showRoad|showArena|heading|KeyW|KeyA|steering|throttle' src/app.ts src/input* src/ui/screens* src/sim/road.ts rules*/*controls*" in /Users/shoemoney/Projects/smduel
+ exited 1 in 0ms:
+zsh:1: no matches found: src/input*
+
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+exec
+/bin/zsh -lc "rg -n 'showRoad|showArena|KeyW|KeyA|steering|throttle' src rulesets; rg --files src | rg 'input|controls|road|screens|arena'" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+rulesets/classic/controls.json:3:  "_note": "Reconstruction. Default key/button bindings for the Classic and Modern input presets (docs/SPEC.md 'Controls'). Every action id below is remappable at runtime via @/ui/input's rebind(); this file only supplies the out-of-the-box map, never a literal in TS. gamepadAxisThreshold is the half-axis deadzone: an axis reading must cross it (in the bound sign's direction) before that half-axis counts as pressed. cityDirectionDeadzone is a different, higher-level deadzone: it is applied to @/ui/input's already-resolved, already-combined 2D drive vector (which may come from keyboard, mouse, or gamepad) to decide whether it is firm enough to snap to one of @/app's 8 compass CityDirections, not to a single raw gamepad axis. touch.axisDeadzone is the on-screen thumbstick's own deadzone, deliberately much smaller than gamepadAxisThreshold (0.5) because a virtual stick has no spring-return rest slop to reject — reusing 0.5 would make the first half of every thumb throw dead. touch.stickRadiusPx is the thumb travel, in CSS pixels, at which the stick reads full deflection; it is the ONE number that both @/ui/touch's normalisation and the pad's rendered size derive from, so they cannot drift apart. arenaOutcomeDelayMs is UI pacing, not gameplay: the pause @/app's showArenaEvent holds once a match goes terminal (every opponent defeated, or the player's own vehicle/driver down) before cutting to the outcome screen, so the last kill or the player's own death is visible for a beat instead of the screen changing mid-frame. cityShortcuts are the CITY-only screen commands (enter/exit car, Journal, Fleet), kept OUT of actions on purpose: actions is the arena/road input table and fire already owns KeyJ in both presets, and validateControls refuses two actions sharing one physical input. The city never fires, so J is free here, and moving it would take a working, tested, on-screen-documented arena key away from players to satisfy a table the city never shares with the arena. The validator still forbids a city shortcut colliding with another city shortcut or with a DRIVE action, because those two DO coexist on the city screen.",
+rulesets/classic/controls.json:35:      "driveUp": { "keyboard": ["KeyW", "ArrowUp"], "mouse": [], "gamepadButtons": [], "gamepadAxes": [{ "index": 1, "sign": -1 }] },
+rulesets/classic/controls.json:37:      "driveLeft": { "keyboard": ["KeyA", "ArrowLeft"], "mouse": [], "gamepadButtons": [], "gamepadAxes": [{ "index": 0, "sign": -1 }] },
+rulesets/classic/controls.json:54:      "driveUp": { "keyboard": ["KeyW", "ArrowUp"], "mouse": [], "gamepadButtons": [7], "gamepadAxes": [] },
+rulesets/classic/controls.json:56:      "driveLeft": { "keyboard": ["KeyA", "ArrowLeft"], "mouse": [], "gamepadButtons": [], "gamepadAxes": [{ "index": 0, "sign": -1 }] },
+src/ui/input.ts:16: * put steering and throttle on physically separate controls (gamepad
+src/ui/input.ts:17: * triggers for throttle instead of sharing the left stick) rather than
+src/ui/input.ts:73:  /** Currently-held `KeyboardEvent.code` values, e.g. `'KeyW'`. */
+src/data/schema.ts:915:    // 7 driving BOTH throttle and fire) means the player can never trigger
+src/ui/touch.ts:180:    // `firePointerId` frozen at its last reading forever (a stuck throttle
+src/ui/buildings/index.ts:85:  /** Required when `kind === 'arena'` — hands the started match to the host's existing arena screen (`@/app.ts`'s `showArena`); this module never simulates a match itself. */
+rulesets/classic/fidelity-notes.yaml:1213:    note: "Beat @/app's showArenaEvent holds after a match goes terminal (roster cleared or player down) before cutting to the outcome screen, so the last kill or the player's own death is visible for a moment first"
+rulesets/classic/fidelity-notes.yaml:1303:    note: "Modern preset separates throttle from steering by default: driveUp reads the right trigger (button 7) instead of sharing the left stick"
+rulesets/classic/fidelity-notes.yaml:1309:    note: "Modern preset separates throttle from steering by default: driveDown reads the left trigger (button 6) instead of sharing the left stick"
+rulesets/classic/fidelity-notes.yaml:1315:    note: "Modern preset default gamepad binding: driveLeft reads standard-mapping axis 0 (left stick X), steering only"
+rulesets/classic/fidelity-notes.yaml:1327:    note: "Modern preset default gamepad binding: driveRight reads standard-mapping axis 0 (left stick X), steering only"
+src/app.ts:414:// `showArena`'s `restoreWorld` branch below, which reuses a resumed World's
+src/app.ts:512: * itself reachable headlessly - it goes straight on to call `showArena`) as
+src/app.ts:560:/** A live `Set` of currently-held `KeyboardEvent.code` values (NOT `.key` — `@/ui/input`'s bindings are all code-keyed, e.g. `"KeyW"`), kept current by window-level listeners for as long as the returned `detach()` hasn't been called. Every screen's own per-frame `RawInputState` reads this same set fresh each frame rather than resampling the DOM. */
+src/app.ts:580:   * away while holding throttle/keyboard-steer leaves those codes latched in
+src/app.ts:1347:// straight off `driverRef`) — `showArena`'s zero-opponent practice loop
+src/app.ts:1350:// `showArenaEvent` (real opponents) needs a DIFFERENT InputFrame per
+src/app.ts:1436: * from (`showArenaEvent`'s match start and `tests/integration/arena-victory
+src/app.ts:1570: * the ROAD one too — `showRoad` drove this same system, so road opponents were
+src/app.ts:1800: * `destroyed` non-player vehicle each tick — see `showRoad`), not this
+src/app.ts:2598: * (`world` non-null: `showArena`'s exit) or a driver safely back in a city
+src/app.ts:2599: * with no simulation in flight (`world: null`: `showArenaEvent`'s exit,
+src/app.ts:2785: * `showArena`) as a seam: it's the exact production code the session seed's
+src/app.ts:2806:  /** A resumed save's own campaign quests, threaded through so `showArena`'s own exit-autosave (`persistArenaSession`) never wipes them back to `[]` — absent (defaults to `[]`) for a brand-new practice session, which has no campaign quests to carry. */
+src/app.ts:2810:/** What `resolveArenaWorld` hands back: either the World + driver `showArena` should run with, or a human-readable refusal (e.g. can't afford the practice fee) for the caller to display instead of entering the arena. */
+src/app.ts:2816: * Decides, and builds, the World + driver `showArena` runs with - the exact
+src/app.ts:2819: * via `createArenaWorld`. Extracted out of `showArena` (which also owns a
+src/app.ts:2840:function showArena(
+src/app.ts:3280:   * keeps itself). Only `showArenaEvent`'s exit handler below writes to
+src/app.ts:3291: * calling this, rather than either routing to the mid-arena-only `showArena`
+src/app.ts:3621:// Reuses the exact rendering/input/HUD helpers `showArena` (the boot-time
+src/app.ts:3656: * (see `showArenaEvent`'s exit handler below for the gate). Same screen
+src/app.ts:3821:function showArenaEvent(
+src/app.ts:4036:            showArenaEvent(
+src/app.ts:4094:    // the keydown it is handling, `onExit` calls `showArenaEvent`, and the new
+src/app.ts:4815: * unlabeled phase. Shared by `showCity`/`showRoad`'s own status lines.
+src/app.ts:5116:        showArenaEvent(root, result.driver, entered, result.matchState, runState.clock, runState, (nextState) => {
+src/app.ts:5175:        showRoad(root, runState, trip, (nextState) => showCity(root, nextState));
+src/app.ts:5326:        // See the note in showArena's onRecovered: a dropped reference does not
+src/app.ts:5522: * `showRoad` below is what actually reads their extra `design`/`skill`/
+src/app.ts:5593:/** The one place a defeated road opponent becomes a real `@/sim/road` `RoadWreck` — the fixed `wreck-${unit.id}` id convention `showRoad`'s own `stepCombat` uses, exported so a headless test can drive the exact same production seam instead of a parallel reimplementation. */
+src/app.ts:6177:function showRoad(
+src/app.ts:6242:   * coasting." Correct, and it greps clean — `showRoad` mounted no menu and no
+src/app.ts:6518:   * never change identity for the life of the screen. `showArenaEvent` builds
+src/app.ts:6728:          showControls(root, () => showRoad(root, state, trip, onArrive, onExitToTitle));
+src/app.ts:7263:     * indicator that flickers on every steering correction is noise.
+src/app.ts:7446:      showArena(
+src/app.ts:7477:        showRoad(root, cityState, trip, (nextState) => showCity(root, nextState));
+src/app.ts:7527:  // the road otherwise means steering a walking avatar into a procedurally
+src/app.ts:7538:    // `arena-event` is the ONE target that mounts `showArenaEvent` rather than
+src/app.ts:7539:    // `showArena`, and it is here because its absence has now cost live
+src/app.ts:7653:      showArena(root, created.driver, vehicle, { sessionSeed, openDb, quests: [] }, () => void start());
+src/app.ts:7675:        // reader would be looking at `showArena` and not know it.
+src/app.ts:7679:      showArenaEvent(root, begun.driver, vehicle, begun.state, cityState.clock, cityState, () => void start());
+src/app.ts:7695:      showRoad(root, cityState, trip, () => showCity(root, cityState));
+src/sim/ai.ts:15: *   - `headingRad` is whatever numeric angle `src/sim/driving.ts` is steering
+src/sim/ai.ts:269: * The steering half of "align a valid weapon facing": turns the desired
+src/ui/buildings/arena.ts:7: * callback, exactly the existing arena flow `@/app.ts`'s own `showArena`
+src/sim/driving.ts:2: * Driving model: classic direction-and-throttle steering, control loss,
+src/sim/driving.ts:49:/** Direction-and-throttle input: length (clamped 0..1) is desired speed as a fraction of top speed, direction is desired heading. The zero vector means the stick is centered. */
+src/sim/driving.ts:236:  // Floored above 0: four destroyed tires must degrade steering severely,
+src/sim/driving.ts:367:  // meaningful throttle, brake, or steering authority for its whole
+src/sim/driving.ts:372:  // --- Speed: throttle / brake / coast / reverse --------------------------
+src/sim/driving.ts:413:  // --- Heading: steering, or control-loss spin-out -------------------------
+src/sim/driving.ts:424:    // this is the car losing control, not the driver steering it.
+src/sim/types.ts:375:  /** Floor on the tire-condition handling multiplier (see `handlingScaleDivisor`): four destroyed tires degrade steering severely but must never reach a literal, permanent 0. */
+src/sim/road.ts
+src/sim/arena.ts
+src/ui/input.ts
+src/ui/buildings/arena.ts
+
+**Confirming direction control design**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+ERROR: Reconnecting... 1/5
+**Analyzing city sprite controls**
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+exec
+/bin/zsh -lc "rg -n 'Federal Building|direction|CITY_|cityDirection|inVehicle|actor|occupied' src/app.ts src/sim/city.ts | head -90; sed -n '4930,5030p' src/app.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+src/sim/city.ts:170:export const CITY_DIRECTIONS: readonly CityDirection[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+src/sim/city.ts:179: * `cityDirectionFromVector` — which negates `resolveInput`'s y so that "up"
+src/sim/city.ts:213:  readonly inVehicle: boolean;
+src/sim/city.ts:217:  return { position, headingRad: 0, inVehicle: false };
+src/sim/city.ts:245: * standing in the doorway while still holding the same direction — this is
+src/sim/city.ts:278:  /** One of the eight compass directions, or `null` for no input (stick centered — the player doesn't move). */
+src/sim/city.ts:279:  readonly direction: CityDirection | null;
+src/sim/city.ts:301: * moves `speedMps * dt` meters along one of the eight compass directions,
+src/sim/city.ts:312: * `player.inVehicle` (set by `toggleVehicle`) picks the SPEED and nothing
+src/sim/city.ts:315: * deliberately identical. The eight compass directions (SPEC's "City: 8-way
+src/sim/city.ts:324:  const { player, layout, direction, dtSeconds, clock } = params;
+src/sim/city.ts:326:  if (direction === null) {
+src/sim/city.ts:330:  const unit = DIRECTION_UNIT_VECTORS[direction];
+src/sim/city.ts:332:  const speedMps = player.inVehicle ? cfg.city.vehicleSpeedMps : cfg.pedestrian.speedMps;
+src/sim/city.ts:362:  if (player.inVehicle) {
+src/sim/city.ts:363:    return { ok: true, player: { ...player, inVehicle: false } };
+src/sim/city.ts:368:  return { ok: true, player: { ...player, inVehicle: true } };
+src/app.ts:193:  WALL_SETBACK_M as CITY_WALL_SETBACK_M,
+src/app.ts:845:  lockup.style.cssText = 'position:absolute;left:0;right:0;top:38%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 16px;';
+src/app.ts:1226:    const direction = facingWorldDirection(cooled.headingRad, weapon.facing);
+src/app.ts:1228:      x: cooled.position.x + direction.x * weaponDef.rangeM,
+src/app.ts:1229:      y: cooled.position.y + direction.y * weaponDef.rangeM,
+src/app.ts:1527:      //   - same direction, 30 and 10: reported 67mph against a real 45mph gap
+src/app.ts:1655:      const direction = facingWorldDirection(cooled.headingRad, weapon.facing);
+src/app.ts:1657:        x: cooled.position.x + direction.x * weaponDef.rangeM,
+src/app.ts:1658:        y: cooled.position.y + direction.y * weaponDef.rangeM,
+src/app.ts:1860: * Factored out because the arena, arena-event, road and city screens each build
+src/app.ts:1956:const CITY_GRADE: Omit<PostUniformValues, 'width' | 'height' | 'timeSeconds'> = {
+src/app.ts:2001:  // This used to be `boundsRadiusM * CITY_FIT_MARGIN`, which is wrong for a
+src/app.ts:2009:  const wantRadiusM = boundsRadiusM + CITY_WALL_SETBACK_M + CITY_FIT_PAD_M;
+src/app.ts:2031: * frame edge. Metres rather than a ratio, to match CITY_WALL_SETBACK_M.
+src/app.ts:2033:const CITY_FIT_PAD_M = 3;
+src/app.ts:2056: * Raised 28 -> 34, and deliberately NOT by the same factor as the arena. The
+src/app.ts:2553:    // A bolt with no velocity has no direction to point, and `atan2(0, 0)` is
+src/app.ts:4564:  readonly actorCapacity: number;
+src/app.ts:4569:  readonly actorInstanceBuffer: GPUBuffer;
+src/app.ts:4570:  readonly actorBindGroup: GPUBindGroup;
+src/app.ts:4575: * City actor-layer instance capacity.
+src/app.ts:4585:const CITY_ACTOR_INSTANCE_CAPACITY = 4;
+src/app.ts:4595:const CITY_GROUND_INSTANCE_COUNT = 1;
+src/app.ts:4610:  return CITY_GROUND_INSTANCE_COUNT + cityGroundDecalCount(layout);
+src/app.ts:4657:  const actorInstanceBuffer = createInstanceStorageBuffer(device, CITY_ACTOR_INSTANCE_CAPACITY);
+src/app.ts:4658:  const actorBindGroup = createAtlasBindGroup(device, atlasLayout, actorInstanceBuffer, sampler, textureView);
+src/app.ts:4671:    actorCapacity: CITY_ACTOR_INSTANCE_CAPACITY,
+src/app.ts:4676:    actorInstanceBuffer,
+src/app.ts:4677:    actorBindGroup,
+src/app.ts:4686:      actorInstanceBuffer.destroy();
+src/app.ts:4712:export function cityDirectionFromVector(vec: { readonly x: number; readonly y: number }): CityDirection | null {
+src/app.ts:4713:  const deadzone = CONTROLS.cityDirectionDeadzone;
+src/app.ts:4916:   * services ... I drove into one and reached the Federal Building's 'coming in
+src/app.ts:5349:    // comment said ~21m, which is wrong by a factor of two, and cost an
+src/app.ts:5353:    // occupied about a third of a 1440px viewport with black on both sides —
+src/app.ts:5360:    // @/ui/city-view's own layer scheme: 0 = ground, 1 = building/gate, 2 = actor (player/vehicle).
+src/app.ts:5365:    // frame, 60 times a second, for a byte-identical result. Only the actor
+src/app.ts:5368:    const actors = buildCityActorInstances(citySnapshot(), atlasIndex);
+src/app.ts:5371:    writeInstanceBuffer(gpuCtx.getDevice(), resources.actorInstanceBuffer, packInstances(actors), resources.actorCapacity);
+src/app.ts:5373:    const { sceneView, post } = writePostFrame(gpuCtx, resources, CITY_GRADE, nowSeconds);
+src/app.ts:5384:        { bindGroup: resources.actorBindGroup, instanceCount: actors.length },
+src/app.ts:5399:      const direction = cityDirectionFromVector({ x: resolved.moveX, y: resolved.moveY });
+src/app.ts:5400:      const step = stepWalk({ player, layout, direction, dtSeconds, clock: runState.clock });
+src/app.ts:5409:        player.inVehicle && runState.vehicle !== null
+src/app.ts:5444:        // the player walk in and be told by the stub panel. The Federal Building
+src/app.ts:5461:    // panel — the reviewer approached the Federal Building and read its name
+src/app.ts:5722: * words — "the player loses all spatial reference and directionality; driving
+src/app.ts:5907: * said the direction "is not independently verifiable" because crossing the
+src/app.ts:5938:  // arrives as -90 rather than 270 — the same screen direction, but the
+src/app.ts:5941:  // whether two equal directions were compared. CSS accepts either; the
+src/app.ts:5989:        // orientation barely matters, but the SHADOW in the art has a direction,
+src/app.ts:6083:  // in the route's direction) gives a centre that tracks along-route motion
+src/app.ts:6148:        // The bar's long axis must run ACROSS the direction of travel.
+src/app.ts:6313:  // The direction is carried by a ROTATED ELEMENT rather than a `◀`/`▶`
+src/app.ts:6318:  // road plainly below). Rotating `▲` handles all eight directions with one
+src/app.ts:7126:   * from both directions.
+src/app.ts:7257:     * behind it in the negative direction. Getting that backwards would produce
+src/app.ts:7269:      // Rotate the arrow to the SCREEN direction of the nearest carriageway
+src/app.ts:7545:    // "Federal Building — closed" exactly as iteration 90's did.
+   * cannot disagree with the menu that opens.
+   */
+  const nearestFacility = el('div');
+  nearestFacility.style.cssText =
+    'position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:none;' +
+    'align-items:center;gap:8px;color:#d7e0ea;font-family:system-ui,sans-serif;' +
+    'font-size:var(--ui-text-sm);background:rgba(10,14,20,0.82);' +
+    'border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-radius:6px;' +
+    'padding:5px 11px;pointer-events:none;white-space:nowrap;';
+
+  const legend = el('div');
+  // Size and colour are on the token scale rather than hardcoded, which they
+  // were: 11px was the "secondary labels" step, chosen by eye when the legend
+  // was added in iteration 39, and it stayed a one-off for eleven reviews
+  // because nothing else on this screen shares a stylesheet. The legend is a KEY
+  // - the only thing that tells the player what four saturated marker colours
+  // mean - so it reads as the `stats` step, not a secondary label. A review
+  // that had already seen the legend and still called it too small to associate
+  // is the same signal the entrance markers gave twice, where the answer was the
+  // number and not the report. One step, deliberately: the colours already
+  // measure 7.23:1 on this panel, so this is a legibility nudge and not a fix
+  // for a contrast failure.
+  legend.style.cssText =
+    'position:absolute;bottom:10px;right:10px;display:flex;gap:10px;align-items:center;color:#9fb0c2;font-family:system-ui,sans-serif;font-size:var(--ui-text-sm);background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-radius:6px;padding:5px 9px;pointer-events:none;';
+  for (const [label, tint] of [
+    [t('ui.city.legendFight'), facilityMarkerTint('arena')],
+    [t('ui.city.legendBuild'), facilityMarkerTint('garage')],
+    [t('ui.city.legendCare'), facilityMarkerTint('medical')],
+    [t('ui.city.legendJobs'), facilityMarkerTint('truckstop')],
+  ] as const) {
+    const key = el('span');
+    key.style.cssText = 'display:inline-flex;align-items:center;gap:4px;';
+    const swatch = el('span');
+    // The swatch is the marker art's own hue, so the key and the map cannot
+    // drift apart: both read `facilityMarkerTint`.
+    swatch.style.cssText = `width:10px;height:10px;border-radius:2px;background:rgb(${Math.round(Math.min(1, tint.r) * 200)},${Math.round(Math.min(1, tint.g) * 200)},${Math.round(Math.min(1, tint.b) * 200)});`;
+    const text = el('span');
+    text.textContent = label;
+    key.appendChild(swatch);
+    key.appendChild(text);
+    legend.appendChild(key);
+  }
+  const deviceNotice = el('div');
+  deviceNotice.style.cssText =
+    'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#ff6b6b;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
+  const retryBtn = el('button');
+  retryBtn.style.cssText =
+    'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
+  const panelHost = el('div');
+  panelHost.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,7,10,0.55);';
+  container.appendChild(canvas);
+  container.appendChild(status);
+  container.appendChild(carStrip);
+  container.appendChild(nearestFacility);
+  container.appendChild(legend);
+  container.appendChild(deviceNotice);
+  container.appendChild(retryBtn);
+  container.appendChild(panelHost);
+  clearAndAppend(root, container);
+
+  lastSessionSeed = state.sessionSeed;
+
+  const layout: CityLayout = generateCityLayout(state.cityId, state.sessionSeed);
+  let runState: CityRunState = { ...state, vehicle: vehicleParkedAtGate(state.vehicle, layout.gate.position) };
+  let player: CityPlayerState = createCityPlayerState({ ...layout.gate.position });
+  let paused = false;
+
+  function citySnapshot(): CityViewSnapshot {
+    const vehicle = runState.vehicle;
+    const vehicleView: CityVehicleView | null =
+      vehicle === null || runState.vehicleStored
+        ? null
+        : { position: vehicle.position, headingRad: vehicle.headingRad, bodyId: vehicle.design.bodyId };
+    return { layout, player, vehicle: vehicleView };
+  }
+
+  function updateStatus(): void {
+    status.textContent = t(isCoarsePointer() ? 'ui.city.statusTouch' : 'ui.city.status', {
+      city: cityName(runState.cityId),
+      day: runState.clock.dayIndex,
+      phase: t(PHASE_LABEL_KEY[runState.clock.phase]),
+      cash: runState.driver.cash,
+      // Generated from the same `cityShortcuts` table the key handler reads.
+      // The literal "G enter/exit car · J journal · F fleet" this replaced was
+      // correct only for as long as nobody rebound anything, and it had no way
+      // to say so — iteration 94's stale-instruction bug, on a second screen.
+      toggle: describeCityShortcut('toggleVehicle'),
+      journal: describeCityShortcut('journal'),
+      fleet: describeCityShortcut('fleet'),
+    });
+  }
+
+  function openPanel(): HTMLElement {
+    paused = true;
+    panelHost.innerHTML = '';
+    panelHost.style.display = 'flex';
+    const card = el('div');
+    card.style.cssText = 'width:min(480px,92vw);max-height:86vh;overflow:auto;';
+    panelHost.appendChild(card);
+    return card;
+  }
+
+ERROR: Reconnecting... 1/5
+**Reviewing source and movement mechanics**
+codex
+## City interaction checks
+
+All three gameplay screens have been captured and visually inspected. The road’s trip menu opens and resumes correctly. In the city, walking into the Federal Building produces an explicit “not open for business yet” panel; I’ll treat that as a content gap and check the working services before finishing.
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+exec
+/bin/zsh -lc "rg -n 'city|speedMps|vehicleSpeedMps' rulesets/classic/pedestrian.json rulesets/classic/driving.json; sed -n '353,375p' src/sim/city.ts; sed -n '5165,5280p' src/app.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+rg: rulesets/classic/pedestrian.json: No such file or directory (os error 2)
+rulesets/classic/driving.json:35:    "speedMps": 2.2,
+rulesets/classic/driving.json:39:  "city": {
+rulesets/classic/driving.json:40:    "_note": "Driving the plaza, not the highway: a walled city is tens of meters across, so this is its own value rather than the car's road top speed. Three times pedestrian.speedMps, roughly 15mph, which crosses the widest generated plaza in a couple of seconds without outrunning the interaction radius (one frame at the 0.25s dt clamp covers 1.65m against a 3.0m trigger circle, so a doorway can never be tunneled through).",
+rulesets/classic/driving.json:41:    "vehicleSpeedMps": 6.6
+  return distanceM(playerPosition, vehiclePosition) <= drivingConfig().pedestrian.interactionRadiusM;
+}
+
+export type ToggleVehicleResult =
+  | { readonly ok: true; readonly player: CityPlayerState }
+  | { readonly ok: false; readonly reason: 'outOfRange' };
+
+/** Exiting is always allowed (getting out never fails); entering requires `isVehicleInRange`. */
+export function toggleVehicle(player: CityPlayerState, vehiclePosition: Vec2): ToggleVehicleResult {
+  if (player.inVehicle) {
+    return { ok: true, player: { ...player, inVehicle: false } };
+  }
+  if (!isVehicleInRange(player.position, vehiclePosition)) {
+    return { ok: false, reason: 'outOfRange' };
+  }
+  return { ok: true, player: { ...player, inVehicle: true } };
+}
+        if (found === undefined || vehicle === null) {
+          closePanel();
+          return;
+        }
+        closePanel();
+        stop();
+        const resolved: ResolvedRoute = resolveRoute(runState.cityId, found.neighborCityId);
+        const history = runState.routeHistory.get(resolved.route.id) ?? FRESH_ROUTE_HISTORY;
+        const pursuitLevel = pursuitLevelFromQuestState(runState.quests);
+        const trip = beginRoadTripWithEncounters(resolved, vehicle, runState.clock, runState.sessionSeed, history, pursuitLevel);
+        showRoad(root, runState, trip, (nextState) => showCity(root, nextState));
+      },
+      onBack: () => {
+        mounted.destroy();
+        closePanel();
+      },
+    });
+  }
+
+  function handleTrigger(trigger: CityTrigger): void {
+    if (trigger.kind === 'gate') openGatePrompt();
+    else if (trigger.kind === 'facility') openFacility(trigger.facilityKind);
+  }
+
+  // --- input --------------------------------------------------------------
+  // 'G' (vehicle in/out), 'F' (fleet roster) and 'J' (journal) are fixed
+  // hotkeys, not part of controls.json's rebindable action set (that table
+  // only covers drive/fire/weapon-select, see `@/ui/input`'s file header) -
+  // driving itself below goes through `resolveInput` so it honors the live
+  // control preset/rebinding. Each fixed hotkey's `!paused` guard lives
+  // INSIDE its own function (`doToggleVehicle`/`openFleetScreen`/
+  // `openJournalScreen`) rather than at each call site, so the touch
+  // command buttons below can call the exact same functions the keyboard
+  // handler does without re-deriving (and risking drifting from) the guard.
+  const codesDown = new Set<string>();
+  function doToggleVehicle(): void {
+    if (paused) return;
+    const vehicle = runState.vehicle;
+    if (vehicle === null) return; // nothing to get into
+    const toggled = toggleVehicle(player, vehicle.position);
+    if (toggled.ok) player = toggled.player;
+  }
+  function onKeyDown(ev: KeyboardEvent): void {
+    codesDown.add(ev.code);
+    // The city reads its commands from `controls.json`'s `cityShortcuts` by
+    // CODE. It used to be three literal `ev.key === 'j' | 'J'` comparisons,
+    // which is the gap this closes: with no table entry there was no `keyLabel`
+    // to render, so the on-screen instruction could only ever be a hardcoded
+    // guess, and rebinding was impossible — the status line literally said
+    // "J journal" while the handler listened for the letter.
+    //
+    // `G`/`J`/`F` keep their shipped keys exactly. `fire` owns `KeyJ` in both
+    // presets and `validateControls` refuses two actions sharing one physical
+    // input, so moving journal into `actions` would have meant taking a
+    // working, tested, documented arena key away from players to tidy a
+    // namespace the city never shares with the arena. See `cityShortcuts` in
+    // the ruleset for that trade in full.
+    const shortcut = cityShortcutForCode(ev.code);
+    if (shortcut === 'toggleVehicle') doToggleVehicle();
+    if (shortcut === 'fleet') openFleetScreen();
+    if (shortcut === 'journal') openJournalScreen();
+    // J and F are now named in `ui.city.status`, because Codex drove the city
+    // and reported: "J opens Journal and F opens Fleet, but neither shortcut
+    // appears in the city's visible instructions or as a desktop action
+    // button. I opened both successfully; the features exist." A working
+    // feature whose only affordance is an undocumented key is undiscoverable,
+    // which is iteration 100's "a pause control nobody knows about is not one"
+    // in a different screen.
+    //
+    // The instruction is GENERATED from the same table this handler reads, so
+    // it cannot drift from the binding the way the literal "J journal · F
+    // fleet" did — the exact stale-instruction risk iteration 94 fixed for
+    // `fire`, which this closed rather than queued.
+  }
+  function onKeyUp(ev: KeyboardEvent): void {
+    codesDown.delete(ev.code);
+  }
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  const touch = mountTouchControls(container, {
+    fire: false,
+    commands: [
+      { id: 'enterExitCar', labelKey: 'ui.touch.enterExitCar', onPress: doToggleVehicle },
+      { id: 'fleet', labelKey: 'ui.touch.fleet', onPress: openFleetScreen },
+      { id: 'journal', labelKey: 'ui.touch.journal', onPress: openJournalScreen },
+    ],
+  });
+
+  function openFleetScreen(): void {
+    if (paused) return;
+    stop();
+    showFleet(root, runState, (nextState) => {
+      runState = nextState;
+      showCity(root, runState);
+    });
+  }
+
+  function journalContextFrom(state: CityRunState): JournalContext {
+    return {
+      driver: state.driver,
+      clock: state.clock,
+      cityId: state.cityId,
+      activeCourierJobs: state.activeCourierJobs,
+      quests: state.quests,
+    };
+  }
+
+  function openJournalScreen(): void {
+    if (paused) return;
+    const card = openPanel();
+    const mounted = mountBuildingPanel({
+      container: card,
+      initialState: createJournalState(journalContextFrom(runState)),
+      engine: journalEngine,
+      onExit: () => {
+        mounted.destroy();
+
+**Planning real gameplay testing**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Analyzing quick combat scenarios**
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Analyzing event timing and positioning**
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+**Checking slow speed after collision**
+mcp: playwright/browser_console_messages started
+mcp: playwright/browser_console_messages (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+**Analyzing car collision visuals**
+codex
+## Combat checks
+
+I reached a Division 5 match through the city and drove into combat. Enemy vehicles can visibly overlap much of the player’s car during contact. I’m checking the vehicle dimensions to distinguish a brief collision frame from a persistent mismatch between the sprites and collision geometry.
+exec
+/bin/zsh -lc "rg -n 'VEHICLE_SPRITE_SIZE_M|collider|radiusM|halfLength|halfWidth|lengthM|widthM' src/ui/world-view.ts src/sim/driving.ts src/sim/combat.ts src/sim/collision* src/sim/types.ts src/app.ts; rg -n 'overlap|collision.*sprite|sprite.*collision|physical|collider' .opencode/ralph-loop.local.md | tail -35; rg --files src | rg 'collision|world-view'" in /Users/shoemoney/Projects/smduel
+ exited 1 in 0ms:
+zsh:1: no matches found: src/sim/collision*
+56:     road bar overlap, constructor selected-row indicator (all present).
+211:       overlapped the progress bar, and moved clear of its 44..52px band.
+416:       buy land - which is information the gameplay sprite physically cannot
+698:     - "The outer selection boundary box for New Driver and Controls overlaps
+754:       sprite physically cannot carry. This reviewer names a defect none of them
+1157:       colliderLengthM / colliderWidthM — the SAME numbers driving.json and the
+1232:     - "The white tagline text overlaps with the bright yellow sun glow, making
+1278:     - "The condition panel overlaps the radar and health display, creating
+1284:       Nothing overlaps anything. This is the fourth distinct false claim class
+1286:       overlapping panels) and they share a shape: the reviewer describes a
+1308:     NO CODE CHANGED. The overlap claim is the one worth remembering: it is the
+1380:       projections or rusted physical signposts." This is the OPPOSITE ask to the
+1754:       making it difficult to judge exactly which physical building they are
+1902:       would overlap a neighbour. Making room means changing the ring spacing,
+1932:         the car's drawn size is its collider dimensions from driving.json
+2043:     - "Cannot intuitively map the text list to the physical mounting locations
+2354:       from `colliderLengthM`/`colliderWidthM` in driving.json), and iteration 33
+2411:     - "The top-right HUD (day/time/money) overlaps with the bottom-left vehicle
+2467:       - "Stacked overlapping top-center tooltip clutter": the status pill, the
+2681:       physically cannot show where the points land. The review names the
+2962:       and armour placement is a build-time abstraction, so the sprite physically
+3082:       overlapping the CONDITION panel header ... it renders as a broken widget."
+4158:     "is this a coherent, affordable, physically legal design", and folding a
+4532:       arena  link y=8 h=44 | weapons y=64 | overlaps false | centre hits link
+4533:       road   link y=8 h=44 | weapons y=64 | overlaps false | centre hits link
+4534:       city   link y=8 h=44 | no weapons panel   | overlaps false | hits link
+4535:     Before the fix all three read `overlaps: true` and
+4681:     physically legal" and those are RULES, while these three are an
+4739:     boxes never overlapped and only the painted glyphs did.
+5269:           advances faster than the car is physically moving on empty road,
+5749:  guardrail communicates a physical barrier." The source agrees: the rails were
+7037:  and `validateControls` refuses two actions sharing one physical input. Moving
+7555:  the source first. It holds: a projectile that reaches a collider or expires is
+
+**Analyzing projectile direction**
+exec
+/bin/zsh -lc "rg -n 'VEHICLE_SPRITE_SIZE_M|colliderLengthM|colliderWidthM|facingWorldDirection|headingRad|rotationRad' src/ui/world-view.ts src/sim/driving.ts src/sim/combat.ts src/sim/damage.ts src/app.ts src/ui/city-view.ts rulesets/classic/driving.json; rg --files src | rg 'collision|world-view|damage|collider|render-view'; sed -n '1135,1170p' .opencode/ralph-loop.local.md; sed -n '1915,1950p' .opencode/ralph-loop.local.md" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+rg: src/ui/world-view.ts: No such file or directory (os error 2)
+src/sim/driving.ts:355:  const startHeadingRad = vehicle.headingRad;
+src/sim/driving.ts:414:  let headingRad = startHeadingRad;
+src/sim/driving.ts:426:    headingRad = normalizeAngle(startHeadingRad + impulseRadPerSec * dtSeconds);
+src/sim/driving.ts:443:    headingRad = rotateToward(startHeadingRad, desiredHeadingRad, turnRateRadPerSec * dtSeconds);
+src/sim/driving.ts:448:    const headingChangeDeg = Math.abs(radToDeg(angleDelta(startHeadingRad, headingRad)));
+src/sim/driving.ts:500:  const newForward: Vec2 = { x: Math.cos(headingRad), y: Math.sin(headingRad) };
+src/sim/driving.ts:524:    headingRad,
+src/sim/combat.ts:110:export function facingWorldDirection(headingRad: number, facing: Facing): Vec2 {
+src/sim/combat.ts:111:  if (facing === 'UNDERBODY') throw new RangeError('facingWorldDirection: UNDERBODY has no world direction');
+src/sim/combat.ts:112:  return rotateVec(FACING_LOCAL_UNIT[facing], headingRad);
+src/sim/combat.ts:190:  const local = rotateVec(subtractVec(targetPosition, vehicle.position), -vehicle.headingRad);
+src/sim/combat.ts:274:  const direction = facingWorldDirection(shooterHeadingRad, mountFacing);
+src/sim/combat.ts:334:  const behind = facingWorldDirection(shooterHeadingRad, 'REAR');
+src/sim/combat.ts:371:  readonly headingRad: number;
+src/sim/combat.ts:425:  const facing = !isDeployable && hit ? impactFacingFromPositions(vehicle.position, target.position, target.headingRad) : null;
+src/sim/combat.ts:437:        vehicle.headingRad,
+src/sim/combat.ts:449:        vehicle.headingRad,
+src/ui/city-view.ts:143:const VEHICLE_SPRITE_SIZE_M: Vec2 = { x: 3.2, y: 5.2 };
+src/ui/city-view.ts:297:/** 18x96 px art. Long axis is local Y, which `rotationRad = angle` maps onto the ring's tangent. */
+src/ui/city-view.ts:452: * A contact shadow for `sizeM` at `position`/`rotationRad`, reusing that
+src/ui/city-view.ts:458:  rotationRad: number,
+src/ui/city-view.ts:467:    rotationRad,
+src/ui/city-view.ts:493:  rotationRad: number,
+src/ui/city-view.ts:502:    rotationRad,
+src/ui/city-view.ts:515:  readonly rotationRad: number;
+src/ui/city-view.ts:549:    out.push({ frame: WALL_FRAME, position, rotationRad: angle, sizeM: wallSizeM });
+src/ui/city-view.ts:559:    out.push({ frame: STREETLIGHT_FRAME, position, rotationRad: angle, sizeM: STREETLIGHT_SIZE_M });
+src/ui/city-view.ts:574:      out.push({ frame: ring.frame, position, rotationRad: angle + ring.rotationOffsetRad, sizeM: ring.sizeM });
+src/ui/city-view.ts:594:    out.push(shadowInstance(frame, p.position, p.rotationRad, p.sizeM, BUILDING_SHADOW_SOFTNESS, BUILDING_SHADOW_OPACITY, LAYER_BUILDING));
+src/ui/city-view.ts:595:    out.push(spriteInstance(frame, p.position, p.rotationRad, p.sizeM, LAYER_BUILDING, CITY_PROP_GRADE));
+src/ui/city-view.ts:659:        rotationRad: Math.floor(placementHash(0x3f5b, ring, slot) * 4) * (Math.PI / 2),
+src/ui/city-view.ts:681:        rotationRad: angle + Math.PI / 2,
+src/ui/city-view.ts:692:    spriteInstance(atlasIndex.frame(p.frame), p.position, p.rotationRad, p.sizeM, LAYER_BUILDING, CITY_PROP_GRADE),
+src/ui/city-view.ts:773:    rotationRad: 0,
+src/ui/city-view.ts:940:  return spriteInstance(frame, player.position, player.headingRad + degToRad(frame.rotationOffsetDeg), { x: size, y: size }, LAYER_ACTOR);
+src/ui/city-view.ts:945:  readonly headingRad: number;
+src/ui/city-view.ts:952:  const rotationRad = vehicle.headingRad + degToRad(frame.rotationOffsetDeg);
+src/ui/city-view.ts:954:    shadowInstance(frame, vehicle.position, rotationRad, VEHICLE_SPRITE_SIZE_M, VEHICLE_SHADOW_SOFTNESS, VEHICLE_SHADOW_OPACITY, LAYER_ACTOR),
+src/ui/city-view.ts:955:    spriteInstance(frame, vehicle.position, rotationRad, VEHICLE_SPRITE_SIZE_M, LAYER_ACTOR),
+src/ui/city-view.ts:1186:      rotationRad: decalCellHash(cx, cy, 4) * Math.PI * 2,
+src/ui/city-view.ts:1232:    out.push(...vehicleInstances({ ...vehicle, position: player.position, headingRad: player.headingRad }, atlasIndex));
+src/app.ts:64:  facingWorldDirection,
+src/app.ts:256:const VEHICLE_SPRITE_SIZE_M = { x: 3.2, y: 5.2 };
+src/app.ts:273: * `VEHICLE_SPRITE_SIZE_M` is the one number for that, so the two cannot drift.
+src/app.ts:276:  x: VEHICLE_SPRITE_SIZE_M.x / 3,
+src/app.ts:277:  y: VEHICLE_SPRITE_SIZE_M.y / 3,
+src/app.ts:1129:  headingRad = 0,
+src/app.ts:1139:    headingRad,
+src/app.ts:1226:    const direction = facingWorldDirection(cooled.headingRad, weapon.facing);
+src/app.ts:1239:        target: { position: targetPosition, headingRad: cooled.headingRad },
+src/app.ts:1475:    const headingRad = Math.atan2(position.y, position.x);
+src/app.ts:1476:    const vehicle = vehicleStateFromDesign(design, id, id, position, headingRad);
+src/app.ts:1491: * oriented-rectangle colliders (bodies.json's colliderLengthM/colliderWidthM
+src/app.ts:1655:      const direction = facingWorldDirection(cooled.headingRad, weapon.facing);
+src/app.ts:1660:      const targetHeadingRad = bearingTarget?.headingRad ?? cooled.headingRad;
+src/app.ts:1672:          target: { position: targetPosition, headingRad: targetHeadingRad },
+src/app.ts:2040: * A subcompact draws at 3.2 x 5.2 m (see VEHICLE_SPRITE_SIZE_M), so at the old
+src/app.ts:2293:    rotationRad: vehicle.headingRad,
+src/app.ts:2294:    sizeM: { x: VEHICLE_SPRITE_SIZE_M.x * SHADOW_GROWTH, y: VEHICLE_SPRITE_SIZE_M.y * SHADOW_GROWTH },
+src/app.ts:2447:    rotationRad: vehicle.headingRad + degToRad(frame.rotationOffsetDeg),
+src/app.ts:2448:    sizeM: VEHICLE_SPRITE_SIZE_M,
+src/app.ts:2536:      rotationRad: degToRad(frame.rotationOffsetDeg),
+src/app.ts:2537:      sizeM: { x: VEHICLE_SPRITE_SIZE_M.x * 0.4, y: VEHICLE_SPRITE_SIZE_M.y * 0.4 },
+src/app.ts:2557:    const rotationRad = speed > 0 ? Math.atan2(projectile.velocity.y, projectile.velocity.x) : 0;
+src/app.ts:2571:      rotationRad: rotationRad + degToRad(frame.rotationOffsetDeg),
+src/app.ts:4518:  return vehicle === null ? null : { ...vehicle, position: { ...gate }, headingRad: 0 };
+src/app.ts:5002:        : { position: vehicle.position, headingRad: vehicle.headingRad, bodyId: vehicle.design.bodyId };
+src/app.ts:5410:          ? { ...runState.vehicle, position: player.position, headingRad: player.headingRad }
+src/app.ts:5544:    routeHeadingRad: vehicle.headingRad,
+src/app.ts:6000:        rotationRad: routeHeadingRad + Math.PI / 2,
+src/app.ts:6103:    rotationRad: routeHeadingRad,
+src/app.ts:6156:        rotationRad: routeHeadingRad + Math.PI / 2,
+src/app.ts:6482:        const headingRad = Math.atan2(trip.vehicle.position.y - position.y, trip.vehicle.position.x - position.x);
+src/app.ts:6483:        const vehicle = vehicleStateFromDesign(unit.design, vehicleId, vehicleId, position, headingRad);
+src/sim/damage.ts
+     one claim in this log where reading the stylesheet is NOT enough. Check the
+     selector matches the actual DOM ancestry, then check the token is declared.
+     Iteration 32 proved that a rule can look perfect and render nothing, and
+     "I read the CSS and it looked right" is exactly the check that missed it.
+
+42. minimax/minimax-01 -> ZERO REAL, and the weakest review of the pool along
+     with iteration 35's. No coordinates, no measurements, and every finding is
+     a genre observation that would apply to any game ever made: "add more
+     environmental details", "use colour coding and size differentiation",
+     "implement clearer navigation markers and a mini-map", "add visual and
+     auditory feedback". Nothing here names a specific element, a location, or a
+     measurable defect. Not actioned, and not worth enumerating claim by claim
+     the way the substantive reviews have been — there is nothing to check.
+     NO CODE CHANGED.
+
+     CLOSED A QUEUED ITEM WITH EVIDENCE. Iteration 20 recorded, as the honest
+     remainder of the preview class: "the remaining ask is tying it to the
+     player's colour, queued". Several reviews since have gestured at the same
+     thing — the schematic does not resemble the car you will drive. I checked
+     whether that gap is real, and it is not:
+
+       buildVehiclePreviewParts reads getBody(state.bodyId) and takes
+       colliderLengthM / colliderWidthM — the SAME numbers driving.json and the
+       simulation use, not a hardcoded schematic size:
+
+         subcompact 3.8 x 1.6      luxury 5.3 x 1.9
+         compact    4.3 x 1.7      stationwagon 5.0 x 1.85
+         midsized   4.8 x 1.8
+
+     So choosing a different body already changes the schematic's proportions,
+     hull, wheelbase and every zone band, because the diagram is generated from
+     the chosen part rather than drawn once. The item is closed rather than
+     carried again, which is the point of writing a queue down: an item that
+     turns out to already be satisfied should be retired, not re-raised every
+     few rounds with a new reviewer's name attached.
+
+       vignette or 'speed blur'." The first half is iteration 31 (base value)
+       and iteration 34 (high-frequency-only compression), both measured. The
+       vignette is a post-pass effect and a theme decision rather than a defect,
+       recorded alongside the HUD-restyle theme item with the same status.
+
+55. google/gemini-3.1-pro-preview-customtools -> ZERO REAL. Nothing changed.
+     The finding worth the round is not one of the five: it CONTRADICTS the
+     reviewer before it on the same axis, one round apart.
+     - "The player's car sprite is visually larger than the surrounding
+       industrial buildings ... scale the car down to roughly 15% of its current
+       size so it fits realistically alongside the building assets." LAST ROUND,
+       a different model, said the opposite about the same frame: "the building
+       sprites are disproportionately small compared to the vehicle ... increase
+       the scale of building clusters by 1.5x." One says the car is too big, the
+       other says the buildings are too small, and they are reasoning from the
+       SAME capture. Both cannot be satisfied, and the reason is that BOTH sides
+       are pinned to real units:
+         the car's drawn size is its collider dimensions from driving.json
+           (subcompact 3.8m, midsized 4.8m, luxury 5.3m);
+         a building's drawn size is `layout.tileSizeM`, which `generateCityLayout`
+           assigns `interactionRadiusM` — the ground in which the player can
+           actually interact with it.
+       So shrinking the car 15% would make it stop matching its own collision
+       box and the road it drives on, and growing the buildings 1.5x would make
+       them claim 2.25x the area they respond to (which is why last round's ask
+       was declined). Neither is a styling knob; both are a lie about an
+       affordance. That is the trade declined in iterations 21 and 28, and this
+       pair of reviews is the clearest evidence yet that the CITY SCALE is
+       under-determined in the frame: the player has no reference for real size
+       there, so the pool reads the same picture as "too big" or "too small"
+       depending on which object it starts from.
+       The fix is a REFERENCE, not a rescale — the same shape of answer as the
+       arena's declined boundary markings and the road's declined compass. That
+       is a layout and gameplay question, not a review finding, and it is
+       recorded as the top open design item rather than actioned;
+     - "The ground textures are heavily pixelated and blurry while the car
+
+ERROR: Reconnecting... 1/5
+**Checking collider and orientation logs**
+exec
+/bin/zsh -lc "sed -n '90,122p' src/sim/combat.ts; sed -n '2350,2458p' src/app.ts; sed -n '1480,1565p' src/app.ts; rg -n 'colliderLengthM|colliderWidthM|rotationOffsetDeg' rulesets/classic/bodies.json assets/atlas* src/sim/spatial.ts src/render/atlas.ts; rg --files src/sim; rg --files | rg 'atlas.*json"'$|index.*json$'"' | head -25" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+      for (let i = 0; i < damage.checks; i++) {
+        total += rng.int(damage.minPerCheck, damage.maxPerCheck);
+      }
+      return total;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Facing geometry (fixed mounts, no turret)
+// ---------------------------------------------------------------------------
+
+const FACING_LOCAL_UNIT: Record<PenetratingFacing, Vec2> = {
+  FRONT: { x: 0, y: 1 },
+  REAR: { x: 0, y: -1 },
+  RIGHT: { x: 1, y: 0 },
+  LEFT: { x: -1, y: 0 },
+};
+
+/** World-space unit direction a fixed mount on `facing` points, given the hull's heading. */
+export function facingWorldDirection(headingRad: number, facing: Facing): Vec2 {
+  if (facing === 'UNDERBODY') throw new RangeError('facingWorldDirection: UNDERBODY has no world direction');
+  return rotateVec(FACING_LOCAL_UNIT[facing], headingRad);
+}
+
+/**
+ * Absolute angle (0..180 degrees) between `local` (the target's direction in the
+ * shooter's own local frame) and the centerline of a fixed mount on `facing`. A CONE
+ * weapon's actual arc is `coneHalfAngleDeg` either side of this centerline — narrower
+ * than the 90-degree quadrant `facingForLocalDirection` tests, which only says which
+ * of the four mount facings is broadly nearest.
+ */
+export function coneAngleDeltaDeg(local: Vec2, facing: PenetratingFacing): number {
+ * already proven registers. Softness tightens to 0.4 rather than matching a
+ * building's 0.3, because a car is a low, small object and a tight contact pool
+ * reads as weight where a broad soft blob reads as a smudge — the same
+ * reasoning that keeps the marker softer than a building.
+ */
+const SHADOW_SOFTNESS = 0.4;
+const SHADOW_OPACITY = 0.62;
+
+/**
+ * Builds the ground as a single quad for the arena / road / arena-event screens.
+ *
+ * The extent comes from the camera so the ground always covers the visible
+ * area plus a margin. A fixed-size floor is what left a black band down one
+ * side of the road, because a 90m arena floor is narrower than the view at some
+ * window sizes.
+ */
+/**
+ * Per-pool colour grade applied to the sampled ground.
+ *
+ * The city is the only entry, and it exists because the pool had to change
+ * texture: `tile-asphalt-clean` carries a painted dashed highway centre line,
+ * which tiled across a walled compound drew a motorway straight through the
+ * perimeter wall. `tile-asphalt-cracked` has no markings but is a much paler
+ * grey, and lifting the city's luma from 78 to 130 cost the buildings their
+ * contrast against the ground.
+ *
+ * Darkening here rather than repacking the atlas keeps the correct texture and
+ * the correct value, and it only works at all because the ground branch of
+ * sprite.wgsl was fixed to read `tint.rgb` instead of discarding it.
+ */
+const GROUND_TINTS: Readonly<Record<string, { r: number; g: number; b: number; a: number }>> = {
+  city: { r: 0.6, g: 0.63, b: 0.68, a: 1 },
+};
+
+/**
+ * The highway's own surface, laid over the verge as a second quad.
+ *
+ * A review said the paved road and the off-road terrain "use the exact same
+ * mottled grey pixel-noise texture and the same brightness", so "the only thing
+ * separating 'drivable' from 'not drivable' is two thin solid white lines",
+ * which costs the screen its core tension at speed. That was exactly what
+ * shipped: ONE untinted ground quad meant the road and the shoulder were
+ * literally the same material and the paint was doing all the work. Measured,
+ * the two were 5 luma apart out of 255.
+ *
+ * This is a separate constant rather than a `GROUND_TINTS.road` entry on
+ * purpose. The tints table is keyed by POOL, and the pool is shared by both
+ * quads, so a `road` entry there silently re-tinted the verge as well — which
+ * happened, produced a usable result, and was nothing like the intended
+ * relationship. Dark asphalt against PALE cracked ground is the honest read, and
+ * the verge should keep its own value.
+ */
+const ROAD_SURFACE_TINT = { r: 0.55, g: 0.57, b: 0.61, a: 1 } as const;
+
+function buildGroundQuad(atlasIndex: AtlasIndex, center: Vec2M, halfExtentM: number, pool: string): SpriteInstanceInput[] {
+  const scale = GROUND_TILE_METRES[pool] ?? { tileMetres: 24, detailScale: 8.3 };
+  return [
+    groundQuad(atlasIndex, {
+      pool,
+      center,
+      halfExtentM,
+      layer: 0,
+      tileMetres: scale.tileMetres,
+      detailScale: scale.detailScale,
+      ...(GROUND_TINTS[pool] !== undefined ? { tint: GROUND_TINTS[pool] } : {}),
+    }),
+  ];
+}
+
+/** Composes a vehicle's render rotation from its simulation heading and its frame's `rotationOffsetDeg` — the exact seam a vehicle-orientation regression test drives directly, instead of reimplementing this formula (assets/ASSET-NOTES.md section 2). */
+/**
+ * Tint applied to a rendered vehicle.
+ *
+ * The player and their opponents are drawn with the SAME sprite, at the same
+ * size, on a low-contrast ground — so at a glance the player's own car is just
+ * another car. A vision review of the city frame called it "weak player/object
+ * contrast" and said navigation "feels muddy", which is a real legibility
+ * problem in a top-down game where finding yourself instantly is the single
+ * most important visual read.
+ *
+ * The separation is a small VALUE difference, not a hue one: the player's car is
+ * lifted slightly and opponents are pushed slightly down. A saturation or hue
+ * shift would recolour the art and read as a different vehicle class, which
+ * would be a lie about the build the player chose.
+ */
+export const PLAYER_TINT = { r: 1.18, g: 1.18, b: 1.18, a: 1 } as const;
+export const OPPONENT_TINT = { r: 0.9, g: 0.9, b: 0.94, a: 1 } as const;
+
+export function vehicleSpriteInstance(
+  vehicle: VehicleState,
+  atlasIndex: AtlasIndex,
+  tint: { r: number; g: number; b: number; a: number } = PLAYER_TINT,
+): SpriteInstanceInput {
+  const frame = atlasIndex.frame(`car-${vehicle.design.bodyId}`);
+  return {
+    atlasId: '0',
+    position: { ...vehicle.position },
+    rotationRad: vehicle.headingRad + degToRad(frame.rotationOffsetDeg),
+    sizeM: VEHICLE_SPRITE_SIZE_M,
+    uvRect: frame.uv,
+    tint,
+    layer: 1,
+  };
+}
+
+/**
+ * Every live projectile, as a visible instance.
+ *
+ * ## Why this exists
+      archetypeId: archetype.id,
+      personality: archetype.personality,
+      driver: opponentDriverState(archetype.skill),
+      seed,
+    });
+  });
+  return opponents;
+}
+
+/**
+ * Vehicle-vs-vehicle contact: any two non-destroyed vehicles whose
+ * oriented-rectangle colliders (bodies.json's colliderLengthM/colliderWidthM
+ * via `vehicleOrientedRect`) overlap take `applyCollision`'s real armor
+ * check (`driving.json`'s `collision.armorLossSpeedMph`/`armorLossPoints`),
+ * are stopped (`stopAtObstacle`), and are nudged apart along their center
+ * line by `collision.vehicleSeparationM` so an overlap clears in one tick
+ * instead of wedging two cars together forever.
+ */
+function resolveVehicleCollisions(vehicles: readonly VehicleState[]): VehicleState[] {
+  const drivingCfg = drivingConfig();
+  const mphPerMps = 3600 / drivingCfg.metersPerMile;
+  const out = vehicles.map((v) => v);
+  for (let i = 0; i < out.length; i++) {
+    for (let j = i + 1; j < out.length; j++) {
+      // Re-read BOTH entries inside the inner loop. They used to be captured
+      // once per `i`, so with three mutually overlapping cars the j=i+1 and
+      // j=i+2 pairs each wrote `out[i]`'s separation from the ORIGINAL `a` and
+      // the second write silently discarded the first. A three-car pile-up
+      // therefore separated by one nudge rather than two and could stay wedged
+      // across ticks — the exact outcome this function exists to prevent.
+      const a = out[i];
+      if (a === undefined || a.destroyed) break;
+      const b = out[j];
+      if (b === undefined || b.destroyed) continue;
+      if (!orientedRectsOverlap(vehicleOrientedRect(a), vehicleOrientedRect(b))) continue;
+
+      // Impact speed must be the CLOSING speed along the line of centres, not
+      // the larger of two signed speeds.
+      //
+      // `speedMps` is signed (negative = reversing, see sim/driving.ts), so
+      // `Math.max(a, b)` was wrong in all three regimes:
+      //   - reversing into a stationary car: max(-20, 0) = 0, so ramming in
+      //     reverse did NO damage at any speed, which made reverse ram-tactics
+      //     strictly dominant;
+      //   - head-on at +30 into -30: max(30, -30) = 30, reported as 67mph when
+      //     the true closing speed is 134mph — every head-on under-reported by
+      //     exactly half;
+      //   - same direction, 30 and 10: reported 67mph against a real 45mph gap
+      //     closure... i.e. over-reported.
+      // Projecting each body's signed velocity onto the separation axis and
+      // adding the components gives the rate at which the gap is closing, and
+      // taking the absolute value covers approach from either side.
+      const distanceM = vecLength(subtractVec(b.position, a.position));
+      const awayFromA =
+        distanceM > 0
+          ? { x: (b.position.x - a.position.x) / distanceM, y: (b.position.y - a.position.y) / distanceM }
+          : { x: 1, y: 0 };
+      // `a` moves away from the contact along -awayFromA; `b` moves away along
+      // +awayFromA. Sum of the two projections is the closing rate.
+      const closingMps = Math.abs(-a.speedMps * awayFromA.x - a.speedMps * awayFromA.y + b.speedMps * awayFromA.x + b.speedMps * awayFromA.y);
+      const impactSpeedMph = closingMps * mphPerMps;
+      const nudgeM = drivingCfg.collision.vehicleSeparationM / 2;
+
+      const collidedA = stopAtObstacle(applyCollision(a, impactSpeedMph));
+      const collidedB = stopAtObstacle(applyCollision(b, impactSpeedMph));
+      out[i] = { ...collidedA, position: { x: a.position.x - awayFromA.x * nudgeM, y: a.position.y - awayFromA.y * nudgeM } };
+      out[j] = { ...collidedB, position: { x: b.position.x + awayFromA.x * nudgeM, y: b.position.y + awayFromA.y * nudgeM } };
+    }
+  }
+  return out;
+}
+
+/**
+ * Every non-player, non-destroyed vehicle's REAL `decideAI` decision for
+ * this tick, stored for `makeArenaDrivingSystem`/`makeArenaWeaponsSystem` to
+ * read starting NEXT tick — matching `@/sim/loop`'s fixed system order
+ * (`driving -> weapons -> projectiles -> deployables -> damage -> ai ->
+ * cleanup`: `ai` runs after this tick's movement/fire/damage have already
+ * resolved, deciding what each opponent does starting the FOLLOWING tick,
+ * exactly like a human reacting to what it just saw). `decideAI` reads
+ * `ctx.self`/`ctx.world` and returns nothing but an `InputFrame` — it never
+ * touches `world.entities.vehicles` directly, so an opponent's movement and
+ * fire still go through the exact same `stepDriving`/`fire` pipeline the
+ * player's own input does.
+ */
+/**
+src/render/atlas.ts:51:  readonly rotationOffsetDeg: number;
+src/render/atlas.ts:81:  /** See `AtlasFrameEntry.rotationOffsetDeg` - carried through unchanged. */
+src/render/atlas.ts:82:  readonly rotationOffsetDeg: number;
+src/render/atlas.ts:146:    rotationOffsetDeg: requireNumber(where, 'rotationOffsetDeg', value['rotationOffsetDeg']),
+src/render/atlas.ts:190:    rotationOffsetDeg: entry.rotationOffsetDeg,
+assets/atlas.json:31:      "rotationOffsetDeg": 0
+assets/atlas.json:44:      "rotationOffsetDeg": 0
+assets/atlas.json:57:      "rotationOffsetDeg": 0
+assets/atlas.json:70:      "rotationOffsetDeg": 0
+assets/atlas.json:83:      "rotationOffsetDeg": 0
+assets/atlas.json:96:      "rotationOffsetDeg": 0
+assets/atlas.json:109:      "rotationOffsetDeg": 0
+assets/atlas.json:122:      "rotationOffsetDeg": 0
+assets/atlas.json:135:      "rotationOffsetDeg": 0
+assets/atlas.json:148:      "rotationOffsetDeg": 0
+assets/atlas.json:161:      "rotationOffsetDeg": 0
+assets/atlas.json:174:      "rotationOffsetDeg": 0
+assets/atlas.json:187:      "rotationOffsetDeg": 0
+assets/atlas.json:200:      "rotationOffsetDeg": 0
+assets/atlas.json:213:      "rotationOffsetDeg": 0
+assets/atlas.json:226:      "rotationOffsetDeg": 0
+assets/atlas.json:239:      "rotationOffsetDeg": 0
+assets/atlas.json:252:      "rotationOffsetDeg": 0
+assets/atlas.json:265:      "rotationOffsetDeg": 0
+assets/atlas.json:278:      "rotationOffsetDeg": 0
+assets/atlas.json:291:      "rotationOffsetDeg": 0
+assets/atlas.json:304:      "rotationOffsetDeg": 0
+assets/atlas.json:317:      "rotationOffsetDeg": 0
+assets/atlas.json:330:      "rotationOffsetDeg": 0
+assets/atlas.json:343:      "rotationOffsetDeg": 0
+assets/atlas.json:356:      "rotationOffsetDeg": 0
+assets/atlas.json:369:      "rotationOffsetDeg": 0
+assets/atlas.json:382:      "rotationOffsetDeg": 0
+assets/atlas.json:395:      "rotationOffsetDeg": 0
+assets/atlas.json:408:      "rotationOffsetDeg": 0
+assets/atlas.json:421:      "rotationOffsetDeg": 0
+assets/atlas.json:434:      "rotationOffsetDeg": 0
+assets/atlas.json:447:      "rotationOffsetDeg": 0
+assets/atlas.json:460:      "rotationOffsetDeg": 0
+assets/atlas.json:473:      "rotationOffsetDeg": 0
+assets/atlas.json:486:      "rotationOffsetDeg": 0
+assets/atlas.json:499:      "rotationOffsetDeg": 0
+assets/atlas.json:512:      "rotationOffsetDeg": 0
+assets/atlas.json:525:      "rotationOffsetDeg": 0
+assets/atlas.json:538:      "rotationOffsetDeg": 0
+assets/atlas.json:551:      "rotationOffsetDeg": 0
+assets/atlas.json:564:      "rotationOffsetDeg": 0
+assets/atlas.json:577:      "rotationOffsetDeg": 0
+assets/atlas.json:590:      "rotationOffsetDeg": 0
+assets/atlas.json:603:      "rotationOffsetDeg": 0
+assets/atlas.json:616:      "rotationOffsetDeg": 0
+assets/atlas.json:629:      "rotationOffsetDeg": 0
+assets/atlas.json:642:      "rotationOffsetDeg": 0
+assets/atlas.json:655:      "rotationOffsetDeg": 0
+assets/atlas.json:668:      "rotationOffsetDeg": 0
+assets/atlas.json:681:      "rotationOffsetDeg": 0
+assets/atlas.json:694:      "rotationOffsetDeg": 0
+assets/atlas.json:707:      "rotationOffsetDeg": 0
+assets/atlas.json:720:      "rotationOffsetDeg": 0
+assets/atlas.json:733:      "rotationOffsetDeg": 0
+assets/atlas.json:746:      "rotationOffsetDeg": 0
+assets/atlas.json:759:      "rotationOffsetDeg": 0
+assets/atlas.json:772:      "rotationOffsetDeg": 0
+assets/atlas.json:785:      "rotationOffsetDeg": 270
+assets/atlas.json:798:      "rotationOffsetDeg": 0
+assets/atlas.json:811:      "rotationOffsetDeg": 0
+assets/atlas.json:824:      "rotationOffsetDeg": 270
+assets/atlas.json:837:      "rotationOffsetDeg": 270
+assets/atlas.json:850:      "rotationOffsetDeg": 270
+assets/atlas.json:863:      "rotationOffsetDeg": 270
+assets/atlas.json:876:      "rotationOffsetDeg": 270
+assets/atlas.json:889:      "rotationOffsetDeg": 270
+assets/atlas.json:902:      "rotationOffsetDeg": 270
+assets/atlas.json:915:      "rotationOffsetDeg": 270
+assets/atlas.json:928:      "rotationOffsetDeg": 0
+assets/atlas.json:941:      "rotationOffsetDeg": 0
+assets/atlas.json:954:      "rotationOffsetDeg": 0
+assets/atlas.json:967:      "rotationOffsetDeg": 0
+assets/atlas.json:980:      "rotationOffsetDeg": 0
+assets/atlas.json:993:      "rotationOffsetDeg": 0
+assets/atlas.json:1006:      "rotationOffsetDeg": 0
+assets/atlas.json:1019:      "rotationOffsetDeg": 0
+assets/atlas.json:1032:      "rotationOffsetDeg": 0
+assets/atlas.json:1045:      "rotationOffsetDeg": 0
+assets/atlas.json:1058:      "rotationOffsetDeg": 0
+assets/atlas.json:1071:      "rotationOffsetDeg": 0
+assets/atlas.json:1084:      "rotationOffsetDeg": 0
+assets/atlas.json:1097:      "rotationOffsetDeg": 0
+assets/atlas.json:1110:      "rotationOffsetDeg": 0
+assets/atlas.json:1123:      "rotationOffsetDeg": 0
+assets/atlas.json:1136:      "rotationOffsetDeg": 0
+assets/atlas.json:1149:      "rotationOffsetDeg": 0
+assets/atlas.json:1162:      "rotationOffsetDeg": 0
+assets/atlas.json:1175:      "rotationOffsetDeg": 0
+assets/atlas.json:1188:      "rotationOffsetDeg": 0
+rulesets/classic/bodies.json:14:      "colliderLengthM": 3.8,
+rulesets/classic/bodies.json:15:      "colliderWidthM": 1.6
+rulesets/classic/bodies.json:27:      "colliderLengthM": 4.3,
+rulesets/classic/bodies.json:28:      "colliderWidthM": 1.7
+rulesets/classic/bodies.json:40:      "colliderLengthM": 4.8,
+rulesets/classic/bodies.json:41:      "colliderWidthM": 1.8
+rulesets/classic/bodies.json:53:      "colliderLengthM": 5.3,
+rulesets/classic/bodies.json:54:      "colliderWidthM": 1.9
+rulesets/classic/bodies.json:66:      "colliderLengthM": 5.0,
+rulesets/classic/bodies.json:67:      "colliderWidthM": 1.85
+rulesets/classic/bodies.json:79:      "colliderLengthM": 5.5,
+rulesets/classic/bodies.json:80:      "colliderWidthM": 2.0
+rulesets/classic/bodies.json:92:      "colliderLengthM": 5.4,
+rulesets/classic/bodies.json:93:      "colliderWidthM": 2.0
+rg: src/sim/spatial.ts: No such file or directory (os error 2)
+src/sim/types.ts
+src/sim/calendar.ts
+src/sim/damage.ts
+src/sim/victory.ts
+src/sim/loop.ts
+src/sim/construct.ts
+src/sim/road.ts
+src/sim/championship.ts
+src/sim/driver.ts
+src/sim/arena.ts
+src/sim/pursuit.ts
+src/sim/encounters.ts
+src/sim/salvage.ts
+src/sim/combat.ts
+src/sim/ai.ts
+src/sim/world-map.ts
+src/sim/casino.ts
+src/sim/driving.ts
+src/sim/services.ts
+src/sim/economy.ts
+src/sim/fleet.ts
+src/sim/world.ts
+src/sim/courier.ts
+src/sim/city.ts
+assets/atlas.json
+tools/atlas-sizes.json
+tests/unit/fixtures-atlas-sizes/maxpx-too-big.json
+tests/unit/fixtures-atlas-sizes/top-level-string.json
+tests/unit/fixtures-atlas-sizes/non-array-keepnative.json
+tests/unit/fixtures-atlas-sizes/top-level-null.json
+tests/unit/fixtures-atlas-sizes/non-integer-maxpx.json
+tests/unit/fixtures-atlas-sizes/missing-kind.json
+tests/unit/fixtures-atlas-sizes/valid.json
+tests/unit/fixtures-atlas-sizes/top-level-array.json
+tests/unit/fixtures-atlas-sizes/non-integer-quadrant.json
+tests/unit/fixtures-atlas-sizes/quadrant-too-big.json
+
+ERROR: Reconnecting... 1/5
+ERROR: Reconnecting... 2/5
+**Analyzing weapon firing orientation****Investigating collider and orientation mismatches**
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+exec
+/bin/zsh -lc "rg -n 'vehicleOrientedRect|FACING_LOCAL_UNIT|headingRad|halfWidth|halfLength|lengthM|widthM' src/math/geometry.ts src/sim/combat.ts src/render/shaders/sprite.wgsl; rg --files src | rg 'geometry|wgsl'; sed -n '765,840p' assets/atlas.json; sed -n '28,45p' rulesets/classic/driving.json" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+rg: src/math/geometry.ts: No such file or directory (os error 2)
+src/sim/combat.ts:102:const FACING_LOCAL_UNIT: Record<PenetratingFacing, Vec2> = {
+src/sim/combat.ts:110:export function facingWorldDirection(headingRad: number, facing: Facing): Vec2 {
+src/sim/combat.ts:112:  return rotateVec(FACING_LOCAL_UNIT[facing], headingRad);
+src/sim/combat.ts:123:  const mount = FACING_LOCAL_UNIT[facing];
+src/sim/combat.ts:190:  const local = rotateVec(subtractVec(targetPosition, vehicle.position), -vehicle.headingRad);
+src/sim/combat.ts:371:  readonly headingRad: number;
+src/sim/combat.ts:425:  const facing = !isDeployable && hit ? impactFacingFromPositions(vehicle.position, target.position, target.headingRad) : null;
+src/sim/combat.ts:437:        vehicle.headingRad,
+src/sim/combat.ts:449:        vehicle.headingRad,
+src/render/shaders/post.wgsl
+src/render/shaders/tile.wgsl
+src/render/shaders/sprite.wgsl
+      "w": 81,
+      "h": 96,
+      "trimX": 49,
+      "trimY": 42,
+      "srcW": 179,
+      "srcH": 179,
+      "kind": "prop",
+      "rotationOffsetDeg": 0
+    },
+    "car-kart": {
+      "atlas": 0,
+      "x": 822,
+      "y": 1162,
+      "w": 65,
+      "h": 96,
+      "trimX": 48,
+      "trimY": 29,
+      "srcW": 160,
+      "srcH": 160,
+      "kind": "car",
+      "rotationOffsetDeg": 270
+    },
+    "wreck-burning": {
+      "atlas": 0,
+      "x": 889,
+      "y": 1162,
+      "w": 62,
+      "h": 96,
+      "trimX": 55,
+      "trimY": 43,
+      "srcW": 182,
+      "srcH": 182,
+      "kind": "wreck",
+      "rotationOffsetDeg": 0
+    },
+    "decal-tire-marks": {
+      "atlas": 0,
+      "x": 953,
+      "y": 1162,
+      "w": 60,
+      "h": 96,
+      "trimX": 89,
+      "trimY": 71,
+      "srcW": 238,
+      "srcH": 238,
+      "kind": "decal",
+      "rotationOffsetDeg": 0
+    },
+    "cycle-topdown": {
+      "atlas": 0,
+      "x": 1015,
+      "y": 1162,
+      "w": 52,
+      "h": 96,
+      "trimX": 36,
+      "trimY": 15,
+      "srcW": 124,
+      "srcH": 124,
+      "kind": "cycle",
+      "rotationOffsetDeg": 270
+    },
+    "car-subcompact": {
+      "atlas": 0,
+      "x": 1069,
+      "y": 1162,
+      "w": 48,
+      "h": 96,
+      "trimX": 53,
+      "trimY": 27,
+      "srcW": 153,
+      "srcH": 153,
+      "kind": "car",
+      "rotationOffsetDeg": 270
+    },
+    "car-midsized": {
+      "atlas": 0,
+  },
+  "radar": {
+    "rangeMiles": 3,
+    "visualRangeM": 160,
+    "aiHazardBoxRangeMultiplier": 2
+  },
+  "pedestrian": {
+    "speedMps": 2.2,
+    "colliderRadiusM": 0.4,
+    "interactionRadiusM": 3.0
+  },
+  "city": {
+    "_note": "Driving the plaza, not the highway: a walled city is tens of meters across, so this is its own value rather than the car's road top speed. Three times pedestrian.speedMps, roughly 15mph, which crosses the widest generated plaza in a couple of seconds without outrunning the interaction radius (one frame at the 0.25s dt clamp covers 1.65m against a 3.0m trigger circle, so a doorway can never be tunneled through).",
+    "vehicleSpeedMps": 6.6
+  },
+  "arena": {
+    "spawnRingRadiusM": 45,
+    "minSpawnSeparationM": 12
+
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+ERROR: Reconnecting... 1/5
+ERROR: Reconnecting... 2/5
+**Checking tool status**
+exec
+/bin/zsh -lc "rg -n 'function vehicleOrientedRect|function facingForLocalDirection|function impactFacingFromPositions' src; rg -n 'combat|front|facing|90.degree|90°|axis|axes' .opencode/ralph-loop.local.md | tail -35; rg --files src | rg 'geom|math'" in /Users/shoemoney/Projects/smduel
+ exited 1 in 0ms:
+src/sim/damage.ts:56:export function facingForLocalDirection(local: Vec2): PenetratingFacing {
+src/sim/damage.ts:75:export function impactFacingFromPositions(
+src/sim/arena.ts:910:export function vehicleOrientedRect(vehicle: VehicleState): OrientedRect {
+5710:  off that axis within about two seconds and its progress correctly stops
+5714:  A flat signal is not a frozen signal. Counter-steering to hold the axis made
+5919:      axes, the same shape as iteration 96's battery/route reconciliation test.
+6028:  initial heading axis: holding W alone walks the car off-axis in about two
+6100:  `vehicle.position - startPosition` projected on the route axis, and writes
+6190:  limits: the browser connection closed before it could enter a combat event, so
+6191:  it does not establish opponent behaviour, combat balance, completed trips, or
+6204:  The indicator computes the car's signed offset on the trip's FROZEN route axis
+6205:  — the same axis `progressMiles` uses and the same one the surface, paint and
+6214:  invert the sign -> only the direction test fails; use the ALONG axis instead
+6349:  message, so a future drift names the axis and the magnitude rather than a
+6406:  SOURCE**, because the whole risk of this edit is that three of its four axes
+6452:  volunteered its own limits again: no full-route completion, no highway combat
+6460:  comment asserting the world-space `across` axis "cannot disagree with where the
+6638:- **"Escape does not pause combat. In Division 5, after pressing Escape, the car
+6665:  screen where combat happens. The scrim sits at z-index 25, between
+6679:  iteration 19 removed from the title — it is real status a mid-combat pause
+6690:  flat because progress stops advancing off-axis) and why this one is not.
+6839:  the combat one, which unblocks both future reviews and the remaining live
+7219:| 1 | arena combat has no visible shot path, muzzle flash or impact | REAL, not started |
+7291:  **#1 the arena has no visible combat effects.** The reviewer verified it in
+7295:  here: a combat screen where shots have no visible path forces the player to
+7319:  (combat has no visible shot path) says "use the existing atlas muzzle-flash
+7351:such frames" for combat effects, and built a scoping paragraph on top of it.
+7379:  (`decal-*`), and it is why the arena's combat has no visible shot path: not
+7389:## ITERATION 117 — combat effects: the art exists, the wiring is trivial, and the RENDER is unproven. Not shipped.
+7391:The queued item from iteration 115 was review finding #1: "combat happens
+7402:  field the projectile already carries. Wired at ALL THREE combat screens
+7409:  fails two. The road site needed `combatWorld`, not `world` — the road's loop
+7410:  world is explicitly `null` and its combat runs through `stepCombat`.
+7472:## ITERATION 118 — combat effects SHIP, and iteration 117's "does not render" was wrong
+7521:  ammunition fell 20/20 -> 7/20 and a front facing dropped 2/2 -> 1/2 with
+7562:  `if (target === undefined || target.destroyed || !hit || facing === null)
+7595:  the sizing test. 12 tests in the file, both `combat effects` halves green.
+7629:- WHAT THIS CLOSES, AND WHAT IT DOES NOT. Review finding #1 was "combat
+
+**Analyzing no-bolt sampling effects****Verifying screenshot source and timing**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+exec
+/bin/zsh -lc "sed -n '900,930p' src/sim/arena.ts; sed -n '42,90p' src/sim/damage.ts; sed -n '1,40p' rulesets/classic/bodies.json; sed -n '32,57p' src/render/atlas.ts; sed -n '32,105p' src/render/shaders/sprite.wgsl" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+// ---------------------------------------------------------------------------
+
+export interface OrientedRect {
+  readonly center: Vec2;
+  readonly halfLengthM: number;
+  readonly halfWidthM: number;
+  readonly headingRad: number;
+}
+
+/** A vehicle's collider as an oriented rectangle, straight off its body's own `colliderLengthM`/`colliderWidthM`. */
+export function vehicleOrientedRect(vehicle: VehicleState): OrientedRect {
+  const body = getBody(vehicle.design.bodyId);
+  return {
+    center: vehicle.position,
+    halfLengthM: body.colliderLengthM / 2,
+    halfWidthM: body.colliderWidthM / 2,
+    headingRad: vehicle.headingRad,
+  };
+}
+
+function clampNum(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+/** True when a circle (a travelling projectile, radius `driving.json`'s `collision.projectileRadiusM`) overlaps an oriented rectangle (a vehicle's collider). */
+export function circleIntersectsOrientedRect(circleCenter: Vec2, circleRadiusM: number, rect: OrientedRect): boolean {
+  const local = rotateVec(subtractVec(circleCenter, rect.center), -rect.headingRad);
+  const clampedX = clampNum(local.x, -rect.halfWidthM, rect.halfWidthM);
+  const clampedY = clampNum(local.y, -rect.halfLengthM, rect.halfLengthM);
+  const dx = local.x - clampedX;
+  const dy = local.y - clampedY;
+ * quadrant test, so it is deliberately excluded from this type.
+ */
+export type PenetratingFacing = 'FRONT' | 'REAR' | 'LEFT' | 'RIGHT';
+
+export function isPenetratingFacing(facing: Facing): facing is PenetratingFacing {
+  return facing !== 'UNDERBODY';
+}
+
+/**
+ * Which quadrant of the target's local frame `local` falls in.
+ *   abs(x) > abs(y)  ->  x > 0 ? RIGHT : LEFT
+ *   otherwise         ->  y > 0 ? FRONT : REAR
+ * Exact diagonals (abs(x) === abs(y)) fall through to the FRONT/REAR branch.
+ */
+export function facingForLocalDirection(local: Vec2): PenetratingFacing {
+  if (Math.abs(local.x) > Math.abs(local.y)) {
+    return local.x > 0 ? 'RIGHT' : 'LEFT';
+  }
+  return local.y > 0 ? 'FRONT' : 'REAR';
+}
+
+/**
+ * `worldImpactDir` points FROM the target TOWARD the origin of the incoming attack
+ * (i.e. "which direction did this hit come from"). Rotating that vector into the
+ * target's local frame and reading the quadrant gives the struck facing — a shot
+ * arriving from behind the target (impact dir opposite the target's forward vector)
+ * lands on REAR, one arriving from dead ahead lands on FRONT.
+ */
+export function impactFacing(worldImpactDir: Vec2, targetHeadingRad: number): PenetratingFacing {
+  return facingForLocalDirection(rotateVec(worldImpactDir, -targetHeadingRad));
+}
+
+/** Convenience wrapper: impact facing from the attacker's and target's world positions. */
+export function impactFacingFromPositions(
+  attackerPosition: Vec2,
+  targetPosition: Vec2,
+  targetHeadingRad: number,
+): PenetratingFacing {
+  return impactFacing(subtractVec(attackerPosition, targetPosition), targetHeadingRad);
+}
+
+// ---------------------------------------------------------------------------
+// Weighted pick (used only by the REAR penetration table)
+// ---------------------------------------------------------------------------
+
+function weightedPick<T extends string>(rng: Rng, entries: ReadonlyArray<readonly [T, number]>): T {
+  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+  if (total <= 0) throw new RangeError('weightedPick: total weight must be > 0');
+  let roll = rng.int(0, total - 1);
+{
+  "$schemaVersion": 1,
+  "bodies": [
+    {
+      "id": "subcompact",
+      "name": "Subcompact",
+      "price": 300,
+      "weightLb": 1000,
+      "baseMaxLoadLb": 2300,
+      "spaces": 7,
+      "class": "automobile",
+      "armorCostPerPoint": 11,
+      "armorWeightPerPoint": 5,
+      "colliderLengthM": 3.8,
+      "colliderWidthM": 1.6
+    },
+    {
+      "id": "compact",
+      "name": "Compact",
+      "price": 400,
+      "weightLb": 1300,
+      "baseMaxLoadLb": 3700,
+      "spaces": 10,
+      "class": "automobile",
+      "armorCostPerPoint": 13,
+      "armorWeightPerPoint": 6,
+      "colliderLengthM": 4.3,
+      "colliderWidthM": 1.7
+    },
+    {
+      "id": "midsized",
+      "name": "Mid-sized",
+      "price": 600,
+      "weightLb": 1600,
+      "baseMaxLoadLb": 4800,
+      "spaces": 13,
+      "class": "automobile",
+      "armorCostPerPoint": 16,
+      "armorWeightPerPoint": 8,
+      "colliderLengthM": 4.8,
+
+export interface AtlasFileEntry {
+  readonly file: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface AtlasFrameEntry {
+  readonly atlas: number;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+  readonly trimX: number;
+  readonly trimY: number;
+  readonly srcW: number;
+  readonly srcH: number;
+  readonly kind: AssetKind;
+  /** Degrees ADDED to a vehicle's simulation heading (0 rad == world +X, see src/sim/driving.ts's forward vector) to get the sprite's render rotation, so this must rotate the drawn ART so its nose lands on the frame's local +X: nose art at local +Y (top of frame) needs 270, local -Y (bottom) needs 90, local -X (left) needs 180, local +X (right) needs 0. The renderer MUST apply this per frame (assets/ASSET-NOTES.md section 2). */
+  readonly rotationOffsetDeg: number;
+}
+
+export interface AtlasManifest {
+  readonly atlases: readonly AtlasFileEntry[];
+  readonly frames: Readonly<Record<string, AtlasFrameEntry>>;
+}
+  uvRect: vec4<f32>,
+  tint: vec4<f32>,
+  // x = kind tag (0 plain, 1 shadow, 2 ground), yzw reserved.
+  extra: vec4<f32>,
+}
+
+struct Camera {
+  worldToClip: mat4x4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<storage, read> instances: array<Instance>;
+@group(1) @binding(1) var atlasSampler: sampler;
+@group(1) @binding(2) var atlasTexture: texture_2d<f32>;
+
+struct VertexOut {
+  @builtin(position) clipPosition: vec4<f32>,
+  @location(0) uv: vec2<f32>,
+  @location(1) tint: vec4<f32>,
+  // xy = the quad's local position in -0.5..0.5, z,w = per-instance extras
+  // (see the `params` note in fs_main).
+  @location(2) params: vec4<f32>,
+  // World-space position, in metres. Only the ground path needs it, but a
+  // varying is close to free and it keeps the ground out of the instance
+  // format entirely.
+  @location(3) worldPos: vec2<f32>,
+  // The instance's atlas UV rect. MUST be flat-interpolated: the ground path
+  // needs the RECT (to wrap inside it with fract()), not the interpolated uv —
+  // passing the interpolated value is a real bug: it varies per pixel, so
+  // `rect.zw - rect.xy` becomes a per-pixel delta and every ground pixel
+  // samples somewhere arbitrary in the sheet.
+  //
+  // `@interpolate(flat)` is not an optimisation here, it is a correctness
+  // requirement. All three vertices happen to carry the same value, so a
+  // smooth interpolation would reproduce it today — but nothing in the
+  // language or the pipeline enforces that, and reduced-precision interpolation
+  // of a vec4 delta is enough to put the ground's tile UVs slightly wrong.
+  @location(4) @interpolate(flat) uvRect: vec4<f32>,
+  // The instance's kind tag. `transform1.zw` is overloaded between a shadow's
+  // (softness, opacity) and a ground quad's (tileMetres, detailScale), so the
+  // fragment stage cannot tell them apart by value — a ground quad with a
+  // detail scale above 1.0 reads as a shadow. The tag is the only reliable
+  // discriminator, and `fs_main` branches on it by EXACT float equality
+  // (`kind == 1.0`, `kind == 2.0`), which only holds if the value is delivered
+  // un-interpolated. A tag that drifted off 1.0/2.0 would fall through to the
+  // plain-sprite path and draw a ground quad as a raw atlas sub-rect, with no
+  // error anywhere.
+  @location(5) @interpolate(flat) kind: f32,
+}
+
+const UNIT_QUAD_CORNERS = array<vec2<f32>, 6>(
+  vec2<f32>(-0.5, -0.5), vec2<f32>(0.5, -0.5), vec2<f32>(-0.5, 0.5),
+  vec2<f32>(-0.5, 0.5), vec2<f32>(0.5, -0.5), vec2<f32>(0.5, 0.5),
+);
+
+const UNIT_QUAD_LOCAL_UV = array<vec2<f32>, 6>(
+  vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 0.0),
+  vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0), vec2<f32>(1.0, 0.0),
+);
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instanceIndex: u32) -> VertexOut {
+  let inst = instances[instanceIndex];
+  let corner = UNIT_QUAD_CORNERS[vertexIndex % 6u];
+  let localUv = UNIT_QUAD_LOCAL_UV[vertexIndex % 6u];
+
+  let rotation = inst.transform0.z;
+  let cosR = cos(rotation);
+  let sinR = sin(rotation);
+  let size = inst.transform1.xy;
+  let scaled = corner * size;
+  let rotated = vec2<f32>(
+    scaled.x * cosR - scaled.y * sinR,
+    scaled.x * sinR + scaled.y * cosR,
+
+**Analyzing collision with rotated frames****Preparing precise image crops**
+**Analyzing projectile behavior**
+exec
+/bin/zsh -lc "sed -n '1190,1275p' src/app.ts; sed -n '2520,2580p' src/app.ts; sed -n '934,977p' src/sim/arena.ts; sed -n '1625,1712p' src/app.ts; sed -n '430,505p' src/sim/combat.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+  return result;
+}
+
+export function makeDrivingSystem(driverRef: { current: DriverState }): SystemFn {
+  return (world, input, dtSeconds) => {
+    const player = findPlayer(world);
+    if (player === undefined || player.destroyed) return;
+    const driveInput: DriveInput = { stick: { x: input.moveX, y: input.moveY } };
+    const drivingSkill = getSkill(driverRef.current, 'driving');
+    const nextVehicle = withWorldRng(world, (rng) =>
+      stepDriving({
+        vehicle: player,
+        input: driveInput,
+        dtSeconds,
+        rng: { next: () => rng.nextFloat() },
+        drivingSkill,
+        surface: 'normal',
+      }),
+    ).vehicle;
+    replaceVehicle(world, nextVehicle);
+  };
+}
+
+export function makeWeaponsSystem(driverRef: { current: DriverState }, spawnCounter: { current: number }, log: (kind: HudMessageKind, text: string) => void): SystemFn {
+  return (world, input) => {
+    const player = findPlayer(world);
+    if (player === undefined || player.destroyed) return;
+
+    const cooled = tickCooldowns(player, 1);
+    replaceVehicle(world, cooled);
+    if (!input.fire) return;
+
+    const weapon = cooled.weapons[input.weaponSlot];
+    if (weapon === undefined || weapon.facing === 'UNDERBODY') return;
+
+    const weaponDef = getWeapon(weapon.weaponId);
+    const direction = facingWorldDirection(cooled.headingRad, weapon.facing);
+    const targetPosition = {
+      x: cooled.position.x + direction.x * weaponDef.rangeM,
+      y: cooled.position.y + direction.y * weaponDef.rangeM,
+    };
+    const marksmanshipSkill = getSkill(driverRef.current, 'marksmanship');
+    const spawnedEntityId = `proj-${world.tick}-${spawnCounter.current}`;
+    spawnCounter.current += 1;
+
+    const result = withWorldRng(world, (rng) => {
+      const command: FireCommand = {
+        vehicle: cooled,
+        weaponSlotIndex: input.weaponSlot,
+        target: { position: targetPosition, headingRad: cooled.headingRad },
+        ctx: {
+          rng,
+          marksmanshipSkill,
+          rangePenaltyPercent: 0,
+          relativeMotionPenaltyPercent: 0,
+          smokePenaltyPercent: 0,
+          paintPenaltyPercent: 0,
+        },
+        tick: world.tick,
+        spawnedEntityId,
+        deployDropOffsetM: 2,
+      };
+      return fire(command);
+    });
+    replaceVehicle(world, result.vehicle);
+    if (!result.ok) {
+      if (result.reason === 'NO_AMMO') log('info', t('ui.weapon.outOfAmmo', { weapon: weaponDef.name }));
+      return;
+    }
+    if (result.spawn?.kind === 'PROJECTILE') {
+      world.entities.projectiles.push(result.spawn.projectile);
+      log('hit', t('ui.weapon.fired', { weapon: weaponDef.name }));
+    }
+  };
+}
+
+export const projectilesSystem: SystemFn = (world, _input, dtSeconds) => {
+  world.entities.projectiles = world.entities.projectiles.map((projectile) => advanceProjectile(projectile, dtSeconds));
+};
+
+export const cleanupSystem: SystemFn = (world) => {
+  world.entities.projectiles = world.entities.projectiles.filter((projectile) => !projectileExpired(projectile));
+
+  // --- deployables ----------------------------------------------------------
+  // Trigger mines and spike strips against any live vehicle inside their radius,
+  // then consume the deployable. A deployable fires ONCE: it is dropped in the
+ * different events and now use different frames, which is the whole reason the
+ * original choice looked wrong only once the size was fixed.
+ *
+ * Sized against the vehicle for the same reason the tracer is: a derived
+ * fraction of something the player already reads, never a number that was
+ * measured too small and then frozen (iteration 118).
+ */
+export function impactSpriteInstances(
+  impacts: readonly { position: Vec2 }[],
+  atlasIndex: AtlasIndex,
+): SpriteInstanceInput[] {
+  return impacts.map((impact) => {
+    const frame = atlasIndex.frame('fx-impact-spark');
+    return {
+      atlasId: String(frame.atlasIndex),
+      position: { ...impact.position },
+      rotationRad: degToRad(frame.rotationOffsetDeg),
+      sizeM: { x: VEHICLE_SPRITE_SIZE_M.x * 0.4, y: VEHICLE_SPRITE_SIZE_M.y * 0.4 },
+      uvRect: frame.uv,
+      tint: { r: 1, g: 1, b: 1, a: 1 },
+      layer: 1,
+    };
+  });
+}
+
+export function projectileSpriteInstances(
+  projectiles: readonly ProjectileState[],
+  worldTick: number,
+  atlasIndex: AtlasIndex,
+): SpriteInstanceInput[] {
+  const out: SpriteInstanceInput[] = [];
+  for (const projectile of projectiles) {
+    const speed = Math.hypot(projectile.velocity.x, projectile.velocity.y);
+    // A bolt with no velocity has no direction to point, and `atan2(0, 0)` is
+    // 0 — which would silently aim every stationary projectile the same way.
+    // A projectile is never legitimately stationary mid-flight, so this is a
+    // guard against a degenerate record rather than a state the sim produces.
+    const rotationRad = speed > 0 ? Math.atan2(projectile.velocity.y, projectile.velocity.x) : 0;
+    const justFired = projectile.spawnTick === worldTick;
+    // BOTH states use `fx-muzzle-flash`, and that is a correction rather than a
+    // simplification. The first version drew the in-flight bolt with
+    // `fx-impact-spark`, which is a soft 21%-opaque burst authored for an
+    // IMPACT — a travelling dart rendered with impact art is both the wrong
+    // picture and the faintest one available. The muzzle flash is the sharp,
+    // bright frame in the set, and it is what a shot should look like in
+    // flight; the size difference between the burst at the muzzle and the bolt
+    // leaving it still reads.
+    const frame = atlasIndex.frame('fx-muzzle-flash');
+    out.push({
+      atlasId: String(frame.atlasIndex),
+      position: { ...projectile.position },
+      rotationRad: rotationRad + degToRad(frame.rotationOffsetDeg),
+      // The muzzle flash is roughly 2.4x the in-flight bolt. Both are derived
+      // from ONE constant rather than two literals, so the two can never drift
+      // into "the flash is smaller than the thing it fired".
+      sizeM: {
+        x: PROJECTILE_EFFECT_SIZE_M.x * (justFired ? MUZZLE_FLASH_SIZE_MULTIPLIER : 1),
+        y: PROJECTILE_EFFECT_SIZE_M.y * (justFired ? MUZZLE_FLASH_SIZE_MULTIPLIER : 1),
+      },
+      uvRect: frame.uv,
+      // Unmodified: these frames are authored bright and additive-looking, and a
+function rectAxes(rect: OrientedRect): readonly [Vec2, Vec2] {
+  // Local +Y (FRONT/REAR) and +X (LEFT/RIGHT) rotated into world space —
+  // the same rotation `vehicleOrientedRect`'s local frame is built from,
+  // applied forward instead of inverted.
+  const forward = rotateVec({ x: 0, y: 1 }, rect.headingRad);
+  const right = rotateVec({ x: 1, y: 0 }, rect.headingRad);
+  return [forward, right];
+}
+
+function dot(a: Vec2, b: Vec2): number {
+  return a.x * b.x + a.y * b.y;
+}
+
+function projectedExtent(rect: OrientedRect, axis: Vec2): number {
+  const [forward, right] = rectAxes(rect);
+  return rect.halfLengthM * Math.abs(dot(forward, axis)) + rect.halfWidthM * Math.abs(dot(right, axis));
+}
+
+/** True when two vehicles' oriented-rectangle colliders overlap (separating-axis test over both rects' own forward/right axes). */
+export function orientedRectsOverlap(a: OrientedRect, b: OrientedRect): boolean {
+  const centerDelta = subtractVec(b.center, a.center);
+  const [aForward, aRight] = rectAxes(a);
+  const [bForward, bRight] = rectAxes(b);
+  for (const axis of [aForward, aRight, bForward, bRight]) {
+    const separation = Math.abs(dot(centerDelta, axis));
+    if (separation > projectedExtent(a, axis) + projectedExtent(b, axis)) return false;
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Fire-target acquisition for a fixed mount: whichever LIVE vehicle is
+// currently within this weapon's own facing quadrant, in range, and nearest
+// — never "nearest enemy overall" (that could be behind the shooter). Reuses
+// the exact `rotateVec`/`facingForLocalDirection` pair `@/sim/combat`'s
+// `validateFire` and `@/sim/ai`'s private `bearingQuadrant` both already
+// compose for this same test, so a shot that finds a target here is
+// guaranteed to pass `validateFire`'s own bearing check against it.
+// ---------------------------------------------------------------------------
+
+export function facingQuadrant(headingRad: number, worldDelta: Vec2): Facing {
+  return facingForLocalDirection(rotateVec(worldDelta, -headingRad));
+}
+
+    });
+    world.entities.vehicles = resolveVehicleCollisions(driven);
+  };
+}
+
+export function makeArenaWeaponsSystem(
+  driverRef: { current: DriverState },
+  playerVehicleId: string,
+  opponents: ReadonlyMap<string, ArenaOpponentState>,
+  aiInputs: ReadonlyMap<string, InputFrame>,
+  projectileTargets: Map<string, string>,
+  spawnCounter: { current: number },
+  log: (kind: HudMessageKind, text: string) => void,
+): SystemFn {
+  return (world, input) => {
+    world.entities.vehicles.forEach((vehicle, index) => {
+      if (vehicle.destroyed) return;
+      const isPlayer = vehicle.id === playerVehicleId;
+
+      const cooled = tickCooldowns(vehicle, 1);
+      world.entities.vehicles[index] = cooled;
+
+      const vehicleInput = isPlayer ? input : (aiInputs.get(cooled.id) ?? defaultInputFrame());
+      if (!vehicleInput.fire) return;
+
+      const weapon = cooled.weapons[vehicleInput.weaponSlot];
+      if (weapon === undefined || weapon.facing === 'UNDERBODY') return;
+      const weaponDef = getWeapon(weapon.weaponId);
+
+      const bearingTarget = findBearingTarget(cooled, weapon.facing, world.entities.vehicles, weaponDef.rangeM, weaponDef.minRangeM);
+      const direction = facingWorldDirection(cooled.headingRad, weapon.facing);
+      const targetPosition = bearingTarget?.position ?? {
+        x: cooled.position.x + direction.x * weaponDef.rangeM,
+        y: cooled.position.y + direction.y * weaponDef.rangeM,
+      };
+      const targetHeadingRad = bearingTarget?.headingRad ?? cooled.headingRad;
+
+      const marksmanshipSkill = isPlayer
+        ? getSkill(driverRef.current, 'marksmanship')
+        : getSkill(requireOpponent(opponents, cooled.id).driver, 'marksmanship');
+      const spawnedEntityId = `proj-${world.tick}-${spawnCounter.current}`;
+      spawnCounter.current += 1;
+
+      const result = withWorldRng(world, (rng) => {
+        const command: FireCommand = {
+          vehicle: cooled,
+          weaponSlotIndex: vehicleInput.weaponSlot,
+          target: { position: targetPosition, headingRad: targetHeadingRad },
+          ctx: {
+            rng,
+            marksmanshipSkill,
+            rangePenaltyPercent: 0,
+            relativeMotionPenaltyPercent: 0,
+            smokePenaltyPercent: 0,
+            paintPenaltyPercent: 0,
+          },
+          tick: world.tick,
+          spawnedEntityId,
+          deployDropOffsetM: 2,
+        };
+        return fire(command);
+      });
+      world.entities.vehicles[index] = result.vehicle;
+      if (!result.ok) {
+        if (isPlayer && result.reason === 'NO_AMMO') log('info', t('ui.weapon.outOfAmmo', { weapon: weaponDef.name }));
+        return;
+      }
+      if (result.spawn?.kind === 'PROJECTILE') {
+        world.entities.projectiles.push(result.spawn.projectile);
+        if (bearingTarget !== null) projectileTargets.set(spawnedEntityId, bearingTarget.id);
+        if (isPlayer) log('hit', t('ui.weapon.fired', { weapon: weaponDef.name }));
+      } else if (result.spawn?.kind === 'DEPLOYABLE') {
+        // Deployables were previously DROPPED on the floor: the weapon consumed
+        // its ammo, the cooldown was set, and the `DeployableState` went out of
+        // scope. Nothing ever pushed to `world.entities.deployables`, which left
+        // `combat.triggerMine` / `triggerSpikes` unreachable from any
+        // production path and made five of thirteen weapons inert.
+        world.entities.deployables.push(result.spawn.deployable);
+        if (isPlayer) log('hit', t('ui.weapon.fired', { weapon: weaponDef.name }));
+      }
+    });
+  };
+}
+
+/**
+ * Releases every projectile's pre-rolled outcome (see `@/sim/combat`'s file
+ * header) onto the REAL target it was fired at, the moment it reaches that
+ * target's oriented-rectangle collider or expires — whichever comes first —
+      kind: 'PROJECTILE',
+      projectile: spawnProjectile(
+        cmd.spawnedEntityId,
+        vehicle.id,
+        vehicle.position,
+        weaponDef,
+        weaponState.facing,
+        vehicle.headingRad,
+        tick,
+        { hit, damage, facing },
+      ),
+    };
+  } else if (isDeployable) {
+    spawn = {
+      kind: 'DEPLOYABLE',
+      deployable: spawnDeployable(
+        cmd.spawnedEntityId,
+        vehicle.id,
+        vehicle.position,
+        vehicle.headingRad,
+        weaponDef,
+        cmd.deployDropOffsetM,
+        tick,
+      ),
+    };
+  } else {
+    spawn = { kind: 'INSTANT', hit, damage, facing };
+  }
+
+  // Step 6: only the active weapon fires — enforced by the caller only ever passing
+  // that weapon's slot index. Holding fire repeats by calling `fire()` again once
+  // `cooldownRemaining` reaches 0 (see `tickCooldowns`).
+  const weaponsAfter = vehicle.weapons.map((weapon, index) => {
+    if (index !== weaponSlotIndex) return weapon;
+    const spentOneShot = weaponDef.removeAfterFire === true;
+    return {
+      ...weapon,
+      ammo: ammoConsumed ? Math.max(0, weapon.ammo - 1) : weapon.ammo,
+      cooldownRemaining: weaponDef.cooldownTicks,
+      // `spent`, NOT `destroyed`: a spent launcher tube is still bolted to the hull
+      // and still absorbs penetrating damage (`applyPenetratingDamage` in
+      // `@/sim/damage` only skips weapons where `destroyed` is true). `destroyed`
+      // is left untouched here — it is set only by combat damage, when `dp` hits 0.
+      spent: weapon.spent === true || spentOneShot,
+    };
+  });
+
+  return {
+    ok: true,
+    reason: null,
+    vehicle: {
+      ...vehicle,
+      battery: usesBattery ? vehicle.battery - batteryCost : vehicle.battery,
+      weapons: weaponsAfter,
+    },
+    ammoConsumed,
+    batteryConsumed: batteryCost,
+    spawn,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Handing a resolved hit off to the penetration order
+// ---------------------------------------------------------------------------
+
+export interface EngagementTarget {
+  readonly vehicle: VehicleState;
+  readonly driver: DriverState;
+}
+
+export interface ResolvedShot {
+  readonly target: EngagementTarget;
+  readonly report: PenetrationReport;
+}
+
+/** Applies an already-hit shot's rolled damage to the target via the penetration chain. */
+
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Optimizing event screenshot timing****Planning arena-event replay and verification**
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Adjusting menu display for inspection**
+codex
+## Findings taking shape
+
+The source check confirms an axis mismatch: driving and the car art use +X as forward, while weapons, armour facings, and collision rectangles use +Y. I’m capturing a paused shot to verify the firing direction visually. I also reproduced a smaller city issue: pressing G too far from the parked car silently fails, with no range hint.
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+**Testing canvas screenshot approach**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+**Adjusting element style for screenshot**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+**Analyzing collision and physics issues****Verifying navigation and UI states**
+**Confirming shared code usage**
+exec
+/bin/zsh -lc "rg -n 'federal|Federal|future phase|isn.t open' src/ui/buildings src/i18n rulesets/classic; sed -n '5030,5135p' src/app.ts; rg -n 'FRONT|heading' src/ui/hud.ts | head -25" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+rg: src/i18n: No such file or directory (os error 2)
+src/ui/buildings/index.ts:6: * no gameplay yet (hotel/federal/story/studio/petshop) get `@/ui/buildings/stub`
+src/ui/buildings/index.ts:47: * federal, story, studio, petshop — task brief"). That is a comment, not a
+src/ui/buildings/index.ts:139:  // Every remaining real facilityKind (hotel/federal/story/studio/petshop)
+rulesets/classic/quests.json:43:      "destination": { "cityId": "newyork", "facility": "federal" },
+rulesets/classic/quests.json:54:      "destination": { "cityId": "newyork", "facility": "federal" },
+rulesets/classic/cities.json:4:  "facilityKinds": ["garage","weaponshop","arena","salvage","bar","medical","assembly","courierguild","truckstop","casino","hotel","federal","story","studio","petshop"],
+rulesets/classic/cities.json:6:    { "id": "newyork",     "name": "New York",      "x": 0.62, "y": 0.52, "facilities": ["garage","weaponshop","arena","salvage","bar","medical","assembly","courierguild","truckstop","federal"] },
+rulesets/classic/strings.json:16:    "facility.federal": "Federal Building",
+rulesets/classic/strings.json:273:    "building.stub.notReady": "{facility} isn't open for business yet — coming in a future phase.",
+src/ui/buildings/stub.ts:3: * federal, story, studio, petshop — task brief). Still opens a real numbered
+rulesets/classic/economy.json:82:    "federal"
+  }
+
+  function closePanel(): void {
+    panelHost.style.display = 'none';
+    panelHost.innerHTML = '';
+    paused = false;
+  }
+
+  function openFacility(kind: string): void {
+    // Auto-deliver BEFORE the panel ever mounts: walking into a quest's own
+    // `destination` facility with its cargo aboard is the one reachable
+    // "deliver" action this UI has (see `attemptQuestDelivery`'s own doc
+    // comment). A victory delivery shows the victory screen instead of the
+    // facility's own panel this visit — `sandboxContinues` means the
+    // driver comes right back to THIS city afterward, not a dead end.
+    const delivery = attemptQuestDelivery(runState, kind);
+    runState = delivery.state;
+    if (delivery.result?.victory === true && delivery.def !== null) {
+      stop();
+      showVictory(
+        root,
+        runState,
+        buildVictorySummary({
+          quest: delivery.def,
+          clock: runState.clock,
+          driver: runState.driver,
+          fleet: runState.fleet,
+          arenaRecord: runState.arenaRecord,
+        }),
+        () => showCity(root, runState),
+      );
+      return;
+    }
+
+    const previousQuests = runState.quests;
+    const card = openPanel();
+    let mounted: MountedFacility | undefined;
+    mounted = mountFacility({
+      container: card,
+      kind,
+      context: buildingContextFrom(runState),
+      onExit: (ctx) => {
+        runState = applyBuildingContext(runState, applyQuestAcceptEffects(previousQuests, ctx));
+        mounted?.destroy();
+        closePanel();
+      },
+      onOpenConstructor: () => {
+        mounted?.destroy();
+        stop();
+        showConstructor(
+          root,
+          runState.driver,
+          (chargedDriver, confirmed) => {
+            // A fresh build becomes the new active car; whatever was active
+            // before is garaged in THIS city instead of discarded, the same
+            // "additional car" flow `@/ui/buildings/assembly`'s own fleet-cap
+            // gate (`ctx.fleetSize < maxFleetSize`) exists for. A carless
+            // driver buying their way back in has nothing to garage, and this
+            // is the one path that gets them a car again.
+            const outgoing = runState.vehicle;
+            const newVehicle = vehicleStateFromConfirmedBuild(confirmed, PLAYER_ID, `veh-${PLAYER_ID}-${runState.fleet.vehicles.length}`);
+            const fleetWithOldGaraged =
+              outgoing === null ? runState.fleet : reconcileFleetWithVehicle(runState.fleet, outgoing, true, runState.cityId);
+            const fleetResult = fleetAddVehicle(fleetWithOldGaraged, { vehicle: newVehicle, stored: false, cityId: runState.cityId });
+            runState = {
+              ...runState,
+              driver: chargedDriver,
+              vehicle: newVehicle,
+              vehicleStored: false,
+              fleet: fleetResult.ok ? fleetResult.fleet : fleetWithOldGaraged,
+            };
+            showCity(root, runState);
+          },
+          () => showCity(root, runState),
+          runState.vehicle === null ? [] : [runState.vehicle.design.name],
+          fleetVehicleCount(runState.fleet),
+        );
+      },
+      onEnterArena: (result: ArenaEntryResult) => {
+        const entered = arenaPlayerVehicle(vehicleParkedAtGate(runState.vehicle, layout.gate.position), result.matchState.eventId);
+        // `eligibilityFor` already refused every own-sourced event to a
+        // carless driver, and every house-sourced one hands back a loaner, so
+        // this is unreachable — and a refusal beats an assertion either way.
+        if (entered === null) return;
+        mounted?.destroy();
+        stop();
+        showArenaEvent(root, result.driver, entered, result.matchState, runState.clock, runState, (nextState) => {
+          runState = nextState;
+          showCity(root, runState);
+        });
+      },
+    });
+  }
+
+  function openGatePrompt(): void {
+    if (runState.vehicleStored) {
+      // Can't drive out without retrieving the car from the garage first -
+      // just resume walking instead of stranding the player on a dead menu.
+      return;
+    }
+    const card = openPanel();
+    const neighbors = cityRouteNeighbors(runState.cityId);
+    // No car, no road. Shown as a refusal the player can READ on every route
+    // row, the same shape `@/ui/buildings/arena`'s ineligible rows use, rather
+    // than a silent dead menu — and `@/ui/menu`'s `handleMenuKey` never
+    // dispatches ACTIVATE for an ineligible row, so it is also the gate.
+78:export type RadarOrientation = 'world' | 'heading';
+160:const FACING_ORDER: readonly Facing[] = ['FRONT', 'REAR', 'LEFT', 'RIGHT', 'UNDERBODY'];
+220:    case 'FRONT':
+238:function rotate(dx: number, dy: number, headingRad: number): { x: number; y: number } {
+239:  // Rotate a world-frame offset into vehicle-heading frame for display only —
+241:  const cos = Math.cos(-headingRad);
+242:  const sin = Math.sin(-headingRad);
+280:  // This row used to render "↑ FRONT" in a fixed 3.2em column with
+411:  // 'heading' mode must rotate the player's forward vector onto screen-up.
+412:  // Forward is (cos(headingRad), sin(headingRad)) (sim/driving.ts), so
+413:  // heading 0 already sits along +x/screen-right — feeding `rotate` a
+414:  // heading pre-rotated by -PI/2 is what actually lands "dead ahead" on
+416:  // 'world' mode passes heading 0 through untouched: +y (north) already
+418:  const heading = orientation === 'heading' ? snapshot.vehicle.headingRad - Math.PI / 2 : 0;
+422:  // unconditionally — correct in 'heading' mode, where the entire face is
+431:  // the marker must be turned by (north-up baseline) MINUS the vehicle heading.
+432:  // Checked at three headings:
+436:  // In 'heading' mode the face already carries the heading, so the marker stays
+439:    orientation === 'heading' ? 0 : ((Math.PI / 2 - snapshot.vehicle.headingRad) * 180) / Math.PI;
+460:    const { x, y } = rotate(contact.worldDx, contact.worldDy, heading);
+498:    { type: 'button', class: 'hud-radar-orientation-toggle', 'aria-pressed': String(orientation === 'heading') },
+499:    orientation === 'heading' ? t('ui.radar.orientationHeading') : t('ui.radar.orientationNorth'),
+586:      // the concatenated text content ("FRONT: —") is unchanged either way.
+
+mcp: playwright/browser_console_messages started
+mcp: playwright/browser_console_messages (completed)
+ERROR: Reconnecting... 1/5
+**Assessing federal delivery constraints****Verifying silent G event timing**
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Analyzing screenshot dimensions and collision axes****Summarizing gameplay issues and report structure**
+
+I’m organizing the user’s instructions into clear headings and bullet points for distinct topics like firearms, collision, and player state. I’ll include observations about game behavior, screenshot details, and quest status while keeping the report concise and focused on exact issues without code changes.
+codex
+## Gameplay review
+
+I inspected the live arena, road, and city, viewed **2400 × 2020 screenshots at device pixel ratio 2**, and exercised movement, firing, vehicle entry, building entry, and pause/resume. I also entered Division 5 through the city to inspect combat.
+
+### 1. High impact — the car’s combat geometry is rotated 90° from its driving direction
+
+**Screen and location:** Arena, around the player’s car in the center of the playfield.
+
+**What is wrong:** With the car’s nose and gun barrel pointing right, firing its front-mounted Machine Gun sends the projectile upward. I reproduced this with a single shot: ammunition changed **20/20 → 19/20**, and the paused frame shows the projectile directly above the right-facing car.
+
+During Division 5 contact, an opponent also visibly overlapped a substantial part of the player’s chassis. The source check explains the disagreement: driving and sprite orientation treat local **+X as forward**, while weapon directions, armour facings, and collision rectangles treat **+Y as forward**.
+
+**Why it matters:** A player who points the nose at an enemy fires sideways. The same disagreement makes visible body positions unreliable for judging contact and which armour facing receives a hit. This undermines aiming, ramming, and armour placement.
+
+**What I would do — code change:** Define one vehicle coordinate convention and use it throughout driving, combat, damage, AI bearing checks, and collision geometry. Keeping the existing driving convention means front is +X and the collider’s length follows +X. Verify front-mounted shots and frontal impacts at all four cardinal headings, including two cars touching nose-to-nose.
+
+[Captured shot](/Users/shoemoney/Projects/smduel/review-arena-shot-exposed.png). For this evidence image, I temporarily moved the pause menu aside to expose the frozen canvas, then restored it.
+
+### 2. Lower impact — entering the car fails silently outside its interaction range
+
+**Screen and location:** City, the **“G enter/exit car”** instruction at the top and the parked car near the player.
+
+**What is wrong:** After walking away from the parked car, pressing G produces no response or explanation. The pedestrian remains on foot. I separately confirmed that G works beside the car. The handler silently discards the `outOfRange` result; entry requires being within **3 meters**.
+
+**Why it matters:** The instruction presents G as an available action without explaining its proximity requirement. A new player cannot distinguish being too far away from a failed keypress or broken control.
+
+**What I would do — code change:** When entry fails, display a brief message such as **“Move closer to your car to enter.”** Show **“G — enter car”** near the vehicle when entry becomes available, and change it to **“G — exit car”** while driving. Derive availability from the existing interaction-range check.
+
+## Gap in the game as a whole
+
+### 3. Content gap — the Federal Building’s ordinary service is still a placeholder
+
+**Where observed:** City, the blue Jobs marker near the starting gate and its building panel.
+
+Walking into the Federal Building opens **“Federal Building isn’t open for business yet — coming in a future phase.”** I confirmed that its ordinary panel uses the stub implementation.
+
+This leaves an explicitly unfinished destination in the city’s service network. The “closed” approach label communicates that honestly; the gap is the service content itself.
+
+**What I would do — code and authored content:** Give it a small reception menu showing relevant federal quest hand-ins, requirements, and completion status. Preserve the existing automatic quest-delivery path, which runs before the panel opens; this finding does **not** establish that federal quest delivery is missing.
+
+I established no separate road-specific defect in this pass. I drove off the carriageway, saw the return-to-road indicator, and opened and resumed the trip menu. I did not complete a highway journey or assess its full encounter pacing.
+
+REVIEW-VERDICT: 3
+tokens used
+158,550
+## Gameplay review
+
+I inspected the live arena, road, and city, viewed **2400 × 2020 screenshots at device pixel ratio 2**, and exercised movement, firing, vehicle entry, building entry, and pause/resume. I also entered Division 5 through the city to inspect combat.
+
+### 1. High impact — the car’s combat geometry is rotated 90° from its driving direction
+
+**Screen and location:** Arena, around the player’s car in the center of the playfield.
+
+**What is wrong:** With the car’s nose and gun barrel pointing right, firing its front-mounted Machine Gun sends the projectile upward. I reproduced this with a single shot: ammunition changed **20/20 → 19/20**, and the paused frame shows the projectile directly above the right-facing car.
+
+During Division 5 contact, an opponent also visibly overlapped a substantial part of the player’s chassis. The source check explains the disagreement: driving and sprite orientation treat local **+X as forward**, while weapon directions, armour facings, and collision rectangles treat **+Y as forward**.
+
+**Why it matters:** A player who points the nose at an enemy fires sideways. The same disagreement makes visible body positions unreliable for judging contact and which armour facing receives a hit. This undermines aiming, ramming, and armour placement.
+
+**What I would do — code change:** Define one vehicle coordinate convention and use it throughout driving, combat, damage, AI bearing checks, and collision geometry. Keeping the existing driving convention means front is +X and the collider’s length follows +X. Verify front-mounted shots and frontal impacts at all four cardinal headings, including two cars touching nose-to-nose.
+
+[Captured shot](/Users/shoemoney/Projects/smduel/review-arena-shot-exposed.png). For this evidence image, I temporarily moved the pause menu aside to expose the frozen canvas, then restored it.
+
+### 2. Lower impact — entering the car fails silently outside its interaction range
+
+**Screen and location:** City, the **“G enter/exit car”** instruction at the top and the parked car near the player.
+
+**What is wrong:** After walking away from the parked car, pressing G produces no response or explanation. The pedestrian remains on foot. I separately confirmed that G works beside the car. The handler silently discards the `outOfRange` result; entry requires being within **3 meters**.
+
+**Why it matters:** The instruction presents G as an available action without explaining its proximity requirement. A new player cannot distinguish being too far away from a failed keypress or broken control.
+
+**What I would do — code change:** When entry fails, display a brief message such as **“Move closer to your car to enter.”** Show **“G — enter car”** near the vehicle when entry becomes available, and change it to **“G — exit car”** while driving. Derive availability from the existing interaction-range check.
+
+## Gap in the game as a whole
+
+### 3. Content gap — the Federal Building’s ordinary service is still a placeholder
+
+**Where observed:** City, the blue Jobs marker near the starting gate and its building panel.
+
+Walking into the Federal Building opens **“Federal Building isn’t open for business yet — coming in a future phase.”** I confirmed that its ordinary panel uses the stub implementation.
+
+This leaves an explicitly unfinished destination in the city’s service network. The “closed” approach label communicates that honestly; the gap is the service content itself.
+
+**What I would do — code and authored content:** Give it a small reception menu showing relevant federal quest hand-ins, requirements, and completion status. Preserve the existing automatic quest-delivery path, which runs before the panel opens; this finding does **not** establish that federal quest delivery is missing.
+
+I established no separate road-specific defect in this pass. I drove off the carriageway, saw the return-to-road indicator, and opened and resumed the trip menu. I did not complete a highway journey or assess its full encounter pacing.
+
+REVIEW-VERDICT: 3
