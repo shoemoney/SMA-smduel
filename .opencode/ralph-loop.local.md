@@ -3523,10 +3523,62 @@ TOOLING - the review harness got audited by its own failure this round:
      backlog of avoidance — three separate reviewers, arriving by different
      routes, have now independently demanded the same three assets.
 
+78. TITLE ART REGENERATED — the top deferred item, executed. No review this round
+   (the model pool is exhausted at 75/75); this is the plan being carried out
+   from iteration 77's three real findings rather than a new critique.
+   - `assets/ui-title-art.png` showed two ARMOURED TANKS in a bright orange
+     sunset. The tagline under it reads "One car. Sixteen cities. A highway that
+     wants you dead." The art had been contradicting the game's own pitch line
+     since iteration 36 and no amount of CSS was ever going to fix that, which
+     is what the deferral note said all along.
+   - STYLE SOURCE WAS A REAL CAPTURE, NOT A MEMORY: prompted from
+     `.shots/iter76/city.png` — 90-degree overhead, cool desaturated blue-grey
+     cracked pavement, saturated rust-orange car, teal accents. The first wave of
+     16 (4 prompts x 4) all put a hero car DEAD CENTRE, which is exactly where
+     the wordmark sits, so all 16 were rejected on composition. Second wave of
+     16 with the layout stated as a constraint ("the left half is EMPTY dark
+     tarmac, the car is at the far right edge") and the model complied.
+   - Winner: a single car at the far right edge throwing a teal headlight pool,
+     vast empty cracked tarmac across the left two thirds, sweeping tyre marks
+     arcing through the top, one worn lane line running diagonally. It reads as
+     the tagline, which is more than the old plate ever did.
+   - THE SCRIM HAD TO BE RETUNED WITH IT, and this is the part worth keeping:
+     the overlay was a BAND, `0.34 / 0.72 / 0.34`, and every one of those numbers
+     was tuned against a BRIGHT SUNSET. Over night art 0.34 bought nothing and
+     cost the hero car its silhouette — the identical complaint the band was
+     introduced to fix, arriving again through the opposite change. Outer stops
+     are now 0.16/0.18; the 0.70 peak stays because the lane line genuinely runs
+     under the lockup. Measured on the real frame: title luma 34.2 -> 39.07,
+     spread 31.4 -> 40.24, i.e. the art got more legible rather than darker.
+   - TAGLINE CONTRAST RE-MEASURED, not eyeballed, and it went UP: 12.71:1 against
+     a measured background luma of 0.0266 that is IDENTICAL in all three
+     horizontal thirds (uniform dark tarmac, no bright spots at all), versus
+     7.92/7.72/7.99:1 in iteration 65. Method: real build, real Chrome, hide the
+     lockup, sample the composited background under the tagline's own measured
+     box (501,420 439x23) — the same discipline as iteration 65, and the reason
+     iterations 75/76/77 could dismiss "the tagline is unreadable" with a number
+     instead of an opinion.
+   - Provenance was updated rather than left lying: `tools/asset-manifest.json`
+     recorded `flux-pro seed 402` for a file that is now a Seedream 4.5 render,
+     which would have been a false record of where the asset came from. One line
+     changed, trailing comma and one-entry-per-line format preserved (first
+     attempt rewrote the whole file to 266 lines of diff; reverted and patched
+     surgically — 1 insertion, 1 deletion).
+   - Filename and 1344x768 dimensions kept ON PURPOSE: `assets/atlas.json` records
+     the standalone entry as `ui-title-art.png` and a test pins that filename, so
+     a rename would have broken the atlas contract for no gain.
+   Gate: tsc clean, 65 files / 1423 tests, 2 browser tests, build clean,
+   `.shots/iter78` = 8 screens, 0 problems. Deployed to arcade.shoemoney.com.
+
 DEFERRED (real, documented, not bugs):
-- TITLE ART SHOWS TANKS, NOT CARS (iteration 36) - the top art item. It is an
-  asset regeneration, not a CSS change, and it must not be faked with a filter.
-- City daylight grade (my 0.6 ground tint is why it reads dim), street network,
+- ~~TITLE ART SHOWS TANKS~~ — DONE at iteration 78.
+- City chevron pictograms (iteration 77 review supplied the vocabulary: wrench /
+  cart / reticle / briefcase, with colour meaning STATUS not type).
+- Ground decals — oil stains, tyre marks, lane paint, unique crack patterns.
+  Note the gameplay half from iteration 77 is NOT an art item: on the road a
+  static ground plane makes speed hard to judge, and only fixed roadside
+  furniture moves past the camera at a known rate, so that is the fix.
+- City daylight grade (the 0.6 ground tint is why it reads dim), street network,
   10 empty weapon rows.
 
 DEPLOY 2026-09-30 — release `20260929194913-66bd430` to arcade.shoemoney.com
