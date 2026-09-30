@@ -3529,5 +3529,37 @@ DEFERRED (real, documented, not bugs):
 - City daylight grade (my 0.6 ground tint is why it reads dim), street network,
   10 empty weapon rows.
 
+DEPLOY 2026-09-30 — release `20260929194913-66bd430` to arcade.shoemoney.com
+- Host is `shoemoney.com` (100.49.4.12), plain Ubuntu nginx, NOT the NAS/swarm
+  from the shoemoney-swarm runbook. Root is `.../arcade.shoemoney.com/current/public`
+  and `current` is a symlink into `releases/<ts>-<sha>/` — 41 releases deep.
+  nginx: `location / { try_files $uri $uri/ =404; }`, so a missing `public/index.html`
+  is a 403, not a 404.
+- Recipe: build -> `mkdir releases/<name>/public` -> `cp -a current/api` ->
+  rsync `dist/` into `releases/<name>/public/smduel/` -> snapshot scores.sqlite
+  with `sqlite3 .backup` (python `Connection.backup()`, never `cp` a live WAL db)
+  -> atomic swap via `ln -s ... current.new && mv -T current.new current` ->
+  curl-verify.
+- MISTAKE, RECORDED BECAUSE IT 403'd THE WHOLE ARCADE FOR ~2 MINUTES: I staged
+  `public/` containing ONLY `smduel/`, copying `api/` but not the rest of the
+  previous release's `public/`. The landing page needs `public/index.html` plus
+  the other seven games, and `current` is the nginx root for ALL of them, so a
+  partial release takes down the arcade, not just the game you were shipping.
+  A release is a WHOLE-SITE snapshot. `cp -a <prev>/public/. <new>/public/`
+  first, then overlay the one subtree you changed. Fixed in place (no second
+  symlink swap) and re-verified: root 200, smduel 200, last-engineer 200,
+  shoplifter 200.
+- CONCURRENT DEPLOYER ON THAT BOX, NOT MINE: three releases appeared during this
+  deploy (19:45:44, 19:48:45, and the arc's own). Their shas (4d4da5, e6fc5f) are
+  not in this repo — the arcade builds from a DIFFERENT repo that vendors smduel,
+  and there is no arcade source on the box. Consequence: this deploy is a correct
+  release, but the next arcade deploy can overwrite smduel from their source.
+  The durable path for loop changes is landing them in the arcade repo, not only
+  here. Worth confirming with the arcade owner.
+- Live verified: title screen boots, wordmark + tagline legible, lower-left menu
+  renders, zero console errors. (A `querySelector('canvas')` check reads null on
+  the title screen and that is CORRECT — it is pure DOM; only world screens
+  create a canvas. Do not treat it as a failed boot.)
+
 Tooling: `node tools/review.mjs --list | --model <id> --shots <dir>`
 Reviews: .opencode/reviews/
