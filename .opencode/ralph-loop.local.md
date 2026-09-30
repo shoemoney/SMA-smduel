@@ -4935,3 +4935,35 @@ DEPLOY 2026-09-30 — iteration 92 to arcade.shoemoney.com
      a player spends navigation effort to be told "coming in a future phase".
      Pairs with #4: a "Closed" state on approach fixes both the wasted
      navigation and the misleading availability signal.
+
+DEPLOY 2026-09-30 — iteration 93 to arcade.shoemoney.com
+- Release `20260930110000-697318e`, build `index-hYG6SXgS.js`, commit `697318e`.
+  Whole-site snapshot, atomic swap, root + smduel + last-engineer 200, live
+  bundle hash equals the local build's.
+- LIVE VERIFIED, with the chain stated rather than a single confident claim,
+  because "no error appeared" is weaker evidence than it looks:
+   1. THE BUG REPRODUCED LOCALLY FIRST, against the real `migrateSave` with a
+      real `SaveGame` shape: "save blob does not match schema v2: /vehicles/v1
+      must NOT have additional properties", for both fields.
+   2. THE FIX IS IN THE SHIPPED BUNDLE: `batteryDebt` and
+      `controlLossSpinSign` each appear 3 times in the served
+      `index-hYG6SXgS.js`, against the schema being one of those sites.
+   3. THE PERSIST CALL SITE RUNS CLEAN IN PRODUCTION. Drove the arena for 4
+      seconds, then clicked "Exit to Title" — one of the two
+      `persistArenaSession(...)` call sites, and the one the reviewer was on
+      when the error appeared. Console collected across ALL message types, not
+      just errors, because this failure was a `console.warn` and collecting
+      only errors is exactly how it stayed invisible to a green suite.
+      Result: zero `autosave failed`, zero `SaveMigrationError`, zero
+      "does not match schema" — and no autosave message of any kind, where the
+      reviewer's session had one.
+- WHAT I DID NOT ESTABLISH, stated plainly rather than glossed: I did not
+  independently confirm a save record was written to IndexedDB, so "the save
+  persisted" is supported by the absence of the reported failure and not by
+  reading the store back. A first attempt at a fuller end-to-end run — a real
+  title -> driver -> constructor session in headless Chrome on that origin —
+  never reached the arena and ended on a `Retry` button, most likely headless
+  IndexedDB partitioning on a cross-site origin, so it exercised nothing. The
+  arena rig path was used instead because it reaches the same call site
+  deterministically. Reading the store back is the one check that would close
+  this properly and it needs a context where IndexedDB actually persists.
