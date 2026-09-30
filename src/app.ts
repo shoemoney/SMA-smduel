@@ -5742,6 +5742,15 @@ function showRoad(
   const offRoadArrow = el('span');
   offRoadArrow.style.cssText = 'display:inline-block;transform-origin:50% 50%;margin-right:5px;';
   offRoadArrow.textContent = '\u25B2';
+  // The LABEL is its own element rather than the container's text node, because
+  // writing to `offRoadHint.lastChild` was the bug this replaces: the hint
+  // starts empty, so after `prepend` the arrow span IS the only child, and
+  // `lastChild` therefore pointed at the ARROW — the per-frame label write
+  // silently overwrote the `\u25B2` glyph. It shipped like that and a live
+  // probe found it by matching the container's `textContent` instead of its
+  // own, which is the log's own rule (a probe that finds the wrong element is
+  // worse than one that finds nothing) arriving in a new costume.
+  const offRoadLabel = el('span');
   offRoadHint.style.cssText =
     'position:absolute;top:120px;left:50%;transform:translateX(-50%);color:#ffd166;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.82);border:1px solid rgba(255,209,102,0.4);padding:5px 11px;border-radius:4px;pointer-events:none;white-space:nowrap;';
   offRoadHint.style.display = 'none';
@@ -5769,7 +5778,8 @@ function showRoad(
   container.appendChild(status);
   container.appendChild(driveHint);
   container.appendChild(menuHint);
-  offRoadHint.prepend(offRoadArrow);
+  offRoadHint.appendChild(offRoadArrow);
+  offRoadHint.appendChild(offRoadLabel);
   container.appendChild(offRoadHint);
   container.appendChild(progress);
   container.appendChild(notice);
@@ -6664,7 +6674,7 @@ function showRoad(
       // screen. See that function's own comment for the derivation.
       const deg = roadRecoveryDirectionDeg(lateralOffsetM, trip.routeHeadingRad);
       offRoadArrow.style.transform = `rotate(${deg.toFixed(1)}deg)`;
-      offRoadHint.lastChild!.textContent = t('ui.road.offRoad', { metres: String(metres) });
+      offRoadLabel.textContent = t('ui.road.offRoad', { metres: String(metres) });
       if (offRoadHint.style.display !== 'flex') offRoadHint.style.display = 'flex';
     } else if (offRoadHint.style.display !== 'none') {
       offRoadHint.style.display = 'none';
