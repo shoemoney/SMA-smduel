@@ -7469,3 +7469,76 @@ finding is worth more than the code was.
   tests with the measured `screens.test.ts` flake, 7 browser tests, build
   `index-Bi6hkndk.js` (unchanged), so nothing to deploy and nothing to
   re-verify live.
+## ITERATION 118 — combat effects SHIP, and iteration 117's "does not render" was wrong
+
+Iteration 117 built the tracer, watched it reach the GPU buffer and not the
+screen, and REVERTED it as an unproven visual. The caution was right. The
+conclusion was wrong, and finding out why is the whole round.
+
+- **THE FIRST ERROR WAS A PROBE, NOT THE CODE — and it is the same mistake
+  twice removed.** Iteration 117 read the render-path counter and THEN took the
+  screenshot. Those are two different instants, so most of the frames it looked
+  at were frames where no bolt existed. The instance was packed; the picture was
+  of a different tick.
+  Removed the skew by emitting a STATIC marker — fixed position, unconditional,
+  independent of any projectile's lifetime — so a screenshot could not miss it.
+  It appeared on the first attempt: a large bright four-pointed star. So the
+  `fx-*` frames, their UV rects (checked against the real `AtlasIndex`, which
+  returns 0.568-0.628 for the flash — non-degenerate and matching the packed
+  pixels exactly), their alpha (13-73% opaque, maxAlpha 255) and the PLAIN
+  sprite path were all correct the entire time.
+
+- **THE SECOND ERROR WAS MINE, AND IT IS THE INTERESTING ONE: IT RENDERED, AND
+  IT WAS INVISIBLE.** At the original 0.77m the bolt was a faint smudge on
+  144-luma ground. The same sprite at 12m is unmissable. That is this log's
+  iteration-68/64 class exactly — **a cue that is present, measurable, and
+  below the threshold of the frame anyone reviews** — and it has now killed
+  three fixes in this codebase before (the building shadow at 0.8/0.42, the
+  marker shadow at 0.9/0.5, the vehicle shadow at 0.7/0.5) and created a fourth.
+  Each of those was "the reviewer cannot see it, the measurement confirms it
+  exists, and nobody asked whether it was strong enough."
+
+- **BOTH FIXES, AND NEITHER IS A TUNED NUMBER.** The size is now anchored on
+  the thing a player already reads — a third of `VEHICLE_SPRITE_SIZE_M` — rather
+  than on `3m * 110/430`, which was a pixel fraction of the effect frame derived
+  from nothing. The previous number is now a TEST expectation rather than the
+  code, so the property is stated and the constant can move.
+  And the travelling bolt uses `fx-muzzle-flash`, not `fx-impact-spark`: the
+  spark is a soft 21%-opaque burst authored for an IMPACT, so a dart in flight
+  was both the wrong picture and the faintest frame in the set. "It renders" is
+  exactly the assertion that passed while the effect stayed invisible, so the
+  art choice now has its own test.
+
+- **VERIFIED WITH A CONTROL THAT MOVES**, because a static reading cannot
+  distinguish "there is a bolt" from "the car is orange and near the middle":
+      driving, NOT firing    7165 max warm pixels in the play area
+      driving AND firing     7384 max warm pixels        (+219)
+  and the captured frame shows the bolt on open ground beside the car, not
+  camouflaged under it — which the static probe in this round had been
+  doing, and which is why the 2.0m reading looked inconclusive.
+
+- **SHIPPED, AND IT IS THE REVIEWER'S OWN FINDING CLOSED.** Codex reported that
+  ammunition fell 20/20 -> 7/20 and a front facing dropped 2/2 -> 1/2 with
+  nothing on screen showing the exchanges causing either, and that the player was
+  forced to read HUD counters instead of the world. A shot now has a visible
+  path. The impact spark is still NOT wired, and for the reason iteration 117
+  recorded: a resolving projectile is dropped from `world.entities.projectiles`
+  on the tick it connects, so by render time it is gone — an impact needs the
+  damage system to record it, which is a state addition and its own round.
+
+- LIVE VERIFIED IN PRODUCTION (release `20260930103000-a21bf71`, bundle
+  `index-13aRBrtz.js`, live hash equal to the local build, whole site 200):
+  `?screen=arena` drives, holds fire, and the frame shows the bolt with the feed
+  reading "Machine Gun fired x6" and **0 page errors**.
+
+- GATE: tsc clean, 1534 tests, 1 failure — `screens.test.ts`, the measured
+  cross-file flake. 7 browser tests pass.
+
+- WHAT THIS ROUND IS ACTUALLY ABOUT, and it is worth more than the feature.
+  Three conclusions in three consecutive rounds were wrong, and all three came
+  from a probe rather than from the code: the atlas frames "did not exist"
+  (115), the render "did not happen" (117), and a size that "was already
+  correct". Each time the instrument looked healthy and each time it was the
+  instrument. The technique that finally worked every time was the boring one —
+  make the thing under test the ONLY variable, take the reading in the same
+  instant, and show the signal moving when the thing is not engaged.
