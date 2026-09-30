@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 29
+iteration: 30
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -7779,3 +7779,120 @@ are evidence, so kept rather than deleted).
   this log and it is fully diagnosed, so the next round executes the rotation
   with an end-to-end heading test — not another critique pass over a build with
   a known 90° aim bug in it.
+## ITERATION 121 — the rotation, PROVEN by a failing test, then reverted with the remaining work itemised
+
+Iteration 120 diagnosed the 90-degree combat/driver disagreement across seven
+sites and declined to half-rotate it. This round wrote the test that proves the
+bug, made the rotation, and reverted it — recording exactly what remains,
+because the reason it cannot land in one round is itself the useful finding.
+
+- **THE TEST, WRITTEN FIRST, AND IT FAILED EXACTLY AS PREDICTED.**
+  `the vehicle forward convention` in `tests/unit/combat.test.ts` does NOT
+  restate the facing table. It derives forward the way the RENDERER does — from
+  `headingRad`, which is what `rotationRad: vehicle.headingRad` hands the sprite
+  shader — and asserts a FRONT-mounted shot leaves along it, at all four
+  cardinal headings, by cosine similarity (a plain subtraction would report a
+  2.0 disagreement for a 90-degree one). Against the shipped code:
+      expected +0 to be close to 1, received difference is 1
+  The dot product between the current FRONT mount and the rendered nose is
+  ZERO. **The bug is now reproducible by a test rather than by a screenshot**,
+  which is what iteration 120's log entry could not offer.
+
+  And this is the shape iteration 87 recorded, found a third time and this time
+  caught in advance: `combat.test.ts`'s own `AHEAD` fixture was
+  `{ x: 0, y: 50 }, headingRad: 0` and its `facingWorldDirection` test asserted
+  `FRONT at heading 0 points +y`. Both restated the table independently, so
+  both AGREED WITH THE BUG for as long as it existed — a test that restates a
+  table is only a guard if its own derivation is right.
+
+- **THE ROTATION, AND EVERY SITE IT TOUCHED.** Five source changes, not the one
+  the finding named:
+    - `combat.ts` `FACING_LOCAL_UNIT` -> FRONT (1,0), REAR (-1,0),
+      RIGHT (0,-1), LEFT (0,1). Handedness checked: a car pointing screen-right
+      has its right hand screen-down, which is -Y in this up-positive frame;
+    - `damage.ts` `facingForLocalDirection` -> Y decides LEFT/RIGHT, X decides
+      FRONT/REAR;
+    - `arena.ts` `circleIntersectsOrientedRect` -> `halfLengthM` onto
+      `local.x`;
+    - **`arena.ts` `rectAxes`, which iteration 120's list did NOT name** — it is
+      a second, independent copy of the convention in the same file, and it
+      feeds the vehicle-vs-vehicle separating-axis test. A finding that lists
+      seven sites and misses the eighth in the same function is why you read the
+      consumers rather than trusting the list;
+    - and `arena.ts:894`'s block comment, which cited
+      `FACING_LOCAL_UNIT` as the authority for "FRONT/REAR along local Y" —
+      so rotating the table would have left a comment asserting the opposite.
+      The iteration-51/81/103 stale-comment class, created by the fix itself.
+
+- **AND A TEST OF MY OWN THAT WAS WRONG, which is the part worth keeping.**
+  My first version asserted all four mounts are mutually 90 degrees apart. That
+  is false of ANY correct table: FRONT and REAR are antiparallel by definition,
+  so the assertion could only be satisfied by a table with no opposite pair in
+  it. Rewritten to pin the relationships that actually discriminate —
+  ADJACENT mounts perpendicular, OPPOSITE mounts exactly antiparallel, plus
+  `RIGHT === (0,-1)` — and the antiparallel check is what pins handedness: a
+  table with RIGHT at +Y satisfies every perpendicular check and fails this one.
+  Caught by running it, not by reading it.
+
+- **ONE FIXTURE FAILED FOR A REAL REASON, NOT A CONVENTION REASON.** The
+  flamethrower cone test asserted a target at *exactly* 26 degrees validates,
+  against a production check of `> coneHalfAngleDeg`. Building that target now
+  goes through a rotation that no longer starts on the mount axis, so the
+  dot/cross land one ULP either side of the boundary and the test flipped. The
+  test's name promised a boundary check that float arithmetic cannot deliver;
+  reframed to 25 degrees in / 26.5 degrees out, with a comment saying why.
+  A test that sits exactly on a float comparison is a coin flip, and this one
+  demonstrably was.
+
+- **WHAT BLOCKED THE LANDING, AND IT IS NOT WHAT I EXPECTED.** The unit suite
+  went fully green: 1540 tests, and every fixture that encoded the old
+  convention was re-derived (combat `AHEAD`/`BEHIND`, the deployable drop, the
+  projectile velocity, four cone tests, the `damage.ts` quadrant table, the
+  `impactFacingFromPositions` trio, and the AI's rear-minedropper bearing).
+  **The blockers are two SEEDS, and that is a different kind of problem.**
+  `arena-auto-end.test.ts` does not aim by hand: `WIN_SEED` and `DEATH_SEED`
+  are seeds "found (offline sweep) where standing still and cycling mounts
+  CLEARS amateur-night's real 5-opponent roster", with the comment "holding
+  still (heading frozen at spawn, so that stress accumulator can never start)
+  sidesteps the whole mechanic and reproduces perfectly". Those seeds were found
+  by EMPIRICALLY SWEEPING for the old facing geometry. Rotating the frame
+  invalidates them, and re-finding them requires the sweep — not a fixture
+  edit. A third blocker, `phase4`, does the same kind of scripted encounter.
+  So the cost of this fix is not "edit four fixtures". It is "re-run a seed
+  sweep", and a seed found by a hurried sweep is a test that passes for a reason
+  nobody can reconstruct — which is why the seeds are documented as swept in the
+  first place.
+
+- **AND THE PREVIEW, WHICH IS NOT A TRANSFORM.** `builder-preview.ts` draws the
+  schematic with LENGTH VERTICAL and width horizontal, FRONT band at `cy -
+  halfL`. Rotating the sim leaves the diagram nose-up while the car is
+  nose-right — a new instance of the very bug being fixed, so the change is
+  incomplete without it. My first instinct was a single
+  `<g transform="rotate(90)">` around the drawing, and that is WRONG: the
+  viewBox is `widthM x lengthM` — non-square — so a 90-degree rotation does not
+  fit it and the content clips. It needs the viewBox aspect swapped AND the
+  recomputed bounds, or the geometry rewritten so length is horizontal. Nine
+  append sites and a z-order-dependent `insertBefore` for the underbody stripe
+  sit in the way, and the preview's own tests would all have to be re-derived.
+  That is a layout change, not a line.
+
+- **REVERTED, WHOLE, WITH THE TREE CLEAN.** Shipping a rotation that leaves the
+  diagram disagreeing with the car, with two integration tests red, is exactly
+  what iteration 117 reverted for and exactly what this log's most expensive
+  lessons punish: a green-looking change that is not. The severe bug stays
+  diagnosed one more round rather than landing half of itself.
+
+- GATE: tsc clean; 1538 tests with the 2 documented flakes; 7 browser tests;
+  build `index-Hrr9Wz8r.js` identical to what is live. No code changed, nothing
+  to deploy.
+
+- **THE NEXT ROUND'S WORK LIST, IN ORDER, SO IT IS NOT RE-DERIVED AGAIN:**
+  1. Land the five source changes above, plus the `rectAxes` copy and the
+     `arena.ts:894` comment that finding-1's list missed.
+  2. Re-derive the unit fixtures (all listed, all mechanical).
+  3. **Re-run the seed sweep** for `WIN_SEED` / `DEATH_SEED` and whatever
+     `phase4` needs. This is the real cost and it should be budgeted as such.
+  4. Rotate the preview: swap the viewBox aspect and the bounds, then
+     re-derive the preview tests.
+  5. Only then: deploy, and live-verify by firing at all four headings and
+     confirming the bolt leaves along the nose.
