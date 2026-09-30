@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 11
+iteration: 12
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -5309,3 +5309,80 @@ DEPLOY 2026-09-30 — iteration 96 to arcade.shoemoney.com
       confirmed above, so the chain is complete — but the behavioural half of
       this finding is only observable after the cruise/compression work, which
       is exactly why that item is the top open one.
+97. NO CODE CHANGED THIS ROUND, and the round's product is the measurement
+   iteration 96 explicitly asked for: "its own measured pass over distance, day
+   cost and battery together." Having taken it, the honest conclusion is that
+   **the reviewer's proposed fix is not available**, and shipping one anyway
+   would have meant cranking a constant by a factor of 26-64.
+
+   - **THE CALENDAR ECONOMY IS ALREADY CORRECT, WHICH NOBODY HAD CHECKED.**
+     `daysPerMile()` is `busToAdjacentCity.days / referenceRouteMiles()` =
+     1 / 125 = **0.008 days per mile**. So a 40-mile hop costs 0.32 days and a
+     240-mile run costs 1.92 — the game's own unit already says "a leg is about
+     a day of travel", which is the design the SPEC's bus service implies. The
+     calendar is not the problem. **The real-time simulation is the anomaly:**
+     it runs a day's abstraction at 1:1 wall clock, which is why the reviewer
+     measured 129 minutes and called the game unplayable.
+     This also retires one of iteration 96's two options: SHORTENING THE ROUTES
+     is calendar-NEUTRAL, because `referenceRouteMiles` is the MEAN of the route
+     table — scaling every route by k divides `daysPerMile` by k and multiplies
+     each route's length by k, so the days-per-route figure is invariant. I had
+     flagged that option as "it may be tied to the cities' on-map positions";
+     it is not even tied to the calendar. It is tied to everything else.
+
+   - **AND THE ENCOUNTER STRUCTURE IS ALSO ALREADY CORRECT — WHICH VALIDATES
+     THE REVIEWER'S SHAPE AND INVALIDATES THEIR NUMBER.**
+     `encounters.json`'s `dangerLevels` carry `spawnsPerHundredMiles` of 1.0 /
+     1.6 / 2.3 / 3.1 / 4.2. On a 150-mile leg that is **1.5 to 6.3 fights** —
+     three to five is a well-shaped leg. So the design is right: a handful of
+     encounters strung along a day's drive. What is wrong is only the 20 to 86
+     real minutes BETWEEN them. The reviewer's "compress travel between
+     encounters" is therefore the correct SHAPE, and the arithmetic is what
+     fails.
+
+   - **THE ARITHMETIC, WHICH IS THE ACTUAL FINDING.** To land a 150-mile leg in
+     the reviewer's 2-5 minute window, by either available lever:
+         compress empty-road travel  ->  26x to 64x   (2 min = 64.3x, 5 min = 25.7x)
+         shrink the route length      ->  26x to 64x   (2 min = 2.3 mi, 5 min = 5.8 mi)
+     **Both cost the same factor, because they are the same decision.** A
+     2.3-mile "150-mile highway" is as much a lie as a car covering 150 miles in
+     129 seconds, and iteration 55's rule — never fake a unit the player can
+     measure — applies identically to the odometer and to the map. So the
+     reviewer's target is not merely hard, it is **unreachable without a lie in
+     one direction or the other**, and that is a design fact rather than a
+     tuning problem. Nobody should "fix" this in a later round by finding the
+     constant that makes the number look right.
+
+   - **THE HONEST OPTION IS STRUCTURAL, AND IT IS NOT A CONSTANT.** The one
+     answer that lies about nothing: treat a leg as what the calendar already
+     says it is — a day's travel — and make the TRAVEL a deliberate transition
+     rather than a simulated one. The driving sim stays exactly as honest as it
+     is now, reserved for the ENCOUNTER, and the empty stretches between them
+     become a visible, labelled progression (route map, fuel/rest stops, an
+     "arriving at X" beat) whose length in real seconds is a pacing choice the
+     designer makes openly instead of a 64x multiplier the odometer hides.
+     That is a structural change to how a leg is played, which is why it is
+     recorded here rather than started at the end of an unrelated round — the
+     same discipline iteration 84 and iteration 96 applied to their own
+     open questions.
+
+   - **AND A GENUINELY NEW FINDING FELL OUT OF THE SAME TABLE, INVERTED.**
+     Expected encounters is `lengthMiles x spawnsPerHundredMiles / 100`, so
+     encounter count scales WITH route length while the DRIVE scales with it
+     too — but the ratio that matters is encounters per real minute, and that
+     is worst on the SHORT routes:
+         40 mi, danger 0 (1.0/100mi) -> 0.4 expected encounters, 34 real minutes
+     **The shortest routes in the game are the ones most likely to contain no
+     fight at all** — the player pays the smallest time cost and receives the
+     least content, and the drive is proportionally the longest and emptiest.
+     Nothing in the log or the review history had noticed this, because every
+     pacing complaint has been about routes being too LONG and nobody asked
+     whether the short ones are worth driving. It is a ruleset relationship, not
+     a code defect, and it is recorded as its own open item because fixing it
+     (raising `spawnsPerHundredMiles` for the lowest danger, or shortening the
+     short routes) would pull against the calendar figures measured above.
+
+   GATE: unchanged and green — tsc clean, 67 files / 1475 tests (4 measured
+   `screens.test.ts` flake), 5 browser tests, build `index-BwDY7m3Q.js`,
+   `.shots/iter96` 8 screens / 0 problems. No code change this round, and the
+   reason is the finding rather than a shortage of round.
