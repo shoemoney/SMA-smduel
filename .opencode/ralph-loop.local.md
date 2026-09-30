@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 24
+iteration: 25
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -7092,3 +7092,117 @@ neither could be changed.
   `src/sim/road.ts` returns a `PedestrianState`, nothing in `@/app` consumes
   it, and the trip menu's abandon is a forfeit rather than a walk. Then a fresh
   Codex review — the last one predates iterations 109-113.
+## ITERATION 114 — two harness defects that cost a whole round, and a queue item retired on a false citation
+
+The review pool is exhausted (75/75), so the reviewer is Codex `gpt-6.1-sol`
+driving the live deployment. This round it produced NO findings, and almost
+all of the round was spent finding out why — which turned out to be two defects
+in the harness itself. The log already recorded at iteration 62 that "the loop's
+own tooling is now a bigger source of lost signal than the pool's weakest
+models"; this is that ratio arriving.
+
+- **DEFECT 1 — THE SCRIPT REPORTED SUCCESS FOR A REVIEW THAT NEVER HAPPENED.**
+  The answer on disk was 864 bytes beginning "## Live review blocked ... I
+  couldn't reach the running game ... No screen defects or whole-game gaps were
+  established". The script's check was `[ -s "$OUT" ]` — non-empty — so a
+  refusal was recorded as a successful review. That is this project's most
+  expensive failure class, a healthy-looking signal standing in for a fact, and
+  it was inside the one tool whose entire job is producing evidence about the
+  build. To the log's credit the REVIEWER behaved correctly and said so plainly
+  instead of inventing findings; only the harness mistook honesty for success.
+  The prompt now requires a machine-checkable final line —
+  `REVIEW-VERDICT: <n>`, or `REVIEW-VERDICT: BLOCKED` — and the script
+  classifies on it. **ZERO is accepted**, deliberately: the log holds nine
+  legitimate zero-review rounds, and a harness that treated "nothing found" as a
+  failure would push every future round toward manufacturing findings, which is
+  the exact behaviour this loop exists to prevent. `classify_review` returns
+  BLOCKED / NOVERDICT / FINDINGS:<n> and is exposed as `--classify FILE` so the
+  rule can be tested against real saved reviews instead of trusted because it
+  reads correctly.
+
+- **DEFECT 2 — AN ORPHANED BLOCK DESTROYED THE RUN'S OWN DIAGNOSTIC.**
+  `tools/review-codex.sh` ended with a duplicated leftover fragment from an
+  earlier version, and that fragment had its own `> "$TRACE" 2>&1`. So a
+  successful run finished by TRUNCATING an 188KB codex trace down to a single
+  line of shell error, then printed a second, bogus "review written" line. Every
+  existing signal stayed green — the review succeeded, the runner exited 0 — and
+  the only symptom was a `-m: command not found` in a log nobody reads until
+  something else has already gone wrong. It is iteration 81's silent-revert class
+  applied to the tool rather than the art.
+
+- **THE REVIEWER HAD NO BROWSER, AND IT LOOKED LIKE THREE PROBLEMS.** Its report
+  said: no browser MCP tools exposed, "Could not resolve host" for the
+  deployment, and the Playwright fallback Chrome dying with SIGABRT. ONE cause:
+  `sandbox_mode = "workspace-write"` blocks network, so `npx @playwright/mcp`
+  could not be fetched, so the MCP server never started, so the session had no
+  browser tools and the fallback shell could not resolve DNS either.
+  Checked rather than assumed: the site answered 200 in 0.26s and DNS resolved
+  from this shell, and launching Chrome through playwright-core with the
+  isolated `HOME` reached the title screen fine — so the failure was inside the
+  sandbox, not the machine. Fixed with `[sandbox_workspace_write] network_access
+  = true`, which grants network and NOTHING else: the reviewer still cannot
+  write outside the workspace, so it cannot modify the build it is reviewing.
+  PROVEN by the next run, which navigated all eight screens with zero DNS
+  errors, zero SIGABRT and zero rate-limit messages.
+
+- **GUARDS FOR BOTH CLASSES, AND A MUTATION THAT EVADED THE FIRST GUARD.**
+  `tests/unit/review-harness.test.ts` runs the REAL script.
+    - the four verdict states, including a zero accepted and a refusal rejected;
+    - exactly one `codex exec` in the RUNNABLE script — comments stripped
+      first, because the first version of that test failed on a line of PROSE
+      explaining why `-o` is needed. It was asserting the script cannot document
+      itself. A guard that fires on the wrong thing trains you to ignore it;
+    - and exactly one `> "$TRACE"` redirect. THAT is the load-bearing one, and
+      finding out why is the useful part: my first mutation re-injected the
+      orphan WITHOUT the literal `codex exec`, which left the first guard green
+      and the script still truncating its own evidence. The bug was never about
+      calling codex twice; it was the redirect. So the guard watches the
+      redirect, which catches a leftover fragment of ANY shape. Re-injecting a
+      bare `: > "$TRACE"` evades the count guard and fails the redirect guard,
+      which is the relationship the two guards should have;
+    - the script now also refuses to report success when `$TRACE` is empty,
+      because a successful run that leaves no diagnostic has thrown away its own
+      evidence.
+
+- **AND A TIMEOUT THAT LOOKED LIKE A SECOND BLOCKED ROUND.** The first re-run
+  produced 135KB of trace and 0 bytes of answer: it had navigated every screen
+  and been killed by my own 900s ceiling before writing up. The only
+  `REVIEW-VERDICT` tokens in that trace were `<number>` and `BLOCKED` from my
+  PROMPT echoing into the log — so "the reviewer emitted a verdict" was a
+  reading of its own instructions, which is a new and particularly cheap way to
+  fool yourself. Noted because the prompt text is in the trace by construction,
+  so any future check that greps the trace for the verdict is checking the echo.
+
+- **A QUEUE ITEM RETIRED, AND THE QUESTION THAT RETIRED IT IS NOT "IS IT
+  BUILT".** Iterations 96, 97, 99, 107, 112 and 113 all carried "build the
+  on-foot road mode". Iteration 99 already relabelled it once — "an unbuilt
+  feature, not an unwired one" — and that check stopped at the code. This round
+  asked the question one layer out, and the SPEC does not ask for it:
+    - the Game-states table lists Highway's EXITS as "gate, death, abandonment"
+      — three ways OUT of the state, abandonment among them;
+    - the Road section's only on-foot content is salvage: "stop, get out, search
+      the wreck", which IS implemented (`@/sim/salvage`'s `searchWreck`, wired to
+      a road command behind a proximity trigger);
+    - and the one place the SPEC pairs "on foot" with a consequence is the
+      ARENA — "escaping on foot forfeits the vehicle entirely" — which
+      `resolveArenaExit` implements via `exitMode`.
+  The whole item rested on one comment in `src/sim/road.ts` reading "the player
+  may continue on foot (SPEC 'Road')". The Road section does not say that.
+  Building it would have added a survival phase the design does not ask for, on a
+  screen where abandonment is already one of three designed exits. The comment
+  now says what the code does and what the SPEC actually says, and the item is
+  closed rather than carried a seventh time.
+  This is iteration 51/81/103's stale-comment class — a comment that describes an
+  architecture you would need in order to change the code — except that here the
+  comment was describing a DESIGN, and six rounds of queue-readers inherited it
+  without opening the document it cited.
+
+- GATE: tsc clean, 1525 tests, 1 failure — `screens.test.ts`, the measured
+  cross-file flake, and fewer than the 4 of iterations 111-113. 7 browser tests
+  pass. Build `index-CL2CYju4.js`, UNCHANGED, which is the correct blast radius:
+  a comment is stripped at build time and the harness is not shipped, so there
+  is nothing to deploy and nothing to re-verify live.
+
+- STILL OPEN: the reviewer is mid-run. When it lands, its findings are the next
+  queue. The remaining known gaps are the persistent "surface a failed save"
+  message (93) and the arena/road items the log records.

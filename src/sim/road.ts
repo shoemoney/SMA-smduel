@@ -721,7 +721,38 @@ export interface AbandonResult {
   readonly pedestrian: PedestrianState;
 }
 
-/** Abandoning the car leaves it on the route; the player may continue on foot (SPEC "Road"). */
+/**
+ * Abandoning the car leaves it stranded on the route exactly where it was —
+ * abandoning it does not delete or teleport it — and hands back a foot
+ * pedestrian at that same spot.
+ *
+ * THE OLD COMMENT ON THIS FUNCTION WAS WRONG, AND IT COST A QUEUE ITEM SEVERAL
+ * ROUNDS. It read: "the player may continue on foot (SPEC 'Road')". The SPEC's
+ * Road section does not say that. What it actually says is:
+ *
+ *   - the Game-states table lists Highway's EXITS as "gate, death,
+ *     abandonment" — three ways OUT of the state, with abandonment among them;
+ *   - the Road section's only on-foot content is salvage: "stop, get out,
+ *     search the wreck", which IS implemented (`@/sim/salvage`'s `searchWreck`,
+ *     wired to a road command behind a proximity trigger in `@/app`);
+ *   - and the one place the SPEC does pair "on foot" with a consequence is the
+ *     ARENA — "escaping on foot forfeits the vehicle entirely" — which
+ *     `resolveArenaExit` implements via `exitMode`.
+ *
+ * So the on-foot road phase that iterations 96, 97, 99, 107, 112 and 113 all
+ * carried in the queue was justified by a citation that does not support it,
+ * and building it would have added a survival phase the design does not ask for
+ * on a screen where abandonment is already one of three designed exits. This
+ * function is the honest shape of that design: it produces the stranded car and
+ * the pedestrian, and the caller decides what leaving means — which is what
+ * `@/app`'s trip menu does, by treating abandonment as an exit rather than a
+ * mode of travel.
+ *
+ * Recorded because iteration 99 already relabelled this function once ("an
+ * unbuilt feature, not an unwired one") and that check stopped at the code. The
+ * question that retired the item is one layer out: not "is it built" but "does
+ * the design ask for it".
+ */
 export function abandonVehicle(state: RoadTripState, pedestrianId: string): AbandonResult {
   return {
     strandedVehicle: state.vehicle,

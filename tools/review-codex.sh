@@ -23,6 +23,28 @@
 #   BASE=... tools/review-codex.sh
 set -uo pipefail
 
+# Classify a written answer. Exposed via `--classify FILE` so the rule can be
+# tested against real saved reviews instead of being trusted because it reads
+# correctly — the log's standing rule that writing a check is not the same as
+# knowing it works.
+#
+# Prints one of: BLOCKED, NOVERDICT, or FINDINGS:<n>, and returns 0 for a
+# usable review (including a legitimate zero), 2 for an unusable one.
+classify_review() {
+  local f="$1"
+  if grep -q "REVIEW-VERDICT:[[:space:]]*BLOCKED" "$f"; then echo BLOCKED; return 2; fi
+  local n
+  n=$(grep -oE "REVIEW-VERDICT:[[:space:]]*[0-9]+" "$f" | tail -1 | grep -oE "[0-9]+")
+  if [ -z "$n" ]; then echo NOVERDICT; return 2; fi
+  echo "FINDINGS:$n"; return 0
+}
+
+if [ "${1:-}" = "--classify" ]; then
+  classify_review "$2"
+  exit $?
+fi
+
+
 BASE="${1:-${BASE:-https://arcade.shoemoney.com/smduel/}}"
 SEED="${SEED:-a11ce5ee}"
 OUT=".opencode/reviews/codex-$(date +%Y%m%d-%H%M%S).md"
@@ -123,6 +145,31 @@ they sit next to a 6px bar that carries the same value more legibly" is a
 finding.
 
 Write your review as markdown. Start your reply with "##" and nothing else.
+
+# The verdict line, and it is the most important instruction here
+
+End your reply with a line of exactly this form:
+
+    REVIEW-VERDICT: <number>
+
+where <number> is how many findings you are reporting — 0 is a legitimate and
+useful answer, and this script treats it as a real result rather than a
+failure.
+
+If you could NOT actually inspect the running game — no browser, the host did
+not resolve, a screenshot you needed never arrived — then write
+
+    REVIEW-VERDICT: BLOCKED
+
+instead, and say in one line what stopped you. That is a real and useful
+answer: this script will report it as a failed review and the loop will not
+count it, which is exactly right, because a review that did not happen is not a
+review that found nothing.
+
+Do NOT substitute an opinion, a guess, or a reading of the repository for a
+review you could not perform. Reporting BLOCKED costs a round; guessing costs
+the loop a finding that was never established, which is far more expensive and
+has already happened many times in this project's history.
 PROMPT
 )
 
@@ -168,6 +215,24 @@ sandbox_mode = "workspace-write"
 service_tier = "default"
 model_verbosity = "medium"
 model_reasoning_summary = "concise"
+
+# NETWORK IS NOT OPTIONAL FOR A REVIEWER, and leaving it off made a whole round
+# silently worthless.
+#
+# A review of a WEB APPLICATION that cannot reach the web is not a review. With
+# this unset, the sandbox blocked DNS, so `npx @playwright/mcp@latest` could not
+# be fetched, so the MCP server never started, so the session had no browser
+# tools at all — and the fallback shell could not resolve arcade.shoemoney.com
+# either. One cause produced three different-looking symptoms ("no browser MCP
+# tools are exposed", "could not resolve host", "Chrome exited with SIGABRT"),
+# which is why it read as three problems.
+#
+# The filesystem sandbox is left exactly as it was: the reviewer still cannot
+# write outside the workspace. This grants network and nothing else, so the
+# reviewer can do the one thing it exists to do without gaining the ability to
+# modify the build it is reviewing.
+[sandbox_workspace_write]
+network_access = true
 
 # No [features] skills/memories/chronicle here, and no skills directory: the
 # 537-skill context tax is what killed the first two runs.
@@ -258,6 +323,19 @@ while :; do
     > "$TRACE" 2>&1
 
   if [ -s "$OUT" ]; then
+    # A non-empty answer is NOT a review. The previous version of this check
+    # accepted any output, so a reply that said "I could not reach the game"
+    # was recorded as a successful review — the log's own "a healthy signal
+    # standing in for a fact", in the one tool whose job is producing evidence
+    # about the build. The verdict line makes the distinction machine-checkable:
+    #   REVIEW-VERDICT: <n>     n findings, and 0 is a real result
+    #   REVIEW-VERDICT: BLOCKED the reviewer could not inspect the game
+    #   (no line at all)        an old-format answer; treat as unusable
+    if classify_review "$OUT" > /dev/null; then
+      break
+    fi
+    echo "  $(classify_review "$OUT") — the reviewer did not produce a usable review"
+    BLOCKED=1
     break
   fi
   if grep -qi "rate limit" "$TRACE"; then
@@ -270,25 +348,25 @@ while :; do
 done
 
 echo
+if [ "${BLOCKED:-0}" = "1" ]; then
+  # Deliberately a non-zero exit and a distinct message: the loop must be able to
+  # tell "the reviewer looked and found nothing" from "the reviewer never
+  # looked", because only one of those is evidence about the build.
+  echo "REVIEW BLOCKED after $ATTEMPT attempt(s) — $OUT"
+  exit 2
+fi
 if [ -s "$OUT" ]; then
   echo "review written to $OUT ($(wc -c < "$OUT") bytes) after $ATTEMPT attempt(s)"
 else
   echo "NO ANSWER AFTER $ATTEMPT ATTEMPTS — see $TRACE"
   exit 1
 fi
-  -m openai/gpt-6.1-sol \
-  -c model_provider=openrouter \
-  --sandbox workspace-write \
-  -c model_reasoning_effort=high \
-  -c model_verbosity=medium \
-  -o "$OUT" \
-  "$PROMPT (the live deployment to review is: $BASE — use $BASE?screen=NAME&seed=$SEED for each screen)" \
-  > "$TRACE" 2>&1
-
-echo
-if [ -s "$OUT" ]; then
-  echo "review written to $OUT ($(wc -c < "$OUT") bytes)"
-else
-  echo "NO ANSWER WRITTEN — see $TRACE"
+# The trace is the only evidence of HOW the review went, and this script used to
+# contain a duplicated leftover block whose own `> "$TRACE"` redirect truncated
+# an 188KB diagnostic down to one line of shell error. A successful run that
+# leaves no trace has silently thrown away its own evidence.
+if [ ! -s "$TRACE" ]; then
+  echo "WARNING: $TRACE is empty — the review's diagnostic evidence was destroyed"
   exit 1
 fi
+exit 0
