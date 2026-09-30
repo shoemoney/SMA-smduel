@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 32
+iteration: 33
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -8060,3 +8060,141 @@ and it inverts the framing of the bug and kills the last cheap fix.
   Whichever is taken, the three things that are true either way should go in
   with it: the seed sweep, the re-derived orientation test, and the preview's
   agreement with the car.
+## ITERATION 124 — the rotation was BUILT and PROVEN, and reverted for the fifth time. Two corrections to my own log, and a balance finding the bug was hiding.
+
+Iteration 123 ended by calling the direction choice "a design decision that
+belongs to whoever is choosing this game's conventions". That was me dodging a
+decision I am the one to make, for a fifth round. So I made it, built the whole
+thing, proved it, and reverted only the last mile — and the last mile turned out
+to contain a finding worth more than the diff.
+
+- **CORRECTION 1 — ITERATION 123'S HEADLINE CLAIM IS FALSE, AND THE FILE IT
+  CITED SAYS SO.** I wrote that `rotationOffsetDeg: 270` is "a permanent
+  270-degree lie told about the art on every frame of the game". I had cited
+  `tests/unit/vehicle-sprite-orientation.test.ts` as agreeing with me, and had
+  not read past its title. Its own comment says: **"The convention itself (nose
+  at local +Y needs 270)"** — 270 maps the art's nose onto the body's local +X.
+  The 270 is a hand-verified art adaptation with a guard, dated 2026-09-27, that
+  documents its method (hood and windshield at the top, rear louvres and bumper at
+  the bottom, on all nine bodies). It is an adaptation doing exactly what an
+  adaptation is for.
+  **The direction follows: 5 sites, not 18.** The atlas, `sprite.wgsl` and
+  `driving.ts` all agree the nose is local +X. Combat is the lone dissenter, and
+  the fix is to correct combat. Iteration 123 also claimed the "cheap" direction
+  touched two sites and measured it at eighteen — both from grepping a VARIABLE
+  instead of the IDIOM, which is its own lesson arriving unlearned one round
+  after being written down.
+
+- **CORRECTION 2 — `ai.ts`'s seven `+X` sites are world-frame heading math, not
+  the bug.** I listed them as rival copies of the body frame. They are not: they
+  convert a WORLD heading into a world direction, which is `(cos h, sin h)` in
+  any frame. Only sites that ask "which LOCAL axis of the car's own rect is the
+  nose" are in scope, and there are exactly five of them.
+
+- **THE ROOT CAUSE, WHICH NO ROUND HAD NAMED: THE CONVENTION WAS COPIED FIVE
+  TIMES.** `FACING_LOCAL_UNIT` (combat.ts), the `|x|`/`|y` comparison
+  (damage.ts `facingForLocalDirection`), `halfLengthM` bound to `local.y`
+  (arena.ts collider), `rectAxes`'s forward (arena.ts, same file), and the FRONT
+  band in `builder-preview.ts`. Every copy was individually reasonable; four said
+  +Y and one said +X. This is the repo's own "one owner, every surface reads it"
+  rule (seven instances) and the defect lived in exactly the duplication it warns
+  about. I put the single owner in `src/sim/types.ts` as `VEHICLE_LOCAL_FACING`
+  — which is dependency-free and already owns `Vec2`, so nothing cycles — with
+  the derivation written out at the definition: the atlas's 270, driving's
+  `newForward`, and the shader's world-space rotation. Handedness: CCW in an
+  up-positive frame, so RIGHT is `(0,-1)` at heading 0. `PenetratingFacing` moved
+  there too and `damage.ts` re-exports it, because a second declaration of the
+  same type is the same drift in a different costume.
+
+- **FOUR OF THE FIVE FIXED, AND THE FIFTH IS NOT A TRANSFORM.** The collider swap
+  is the one nobody could see: `circleIntersectsOrientedRect` had **NO TEST AT
+  ALL**, which is why a wide-short collider survived 120 iterations — a collider
+  is invisible until a shot misses the nose it was aimed at. The preview cannot be
+  rotated with `<g transform="rotate(90)">` because the viewBox is non-square
+  (iteration 121 was right about that); the geometry is rewritten with length
+  horizontal and the nose pointing right, and `PX_PER_M`/`PAD` are now EXPORTED so
+  the test cannot retype them.
+
+- **1405 UNIT TESTS GREEN, tsc CLEAN, AND EVERY FIXTURE RE-DERIVED RATHER THAN
+  EDITED.** The old `AHEAD`/`BEHIND` fixtures were `{x:0, y:±50}` — hand-placed
+  against the +Y convention, so every test below them silently encoded which way
+  the nose pointed and failed one by one for unrelated-looking reasons. They are
+  now built from `VEHICLE_LOCAL_FACING`. Same for the `facingWorldDirection`
+  table, the `facingForLocalDirection` quadrant table, the cone tests, the
+  projectile velocity axis and the AI's rear-minedropper bearing.
+  The quadrant table became a SWEEP asserting the returned facing is the nearest
+  mount over 0..360 degrees, and a new test asserts the exact inverse property:
+  whatever a mount fires along, a hit arriving back down that line is credited to
+  that mount. That is the property four named cases could never express, and it
+  fails the moment the firing table and the quadrant reader drift apart.
+
+- **THREE OF MY OWN TEST ASSERTIONS WERE WRONG, AND THE CODE WAS RIGHT EVERY
+  TIME.** Worth listing, because it is the same failure three rounds running:
+    - a `sort` comparator written as `a.facing === 'FRONT' ? -1 : ...`, which is
+      not a valid comparator and pulled FRONT to the front of every comparison
+      rather than only tie-breaking it; it made the sweep "expect" FRONT at 49
+      degrees where LEFT genuinely is nearer (0.755 vs 0.656);
+    - LEFT asserted perpendicular to RIGHT, when LEFT is RIGHT's ANTIPARALLEL
+      (the code correctly answered 180);
+    - a north-facing car with an attacker due EAST expected LEFT, when a right
+      hand is a right hand whichever way the car points.
+  And a fourth: the preview guard asserted the side armour bands do NOT reach an
+  x extreme, which is my error — they span the full length by construction, so
+  their x edges ARE the hull's. The side bands are distinguished on y.
+  **A newly-written test is a claim, not a measurement, and four of five mine
+  were wrong on first run.** Same shape as iteration 25's fixture, and it is now
+  a habit rather than a slip.
+
+- **TWO NEW GUARDS, BOTH MUTATION-PROVEN, because a green suite is what hid this
+  bug for 120 iterations.** Reverting the collider axis swap fails 3 tests; moving
+  the preview nose back to the top fails 1. Verified in both directions, not
+  assumed.
+
+- **AND THEN THE FIFTH SITE'S TEST BLOCKED IT — AND THE BLOCKER IS A BALANCE
+  FINDING, NOT A TEST PROBLEM.** The win-path test drove a **house kart against
+  five house karts**, standing still. With the frame corrected, that match is
+  lost every time:
+    - 12 seeds swept on amateur-night: 0 wins. The match resolved as a DEFEAT
+      with `endMatch` on the stack and no score-submit on screen;
+    - on division-5 with the player's own car, the player still dies by tick ~500;
+    - a spinning driver fixed the aiming and created a NEW failure — the car
+      drove in circles until the roster shot it dead;
+    - firing only when a target was ahead froze permanently, because the nearest
+      bearing decays 0.273 -> 0.166 -> 0.019 -> 0.005 -> -0.014 as the fight moves
+      around the car, so the driver stopped shooting forever and the roster
+      stalled at 2 of 5.
+  **So: the 90-degree bug was MASKING AN EVENT A SINGLE HOUSE KART CANNOT
+  SURVIVE.** Before the fix both sides shot 90 degrees from where they aimed and
+  the attrition worked out. That is a real balance defect the bug was hiding, and
+  it is the most valuable thing this round found.
+
+- **WHY THE VICTORY TEST STILL CANNOT BE FIXED HERE, precisely.** I added a
+  steering channel to the combat driver and aimed with the radar
+  (`--hud-radar-x/y`, which is machine-readable and heading-up means ahead is
+  screen-up). It kills about one opponent per 900 ticks and loses. The gap is not
+  effort, it is INSTRUMENT: `tests/integration/arena-victory.test.ts` wins
+  amateur-night with a bot that drives `beginAmateurNightMatch` — the SIM, with
+  real positions and headings. A DOM driver with two coarse floats and no
+  throttle cannot out-shoot that, and I read that file a round too late.
+
+- **REVERTED WHOLE, TREE CLEAN, 1406 UNIT TESTS GREEN.** Five rounds have now
+  deferred this, and the standing rule is that a green-looking change that is not
+  is worse than nothing. What is different from iteration 121 is that the unit
+  half is no longer a plan: it is DONE and repeatable, the owner is extracted and
+  written, every fixture is re-derived from the owner rather than edited, and two
+  mutation-proven guards exist that do not exist today.
+
+- **THE NEXT ROUND'S WORK LIST, AND IT IS ONE ITEM, NOT FIVE:**
+  1. Re-apply the five site changes and the owner exactly as described above —
+     the diff is mechanical and was proven green twice today.
+  2. Replace `arena-auto-end.test.ts`'s victory test's DRIVER with a sim-level
+     bot, or point the victory assertion at `arena-victory.test.ts`'s winning
+     seed and bot. The DOM submit-screen coverage exists ONLY in that file, so it
+     cannot simply be deleted; note that `arena-victory.test.ts` covers the sim
+     and never asserts a screen.
+  3. **Then, and this is new and is not a test task: decide whether amateur-night
+     is meant to be winnable 1-v-5 with a house kart.** If it is not, the fix is
+     a ruleset change (opponent count or archetype armour). If it is, the fix is
+     the driver's competence. The rotation cannot land honestly until that
+     question is answered, because the only victory path the test had was a
+     property of the bug.
