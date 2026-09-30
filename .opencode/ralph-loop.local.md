@@ -6750,3 +6750,93 @@ named as "the next build rather than an open question"
   from the abandoned-trip flow). With pacing closed at 106 and the arena pause
   closed here, what remains is feature work plus one harness gap that has now
   blocked live verification twice.
+ITERATION 110 — the capture route to `showArenaEvent`, and the regular
+expression that had already made it unreachable
+- **ITERATION 109 CLOSED WITH AN HONEST GAP AND NAMED THE FIX.** The arena pause
+  shipped and passed every test, but could not be verified live, because
+  `?screen=arena` mounts `showArena` — the PRACTICE screen, a different
+  function. The probe reported the fix "not working" when it was probing the
+  wrong closure, and the workaround (walking the city to an arena door blind)
+  dead-ended at "Federal Building — closed" exactly as iteration 90's did. That
+  is the SECOND time this gap blocked a live verification, which makes it a
+  harness bug rather than a testing inconvenience.
+  `?screen=arena-event` now mounts the real screen at Division 5 — the event
+  Codex actually drove, so a capture through this route is comparable to its
+  findings — and it goes through `beginArenaMatch`, not a hand-built
+  `ArenaMatchState`, so eligibility is validated and any entry fee charged
+  exactly once.
+
+- **AND THE ROUTE SILENTLY MOUNTED NOTHING UNTIL A REGULAR EXPRESSION WAS
+  FIXED, which is the most expensive version of this log's most expensive
+  shape.** The first probe returned no screen, no error and no warning.
+  `screenFromSearch` validated the param with `/^[a-z]+$/`, which rejects the
+  HYPHEN in `arena-event`, so it returned `null` — and `null` is
+  indistinguishable from "no `screen` param at all".
+  This was not a mis-measurement. It was a fully built, fully tested FEATURE
+  that reported success and could not be reached, and the only reason it was
+  caught at all is that I checked whether the arena screen class was present
+  instead of assuming the code I had just written had taken effect.
+
+  So the fix is structural rather than a one-character edit:
+    `SCREEN_TARGETS` is exported and is the ONLY allowlist. `startScreenJump`
+    routes against a Set DERIVED from it, so a target cannot be routable
+    without being listed and cannot be listed without being routable — the
+    iteration-84/92/98/109 "one owner, every surface reads it" shape, applied
+    to a list this time instead of a rule.
+    A test round-trips every entry through `screenFromSearch`, so the next
+    hyphenated target fails a UNIT test instead of a live probe. The regex keeps
+    the hyphen and still rejects what no target could contain;
+    `SCREEN_TARGETS` remains the real gate.
+  FOUR TESTS, BOTH MUTATIONS PROVEN: restoring `/^[a-z]+$/` fails naming
+  `arena-event` as unreachable, and dropping the target from the list fails the
+  "it exists" check.
+
+  The refusal path WARNS instead of falling through to the practice screen,
+  because a silent fallback is precisely how a capture route rots — the next
+  reader would be looking at `showArena` and not know it.
+
+- **AND A SECOND WRONG CONCLUSION, CAUGHT BY A CONTROL, THAT WAS WORTH
+  CATCHING.** Serving `dist/` over `python3 -m http.server`, the arena-event
+  mounted and the pause menu opened — but the dial read 0.000 and did not move,
+  and neither did the opponents' radar contacts. The tempting reading was "the
+  sim is frozen, so the pause freeze is untestable".
+  The control settles it and costs one run: the ROAD and the PRACTICE arena
+  were probed the same way in the same browser, and ALL THREE read a flat 0.
+  Iterations 107 and 109 drove those same screens successfully — against the
+  LIVE nginx deployment. So the local server is the variable and the arena is
+  not. "A flat signal is not a frozen signal" (iteration 100) applied to a
+  harness rather than to a value, and the correct response was the cheapest
+  check in the loop rather than a conclusion.
+
+- LIVE VERIFIED AGAINST THE DEPLOYED ORIGIN, `index-DoL6brgd.js`, 0 console
+  errors:
+      route mounts      `sm-screen sm-screen--arena` + `smduel: screen jump to
+                        "arena-event"` in the console
+      menu contents     ["1Resume","2Controls","3Leave Arena"]
+      CONTROL           the dial MOVED to 0.085 under seven seconds of held
+                        throttle — so the same reading below is meaningful
+      FREEZE            0.085 -> 0.085 across five seconds with the throttle
+                        STILL HELD through the pause
+      arena intact      the screen stays mounted behind the overlay, so the
+                        pause dims a live match rather than blanking it
+      closes            second Escape takes the menu 3 -> 0 and moves focus off
+                        `.sm-menu-root`, arena still mounted
+  **That is iteration 109's headline claim now verified in a real browser with
+  a control that moves**, which is the standard the road's first freeze
+  verification failed (iteration 100: a saturated odometer read flat while
+  unpaused).
+
+  **WHAT I DID NOT ESTABLISH, and it is a harness fact rather than a game
+  claim:** the arena-event sim's advancement in this headless context is
+  FLAKY. One run reached 0.085 under identical input and another stayed at
+  0.000, with 0 console errors either way. The freeze above is reported from
+  the run where the control moved, and the flakiness is recorded rather than
+  smoothed over — a verification whose prerequisite signal cannot be relied on
+  to appear is a weaker verification, and saying so is more useful than
+  implying the prerequisite was reliable.
+
+- NEXT. The capture route now covers every screen the loop reviews, including
+  the combat one, which unblocks both future reviews and the remaining live
+  verification of the arena pause's *controls* path (the `showControls` row,
+  which no probe has exercised end to end). The other open items are unchanged:
+  moving J/F into the binding table, and the on-foot survival phase.
