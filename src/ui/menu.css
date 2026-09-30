@@ -312,8 +312,12 @@
   font-size: clamp(40px, 9vw, 76px);
   font-weight: 700;
   line-height: 0.92;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  /* NO `text-transform: uppercase` here, and the removal is deliberate. The
+   * name is "OpenDuel" and the capital D is load-bearing — it is the join
+   * between the two words the game is named for, and uppercasing flattened it
+   * to "OPENDUEL", which is a different name. Tracking is tightened to suit
+   * mixed case, which is optically looser than all-caps at the same size. */
   /* The gradient is the game's own accent ramp, so the wordmark reads as
    * branded rather than as a heading that happened to be big. */
   background: linear-gradient(180deg, #ffffff 0%, #9fe8dd 52%, #4fd6c4 100%);
@@ -338,10 +342,12 @@
 
 .sm-title-tagline {
   margin: 0;
-  /* Wide enough for the tagline on ONE line: at 38ch it broke after
-     "A highway that wants" and left "you dead." orphaned on its own row,
-     which reads as two captions rather than one sentence. */
-  max-width: 52ch;
+  /* Wide enough for the descriptor on ONE line, and deliberately `balance`d
+     below so a narrow viewport breaks it at a word rather than orphaning the
+     last two words onto their own row. The previous 52ch was tuned to a
+     different, longer sentence that no longer exists. */
+  max-width: 58ch;
+  text-wrap: balance;
   text-align: center;
   font-family: var(--ui-font-sans);
   /* Two reviews have now called the tagline too small to read, and both are

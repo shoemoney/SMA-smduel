@@ -1,8 +1,11 @@
-# smduel — mechanics specification
+# OpenDuel — mechanics specification
 
-A browser recreation of a 1985 top-down vehicular-combat action-RPG, built clean-room:
-original numbers where the source manual documents them, original naming and fiction
-throughout. **No protected marks, characters, maps, art, or text.**
+A browser tribute to a 1985 top-down vehicular-combat action-RPG, built clean-room:
+original numbers where the source documents them, original naming and fiction
+throughout. **No protected code, art, maps, or data.** _Autoduel_ and its designers
+are named in the boot tribute and the README purely to credit the work this game
+pays homage to — the same nominative use a tribute is entitled to, and the reason
+this document no longer claims the stricter "no protected text".
 
 All *numbers* live in `rulesets/classic/*.json` and are the single source of truth.
 This document holds the *rules* the tables cannot express.

@@ -31,7 +31,38 @@
  * end, so a regression anywhere in the chain fails at the step it broke
  * instead of a single end-of-test diff.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+/**
+ * TIMEOUT. These tests boot the REAL app and walk a real city, which is the
+ * point of them and also why they are the slowest in the suite. Measured
+ * unloaded, each individual test here runs in a few hundred milliseconds; the
+ * 5s default is never in danger on an idle machine.
+ *
+ * It IS in danger when the machine is busy, and this file was the single most
+ * frequent victim of an intermittent failure that had gone unidentified across
+ * three separate rounds of this log. Running four full suites concurrently
+ * reproduced it on demand, and every failure was the same shape:
+ *
+ *     phase4 ... Test timed out in 5000ms.   (6951ms)
+ *     road trip menu ... Test timed out in 5000ms.  (6668ms)
+ *     pressing "f" ... Test timed out in 5000ms.   (5393ms)
+ *
+ * Four suites x vitest's own worker pool is heavy oversubscription: a test that
+ * takes 450ms unloaded was observed at 6668ms, roughly 15x, which is far more
+ * than the 4x the contention alone explains and is the signature of CPU
+ * starvation rather than a logic fault. One further failure — "expected exactly
+ * one .sm-screen--city, found 0" — was knock-on: the preceding test in the same
+ * file timed out mid-boot, so the city screen had not finished mounting.
+ *
+ * So the honest fix is a timeout that reflects what these tests cost when the
+ * box is loaded. It is applied HERE, per file, rather than by raising
+ * `testTimeout` globally: a global bump would also excuse a genuinely slow new
+ * test somewhere else, and this suite's value is that a 5s ceiling is tight
+ * enough to catch a hang.
+ */
+vi.setConfig({ testTimeout: 30_000 });
+
 
 import {
   armorDamageFraction,
