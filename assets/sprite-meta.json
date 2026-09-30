@@ -836,6 +836,15 @@
       "view": "orthographic",
       "note": "seedream-4.5 (zimg) generated. guardrail segment, roadside furniture for road speed perception. Flat 2D elevation, no perspective. Iter 80.",
       "rotationOffsetDeg": 0
+    },
+    "prop-delineator": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#F03C80",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "seedream-4.5 (zimg) generated. Delineator post, roadside furniture for road speed perception, replacing the guardrail that promised a barrier the road sim has no collision for. Iter 101.",
+      "rotationOffsetDeg": 0
     }
   },
   "keyingNote": "Key by HUE (magenta/pink band) with a saturation floor, NOT by RGB distance. Regenerated sprites carry a drop shadow and a background gradient that RGB-distance keying leaves as a dark halo.",

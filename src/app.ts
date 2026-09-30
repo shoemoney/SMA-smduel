@@ -5050,8 +5050,41 @@ function radarContactsFromVehicles(
  * instance count is bounded no matter how far the trip runs and the markings
  * never slide or shimmer as the car moves.
  */
-/** Guardrail segment art: flat 2D elevation, one instance per ROAD_RAIL_PERIOD_M. */
-const GUARDRAIL_FRAME = 'prop-guardrail';
+/**
+ * Roadside furniture art: a delineator POST, one instance per ROAD_POST_PERIOD_M.
+ *
+ * This replaced a guardrail in iteration 101, and the reason is a disagreement
+ * with the reviewer that measurement could not settle, so it is recorded as a
+ * judgement rather than a fix. Codex `gpt-6.1-sol` drove the deployed road and
+ * reported: "the car crossed the upper roadside rail and continued onto the
+ * surrounding field with unchanged condition ... a steel guardrail communicates
+ * a physical barrier." The source agreed — the rails are decorative and nothing
+ * in the road sim collides against props.
+ *
+ * The two honest answers were to give the rails collision or to stop the art
+ * promising a barrier. Collision was rejected on the game's own terms, not on
+ * cost: `docs/SPEC.md` describes no off-road state and no barrier, and iteration
+ * 91 deliberately made the carriageway STAY PUT when the car drives off it, so
+ * leaving the road is currently the only way out of a bad line. A collision wall
+ * would take that away, and it would be a new mechanic invented to satisfy a
+ * screenshot.
+ *
+ * So the furniture now says what it is. A post is spindly, discrete and
+ * obviously not a wall, and it carries the same speed cue the rail did, because
+ * the cue is the RHYTHM (7m apart, unchanged) rather than the object. This is
+ * the trade the log has reached repeatedly: a visual that misreports a real
+ * affordance is worse than a plainer one.
+ *
+ * The art is drawn with slight volume rather than as a true top-down rectangle,
+ * which is a deliberate departure from the flat-elevation rule the guardrail
+ * was generated under. A post seen from directly overhead is a ~3px blob, and
+ * the log's own iteration-53/64 finding is that a cue tuned below the threshold
+ * of the frame is a cue that does not exist. Volume is what makes it read. The
+ * flat-elevation rule exists for VEHICLE sprites, where the car is the focal
+ * object of every frame and inconsistent perspective between bodies is most of
+ * what makes them read as blobs.
+ */
+const ROAD_FURNITURE_FRAME = 'prop-delineator';
 
 /**
  * The stains visible around a point, world-anchored and bounded by the visible
@@ -5091,20 +5124,29 @@ const ROAD_DASH_LENGTH_M = 3.2;
 const ROAD_DASH_PERIOD_M = 10;
 
 /**
- * Metres between guardrail segments, and the metres of bare segment between
- * them. A CONTINUOUS rail would be a static line and would carry no speed at
- * all; the gap is what makes a rhythm the eye can read motion from. 5.5m of
- * rail with a 1.5m gap is a repeat the player sees whipping past several times a
- * second at highway speed.
+ * Metres between delineator posts. The PERIOD is the whole speed cue and it is
+ * deliberately unchanged from the guardrail it replaces: what the player reads
+ * motion from is the rhythm of discrete objects whipping past several times a
+ * second, not any property of the object itself. 7m apart.
  */
-const ROAD_RAIL_PERIOD_M = 7;
-const ROAD_RAIL_SEGMENT_M = 5.5;
+const ROAD_POST_PERIOD_M = 7;
 /**
- * Lateral offset of the rails, clear of the paint AND of the shoulder of verge
+ * The post's extent ACROSS the road, in metres. The along-road extent is derived
+ * from the art's own aspect ratio (see `roadFurnitureInstances`) rather than
+ * hardcoded, because a hand-copied `21/96` is exactly the kind of second copy
+ * that drifts — the guardrail it replaced had one, and it was correct only by
+ * coincidence.
+ *
+ * Sized for LEGIBILITY at the road's 34 px/m: ~1.0m across is ~34px, which is
+ * where a post plus its shadow reads as an object rather than as speckle.
+ */
+const ROAD_POST_SIZE_M = 1.0;
+/**
+ * Lateral offset of the posts, clear of the paint AND of the shoulder of verge
  * beyond it. Sitting them on the shoulder would read as more road marking,
  * which is the one thing the lane lattice already is.
  */
-const ROAD_RAIL_LATERAL_M = ROAD_LANE_HALF_WIDTH_M + ROAD_SHOULDER_M + 0.8;
+const ROAD_POST_LATERAL_M = ROAD_LANE_HALF_WIDTH_M + ROAD_SHOULDER_M + 0.8;
 
 /**
  * Roadside furniture: guardrail segments down both verges.
@@ -5126,11 +5168,11 @@ const ROAD_RAIL_LATERAL_M = ROAD_LANE_HALF_WIDTH_M + ROAD_SHOULDER_M + 0.8;
  * against props), no interaction, nothing to drive through that pretends to be
  * solid.
  *
- * World-anchored exactly like the dash lattice above, so the segments neither
+ * World-anchored exactly like the dash lattice above, so the posts neither
  * slide with the car nor shimmer as it moves, and bounded by the visible extent
  * so the count cannot grow with trip length. They ride the GROUND buffer
  * (2048 slots, ~20 used) rather than the sprite buffer (64 slots): a top-down
- * guardrail lies on the ground, and `ROAD_GRADE` is a POST uniform applied to
+ * post stands on the ground, and `ROAD_GRADE` is a POST uniform applied to
  * the whole composited frame, so a ground-buffer instance keeps full brightness
  * exactly as a sprite-buffer one would. Putting them in the 64-slot sprite
  * buffer for ~16 more instances would have been the iteration-19 mistake —
@@ -5142,22 +5184,32 @@ export function roadFurnitureInstances(
   routeHeadingRad: number,
   visibleHalfExtentM: number,
 ): SpriteInstanceInput[] {
-  const frame = atlasIndex.frame(GUARDRAIL_FRAME);
+  const frame = atlasIndex.frame(ROAD_FURNITURE_FRAME);
   const forward = { x: Math.cos(routeHeadingRad), y: Math.sin(routeHeadingRad) };
   const across = { x: -forward.y, y: forward.x };
   const along0 = vehicle.position.x * forward.x + vehicle.position.y * forward.y;
-  const first = Math.ceil((along0 - visibleHalfExtentM) / ROAD_RAIL_PERIOD_M);
-  const last = Math.floor((along0 + visibleHalfExtentM) / ROAD_RAIL_PERIOD_M);
+  const first = Math.ceil((along0 - visibleHalfExtentM) / ROAD_POST_PERIOD_M);
+  const last = Math.floor((along0 + visibleHalfExtentM) / ROAD_POST_PERIOD_M);
 
-  // The frame is 96x21, so its long axis is ~4.57:1. Sizing from the SEGMENT
-  // length keeps the art's proportions instead of stretching it to fit the
-  // period, which is what would happen if the two numbers were treated as equal.
-  const widthM = ROAD_RAIL_SEGMENT_M * (21 / 96);
+  /**
+   * The along-road extent, from the art's OWN aspect ratio rather than a
+   * hand-copied literal.
+   *
+   * The guardrail this replaced sized itself as `ROAD_RAIL_SEGMENT_M * (21/96)`
+   * — a second copy of the frame's dimensions, typed by hand next to the atlas
+   * entry that already holds them. It happened to be right. This reads the
+   * atlas, so regenerating the art at a different trim updates the size with it,
+   * and the art can never be drawn at an aspect the geometry disagrees with.
+   * That is the same "one owner, every surface reads it" shape as
+   * `roadLegalityMisses` and `unmetRequirements`, and the same reason: a second
+   * derivation is a second thing to drift.
+   */
+  const alongM = ROAD_POST_SIZE_M * (frame.pixelHeight / frame.pixelWidth);
 
   const out: SpriteInstanceInput[] = [];
   for (let i = first; i <= last; i++) {
-    const along = i * ROAD_RAIL_PERIOD_M;
-    for (const lateral of [-ROAD_RAIL_LATERAL_M, ROAD_RAIL_LATERAL_M]) {
+    const along = i * ROAD_POST_PERIOD_M;
+    for (const lateral of [-ROAD_POST_LATERAL_M, ROAD_POST_LATERAL_M]) {
       out.push({
         atlasId: String(frame.atlasIndex),
         position: {
@@ -5165,9 +5217,13 @@ export function roadFurnitureInstances(
           y: forward.y * along + across.y * lateral,
         },
         // The frame's long axis is local +Y, so rotating by the bare route
-        // heading points it ACROSS the carriageway. A guardrail runs ALONG the
-        // road, so it takes the same quarter turn `roadLaneInstances` takes and
-        // therefore the SAME rotation value.
+        // heading points it ACROSS the carriageway. The furniture takes the same
+        // quarter turn `roadLaneInstances` takes and therefore the SAME rotation
+        // value — which is the relationship iteration 86's test pins, and it is
+        // kept rather than dropped: a post is near-radially symmetric so its own
+        // orientation barely matters, but the SHADOW in the art has a direction,
+        // and letting two road layers disagree about which way is down is how the
+        // combs bug happened in the first place.
         //
         // This was a quarter turn out for two iterations (80 and 81) — a row of
         // vertical combs on a horizontal highway — and it was visible in this
@@ -5177,16 +5233,16 @@ export function roadFurnitureInstances(
         // wrong, which is how reading the code confirmed it. Found by Codex
         // `gpt-6.1-sol` driving the live road.
         rotationRad: routeHeadingRad + Math.PI / 2,
-        sizeM: { x: widthM, y: ROAD_RAIL_SEGMENT_M },
+        sizeM: { x: ROAD_POST_SIZE_M, y: alongM },
         uvRect: frame.uv,
         // Tinted DOWN, and measured rather than eyeballed. The generated art is
-        // near-white and at full strength the rails measured 126.5 mean luma
+        // near-white and at full strength the old rails measured 126.5 mean luma
         // against the player's own 100.5 — the furniture was out-shouting the
         // car, which is iteration 60's "the oversized icons out-rank the
-        // player's car" reproduced on a brand new element. 0.68 puts the rails
-        // at ~90: still well clear of the asphalt's 64.7 and the brightest
-        // repeating thing in frame, but below the car. The cool cast keeps it
-        // reading as weathered steel rather than as more white paint.
+        // player's car" reproduced on a brand new element. The cool cast keeps it
+        // reading as weathered roadside furniture rather than as more white paint.
+        // Re-measured on the post rather than inherited: see the log entry, where
+        // the number was taken again and the same tint survived.
         tint: { r: 0.58, g: 0.60, b: 0.64, a: 1 },
         layer: 0,
       });

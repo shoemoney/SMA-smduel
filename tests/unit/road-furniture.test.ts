@@ -14,8 +14,25 @@
 import { describe, expect, it } from 'vitest';
 import { roadFurnitureInstances, roadLaneInstances } from '@/app';
 
+/**
+ * The real `prop-delineator` frame's packed dimensions, 42x67 (the post plus its
+ * shadow). The double carries them because `roadFurnitureInstances` now derives
+ * the along-road extent from the art's own aspect — reading it from the atlas
+ * entry rather than from a hand-copied literal, which is the point of the
+ * change. A double that omitted them made the sizing NaN, which is the
+ * fixture-lying shape this log has hit eleven times.
+ */
+const FRAME_W = 42;
+const FRAME_H = 67;
+
 const atlasIndex = {
-  frame: (name: string) => ({ atlasIndex: 0, uv: { u0: 0, v0: 0, u1: 1, v1: 1 }, name }),
+  frame: (name: string) => ({
+    atlasIndex: 0,
+    uv: { u0: 0, v0: 0, u1: 1, v1: 1 },
+    name,
+    pixelWidth: FRAME_W,
+    pixelHeight: FRAME_H,
+  }),
 } as never;
 
 const HEADING = 0; // route runs along +X, so lateral offsets are pure Y
@@ -63,14 +80,22 @@ describe('roadside guardrail furniture', () => {
     expect(far.length).toBe(near.length);
   });
 
-  it('keeps the rails sized to the art rather than stretched to the period', () => {
-    // The frame is 96x21, so its long axis is ~4.57:1. The segment length and
-    // the period are DIFFERENT numbers; treating them as one is what would
-    // stretch a 4.6:1 sprite into a 1:1 block.
+  it('keeps the furniture sized to the art rather than stretched to the period', () => {
+    // The along-road extent is derived from the art's own aspect (read from the
+    // atlas), and this pins the PROPERTY rather than a literal: the ratio must
+    // equal the frame's aspect exactly, and must NOT equal the 7m period.
+    //
+    // The first version of this test asserted `ratio` was between 4 and 5, which
+    // was the guardrail's 96x21 aspect. When the art changed to a 42x67 post it
+    // failed — correctly, because the number it named was no longer true — and
+    // the tempting fix was to widen the range. Asserting against the frame
+    // instead means the next art regeneration updates the expectation on its
+    // own, and the "not stretched to the period" half still has teeth.
     const rails = roadFurnitureInstances(atlasIndex, at(0), HEADING, HALF);
     const ratio = rails[0]!.sizeM.y / rails[0]!.sizeM.x;
-    expect(ratio).toBeGreaterThan(4);
-    expect(ratio).toBeLessThan(5);
+    expect(ratio).toBeCloseTo(FRAME_H / FRAME_W, 6);
+    // 7m of period is what "stretched to the period" would look like.
+    expect(ratio).not.toBeCloseTo(7, 1);
   });
 });
 

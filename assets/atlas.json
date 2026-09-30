@@ -1096,9 +1096,22 @@
       "kind": "prop",
       "rotationOffsetDeg": 0
     },
-    "fx-explosion-5": {
+    "prop-delineator": {
       "atlas": 0,
       "x": 458,
+      "y": 1260,
+      "w": 42,
+      "h": 67,
+      "trimX": 45,
+      "trimY": 21,
+      "srcW": 109,
+      "srcH": 109,
+      "kind": "prop",
+      "rotationOffsetDeg": 0
+    },
+    "fx-explosion-5": {
+      "atlas": 0,
+      "x": 502,
       "y": 1260,
       "w": 128,
       "h": 63,
@@ -1111,7 +1124,7 @@
     },
     "prop-concrete-barrier": {
       "atlas": 0,
-      "x": 588,
+      "x": 632,
       "y": 1260,
       "w": 96,
       "h": 47,
@@ -1124,7 +1137,7 @@
     },
     "prop-sandbag": {
       "atlas": 0,
-      "x": 686,
+      "x": 730,
       "y": 1260,
       "w": 96,
       "h": 28,
@@ -1137,7 +1150,7 @@
     },
     "prop-barricade": {
       "atlas": 0,
-      "x": 784,
+      "x": 828,
       "y": 1260,
       "w": 96,
       "h": 27,
@@ -1150,7 +1163,7 @@
     },
     "prop-chainlink-fence": {
       "atlas": 0,
-      "x": 882,
+      "x": 926,
       "y": 1260,
       "w": 96,
       "h": 21,
@@ -1163,7 +1176,7 @@
     },
     "prop-guardrail": {
       "atlas": 0,
-      "x": 980,
+      "x": 1024,
       "y": 1260,
       "w": 96,
       "h": 21,
