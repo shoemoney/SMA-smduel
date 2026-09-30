@@ -4750,16 +4750,18 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     rafHandle = window.requestAnimationFrame(frame);
   }
 
+const FACILITY_LABEL_RADIUS_MULTIPLE = 2;
+
   /**
-   * Show the nearest facility's name while the player is close enough to enter
-   * it, and nothing at all otherwise.
+   * Show the nearest facility's name while the player is within
+   * `FACILITY_LABEL_RADIUS_MULTIPLE` interaction radii of it.
    *
-   * The radius is the same interaction radius the doorway trigger itself uses
-   * (read from `layout.tileSizeM`, which `generateCityLayout` assigns
-   * `interactionRadiusM`), so the label appears exactly when the door would
-   * actually open and never advertises something out of reach. Reading it from
-   * the layout rather than hardcoding a number means the two can never drift
-   * apart — which is the entire failure mode of the thing this is fixing.
+   * It is a MULTIPLE of the interaction radius rather than the radius itself:
+   * at 1.0 the strip appeared on the precise frame the doorway trigger opened
+   * the building's panel, so it announced the building from behind that panel
+   * and carried no decision value. Both radii still derive from
+   * `layout.tileSizeM` (which `generateCityLayout` assigns
+   * `interactionRadiusM`), so they cannot be edited apart from each other.
    */
   function updateNearestFacility(): void {
     let bestName: string | null = null;
@@ -4784,7 +4786,26 @@ function showCity(root: HTMLElement, state: CityRunState): void {
           : t('ui.city.stripClosed', { facility: facilityName(doorway.facilityKind) });
       }
     }
-    if (bestName === null || bestDist > layout.tileSizeM) {
+    // The label radius is a MULTIPLE of the entry radius, not the same value.
+    // Codex measured the consequence of them being equal: both are 3.0m
+    // (`layout.tileSizeM` IS `pedestrian.interactionRadiusM`), so the strip
+    // appeared on the precise frame the doorway trigger opened the building's
+    // panel — the reviewer approached the Federal Building and read its name
+    // *behind* the panel that had already opened. A label whose entire useful
+    // window is the one frame it is occluded carries zero decision value, and
+    // the city has four yellow workshop and three blue briefcase markers
+    // sharing two pictograms, so "which one is this" is exactly the question
+    // the strip exists to answer.
+    //
+    // It is still DERIVED from the layout rather than hardcoded, which was the
+    // point of the original comment and remains true: the two radii cannot
+    // drift apart by being edited independently, only by this multiplier
+    // changing. What changed is the deliberate trade — the old comment chose
+    // "never advertise something out of reach", and that is a real cost, but
+    // it was buying a guarantee that is worthless when the guarantee itself is
+    // what makes the label invisible.
+    const labelRadiusM = layout.tileSizeM * FACILITY_LABEL_RADIUS_MULTIPLE;
+    if (bestName === null || bestDist > labelRadiusM) {
       nearestFacility.style.display = 'none';
       return;
     }

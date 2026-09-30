@@ -743,6 +743,34 @@ function buildMessageFeed(doc: HudDocument, messages: readonly HudMessage[]): Hu
 
   const recent = [...messages].sort((a, b) => a.tick - b.tick).slice(-MESSAGE_FEED_CAP);
 
+  // Consecutive identical lines COLLAPSE into one with a count, measured by
+  // the Codex review: holding fire for 1.5s spent five rounds and produced five
+  // separate "Machine Gun fired" lines. The feed holds `MESSAGE_FEED_CAP` = 8,
+  // so five identical routine lines consumed most of the budget and pushed the
+  // consequential messages (the practice-entry line, damage, destruction) out
+  // of view — routine firing was evicting the events worth reading.
+  //
+  // Coalescing rather than suppressing is deliberate. Dropping per-shot
+  // messages outright (the reviewer's first suggestion) loses the only
+  // textual confirmation that the weapon actually fired, which matters when a
+  // shot is swallowed by a cooldown or a miss. "Machine Gun fired ×5" keeps the
+  // information AND its weight in the feed: one line instead of five, so five
+  // consequential messages can now occupy the freed slots.
+  //
+  // Runs are matched on kind AND text, in tick order, so only ADJACENT repeats
+  // merge. Two different weapons alternating, or the same weapon either side of
+  // a "destroyed" line, still render as separate rows — a merge that spanned
+  // intervening events would imply those events did not happen.
+  const collapsed: { message: HudMessage; count: number }[] = [];
+  for (const message of recent) {
+    const last = collapsed[collapsed.length - 1];
+    if (last && last.message.kind === message.kind && last.message.text === message.text) {
+      last.count += 1;
+    } else {
+      collapsed.push({ message, count: 1 });
+    }
+  }
+
   // An EMPTY feed is a dark rounded pill with nothing in it, floating under the
   // screen's status banner. On the road that is the first thing under the
   // objective line, and a vision review of the frame read it as a broken
@@ -752,8 +780,12 @@ function buildMessageFeed(doc: HudDocument, messages: readonly HudMessage[]): Hu
   // So an empty feed renders nothing at all. The region is still built (the
   // live-region announcement behaviour does not change), it simply carries no
   // visible box, and the first message that arrives is the first thing seen.
-  recent.forEach((message) => {
-    list.appendChild(el(doc, 'li', { class: `hud-message hud-message--${message.kind}`, 'data-kind': message.kind }, message.text));
+  collapsed.forEach(({ message, count }) => {
+    // The repeat suffix is a proper translatable string, not an inline `×N`:
+    // the separator is locale-dependent, and the strings scanner is right to
+    // reject a hardcoded glyph in a DOM-text position.
+    const text = count > 1 ? t('ui.hud.messageRepeat', { text: message.text, count }) : message.text;
+    list.appendChild(el(doc, 'li', { class: `hud-message hud-message--${message.kind}`, 'data-kind': message.kind }, text));
   });
 
   // The list is ALWAYS attached, empty or not: it is the `aria-live="polite"`

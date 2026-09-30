@@ -17,14 +17,12 @@
     "facility.story": "Story Office",
     "facility.studio": "Broadcast Studio",
     "facility.petshop": "Pet Shop",
-
     "refusal.INSUFFICIENT_PRESTIGE": "Your reputation isn't high enough for this job.",
     "refusal.INSUFFICIENT_VEHICLE_THREAT": "Your vehicle isn't dangerous enough for this route.",
     "refusal.INSUFFICIENT_SPACE": "Not enough cargo space for this payload.",
     "refusal.INSUFFICIENT_LOAD_CAPACITY": "Not enough load capacity for this payload's weight.",
     "refusal.PAYLOAD_LIMIT_REACHED": "You're already carrying the maximum number of payloads.",
     "refusal.NO_ACTIVE_VEHICLE": "You need an active vehicle to accept a job.",
-
     "event.hit": "Hit",
     "event.destroyed": "Destroyed",
     "event.controlLoss": "Lost Control",
@@ -32,7 +30,6 @@
     "event.deadline": "Deadline",
     "event.victory": "Victory",
     "event.info": "Info",
-
     "victory.announcement": "{questTitle} delivered. The structure falls - and you're still standing.",
     "victory.summary.days": "Days elapsed: {days}",
     "victory.summary.cash": "Final cash: ${cash}",
@@ -40,7 +37,6 @@
     "victory.summary.cars": "Cars owned: {cars}",
     "victory.summary.arenaRecord": "Arena record: {wins}-{losses}",
     "victory.continue": "Continue",
-
     "ui.panel.weapons": "Weapons",
     "ui.panel.radar": "Radar",
     "ui.panel.condition": "Condition",
@@ -66,7 +62,6 @@
     "ui.touch.searchWreck": "Search",
     "ui.touch.cycleWeapon": "Weapon",
     "ui.confirm.buildVehicle": "Build this vehicle",
-
     "ui.title.appName": "smduel",
     "ui.title.tagline": "One car. Sixteen cities. A highway that wants you dead.",
     "ui.builder.previewTitleSuffix": "— top view",
@@ -80,16 +75,13 @@
     "ui.title.continue": "Continue",
     "ui.title.controls": "Controls",
     "ui.title.campaignWon": "Campaign won",
-
     "ui.controls.presetRow": "Preset: {preset} (change)",
     "ui.controls.actionRow": "{action}: {binding}",
     "ui.controls.actionRowEmpty": "{action}: (unbound)",
     "ui.controls.awaitingKey": "{action}: press any key…",
-
     "ui.fleet.rowActive": "{name} — active",
     "ui.fleet.rowStoredHere": "{name} — stored here — switch (${price})",
     "ui.fleet.rowStoredElsewhere": "{name} — stored in {city}",
-
     "ui.road.trafficPassing": "{faction} traffic passes peacefully.",
     "ui.road.contactHostile": "{faction} vehicle attacking!",
     "ui.road.contactDefeated": "{faction} vehicle destroyed — wreck left behind.",
@@ -103,7 +95,6 @@
     "ui.driverCreation.title": "Create Driver",
     "ui.driverCreation.nameLabel": "Name",
     "ui.driverCreation.pointsRemaining": "Points remaining: {count}",
-
     "ui.arena.exitToTitle": "Exit to Title",
     "ui.arena.leaveArena": "Leave Arena",
     "ui.arena.cannotEnterPractice": "Cannot enter practice: {reason}",
@@ -136,10 +127,8 @@
     "ui.arena.scoreSubmit.errorNoToken": "the leaderboard server did not return a run token",
     "ui.arena.scoreSubmit.errorScoreRefused": "the score was rejected (status {status})",
     "ui.arena.scoreSubmit.errorNotAccepted": "the score was not accepted",
-
     "ui.phase.DAY": "daytime",
     "ui.phase.NIGHT": "night",
-
     "ui.city.legendFight": "Fight",
     "ui.city.legendBuild": "Build",
     "ui.city.legendCare": "Care",
@@ -157,17 +146,14 @@
     "ui.city.gateNeedName": "a name",
     "ui.city.gateNeedArmor": "armour",
     "ui.city.gateNeedWeapon": "a weapon",
-
     "ui.road.status": "En route to {city} · {miles}mi remaining · Day {day}, {phase}",
     "ui.road.driveHint": "WASD / arrows to drive",
     "ui.road.driveHintTouch": "Drag the stick to drive",
     "ui.road.progressLabel": "Route progress",
     "ui.road.progressValue": "{percent}% complete, {miles} miles remaining",
     "ui.road.statusTouch": "En route to {city} · {miles}mi remaining · Day {day}, {phase}",
-
     "ui.weapon.outOfAmmo": "{weapon} is out of ammo",
     "ui.weapon.fired": "{weapon} fired",
-
     "ui.hud.weaponFacing": "facing {facing}",
     "ui.hud.usesBattery": "uses battery",
     "ui.hud.ammunition": "ammunition",
@@ -184,7 +170,7 @@
     "ui.hud.batteryPercent": "battery {percent} percent",
     "ui.hud.ariaConditionPanel": "vehicle condition",
     "ui.hud.facingArmor": "{facing} armor {current} of {max}",
-    "ui.hud.notFitted": "\u2014",
+    "ui.hud.notFitted": "—",
     "ui.hud.facingArmorUnfitted": "{facing}: no armour fitted",
     "ui.hud.tireFallbackLabel": "T{index}",
     "ui.hud.tireArmor": "{label} tire {current} of {max}",
@@ -193,8 +179,8 @@
     "ui.hud.bodyArmor": "body armor {current} of {max}",
     "ui.hud.cargoIntegrity": "{kind} {id} integrity {value}",
     "ui.hud.ariaMessageFeed": "message feed",
+    "ui.hud.messageRepeat": "{text} ×{count}",
     "ui.hud.ariaAccessibilityOptions": "accessibility options",
-
     "building.priced": "{name} — ${price}",
     "building.pricedDays": "{name} — ${price} ({days}d)",
     "building.leave": "Leave",
@@ -202,14 +188,12 @@
     "building.closed": "{facility} is closed until morning.",
     "building.insufficientFunds": "Costs ${price}, you have ${cash}.",
     "building.noVehicle": "An active vehicle is required for this.",
-
     "building.rumor.patrol": "Word is a road crew clocked heavier patrol traffic on the routes out of town this week.",
     "building.rumor.priceSpike": "Parts prices are climbing at the shops downtown — word is a shipment got delayed.",
     "building.rumor.newDriver": "Somebody new rolled into town with a car nobody recognizes and money to burn.",
     "building.rumor.wreck": "There's a fresh wreck sitting out on one of the roads out of town, if you're quick about it.",
     "building.rumor.championship": "Talk in here is the next city championship is closer than people think.",
     "rumour.clue.lead": "Word here ties {quest} to the {facility} in {city} — could be worth the drive.",
-
     "building.garage.recharge.name": "Recharge Battery",
     "building.garage.storeCar.name": "Store Car",
     "building.garage.retrieveCar.name": "Retrieve Car",
@@ -218,29 +202,24 @@
     "building.garage.repairPlant": "Repair Power Plant — ${price}",
     "building.garage.repairWeapon": "Repair {weapon} ({facing}) — ${price}",
     "building.garage.replaceTire": "Replace {position} Tire — ${price}",
-
     "building.weaponshop.install": "Install {weapon} — ${price}",
     "building.weaponshop.refill": "Refill Ammo: {weapon} ({facing}) — ${price}",
     "building.weaponshop.noRoom": "No room for {weapon} — not enough space or load capacity left.",
-
     "building.salvage.noVehicleLabel": "Sell Vehicle / Weapons / Salvage",
     "building.salvage.sellCar": "Sell {car} — ${price}",
     "building.salvage.sellWeapon": "Sell {weapon} ({facing}) — ${price}",
     "building.salvage.sellCargo": "Sell Salvage Cargo — ${price}",
-
     "building.courier.routeInfo": "Route to {city}: danger {danger}",
     "building.courier.routeQuick": "Quick route to {city}: {miles} mi, {days} day(s)",
     "building.courier.routeSafe": "Safe route to {city}: ~{encounters} expected encounters, {days} day(s)",
     "building.courier.accept": "Accept: {cargo} to {city} — pay ${pay}, due day {day}",
     "building.courier.noOffers": "No jobs available here right now.",
     "building.courier.deliver": "Deliver: {cargo} — pay ${pay}",
-
     "building.medical.clone.name": "Get Cloned",
     "building.medical.braintape.name": "Update Braintape",
     "building.medical.noClone": "No clone on file to update.",
     "building.medical.treatment.name": "Medical Treatment (1 pt)",
     "building.medical.fullHealth": "Already at full natural health.",
-
     "building.bar.drink.name": "Buy a Drink",
     "building.bar.rumor.name": "Listen for a Rumor",
     "building.bar.sellIllicit.name": "Sell a Payload Illicitly",
@@ -251,7 +230,6 @@
     "building.bar.noSalvage": "You aren't carrying any salvage.",
     "building.bar.illicitSale.clean": "The sale went through quietly — nobody seemed to notice.",
     "building.bar.illicitSale.consequence": "Somebody clocked that sale. Word is the law's onto you now.",
-
     "building.truckstop.bus": "Bus to {city} — ${price}",
     "building.truckstop.rumor.name": "Ask Around",
     "building.truckstop.recharge.name": "Recharge Battery",
@@ -259,14 +237,11 @@
     "building.truckstop.armor.name": "Buy Body Armor",
     "building.truckstop.restAttempt.clean": "You slept without incident.",
     "building.truckstop.restAttempt.triggered": "Someone came for you in the night — {count} pursuer(s) jumped you, and you fought them off.",
-
     "building.assembly.build.name": "Build a New Vehicle",
     "building.assembly.fleetFull": "Fleet is full ({count}/{max}) — sell a car before building another.",
-
     "building.arena.enter": "Enter {event}",
     "building.arena.championshipUpcoming": "{event} is not today — next one in {days} day(s)",
     "building.arena.championshipSchedule": "{event} upcoming: day {days}",
-
     "building.casino.raiseBet": "Raise Bet (+${step})",
     "building.casino.lowerBet": "Lower Bet (-${step})",
     "building.casino.betAtFloor": "Bet is already at the ${step} minimum.",
@@ -281,16 +256,13 @@
     "building.casino.enableToggle.name": "Enable Casino Games",
     "building.casino.disabledLabel": "Casino Games Disabled",
     "building.casino.disabledExplanation": "You've switched off the casino's games for this visit. Enable them again whenever you want to play.",
-
     "building.stub.notReady": "{facility} isn't open for business yet — coming in a future phase.",
-
     "building.bar.quest.investigate": "Investigate: {title}",
     "building.truckstop.quest.investigate": "Investigate: {title}",
     "building.medical.quest.investigate": "Investigate: {title}",
     "building.garage.quest.investigate": "Investigate: {title}",
     "building.courierguild.quest.investigate": "Investigate: {title}",
     "building.stub.quest.investigate": "Investigate: {title}",
-
     "journal.courier.entry": "{cargo} to {city} ({facility}) — pay ${pay}, due day {day}",
     "journal.courier.none": "You aren't carrying any courier work right now.",
     "journal.quest.title": "{title}",

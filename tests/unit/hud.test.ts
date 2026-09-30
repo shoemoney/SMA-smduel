@@ -593,6 +593,54 @@ describe('message feed', () => {
     expect(list?.attrs.get('aria-live')).toBe('polite');
     expect(list?.attrs.get('role')).toBe('log');
   });
+
+  // Codex review, measured in the live arena: holding fire 1.5s spent five
+  // rounds and produced five identical "Machine Gun fired" lines. Against a
+  // cap of 8, five routine lines pushed the consequential entry line out of
+  // view, so routine firing was evicting the events worth reading.
+  it('collapses adjacent identical messages into one counted line', () => {
+    const messages: HudMessage[] = [
+      { id: 'a', kind: 'info', text: 'Entered the practice arena', tick: 1 },
+      ...Array.from({ length: 5 }, (_, i): HudMessage => ({ id: `s${i}`, kind: 'hit', text: 'Machine Gun fired', tick: 2 + i })),
+    ];
+    const { root } = render(baseSnapshot({ messages }));
+    const texts = byClass(root, 'hud-message').map((i) => i.text);
+    expect(texts).toEqual(['Entered the practice arena', 'Machine Gun fired ×5']);
+  });
+
+  it('frees feed slots so a consequential message is no longer crowded out', () => {
+    // 5 routine lines + 1 consequential line = 6 posts. Before coalescing the
+    // consequential line competed for 8 slots with 5 identical siblings and
+    // was pushed out of the visible feed; now the routine burst costs one slot.
+    const messages: HudMessage[] = [
+      ...Array.from({ length: 5 }, (_, i): HudMessage => ({ id: `s${i}`, kind: 'hit', text: 'Machine Gun fired', tick: i })),
+      { id: 'd', kind: 'destroyed', text: 'Outlaw destroyed', tick: 6 },
+    ];
+    const { root } = render(baseSnapshot({ messages }));
+    const texts = byClass(root, 'hud-message').map((i) => i.text);
+    expect(texts).toContain('Outlaw destroyed');
+    expect(texts).toContain('Machine Gun fired ×5');
+  });
+
+  it('does NOT merge identical text that is not adjacent, or is a different kind', () => {
+    // Merging across an intervening event would imply that event never
+    // happened, so runs are broken by both a different text and a different
+    // kind.
+    const messages: HudMessage[] = [
+      { id: 'a', kind: 'hit', text: 'Machine Gun fired', tick: 1 },
+      { id: 'b', kind: 'destroyed', text: 'Outlaw destroyed', tick: 2 },
+      { id: 'c', kind: 'hit', text: 'Machine Gun fired', tick: 3 },
+    ];
+    const { root } = render(baseSnapshot({ messages }));
+    const texts = byClass(root, 'hud-message').map((i) => i.text);
+    expect(texts).toEqual(['Machine Gun fired', 'Outlaw destroyed', 'Machine Gun fired']);
+  });
+
+  it('leaves a single occurrence undecorated (no stray ×1)', () => {
+    const { root } = render(baseSnapshot({ messages: [msg('solo', 1)] }));
+    const texts = byClass(root, 'hud-message').map((i) => i.text);
+    expect(texts).toEqual(['event solo']);
+  });
 });
 
 describe('settings', () => {
