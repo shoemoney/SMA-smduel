@@ -387,11 +387,48 @@ export function seedOverrideFromSearch(search: string): string | null {
  * blank, or unrecognised value yields null so boot falls through to the normal
  * title flow, which is the only path a real player ever takes.
  */
+/**
+ * Every screen `?screen=` may mount, and the ONLY allowlist — `startScreenJump`
+ * routes against this same array, so a target cannot be routable without being
+ * listed here and cannot be listed here without being routable.
+ *
+ * It is exported because of a bug this shape caused. `arena-event` was added as
+ * a capture target, and the first live probe mounted NOTHING: no screen, no
+ * error, no warning. `screenFromSearch` validated the param with `/^[a-z]+$/`,
+ * which rejects the HYPHEN, so it returned `null` — and `null` is
+ * indistinguishable from "no `screen` param at all". The route had silently
+ * never existed.
+ *
+ * That is this log's most expensive recurring shape (a healthy-looking signal
+ * standing in for a fact), and the reason the list is exported rather than
+ * duplicated: a test now round-trips every entry through the parser, so the
+ * next hyphenated target fails a unit test instead of a live probe.
+ */
+export const SCREEN_TARGETS = [
+  'title',
+  'controls',
+  'driver',
+  'constructor',
+  'city',
+  'arena',
+  'arena-event',
+  'road',
+  'fleet',
+] as const;
+
+/** Membership test derived from `SCREEN_TARGETS` — a Set, because `target` arrives as a
+ * plain `string` from the URL and `Array.includes` on an `as const` tuple would
+ * narrow the comparison to the literal union instead. One list, two views. */
+const SCREEN_TARGET_SET: ReadonlySet<string> = new Set(SCREEN_TARGETS);
+
 export function screenFromSearch(search: string): string | null {
   const raw = new URLSearchParams(search).get('screen');
   if (raw === null) return null;
   const trimmed = raw.trim().toLowerCase();
-  return /^[a-z]+$/.test(trimmed) ? trimmed : null;
+  // `-` is required: `arena-event` is a real target. `SCREEN_TARGETS` remains the
+  // real gate — this regex only rejects characters no target could contain, so
+  // a malformed value still cannot reach the router.
+  return /^[a-z-]+$/.test(trimmed) ? trimmed : null;
 }
 
 /**
@@ -7155,8 +7192,19 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
   // vehicle, a real `CityRunState`) built from the same functions the real flow
   // calls, so what gets captured is the real screen and not a mock.
   function startScreenJump(target: string): boolean {
-    const known = ['title', 'controls', 'driver', 'constructor', 'city', 'arena', 'road', 'fleet'];
-    if (!known.includes(target)) return false;
+    // `arena-event` is the ONE target that mounts `showArenaEvent` rather than
+    // `showArena`, and it is here because its absence has now cost live
+    // verification TWICE. The road trip menu went unverified for a round
+    // because `?screen=road` was fine but `?screen=arena` is the PRACTICE screen
+    // — a different function — so a probe against it reported the arena-event
+    // pause "not working" when it was probing the wrong closure (iteration 109).
+    // The workaround, walking the city to an arena door blind, dead-ended at
+    // "Federal Building — closed" exactly as iteration 90's did.
+    //
+    // A capture route is cheaper than a blind walk and it never goes stale: the
+    // rig builds a full `CityRunState` a few lines above this, so mounting a
+    // real event costs one call rather than a fixture.
+    if (!SCREEN_TARGET_SET.has(target)) return false;
 
     if (target === 'title') {
       showTitle(root, { onNewDriver: () => startNewSession() });
@@ -7264,6 +7312,28 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
     }
     if (target === 'fleet') {
       showFleet(root, cityState, () => showCity(root, cityState));
+      return true;
+    }
+    if (target === 'arena-event') {
+      // `beginArenaMatch` rather than a hand-built `ArenaMatchState`, for the
+      // same reason the rest of this rig uses the real constructors: it
+      // validates eligibility and charges the entry fee exactly once. Division 5
+      // is `own-vehicle-value-cap: 5000` with no `costService`, so nothing is
+      // charged — and it is the event Codex actually drove, so a capture through
+      // this route is comparable to its findings.
+      // The rig's LOCAL `vehicle`, not `cityState.vehicle`: the latter is typed
+      // `VehicleState | null` because a real city session can have the car
+      // parked, and reading it here would mean a null check for a state this
+      // rig constructs non-null two lines earlier.
+      const begun = beginArenaMatch(cityState.driver, vehicle, 'division-5');
+      if (!begun.ok) {
+        // Refuse loudly rather than falling through to the practice screen,
+        // because a silent fallback is what makes a capture route rot: the next
+        // reader would be looking at `showArena` and not know it.
+        console.warn(`smduel: screencap arena-event ineligible: ${begun.reason}`);
+        return false;
+      }
+      showArenaEvent(root, begun.driver, vehicle, begun.state, cityState.clock, cityState, () => void start());
       return true;
     }
     if (target === 'road') {
