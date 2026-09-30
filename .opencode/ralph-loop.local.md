@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 13
+iteration: 14
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -5489,3 +5489,69 @@ DEPLOY 2026-09-30 — iteration 98 to arcade.shoemoney.com
       finds nothing is not a measurement, and a probe that finds the WRONG
       element is worse than one that finds nothing, because it produces a
       number.
+RESEARCH 2026-09-30 — iteration 99: two of my own findings refuted by measurement
+- This round changed NO code. It found that TWO findings I published in
+  iterations 96 and 97 do not survive contact with the actual data. Both were
+  written by me, both were recorded with confidence, and both are wrong. The
+  log's own rule (a probe that finds nothing is not a measurement) applies
+  here in a sharper form: a plausible arithmetic derivation from ASSUMED inputs
+  is not a measurement of the real table either. I derived the encounter
+  density from a route/danger pair I assumed rather than one I read.
+- The two refutations:
+
+  1. **`abandonVehicle` is an UNBUILT FEATURE, not an unwired one.** Iteration
+     96 recorded: "it is a real gap rather than dead code now that nothing else
+     covers it," and iteration 98 re-queued it as such. Both are wrong, and the
+     error is the kind that costs a whole iteration. I checked what
+     `abandonVehicle` would actually be WIRED TO:
+       - `grep -rn "abandonVehicle" src/` -> defined in `src/sim/road.ts:725`,
+         called from NOTHING. Its `PedestrianState` is returned to no one.
+       - `grep -rn "pedestrian" src/app.ts` -> NO MATCHES. There is no on-foot
+         movement code in the app at all, and `showRoad` mounts no menu and no
+         actions (measured again this round, same result as iteration 96).
+     So wiring it is not a one-line fix; it requires building a whole on-foot
+     road mode: a trigger to abandon, a movement system, and a way to arrive on
+     foot. It is half a FEATURE, not a loose wire. Recorded so the next
+     iteration does not spend itself discovering this mid-round. It stays
+     queued, correctly labelled this time: "unbuilt on-foot mode (sim half
+     exists in `abandonVehicle`; no app-side pedestrian movement at all)."
+
+  2. **The "short routes are most likely to contain no fight" finding is
+     FALSE, and it was arithmetic on an invented input.** Iteration 97 wrote:
+         "40 mi, danger 0 (1.0/100mi) -> 0.4 expected encounters"
+     and concluded the shortest routes were the emptiest. I never checked that
+     a 40-mile danger-0 route EXISTS. It does not. Measured over all 26 real
+     routes:
+       - 0 of 26 routes are deterministically empty. The minimum roll is 1.
+       - the ratio is FLAT, not inverted: encounters-per-minute ranges
+         0.0146-0.0467 (a 3.2x spread) with no relationship to length, because
+         spawns-per-100mi and real-minutes-per-mile BOTH scale with route
+         length, so their quotient barely moves. The two lowest-density
+         routes per minute are 80 mi and 150 mi, not 40.
+       - the real, much smaller defect is in the OPPOSITE direction: on the
+         LONGEST routes, `spawnsPerHundredMiles * length` wants more contacts
+         than `spawnBudget` allows, so the budget truncates the roll (e.g.
+         washington-pittsburgh 240 mi wants 10.08, budget 8 -> 2 dropped;
+         buffalo-pittsburgh 220 mi -> 1 dropped). That is a real
+         budget-vs-density disagreement, but it is the opposite claim from the
+         one I published, and it is a tuning question, not an inversion.
+
+- WHY THIS ROUND IS WORTH THE ENTRY despite shipping nothing: iteration 97
+  told the next iteration to "fix" short-route emptiness, and the obvious fix
+  (raise `spawnsPerHundredMiles` at low danger) would have been a TUNING
+  CHANGE TO A NON-PROBLEM, committed and deployed. A written finding is
+  load-bearing the moment it goes in the queue, whether or not code follows it.
+  The correction had to land in the same log the wrong finding came from, or
+  the next round would have trusted the queue over the data. I have now re-run
+  the check against the actual route table instead of the assumed one, and the
+  finding does not survive.
+- GATE: unchanged and green — no code changed this round, so the standing
+  gate from iteration 98 still holds (tsc clean, 67 files / 1477 tests with
+  the 4 measured `screens.test.ts` flake, 5 browser tests, build
+  `index-AJyF_mpX.js`, `.shots/iter98` 8 screens / 0 problems). Not re-run
+  because nothing was edited; recorded as inherited, and re-run next code
+  round.
+- STILL QUEUED (relabelled, both corrections applied): the structural pacing
+  decision (97, real), the LONG-route budget-vs-density truncation (99, real
+  and small), the UNBUILT on-foot mode (99, relabelled from "unwired"), and a
+  persistent "surface a failed save" message (93, real).
