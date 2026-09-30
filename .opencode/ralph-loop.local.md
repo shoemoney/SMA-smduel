@@ -4594,3 +4594,20 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
      runs, then isolated-per-file. The rule worth carrying: when a number moves,
      the first question is not "what changed" but "what was the scope of the
      thing I am comparing against".
+
+   LIVE VERIFIED (production `index-7nXSJaHV.js`, 0 console errors). Walking
+   north-east from the plaza centre in 1.5s steps and reading the label each
+   step, it stayed hidden for the first four and then appeared:
+       t+1500  {"text":"",     "display":"none"}
+       ...     (three more, same)
+       t+7500  {"text":"Garage","display":"flex"}
+   The hidden-then-shown sequence is the radius working, not the element
+   failing: the doorways sit on a 10.65m ring and the car starts at the
+   plaza centre, so nothing is within `layout.tileSizeM` until the player
+   has actually walked to a door. My first two probes walked 1.4s and 4.2s
+   and both read "not found" / "display:none", and the correct conclusion
+   was that the car had not arrived — not that the feature was broken.
+   Worth recording because the tempting conclusion from a "no label" result
+   is the wrong one, and the way to tell them apart is to walk long enough
+   for the thing to be in range and watch the value change, rather than
+   deciding from one negative sample.
