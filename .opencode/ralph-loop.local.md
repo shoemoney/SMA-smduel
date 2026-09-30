@@ -5034,3 +5034,39 @@ DEPLOY 2026-09-30 — iteration 93 to arcade.shoemoney.com
    - #5 the weapons panel still truncating at 1200px, where the active-row
      triangle also wraps to a second line — my iteration-92 fix was verified at
      1440px only, and the browser test I added pins 1440
+
+DEPLOY 2026-09-30 — iteration 94 to arcade.shoemoney.com
+- Release `20260930120000-a0df648`, build `index-CMstRNf8.js`, commit `a0df648`.
+  Whole-site snapshot, atomic swap, root + smduel + last-engineer 200, live
+  bundle hash equals the local build's.
+- LIVE VERIFIED IN REAL CHROME, and this round contains a CORRECTION OF MY OWN
+  measurement, which is the part worth keeping:
+   - First attempt: `keyboard.press('Space')` left the magazine at 20/20 while
+     `press('KeyJ')` dropped it to 19/20. I reported that as "Space still does
+     not fire" — and it was a TEST ARTEFACT, not a game defect. `press()` is a
+     keydown and keyup milliseconds apart, and the arena samples held codes once
+     per frame, so a tap shorter than a frame can be missed entirely. My
+     conclusion was the log's own recurring error in a new costume: a
+     measurement that disagreed with the code, treated as a fact about the game.
+   - The decisive check was the input layer, not more browser guessing: with
+     the CORRECT `RawInputState` field (`keysDown`, not the `keys` my first
+     probe invented — two probe bugs in a row here, the second of which made
+     BOTH keys read as `fire: false` and would have "confirmed" a bug that did
+     not exist), `resolveInput({keysDown: new Set(['Space'])})` returns
+     `fire: true`, identical to KeyJ.
+   - Re-run with HELD presses, the way a player fires:
+       SPACE held 1200ms   20/20 -> 15/20
+       J     held 1200ms   15/20 -> 10/20
+     Identical. Space fires, and it fires as fast as J.
+   - `window.scrollY` is 0 after firing, so the scroll guard holds: no camera
+     jump on the first press, which was the risk of binding Space at all.
+   - The on-screen hint read "WASD/arrows drive · Space/J fire · Q/E cycle
+     weapon" in production, so the generated text and the real bindings shipped
+     together.
+- A SECOND, SMALLER TRUTH the review did not separate, recorded rather than
+  fixed: an instantaneous tap fires for NO key, Space or J, because held codes
+  are sampled per frame. That is input fidelity rather than a broken binding,
+  it is invisible to any human (nobody taps a fire key that briefly), and
+  fixing it would mean latching keydown edges — a real change to input
+  semantics, not a bug fix. Recorded so a future review of "Space does nothing"
+  is answered with the frame-sampling explanation rather than re-litigated.
