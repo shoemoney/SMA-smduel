@@ -5280,3 +5280,32 @@ DEPLOY 2026-09-30 — iteration 94 to arcade.shoemoney.com
    - `abandonVehicle` remains unwired. With the battery fix the common case no
      longer strands, but the SPEC's on-foot escape is still unreachable, and
      that is a real gap rather than dead code now that nothing else covers it.
+
+DEPLOY 2026-09-30 — iteration 96 to arcade.shoemoney.com
+- Release `20260930160000-90315cb`, build `index-BwDY7m3Q.js`, commit `90315cb`.
+  Whole-site snapshot, atomic swap, root + smduel + last-engineer 200, live
+  bundle hash equals the local build's.
+- LIVE VERIFIED, and the verification has a limitation worth stating rather than
+  dressing up:
+   1. THE RECONCILED VALUE IS IN THE SHIPPED BUNDLE: grepping the served
+      `index-BwDY7m3Q.js` returns `movementDrainPerMileBase:.06`, plus the
+      top-level `_note` explaining that the number is reconciled against the
+      route table. The fix demonstrably shipped, not just locally.
+   2. THE ROAD RUNS CLEAN IN PRODUCTION: `?screen=road` mounts, the rig car
+      reports 150mi remaining, six throttle samples over 15 seconds are
+      monotonically non-increasing, and there are 0 console errors.
+   3. **WHAT THAT CHECK CANNOT SHOW, and why.** The battery read 100% on every
+      sample, and that is CORRECT rather than a broken readout: at 0.06 base the
+      rig car's effective drain is ~0.21 points per mile, and 15 seconds at
+      highway speed is about 0.29 miles — 0.12% of a 150-mile route, or 0.06
+      battery points out of 99, which rounds to 100% at the HUD's integer
+      precision. Over the full route the same car spends roughly 57 of its 99
+      points, so the battery is very much a real resource; it is simply
+      invisible inside a short drive.
+      That is the pacing problem showing up inside its own verification: a
+      change to a per-mile resource cannot be observed in a browser session
+      shorter than the journey it governs. The arithmetic is covered by the
+      reconciliation test against the real rulesets, and the shipped value is
+      confirmed above, so the chain is complete — but the behavioural half of
+      this finding is only observable after the cruise/compression work, which
+      is exactly why that item is the top open one.
