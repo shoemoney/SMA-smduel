@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 10
+iteration: 11
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -5167,3 +5167,116 @@ DEPLOY 2026-09-30 — iteration 94 to arcade.shoemoney.com
    GATE: tsc clean, 67 files / 1472 tests, 5 browser tests (2 new),
    build clean (`index-dkmliIAX.js`), `.shots/iter95` = 8 screens / 0 problems.
    The 4 failures are the `screens.test.ts` flake, measured identical on master.
+96. Codex review finding 2, EXECUTED — and the pacing complaint turned out to
+   be hiding a much worse defect underneath it.
+
+   - **"One ordinary journey requires roughly two hours of continuous driving
+     ... At a constant 70 mph, 150 miles takes 129 real minutes."** The pacing
+     complaint is real and is recorded as the top open item below. What sending
+     me looking for WHY a leg is measured in HOURS turned up first was not a
+     pacing problem at all: **the road had unreachable destinations.**
+
+   - **THE BATTERY AND THE ROUTE TABLE WERE NEVER RECONCILED WITH EACH OTHER.**
+     `driving.json`'s `movementDrainPerMileBase` (0.9) is multiplied by
+     `(1 + 1.4 * weight/power) * (1 + 0.6 * speedFraction)`, so the EFFECTIVE
+     drain at full speed was 1.84-5.67 per mile — **17 to 54 miles of range**,
+     computed from the real weight/power pairs in `bodies.json` and
+     `plants.json`. `cities.json` ships routes of **40 to 240 miles, mean 125**.
+       - 14 of 26 routes were longer than the BEST car's range
+       - 22 of 26 were longer than the WORST car's
+       - `ny-albany` — 150 miles, the default route the reviewer drove — was
+         beyond every car in the game
+       - and the CAPTURE RIG'S OWN CAR, subcompact on the small plant, had
+         **28.6 miles**: it would have stranded at **19% of the way**. Every
+         reviewer in this log has been driving a car that cannot finish the
+         route it starts on, and nobody noticed because the drive is 1:1 and
+         nobody plays for two hours.
+     A route longer than the battery's range is not a slow drive. It is a
+     destination the player cannot reach.
+
+   - **AND THERE WAS NO RECOVERY OF ANY KIND.** `showRoad` mounts no menu and no
+     actions at all — I grepped the whole function. `abandonVehicle` exists in
+     `@/sim/road`, returns a `PedestrianState` so the player can continue on
+     foot, and is documented as the SPEC's own escape ("the player may continue
+     on foot (SPEC 'Road')") — and **it is never called by `@/app`**. It is dead
+     code whose only purpose is the recovery this game needs. So a player who
+     ran the battery down was stuck, looking at a HUD that faithfully reports
+     0% and offers nothing to press.
+     This is the same shape as iteration 71's covered exit button: a capability
+     that exists and a control that is reachable, and the two are not connected.
+
+   - FIXED BY RECONCILING THE TWO NUMBERS, at 0.06 (from 0.9). Sized against the
+     constraint rather than a preference: the WORST build (heaviest body on the
+     weakest plant, a 6.304x multiplier) now manages 262 miles against a
+     longest route of 240, and the BEST (2.048x) manages 805.
+     The reduction is UNIFORM, so the vehicle-quality gradient is preserved
+     exactly — a badly built car still has about a third of a good car's range.
+     It just finishes the journey, and the battery becomes an economy across
+     several cities rather than a countdown to being stuck. The alternative
+     "fix" — inflating `full` — is arithmetically identical (only the ratio
+     matters), which is worth recording because I tried it as a mutation
+     expecting it to fail and it passed: it is not a different fix at all.
+
+   - **THREE TESTS, DERIVED FROM THE REAL RULESETS, AND TWO MUTATIONS THAT
+     TEACH THE RIGHT LESSON.**
+     The guard is a RECONCILIATION test, not a regression test: it reads the
+     actual body/plant weight-power pairs and the actual route table and asserts
+     the worst build can finish the longest route, so the two numbers cannot
+     drift apart again without a red test. Adding a heavier body or a weaker
+     plant widens the multiplier and fails it, which a hardcoded worst case
+     would not catch.
+       - restore 0.9 (the shipped pair)  -> FIRES: "the worst build manages 17
+         miles but the longest route is 240" ✓
+       - flatten the weight/power scale   -> FIRES, on the gradient test AND on
+         a pre-existing battery test ✓
+       - inflate `full` instead           -> PASSES, correctly, and this is the
+         informative one: full and base only ever matter as a ratio, so "raise
+         the capacity" is not an alternative to lowering the drain, it IS the
+         same change. A mutation that cannot fail is worth recording as a fact
+         about the system rather than quietly dropped.
+   - The ruleset validator caught my first attempt, which put the explanation in
+     a `_note` INSIDE the `battery` object — unknown keys are rejected there.
+     Fourth time in four rounds a gate has earned its place by failing loudly;
+     the note moved to the file's top-level `_note` where this file already
+     keeps its provenance, and it records the derivation rather than just the
+     new number.
+
+   - **MEASUREMENT SCOPE, AGAIN, AND THIS TIME A READING THAT DID NOT
+     REPRODUCE.** The first full run after the change reported 13 failures across
+     4 files — `screens`, `phase4`, `pursuit`, `arena-auto-end` — which reads as
+     a serious regression. Measured before reacting:
+       `phase4`, `pursuit` and `arena-auto-end` each PASS in isolation.
+       MASTER full suite, twice: 9 failures then 4, including phase4 and pursuit.
+       BRANCH full suite, three consecutive runs: 4, 4, 4 — all `screens.test.ts`.
+     So the 13-failure reading coincided with a concurrent `npm run build` and
+     capture competing for the same machine, and did not reproduce. Master's own
+     range is 4-9 on the same cross-file pollution. Recorded because "I saw 13
+     failures and it was noise" is exactly the kind of claim this log has
+     learned not to make without the scope measurement behind it.
+
+   GATE: tsc clean, 67 files / 1475 tests (3 new, 2 mutation-proven), 5 browser
+   tests, build clean (`index-BwDY7m3Q.js`), `.shots/iter96` = 8 screens /
+   0 problems. Failures are the measured `screens.test.ts` flake.
+
+   STILL OPEN AND DELIBERATELY NOT ACTIONED, because it is a design decision
+   rather than a defect and this is the wrong end of a round to make it:
+   - **PACING, the reviewer's actual finding, now the top open item.** The road
+     simulates literal miles at literal speed, so a 150-mile leg is 129 real
+     minutes at the car's 70 mph ceiling. Two coherent answers and they are not
+     both code:
+       (a) COMPRESS TRAVEL BETWEEN ENCATCHERS — the reviewer's own suggestion,
+           and the one that keeps the encounters real. It means the odometer
+           advances faster than the car is physically moving on empty road,
+           which is a simulation lie, and the codebase's own rule (iteration 55)
+           is not to fake a unit the player can measure. Doing it honestly means
+           surfacing it — a "cruising" state the player can see.
+       (b) SHORTEN THE ROUTES, so a leg is genuinely drivable. The cost is that
+           `lengthMiles` is also the economy and calendar unit, and the cities'
+           on-map positions may be tied to it; this is why it needs its own
+       measured pass over distance, day cost and battery together.
+     What this round establishes is that the two questions are separable: the
+     battery dead-end was a hard blocker and is now closed, and the pacing
+     problem is real, independent, and untouched.
+   - `abandonVehicle` remains unwired. With the battery fix the common case no
+     longer strands, but the SPEC's on-foot escape is still unreachable, and
+     that is a real gap rather than dead code now that nothing else covers it.

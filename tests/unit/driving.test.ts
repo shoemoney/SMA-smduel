@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { accelerationTiers, drivingConfig, getBody, getPlant, getTire, skillsConfig } from '@/data/rulesets';
+import { accelerationTiers, allBodies, allPlants, citiesConfig, drivingConfig, getBody, getPlant, getTire, skillsConfig } from '@/data/rulesets';
 import { makeArmorRecord } from '@/sim/types';
 import type { TireDPTuple, VehicleDesign, VehicleState } from '@/sim/types';
 import {
@@ -509,5 +509,79 @@ describe('battery, odometer, and radar', () => {
   it('radar is disabled once plant damage falls to or below its failure threshold', () => {
     expect(isRadarDisabled(PLANT_90.radarFailureThreshold, PLANT_90.radarFailureThreshold)).toBe(true);
     expect(isRadarDisabled(PLANT_90.radarFailureThreshold + 1, PLANT_90.radarFailureThreshold)).toBe(false);
+  });
+});
+
+/**
+ * Battery range and route length are ONE number, reconciled — not two
+ * independently-tuned balance values.
+ *
+ * Found by Codex `gpt-6.1-sol` reporting that a 150-mile Albany leg takes
+ * "~129 minutes of continuous driving", which sent me looking for why a leg is
+ * measured in HOURS. The pacing is a real problem and it is recorded
+ * separately. What the search turned up first was worse than pacing: the road
+ * had no unreachable destinations, it had UNREACHABLE ones.
+ *
+ * `movementDrainPerMileBase` (0.9) is multiplied by
+ * `(1 + 1.4 * weight/power) * (1 + 0.6 * speedFraction)`, so the EFFECTIVE drain
+ * at full speed was 1.84-5.67 per mile — 17 to 54 miles of range. `cities.json`
+ * ships routes of 40-240 miles, mean 125. Fourteen of twenty-six routes were
+ * longer than the best car's range and twenty-two were longer than the worst
+ * car's, including `ny-albany` at 150 miles, which is the default route the
+ * reviewer drove. The capture rig's own car — subcompact on the small plant —
+ * had 28.6 miles against that 150 and would have stranded at 19% of the way.
+ *
+ * The road screen mounts no menu and no actions, and `abandonVehicle` (which
+ * `@/sim/road` exports and documents as the SPEC's on-foot escape) is never
+ * called by `@/app`, so there was no recovery of any kind. A player who ran the
+ * battery down was stuck, with a HUD that reports 0% and nothing to press.
+ *
+ * This test is a RECONCILIATION guard rather than a regression test: it derives
+ * both sides from the real rulesets and asserts the constraint that makes the
+ * road completable at all, so the two numbers cannot drift apart again without
+ * a red test. It reads `bodies.json`/`plants.json` for the real weight/power
+ * pairs rather than hardcoding a worst case, so adding a heavier body or a
+ * weaker plant — which widens the multiplier — fails here.
+ */
+describe('battery range is reconciled against route length', () => {
+  function extremes(): { worst: number; best: number } {
+    const bodies = allBodies();
+    const plants = allPlants();
+    const ratios: number[] = [];
+    for (const b of bodies) for (const p of plants) ratios.push(b.weightLb / p.power);
+    const bat = drivingConfig().battery;
+    const full = bat.full;
+    // Effective drain at FULL SPEED, which is the worst case for range: the
+    // speed term is 1 and the weight/power term varies per build.
+    const drains = ratios.map((r) => bat.movementDrainPerMileBase * (1 + bat.weightPowerRatioScale * r) * (1 + bat.speedFractionScale));
+    // Heaviest-on-weakest is the WORST case; the largest drain is the worst.
+    return { worst: full / Math.max(...drains), best: full / Math.min(...drains) };
+  }
+
+  it('lets the WORST build finish the LONGEST shipped route on one charge', () => {
+    const { worst } = extremes();
+    const longest = Math.max(...citiesConfig().routes.map((r) => r.lengthMiles));
+    expect(
+      worst,
+      `the worst build manages ${worst.toFixed(0)} miles but the longest route is ${longest} — that route is an unreachable destination, and the road offers no charge stop and no way to abandon the car`,
+    ).toBeGreaterThanOrEqual(longest);
+  });
+
+  it('keeps a real vehicle-quality gradient rather than flattening it', () => {
+    // A uniform scale of the base number is what makes the reconciliation safe:
+    // it moves every car's range by the same factor, so "a badly built car goes
+    // about a third as far as a good one" is unchanged by construction. A guard
+    // against the other fix — inflating `full` until everything fits — is what
+    // this is for, and that fix would have made the gradient much weaker.
+    const { worst, best } = extremes();
+    expect(best / worst).toBeGreaterThan(2.5);
+  });
+
+  it('leaves no shipped route beyond the best car either', () => {
+    const { best } = extremes();
+    const unreachable = citiesConfig().routes
+      .filter((r) => r.lengthMiles > best)
+      .map((r) => `${r.id} (${r.lengthMiles}mi)`);
+    expect(unreachable, `routes beyond even the best car: ${unreachable.join(', ')}`).toEqual([]);
   });
 });
