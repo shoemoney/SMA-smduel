@@ -299,6 +299,58 @@ const safeCitySnapshotSchema = obj(
   ['day', 'phase', 'location', 'driver', 'vehicles'],
 );
 
+/**
+ * A road trip in progress. Every field is REQUIRED once the object is present
+ * — a half-written trip blob would resume into a trip whose progress axis or
+ * origin is missing, which is worse than not resuming at all. The field itself
+ * is optional on `SaveGame`, so every city save and every pre-existing fixture
+ * is unaffected.
+ *
+ * Note what is NOT here: the route, and `RoadHazard.deployable`. Both are
+ * re-derived from ids on resume, so this blob cannot disagree with
+ * `cities.json` or `weapons.json` about a rule.
+ */
+const roadTripSchema = obj({
+  originCityId: NON_EMPTY_STR,
+  destinationCityId: NON_EMPTY_STR,
+  startX: NUM,
+  startY: NUM,
+  routeHeadingRad: NUM,
+  progressMiles: NUM,
+  dayDebt: NUM,
+  contacts: arrayOf(
+    obj({
+      id: NON_EMPTY_STR,
+      faction: NON_EMPTY_STR,
+      packId: NULLABLE_STR,
+      routeMiles: NUM,
+      attacked: BOOL,
+      disposition: NON_EMPTY_STR,
+    }),
+  ),
+  wrecks: arrayOf(
+    obj({
+      id: NON_EMPTY_STR,
+      burned: BOOL,
+      searched: BOOL,
+      weapons: arrayOf(obj({ weaponId: NON_EMPTY_STR, ammo: NUM })),
+      gear: arrayOf(obj({ id: NON_EMPTY_STR, weightLb: NUM, spaces: NUM })),
+      positionX: NUM,
+      positionY: NUM,
+      createdDayIndex: INT,
+    }),
+  ),
+  hazards: arrayOf(
+    obj({
+      id: NON_EMPTY_STR,
+      weaponId: NON_EMPTY_STR,
+      positionX: NUM,
+      positionY: NUM,
+      placedDayIndex: INT,
+    }),
+  ),
+});
+
 export const saveGameSchema: SchemaObject = obj(
   {
     schemaVersion: INT,
@@ -320,6 +372,11 @@ export const saveGameSchema: SchemaObject = obj(
     // suite - see `SaveGame.controlPreset`'s own doc comment in @/persist/save.
     controlPreset: NON_EMPTY_STR,
     controlBindings: { type: 'object' },
+    // Optional (not in `required`): a road trip in progress, absent from every
+    // city save and every save written before this field existed. See
+    // `SaveGame.roadTrip`'s own doc comment for why it stores two city ids
+    // rather than the route.
+    roadTrip: nullable(roadTripSchema),
   },
   [
     'schemaVersion',

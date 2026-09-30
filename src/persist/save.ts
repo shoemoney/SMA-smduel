@@ -104,7 +104,93 @@ export interface SaveGame {
    */
   readonly controlPreset?: string;
   readonly controlBindings?: AllBindings;
+  /**
+   * A road trip in progress — `null`/absent whenever the driver is in a city.
+   *
+   * WHY THIS EXISTS. A route is ~107 real minutes at the mean length and ~129
+   * on the 150-mile default, and `SaveGame` had NO slot for one: `location` is a
+   * city id and `cityRunStateFromSaveGame` always rebuilt a city. So a leg was
+   * an ATOMIC commitment — a player could not stop at mile 40 and come back,
+   * which is the only reason a long leg reads as unplayable rather than merely
+   * long. This field is what makes a trip interruptible, and it changes no
+   * balance number: the driving sim, the odometer, the battery, the encounter
+   * table and the calendar all run exactly as they did.
+   *
+   * WHY IT STORES TWO CITY IDS AND NOT THE ROUTE. `RoadTripState.resolved` is
+   * `{ route, originCityId, destinationCityId }`, and `resolveRoute(a, b)`
+   * re-derives the whole thing from the ids. Persisting the route would mean
+   * persisting a second copy of `lengthMiles`, `danger` and every future field
+   * `cities.json` grows — the exact drift this log has now hit six times
+   * (`roadLegalityMisses`, `unmetRequirements`, the city-decal count,
+   * `facilityMarkerFamily`, the furniture's art aspect, `referenceRouteMiles`).
+   * Storing ids makes disagreement with the ruleset structurally impossible: a
+   * resumed trip reads whatever the route IS today.
+   */
+  readonly roadTrip?: RoadTripSave | null;
   readonly lastSafeCitySnapshot: SafeCitySnapshot;
+}
+
+/**
+ * The persisted half of a `RoadTripState` — every mutable field, with
+ * `resolved` replaced by the two city ids that re-derive it.
+ *
+ * The vehicle is NOT duplicated here: it is already in `SaveGame.vehicles`
+ * under `activeVehicleId`, and `@/sim/road` keeps `trip.vehicle` as the live
+ * object. Storing a second copy would be a third derivation of the same car.
+ * `clock` is likewise not duplicated — `currentDay`/`phase` already carry it,
+ * and `rehydrateRoadTrip` reads it back from there so there is one owner.
+ *
+ * The field names below were all read off the real interfaces, after a first
+ * draft of this type guessed them and was wrong about every wreck and hazard
+ * field — the same "written from memory of the shape" trap this log has
+ * recorded twelve times, reached from a TYPE rather than a test fixture, which
+ * is the more expensive direction to get it wrong. The shapes are
+ * `RoadContact` (road.ts), `RoadWreck extends Wreck` (road.ts:465) with
+ * `WreckWeapon`/`WreckGearItem` (economy.ts:262-272), and `RoadHazard`
+ * (road.ts:498).
+ *
+ * `RoadHazard.deployable` is deliberately ABSENT. It is a
+ * `MineDeployable | SpikesDeployable` looked up from `weaponId` by
+ * `placeRoadHazard`, so persisting it would be a third copy of a ruleset fact
+ * — the same reasoning as the route, applied one level down.
+ */
+export interface RoadTripSave {
+  readonly originCityId: string;
+  readonly destinationCityId: string;
+  /** World position at trip start — the fixed origin `progressMiles` measures from. */
+  readonly startX: number;
+  readonly startY: number;
+  /** The vehicle's heading when the trip began, frozen as the route's forward axis. */
+  readonly routeHeadingRad: number;
+  /** Signed miles toward the destination, measured along `routeHeadingRad`. */
+  readonly progressMiles: number;
+  /** Fractional calendar-day carried between steps, so a resumed trip does not lose its partial day. */
+  readonly dayDebt: number;
+  readonly contacts: readonly {
+    readonly id: string;
+    readonly faction: string;
+    readonly packId: string | null;
+    readonly routeMiles: number;
+    readonly attacked: boolean;
+    readonly disposition: string;
+  }[];
+  readonly wrecks: readonly {
+    readonly id: string;
+    readonly burned: boolean;
+    readonly searched: boolean;
+    readonly weapons: readonly { readonly weaponId: string; readonly ammo: number }[];
+    readonly gear: readonly { readonly id: string; readonly weightLb: number; readonly spaces: number }[];
+    readonly positionX: number;
+    readonly positionY: number;
+    readonly createdDayIndex: number;
+  }[];
+  readonly hazards: readonly {
+    readonly id: string;
+    readonly weaponId: string;
+    readonly positionX: number;
+    readonly positionY: number;
+    readonly placedDayIndex: number;
+  }[];
 }
 
 export type SaveMode = 'classic' | 'safe';

@@ -96,6 +96,7 @@ import {
 import {
   createWreck,
   crossDestinationGate,
+  placeRoadHazard,
   willFire,
   resolveRoute,
   stepRoadTrip,
@@ -107,7 +108,9 @@ import {
 import {
   recordRouteCleared,
   FRESH_ROUTE_HISTORY,
+  type ContactDisposition,
   type EncounterUnit,
+  type FactionId,
   type RouteEncounterHistory,
 } from '@/sim/encounters';
 import { canSearchWreck, searchWreck, type SearchWreckResult } from '@/sim/salvage';
@@ -126,7 +129,7 @@ import { createWorld, type World } from '@/sim/world';
 import { createRng, type Rng } from '@/util/rng';
 import { hashState } from '@/util/hash';
 import { CURRENT_SCHEMA_VERSION } from '@/persist/migrate';
-import { openSaveDatabase, save, load, type LoadResult, type SaveGame, type QuestState } from '@/persist/save';
+import { openSaveDatabase, save, load, type LoadResult, type RoadTripSave, type SaveGame, type QuestState } from '@/persist/save';
 import {
   deliverQuest,
   hasWonVictory,
@@ -2403,6 +2406,96 @@ export interface PersistSessionInput {
  * below always resumes it at `{ wins: 0, losses: 0 }`, exactly as `startNewSession`
  * does for a brand-new driver.
  */
+/**
+ * A live `RoadTripState` -> the persistable blob.
+ *
+ * Two things are deliberately NOT copied, and both are re-derived on load
+ * rather than stored: the route itself (from the two city ids, via
+ * `resolveRoute`) and each hazard's `deployable` (from its `weaponId`, via
+ * `placeRoadHazard`). The vehicle and the clock are not copied either — they
+ * already live in `SaveGame.vehicles` and `currentDay`/`phase`, and a second
+ * copy would be a third derivation of the same car.
+ */
+export function roadTripToSave(trip: RoadTripState): RoadTripSave {
+  return {
+    originCityId: trip.resolved.originCityId,
+    destinationCityId: trip.resolved.destinationCityId,
+    startX: trip.startPosition.x,
+    startY: trip.startPosition.y,
+    routeHeadingRad: trip.routeHeadingRad,
+    progressMiles: trip.progressMiles,
+    dayDebt: trip.dayDebt,
+    contacts: trip.contacts.map((c) => ({
+      id: c.id,
+      faction: c.faction,
+      packId: c.packId,
+      routeMiles: c.routeMiles,
+      attacked: c.attacked,
+      disposition: c.disposition,
+    })),
+    wrecks: trip.wrecks.map((w) => ({
+      id: w.id,
+      burned: w.burned,
+      searched: w.searched,
+      weapons: w.weapons.map((we) => ({ weaponId: we.weaponId, ammo: we.ammo })),
+      gear: w.gear.map((g) => ({ id: g.id, weightLb: g.weightLb, spaces: g.spaces })),
+      positionX: w.position.x,
+      positionY: w.position.y,
+      createdDayIndex: w.createdDayIndex,
+    })),
+    hazards: trip.hazards.map((h) => ({
+      id: h.id,
+      weaponId: h.weaponId,
+      positionX: h.position.x,
+      positionY: h.position.y,
+      placedDayIndex: h.placedDayIndex,
+    })),
+  };
+}
+
+/**
+ * The inverse: a persisted blob plus the vehicle and clock the save already
+ * carries -> a live `RoadTripState`.
+ *
+ * `placeRoadHazard` is used rather than hand-building the hazard because it is
+ * what validates the `weaponId` and looks the deployable up. A save naming a
+ * weapon with no MINE/SPIKES deployable therefore throws HERE, at load, rather
+ * than producing a hazard that behaves differently from a freshly-placed one.
+ */
+export function rehydrateRoadTrip(
+  save: RoadTripSave,
+  vehicle: VehicleState,
+  clock: Clock,
+): RoadTripState {
+  const resolved = resolveRoute(save.originCityId, save.destinationCityId);
+  return {
+    resolved,
+    vehicle,
+    startPosition: { x: save.startX, y: save.startY },
+    routeHeadingRad: save.routeHeadingRad,
+    progressMiles: save.progressMiles,
+    clock,
+    dayDebt: save.dayDebt,
+    contacts: save.contacts.map((c) => ({
+      id: c.id,
+      faction: c.faction as FactionId,
+      packId: c.packId,
+      routeMiles: c.routeMiles,
+      attacked: c.attacked,
+      disposition: c.disposition as ContactDisposition,
+    })),
+    wrecks: save.wrecks.map((w) => createWreck(
+      w.id,
+      { x: w.positionX, y: w.positionY },
+      w.createdDayIndex,
+      w.burned,
+      w.weapons.map((we) => ({ weaponId: we.weaponId, ammo: we.ammo })),
+      w.gear.map((g) => ({ id: g.id, weightLb: g.weightLb, spaces: g.spaces })),
+    )),
+    hazards: save.hazards.map((h) => placeRoadHazard(h.id, h.weaponId, { x: h.positionX, y: h.positionY }, h.placedDayIndex)),
+  };
+}
+
 export async function persistArenaSession(input: PersistSessionInput): Promise<void> {
   const seed = input.world !== null ? seedKeyToDisplaySeed(input.world.rngState.seedKey) : input.sessionSeed;
   const vehicles: Record<string, VehicleState> = input.vehicle !== null ? { [input.vehicle.id]: input.vehicle } : {};
