@@ -18,7 +18,8 @@
  * `DIRECTION_UNIT_VECTORS` here, exactly as `src/sim/city.ts` exports them.
  *
  * usage:
- *   node tools/shoot-facility-menu.mjs --out .shots/iter150
+ *   npx vite-node tools/shoot-facility-menu.mjs -- --out .shots/iter150
+ *   npx vite-node tools/shoot-facility-menu.mjs -- --url https://arcade.shoemoney.com/smduel/
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -155,10 +156,17 @@ async function main() {
   const outDir = resolve(arg('out', '.shots/facility-menu'));
   await mkdir(outDir, { recursive: true });
 
-  await build({ logLevel: 'warn' });
-  const server = await preview({ preview: { port: 0, strictPort: false }, logLevel: 'warn' });
-  const baseUrl = server.resolvedUrls?.local[0];
+  // `--url` points the same checks at an ALREADY-SERVED build instead of
+  // building one: the only way to ask whether production has the fix, rather
+  // than whether this checkout does.
+  const liveUrl = arg('url', null);
+  const server = liveUrl === null ? await (async () => {
+    await build({ logLevel: 'warn' });
+    return preview({ preview: { port: 0, strictPort: false }, logLevel: 'warn' });
+  })() : null;
+  const baseUrl = liveUrl ?? server?.resolvedUrls?.local[0];
   if (baseUrl === undefined) throw new Error('shoot: vite preview did not resolve a local URL');
+  if (liveUrl !== null) console.log(`  (checking the SERVED build at ${liveUrl}, not a local build)`);
 
   const browser = await chromium.launch({ args: ['--use-angle=metal', '--enable-unsafe-webgpu'] });
   const results = [];
@@ -166,7 +174,7 @@ async function main() {
     for (const { facilityKind, expectInRow } of CASES) {
       const context = await browser.newContext({ viewport: { width: 900, height: 600 }, deviceScaleFactor: 2 });
       const page = await context.newPage();
-      await page.goto(`${baseUrl}?screen=city&seed=${SEED}`, { waitUntil: 'load' });
+      await page.goto(`${baseUrl.replace(/\/$/, '')}/?screen=city&seed=${SEED}`, { waitUntil: 'load' });
       await page
         .waitForFunction(() => document.getElementById('sm-boot') === null, { timeout: 20_000, polling: 50 })
         .catch(() => {
@@ -189,7 +197,7 @@ async function main() {
     }
   } finally {
     await browser.close();
-    await server.close();
+    if (server !== null) await server.close();
   }
 
   await writeFile(resolve(outDir, 'rows.json'), JSON.stringify(results, null, 2));
