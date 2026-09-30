@@ -42,6 +42,7 @@ import {
 } from '@/app';
 import { initialClock } from '@/sim/calendar';
 import { drivingConfig, economy, skillsConfig } from '@/data/rulesets';
+import { getArenaEvent } from '@/sim/arena';
 import { createDriver } from '@/sim/driver';
 import { DIRECTION_UNIT_VECTORS, generateCityLayout, type CityDirection, type CityLayout } from '@/sim/city';
 import type { DayPhase, DriverState, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
@@ -759,6 +760,93 @@ describe('DOM screens: winning the campaign and pressing "Continue" keeps the sa
     const probeLabels = Array.from(probeMenu.querySelectorAll('.sm-menu__label')).map((el) => el.textContent);
     expect(probeLabels.some((label) => label !== null && label.includes(prestigeProbeQuest.title))).toBe(true);
     dispatchKey(probeMenu, { key: 'Escape' });
+  });
+
+  // -------------------------------------------------------------------------
+  // Ineligible rows must not print their own notice twice
+  //
+  // Found by the Codex review at iteration 150 (`.opencode/reviews/
+  // codex-20260930-144430.md`): the renderer appended `action.reason` to every
+  // ineligible row, and several callers pass `reason: label` — the whole
+  // sentence IS the notice — so the Arena's standing championship-schedule
+  // row and the Federal Building's "isn't open for business yet" stub each
+  // showed their text twice.
+  //
+  // `tests/unit/menu.test.ts` proves the RENDERER against a fake DOM. This
+  // proves the real thing: a real city, a real walk through real key events to
+  // a real doorway, and the real mounted rows. Both are needed, because the
+  // unit test's own two cases use hand-written action objects, and a caller
+  // that keeps passing `reason: label` is a fact only the real menus show.
+  // -------------------------------------------------------------------------
+
+  /** Every rendered row's label and its reason span's own text. */
+  function readRenderedMenuRows(): Array<{ label: string; reason: string; ineligible: boolean }> {
+    return Array.from(requireOne('.sm-menu').querySelectorAll('.sm-menu__item')).map((item) => ({
+      label: item.querySelector('.sm-menu__label')?.textContent ?? '',
+      reason: item.querySelector('.sm-menu__reason')?.textContent ?? '',
+      ineligible: item.hasAttribute('aria-disabled'),
+    }));
+  }
+
+  async function walkIntoFacility(facilityKind: string): Promise<void> {
+    const sessionSeed = currentSessionSeed();
+    if (sessionSeed === null) throw new Error('test fixture: expected a resolved session seed on the city screen');
+    const layout = generateCityLayout(skillsConfig().startingLocation, sessionSeed);
+    const doorway = layout.doorways.find((d) => d.facilityKind === facilityKind);
+    if (doorway === undefined) {
+      throw new Error(`test fixture: "${layout.cityId}" has no "${facilityKind}" doorway`);
+    }
+    walkToFacility(layout, doorway.position);
+  }
+
+  it('the Federal Building stub prints its not-open notice once, not twice', async () => {
+    await bootToCity(root);
+    await walkIntoFacility('federal');
+
+    const rows = readRenderedMenuRows();
+    // Identity first. Without it, a walk that landed on some other doorway
+    // yields a menu with no duplicated notices and this test passes having
+    // proven nothing — which is what the first browser version of this check
+    // did, twice, before it was told to name the facility it was standing in.
+    const notice = t('building.stub.notReady', { facility: t('facility.federal') });
+    expect(rows.some((r) => r.label.includes(notice))).toBe(true);
+
+    // The notice is still fully readable as the row's own label...
+    const noticeRow = rows.find((r) => r.label.includes(notice));
+    expect(noticeRow?.label).toBe(notice);
+    // ...and the identical second copy is gone.
+    expect(noticeRow?.reason).toBe('');
+    for (const row of rows) {
+      expect(row.reason === '' || row.reason !== row.label).toBe(true);
+    }
+  });
+
+  it('the Arena keeps a genuinely different reason while dropping the duplicated one', async () => {
+    await bootToCity(root);
+    await walkIntoFacility('arena');
+
+    const rows = readRenderedMenuRows();
+    // Both label shapes come from the same string table the real menus use —
+    // the row that was duplicated and the row whose reason must survive.
+    // Rendering the schedule template with an EMPTY day list yields the
+    // "…upcoming: day " prefix; the real row appends the calendar's own day
+    // list after it, so this matches without re-deriving that list here.
+    const eventName = getArenaEvent('city-championship').name;
+    const schedulePrefix = t('building.arena.championshipSchedule', { event: eventName, days: '' });
+    const scheduleRow = rows.find((r) => r.label.startsWith(schedulePrefix));
+    expect(scheduleRow).toBeDefined();
+    // The duplicate is suppressed — and the notice itself is still the label.
+    expect(scheduleRow?.label).not.toBe('');
+    expect(scheduleRow?.reason).toBe('');
+
+    // The championship's OWN "not today" reason — a different sentence, on a
+    // different row — still renders. A fix that simply deleted every reason
+    // would pass the check above and fail here, and the browser run that found
+    // this bug showed both states on the same screen.
+    const enterRow = rows.find((r) => r.label === t('building.arena.enter', { event: eventName }));
+    expect(enterRow?.ineligible).toBe(true);
+    expect(enterRow?.reason).not.toBe('');
+    expect(enterRow?.reason).not.toBe(enterRow?.label);
   });
 });
 

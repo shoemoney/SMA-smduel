@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 49
+iteration: 50
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -10035,3 +10035,97 @@ with two different mechanisms, and neither was load-bearing on the code at all.
   Building's missing service (98/119), and the `screens.test.ts` constructor
   dead space that three reviews have raised with no remedy that does not
   restructure the screen. A fresh Codex review is the next reviewer in the cycle.
+## Iteration 150 — the notice that is the whole sentence, printed twice
+
+**Fresh review.** `.opencode/reviews/codex-20260930-144430.md` (attempt 1, 2771
+bytes), driving the live app through real Chrome. It found one actionable defect
+and re-confirmed one known gap.
+
+- **THE FINDING: an ineligible row could print its own label twice.**
+  The Arena facility menu's standing championship-schedule row read
+  `City Championship upcoming: day 50, 134, 218` **twice**, and the Federal
+  Building's stub read `Federal Building isn't open for business yet — coming in
+  a future phase.` **twice**, in adjacent columns. It also stated the correct
+  remedy precisely: suppress the secondary reason *when it equals the row's
+  label*, and preserve separate explanations for disabled rows whose reason adds
+  something. I read the code before touching it and both callers say so out loud
+  — `arena.ts:65` is literally `return { …, eligible: false, reason: label }`, and
+  `stub.ts:30` builds `{ id: 'notice', label: notice, eligible: false, reason: notice }`.
+  `eligible: false` **requires** a reason for the accessibility contract, so the
+  callers are right and the RENDERER was the only layer that could drop the
+  second copy. One owner, one comparison, at `src/ui/menu.ts:208`.
+  Exact string equality, deliberately not a normalized one: a reason that differs
+  only in spacing is still its own explanation and must stay visible.
+
+- **THE GATE, and it is three layers because this bug lived in none of the
+  previous one.**
+  - `tests/unit/menu.test.ts` — the renderer, against the file's own fake DOM:
+    a `reason === label` row renders no reason span; a row whose reason differs
+    still renders it. **Mutation-proven**: dropping `&& action.reason !== action.label`
+    fails the first and leaves the second green, so the pair cannot be passed by a
+    fix that simply deletes every reason.
+  - `tests/integration/screens.test.ts` — the REAL menus: a real fresh session,
+    a real walk through dispatched `KeyboardEvent`s to a real doorway, the real
+    mounted rows. **Mutation-proven the same way**, and the two failures are the
+    finding itself: `expected 'Federal Building isn't open for busi…' to be ''`
+    and `expected 'City Championship upcoming: day 50, 1…' to be ''`.
+  - `tools/shoot-facility-menu.mjs` — real Chrome, real walk, real screenshot.
+  Full: **1559/1559**, four consecutive parallel runs **and** serial, 73 files.
+  Browser suite 7/7. `tsc` clean. `.shots/iter150` arena menu captured and
+  read: row 9's notice occupies one full-width line, rows 2 and 8 keep their
+  genuinely-different reasons in the italic column — which is the appearance
+  half of the fix, and the reason a screenshot was worth taking at all.
+
+- **WHAT I DID NOT ESTABLISH, recorded because it is the most valuable line here.**
+  **The first two runs of my own browser harness reported a clean pass and proved
+  nothing.** It walked into Salvage, then into the Bar, and printed
+  `0 duplicate their label` for both — because those menus have no
+  `reason === label` row to duplicate. A check that cannot fail has no opinion, and
+  this one had every symptom of success. Two things fixed it, and both are the
+  log's own rules arriving from new directions:
+  1. **Assert the SUBJECT, not the property.** The harness now names the row it
+     expects to find (`'Championship'`) and fails loudly if it walked into the
+     wrong facility. Same shape as iteration 72's `toHaveLength(2)` that was
+     really guaranteeing permanent visibility: the assertion was on a value that
+     was equally true of a screen that never had the bug.
+  2. **A green run is evidence about the thing measured.** I had a real 0 and read
+     it as a pass before asking which menu produced it. The AGENTS.md rule
+     *"locate an element by scanning for it, never by remembering where it was"*
+     applied to a facility, not a selector.
+  Also **not** established: the Federal Building is still a stub with no
+  implemented service (re-confirmed by this review, unchanged since 98/119 — it
+  needs authored content, not code). And the federal case is **not** in the browser
+  harness: the ring holds 11 doorways 32.7° apart, so a hand-held compass keypress
+  lands on a neighbour about as often as not, and the deterministic walker
+  measures its own margin instead of hoping. That case is covered by the
+  integration test, which is deterministic — and the harness says so in a comment
+  rather than leaving a reader to assume the browser run checked it.
+  One path deliberately abandoned: I went looking for a closed-facility control
+  (a `Closed` row whose reason names the facility — a perfect distinct-reason
+  case) and it is unreachable by walking, because `economy.json`'s `walkInCity`
+  costs **0 days**, so the clock cannot reach NIGHT on foot. The control was
+  already sitting in the Arena menu, unforced: `Enter City Championship` is
+  disabled with `City Championship is not today — next one in 50 day(s)`, and
+  `Enter Amateur Night` with `Amateur Night requires no active car`. The browser
+  screenshot shows all three states on one screen. I had been about to build a
+  phase-advance rig to look for a control that was already in the first screenshot
+  I took.
+
+- **THE GENERALISABLE PART.** `reason: label` is a *contract*, not a mistake: the
+  a11y rule is what forced those callers to supply a reason, so any future caller
+  will do the same. That means the de-duplication has to live in the renderer
+  permanently, not as a patch to two call sites — a third caller will arrive and
+  will be right to pass `reason: label` again. The general form: **when a
+  required field is satisfied by restating another field, the suppression belongs
+  at the boundary that renders both, and the callers must keep obeying the
+  contract.** Compare iteration 87's duplicated road-contact placement, where the
+  fix that ended the class was one owner plus a derived guard rather than a third
+  inline patch — same shape, different field.
+
+- **NEXT.** Deploy (this one moves the runtime: the bundle goes
+  `index-C5_m3G6-.js` -> `index-BlROl5Lt.js`, unlike iteration 149's export-only
+  no-op), then a fresh Codex review. The open items are unchanged and are real
+  work: the "surface a failed save" message (93), the Federal Building's missing
+  service (98/119 — needs content, and it is the one item on this list that is not
+  mine to invent), and the `screens.test.ts` constructor dead space that three
+  reviews have raised with no remedy that does not restructure the screen.

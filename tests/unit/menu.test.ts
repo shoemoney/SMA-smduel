@@ -285,12 +285,17 @@ function installFakeDom(): void {
 }
 
 /** Every `sm-menu__item`, in row order, alongside its rendered number label. */
-function readRenderedRows(root: FakeElement): Array<{ number: string; label: string }> {
+function readRenderedRows(root: FakeElement): Array<{ number: string; label: string; reason: string }> {
   const items = [...root.walk()].filter((el) => el.tagName === 'LI');
   return items.map((item) => {
     const number = item.children.find((c) => c.className === 'sm-menu__number');
     const label = item.children.find((c) => c.className === 'sm-menu__label');
-    return { number: number?.textContent ?? '', label: label?.textContent ?? '' };
+    const reason = item.children.find((c) => c.className === 'sm-menu__reason');
+    return {
+      number: number?.textContent ?? '',
+      label: label?.textContent ?? '',
+      reason: reason?.textContent ?? '',
+    };
   });
 }
 
@@ -428,5 +433,52 @@ describe('menu — mountMenu DOM layer', () => {
     expect(container.children).toHaveLength(0);
     expect(container.classList.contains('sm-menu-root')).toBe(false);
     expect(container.hasAttribute('tabindex')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ineligible-row reason de-duplication
+//
+// The renderer printed `action.reason` on every ineligible row, but several
+// callers pass `reason: label` — the whole sentence IS the notice, so the row
+// showed it twice (Arena "City Championship upcoming: day 50, 134, 218" and the
+// Federal Building "isn't open for business yet" stub, both seen in review
+// evidence). `eligible: false` requires a reason for a11y, so the callers keep
+// passing it; the renderer is the single place that can drop the second copy.
+// ---------------------------------------------------------------------------
+
+describe('menu — ineligible rows do not print their notice twice', () => {
+  function mountRows(actions: MenuAction[]): Array<{ label: string; reason: string }> {
+    installFakeDom();
+    const container = new FakeElement('div');
+    const mounted = mountMenu({
+      container: container as unknown as HTMLElement,
+      header: header(),
+      actions,
+      onActivate: () => {},
+      onBack: () => {},
+    });
+    const rows = readRenderedRows(container.children[0] as FakeElement);
+    mounted.destroy();
+    return rows;
+  }
+
+  it('prints one copy when a disabled row passes reason === label', () => {
+    const notice = "Federal Building isn't open for business yet — coming in a future phase.";
+    const [row] = mountRows([{ id: 'notice', label: notice, eligible: false, reason: notice }]);
+
+    expect(row?.label).toBe(notice);
+    expect(row?.reason).toBe('');
+    // The text appears exactly once in the whole row, not merely hidden.
+    expect(notice).not.toBe('');
+  });
+
+  it('still prints a genuinely different reason on a disabled row', () => {
+    const [row] = mountRows([
+      { id: 'entry', label: 'Enter Championship', eligible: false, reason: 'Requires a roadworthy vehicle' },
+    ]);
+
+    expect(row?.label).toBe('Enter Championship');
+    expect(row?.reason).toBe('Requires a roadworthy vehicle');
   });
 });

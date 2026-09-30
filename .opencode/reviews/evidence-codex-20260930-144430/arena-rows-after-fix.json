@@ -1,0 +1,61 @@
+[
+  {
+    "facilityKind": "arena",
+    "expectInRow": "Championship",
+    "identified": true,
+    "rows": [
+      {
+        "label": "Enter Practice",
+        "reason": "",
+        "ineligible": false
+      },
+      {
+        "label": "Enter Amateur Night",
+        "reason": "Amateur Night requires no active car — leave your car behind",
+        "ineligible": true
+      },
+      {
+        "label": "Enter Division 5",
+        "reason": "",
+        "ineligible": false
+      },
+      {
+        "label": "Enter Division 10",
+        "reason": "",
+        "ineligible": false
+      },
+      {
+        "label": "Enter Division 15",
+        "reason": "",
+        "ineligible": false
+      },
+      {
+        "label": "Enter Division 20",
+        "reason": "",
+        "ineligible": false
+      },
+      {
+        "label": "Enter Unlimited",
+        "reason": "",
+        "ineligible": false
+      },
+      {
+        "label": "Enter City Championship",
+        "reason": "City Championship is not today — next one in 50 day(s)",
+        "ineligible": true
+      },
+      {
+        "label": "City Championship upcoming: day 50, 134, 218",
+        "reason": "",
+        "ineligible": true
+      },
+      {
+        "label": "Leave",
+        "reason": "",
+        "ineligible": false
+      }
+    ],
+    "dupes": 0,
+    "emptyIneligible": 0
+  }
+]

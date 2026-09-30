@@ -1,0 +1,20 @@
+# Full-resolution reviewer frames are evidence ON DISK, not in git.
+#
+# A Codex review drops one ~6MB full-screen PNG per screen it looks at — 15 of
+# them is 69MB for a single round, and they accumulate every round. The frames
+# that a finding actually depends on are committed by name (see the
+# `evidence-*/` directories), because a claim like "this row printed its text
+# twice" is worth nothing six months later without the frame that shows it.
+#
+# Everything else here is re-derivable: the reviewer writes the same URL and seed
+# again, and the screens are deterministic.
+evidence-*/
+!evidence-*/
+evidence-*/*-review.png
+!evidence-*/city-arena-entry-review.png
+!evidence-*/city-federal-gap-review.png
+!evidence-*/arena-menu-after-fix.png
+!evidence-*/arena-rows-after-fix.json
+# Playwright's own per-run temp frames.
+_small_arena.png
+_small_arena.png-*.png

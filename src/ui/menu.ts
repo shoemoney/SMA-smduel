@@ -205,7 +205,13 @@ function buildMenuDom(
     label.textContent = action.label;
     item.appendChild(label);
 
-    if (!action.eligible && action.reason !== undefined) {
+    // Callers pass `reason: label` whenever the whole sentence IS the notice
+    // (the arena's standing championship schedule, the stub building's
+    // "not open yet" line). Those rows would print the same text twice, so
+    // compare before adding a second copy. Exact equality, not a normalized
+    // one: a reason that merely differs in spacing is still its own
+    // explanation and must stay visible.
+    if (!action.eligible && action.reason !== undefined && action.reason !== action.label) {
       const reason = document.createElement('span');
       reason.className = 'sm-menu__reason';
       reason.textContent = action.reason;
