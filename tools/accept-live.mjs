@@ -1,5 +1,40 @@
+#!/usr/bin/env node
+/**
+ * Live acceptance check: drives the DEPLOYED build in real Chrome and asserts
+ * the product promises that documentation and unit tests cannot reach.
+ *
+ * ## Why this is not the same as the test suite
+ *
+ * `npm test` proves the code does what it claims. This proves the thing a player
+ * actually receives does — the bundle the server is serving, not the checkout.
+ * That distinction has bitten this repo before: a release shipped with every gate
+ * green while the live hash pointed at the previous build, and a deploy was
+ * reported as done because a route returned 200.
+ *
+ * ## The two probe bugs it taught me, both left in the code on purpose
+ *
+ * 1. The focus-ring check read `document.querySelector('.sm-field')`. The driver
+ *    card has FOUR of those (three skill rows plus the name), so it read a skill
+ *    field's resting border and reported the focus ring as broken. It now finds
+ *    the field that owns `document.activeElement`.
+ * 2. It then read that border in the same tick the card autofocuses, and the
+ *    140ms `border-color` transition meant `getComputedStyle` returned the
+ *    transition's START value. It now settles first, and accepts the accent at
+ *    any alpha — a strict `rgb()` equality would be a race, not a check.
+ *
+ * Both were the probe being wrong, not the product. Neither is a "flaky test" —
+ * each was a confidently wrong measurement, which is worse.
+ *
+ * usage:
+ *   node tools/accept-live.mjs                                  # production
+ *   node tools/accept-live.mjs --url http://localhost:5173/smduel/
+ */
 import { chromium } from 'playwright-core';
-const URL = 'https://arcade.shoemoney.com/smduel/';
+const arg = (name, fallback) => {
+  const i = process.argv.indexOf(`--${name}`);
+  return i === -1 ? fallback : (process.argv[i + 1] ?? fallback);
+};
+const URL = `${arg('url', 'https://arcade.shoemoney.com/smduel/').replace(/\/$/, '')}/`;
 const browser = await chromium.launch({ args: ['--use-angle=metal', '--enable-unsafe-webgpu'] });
 const results = [];
 try {

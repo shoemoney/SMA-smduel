@@ -185,3 +185,80 @@ reverted, and why. It is the reason this repo has working regression gates.
   The pattern (twice, both as the first run after a change) is suggestive of
   something about first-run state, and suggestive is not evidence. It is recorded
   as an open intermittent, not as a fixed flake.
+## Iteration 2 — the rename, the docs, and the flake finally identified
+
+**THE GAME IS NOW CALLED OPENDUEL.** Wordmark, browser tab, social cards, README
+and SPEC all follow, with the descriptor the user asked for: *A Modern Tribute to
+Autoduel · Apple II, 1985*. Two things deliberately did NOT move: the `/smduel/`
+URL path (it is the deployed route, the canonical link, and the directory) and the
+internal identifiers (`package.json`, `SMDUEL_TEST_*` env vars, the `SMDUEL` in a
+historical CSS note). A rename that renames the URL breaks every shared link to buy
+a tidier file name.
+
+The wordmark lost its `text-transform: uppercase` on purpose: "OpenDuel" capital-D
+is load-bearing, and uppercasing rendered it "OPENDUEL", which is a different name.
+
+- **TWO GUARDS INVERTED RATHER THAN DELETED — and one had never worked.**
+  `index.html` and `README.md` both asserted `not.toContain('AutoDuel')`, written
+  when the game was deliberately unnamed. A real guard that really did pass — by a
+  capitalisation accident: the splash spells it "Autoduel", so a search for
+  "AutoDuel" never matched. **A guard that passes because of a letter case is a
+  coincidence that has been re-run a hundred times.** The game is now named and
+  positioned as a tribute, so naming the original is the requirement, and the guard
+  that matters is the inverse: the credit must be PRESENT and must ATTRIBUTE —
+  publisher, designers, platform, year. My first attempt at the new guard was also
+  wrong (it forbade the title containing "Autoduel", which the tribute legitimately
+  does) and now pins that the name LEADING the title is OpenDuel.
+
+- **THE FLAKE IS CLOSED. It was unidentified for THREE rounds.** Four full suites
+  run concurrently reproduced it on demand, and every failure had one shape:
+
+      phase4 .................. Test timed out in 5000ms  (6951ms)
+      road trip menu .......... Test timed out in 5000ms  (6668ms)
+      pressing "f" ............ Test timed out in 5000ms  (5393ms)
+      a key with no binding ... expected exactly one ".sm-screen--city", found 0
+
+  Unloaded, each of those tests runs in a few hundred milliseconds. Under 4x
+  oversubscription a 450ms test was observed at **6668ms — roughly 15x**, which is
+  far more than the contention alone explains and is the signature of CPU
+  starvation, not a logic fault. The fourth failure was knock-on: the preceding
+  test timed out mid-boot, so the city screen never finished mounting. Fixed with a
+  per-file 30s timeout on the THREE files that boot the real app — deliberately not
+  a global `testTimeout`, because a global bump would also excuse a genuinely slow
+  new test, and this suite's value is that a 5s ceiling is tight enough to catch a
+  hang. Verified by re-running the exact condition: **8 consecutive clean concurrent
+  suites.** Iteration 1's note recorded this as an open unknown; it was not, it was
+  waiting to be provoked.
+
+- **THE README IS NOW GATED AGAINST THE GAME.** It quotes 16 cities, 26 routes, 15
+  facility kinds, 5 facings, 17 ruleset files; a test reads those from the same
+  sources the game reads and requires the labelled row to agree. Add a 17th city
+  and the build fails. **The first version of that gate searched the file for a
+  bare number and was worthless** — adding a 17th city left it GREEN, because "17"
+  already appeared in the ruleset-file row. *Presence is not attribution*, which is
+  the same defect as a URL-encoded badge that no grep matches. It now scopes each
+  assertion to its own row, and is mutation-proven in both directions.
+
+- **TEST COUNTS ARE FLOORS.** A figure that changes on every commit that adds a test
+  is falsified within a week, and pinning it gates nothing. The badge is gated in
+  its URL-encoded form too (`tests-1%2C592%2B%20passing`), because a badge is a
+  separate copy that a grep for the number never sees — measured, having been the
+  reason a figure stayed stale through two prose corrections in another repo.
+
+- **THREE BROKEN TOC ANCHORS, found by checking rather than by reading.** Emoji
+  heading slugs are renderer-dependent, and one link was a hand-typed `%EF%B8%8F`.
+  Headings now carry explicit `<a id>` anchors, gated by a test that also checks
+  fence balance and Mermaid diagram types.
+
+- **`docs/SPEC.md` WAS WRONG BY OVER-CLAIMING.** It asserted "No protected marks,
+  characters, maps, art, or text" — which the tribute card now contradicts, since it
+  names the game and its designers. Corrected to what is actually true: no
+  protected code, art, maps or data, with the original referenced for credit. A doc
+  that under-claims invites wasted work; one that over-claims is worse, because
+  someone will build a compliance story on it.
+
+- **`tools/accept-live.mjs`**, promoted from a throwaway. 20/20 against production,
+  asserting the four asks on the bundle the server is actually serving.
+
+- **GATE.** 1605/1605 across three parallel runs, serial, and eight concurrent
+  suites; browser 7/7; `tsc` clean.
