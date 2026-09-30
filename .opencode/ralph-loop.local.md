@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 35
+iteration: 36
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -8388,3 +8388,85 @@ become a third.
   resolution; it simply stops navigating there through the city, which is not
   what the assertion is about. `bootToCity` returns void today, so that setup is
   the next round's work.
+
+## ITERATION 136 — the fresh-session state had NO NAME, which is why nothing but the UI could build one
+
+Iteration 135 built the seam and the production autopilot and left one wiring
+task. This round took the first step of it and found that the task's blocker is
+not the test at all — it is that a piece of production logic has no name.
+
+- **THE OBSTACLE, STATED PRECISELY.** To call `showArenaEvent` directly the test
+  needs five values: `chargedDriver`, `playerVehicle`, `matchState`, `clock` and
+  `cityState`. Four come free from production constructors —
+  `beginArenaMatch(driver, null, 'amateur-night')` for the match,
+  `vehicleStateFromDesign(houseLoanerDesign(), 'veh-player', PLAYER_ID)` for
+  the loaner, `createDriver(...)` for the driver. The fifth, `cityState`, did not.
+  `CityRunState` has fourteen fields, and a test that hand-builds one is writing
+  a fourteenth copy of the same fact — which is the guessed-fixture trap this
+  log has now recorded twelve times, and it would be the worst instance yet
+  because the fabricated object would be the *input to the screen under test*.
+  So the test does not get to invent one, and the question became: how does
+  PRODUCTION build a fresh one?
+
+- **PRODUCTION BUILDS IT INLINE, INSIDE A CALLBACK, AND DUPLICATES IT.** The
+  literal lives inside the driver-creation callback in `startNewSession`, so it is
+  unreachable from anywhere but the UI flow. And it is not the only copy:
+  `cityRunStateFromSaveGame`'s own docblock says its per-field fallbacks are
+  "the same 'nothing yet' defaults a brand-new session starts with in
+  `startNewSession` below". **The defaults are written down twice with nothing
+  keeping them honest, and the log has the receipts for what that costs** —
+  `unmetRequirements` (84), `roadLegalityMisses` (92), the operational-kind set
+  (98), the city-decal count (82), `facilityMarkerFamily` (79), `daysPerMile`
+  (96), and now the vehicle body frame (120-125). Same shape every time: one
+  fact, two homes, and the drift lands wherever the second copy is read.
+
+- **SO IT IS NOW NAMED, AND BOTH COPIES ARE THE POINT.** `freshCityRunState`
+  is exported from `@/app` and the inline literal is gone; the fresh-session
+  path calls it. That is worth having on its own terms — a fourteen-field
+  default is exactly the kind of thing that should have a name — and it also
+  hands the DOM test a real constructor instead of a fabrication.
+  **`cityRunStateFromSaveGame` is deliberately NOT rewritten to call it.** Its
+  fallbacks are per-field and conditional (a save that captured the fleet
+  restores the fleet, one that did not gets the default), so routing it
+  through the fresh-session builder would change what a partial save resumes to.
+  The duplication is now at least VISIBLE — one named owner, one documented
+  acknowledgement of the other — instead of two anonymous literals that happen
+  to agree. Closing it properly is a `@/persist/save` schema change, and that is
+  not this round's work.
+
+- **AND I ALMOST REBUILT IT FROM MEMORY, which would have been the twelfth
+  instance wearing a new hat.** I had the fourteen fields in front of me and
+  was about to write the function by transcribing the literal. The check that
+  caught it was reading the CALL SITE rather than the type — the literal is the
+  authority for the defaults, and `CityRunState`'s own field docs describe
+  intent, not values. Transcribing from the call site is the same move as
+  typing a fixture from memory, and `AGENTS.md`'s rule is about both.
+
+- **GATE — and the scope measurement earned its place again.** The first full run
+  reported **5** failures across `screens.test.ts` and `road-trip-menu`, which is
+  three more than this branch's standing baseline and reads exactly like a
+  regression in a change that only renamed a literal. Measured rather than
+  argued: a second identical run gives **1513/1515 with 2 failures** — the
+  baseline — and in isolation only the documented `screens.test.ts`
+  campaign-"Continue" flake fails at all. The 5-failure reading was the
+  cross-file pollution iterations 87, 90 and 104 measured, and it appeared and
+  disappeared between two runs of the same tree.
+  That is now the fourth time in this log that a conclusion flipped on
+  measurement SCOPE rather than on any change to the game, and the rule has not
+  changed: when a number moves, the first question is not "what changed" but
+  "what was the scope of the thing I am comparing against". A remembered
+  lesson is not a control — only the second run is.
+
+- **STILL TO DO, AND IT IS NOW ONE CONSTRUCTOR, NOT A RESEARCH TASK.** The DOM
+  victory test builds its match with `createDriver` + `beginArenaMatch` +
+  `vehicleStateFromDesign(houseLoanerDesign(), ...)` + `freshCityRunState(...)`,
+  and calls `showArenaEvent` with `() => createArenaAutopilot(...).sample()` as
+  the seam added last round. No production surface beyond what already exists,
+  no fabricated fixture, and the assertion still drives the real screen, the
+  real loop and the real match resolution.
+
+- GATE: tsc clean. 1513/1515 tests, both failures the measured flakes
+  (confirmed twice — once as 5, once as 2, on the same tree). Build unchanged
+  in substance: `freshCityRunState` is called on the same path with the same
+  arguments, so the only difference is a name.
+

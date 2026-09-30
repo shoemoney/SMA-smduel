@@ -3307,6 +3307,45 @@ export interface CityRunState {
  * `CityRunState.arenaRecord` and on `persistArenaSession` above: it is
  * deliberately never save data.
  */
+/**
+ * The "nothing yet" run state a brand-new session starts with.
+ *
+ * WHY THIS IS NAMED RATHER THAN INLINE. `startNewSession` built this literal
+ * inside the driver-creation callback, so it could not be reached by anything
+ * but the UI flow — which is exactly why a DOM test could not build a
+ * `CityRunState` to hand `showArenaEvent` and had been reduced to fabricating
+ * one. And it was not only the test: `cityRunStateFromSaveGame`'s own docblock
+ * says its per-field fallbacks are "the same 'nothing yet' defaults a
+ * brand-new session starts with in `startNewSession`", so the defaults were
+ * written down TWICE with nothing keeping them honest. This is the same shape
+ * as `unmetRequirements` (84), `roadLegalityMisses` (92) and the facility-kind
+ * set (98): one fact, two homes, and the drift lands wherever the second copy
+ * is read.
+ */
+export function freshCityRunState(
+  driver: DriverState,
+  vehicle: VehicleState,
+  options: { sessionSeed: string; openDb: () => Promise<IDBDatabase>; search: string },
+): CityRunState {
+  return {
+    driver,
+    vehicle,
+    vehicleStored: false,
+    clock: initialClock(),
+    cityId: driver.cityId,
+    sessionSeed: options.sessionSeed,
+    openDb: options.openDb,
+    rng: createRng(options.sessionSeed).stream('driver'),
+    search: options.search,
+    rumorsHeardToday: new Map(),
+    activeCourierJobs: [],
+    fleet: { vehicles: [{ vehicle, stored: false, cityId: driver.cityId }] },
+    routeHistory: new Map(),
+    quests: [],
+    arenaRecord: { wins: 0, losses: 0 },
+  };
+}
+
 export function cityRunStateFromSaveGame(
   game: SaveGame,
   /** `null` resumes a driver who owns no car, the state `SaveGame.activeVehicleId`'s optionality has always described. They resume on foot, exactly where the save left them, rather than losing the run to a fresh session. */
@@ -7406,23 +7445,7 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
           driver,
           (chargedDriver, confirmed) => {
             const vehicle = vehicleStateFromConfirmedBuild(confirmed, PLAYER_ID);
-            const cityState: CityRunState = {
-              driver: chargedDriver,
-              vehicle,
-              vehicleStored: false,
-              clock: initialClock(),
-              cityId: chargedDriver.cityId,
-              sessionSeed,
-              openDb,
-              rng: createRng(sessionSeed).stream('driver'),
-              search,
-              rumorsHeardToday: new Map(),
-              activeCourierJobs: [],
-              fleet: { vehicles: [{ vehicle, stored: false, cityId: chargedDriver.cityId }] },
-              routeHistory: new Map(),
-              quests: [],
-              arenaRecord: { wins: 0, losses: 0 },
-            };
+            const cityState = freshCityRunState(chargedDriver, vehicle, { sessionSeed, openDb, search });
             showCity(root, cityState);
           },
           // Escape just restarts the constructor with a fresh (still legal,
