@@ -36,9 +36,18 @@ import 'fake-indexeddb/auto';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { drivingConfig } from '@/data/rulesets';
+import { drivingConfig, skillsConfig } from '@/data/rulesets';
 import { generateCityLayout } from '@/sim/city';
-import { getArenaEvent, type ArenaEventId } from '@/sim/arena';
+import { beginArenaMatch, getArenaEvent, houseLoanerDesign, type ArenaEventId } from '@/sim/arena';
+import { createArenaAutopilot } from '@/sim/arena-autopilot';
+import { createDriver } from '@/sim/driver';
+import {
+  PLAYER_ID,
+  freshCityRunState,
+  showArenaEvent,
+  vehicleStateFromDesign,
+} from '@/app';
+import type { SkillName } from '@/sim/types';
 import { t } from '@/ui/strings';
 
 // ---------------------------------------------------------------------------
@@ -346,6 +355,124 @@ async function becomeCarlessThenEnterAmateurNight(sessionSeed: string): Promise<
 }
 
 // ---------------------------------------------------------------------------
+// Direct arena mount: the REAL screen with the REAL autopilot as its input
+// source.
+//
+// WHY THIS EXISTS ALONGSIDE THE CITY WALK ABOVE. Reaching `showArenaEvent`
+// by walking the city means the match is entered through the facility chain,
+// which builds its own match internally and therefore cannot be handed a test
+// input source. The victory test needs one — its old fixed key schedule only
+// ever won through the 90-degree body-frame bug (iterations 122-125), and the
+// replacement drivers written for it structurally could not clear a roster at
+// all: aiming without evading dies, evading without aiming never connects.
+// So the test builds the real match with production constructors and mounts
+// the real screen directly.
+//
+// WHAT THAT TRADES AWAY, STATED PLAINLY: this test no longer walks the city.
+// The loss test beside it still does, on every run, through the real gate and
+// the real carless path, so the entry chain keeps its coverage — a victory test
+// and a loss test cannot both be the only proof of the same walk.
+// ---------------------------------------------------------------------------
+
+const ARENA_EVENT_ID = 'amateur-night';
+
+/**
+ * A seed `tests/integration/arena-victory.test.ts` already swept for THIS
+ * exact event with THIS exact autopilot clearing the roster, and that file is
+ * the authority on the number rather than this one: it measured 57.3% over 40
+ * seeds with the same bot. Copying a proven value out of the file that
+ * established it is the alternative to re-sweeping it here, and this test
+ * deliberately asserts no property of that seed — a different winning seed
+ * would satisfy every assertion below just as well.
+ */
+const AMATEUR_NIGHT_VICTORY_SEED = 'sweep-seed-500';
+
+/**
+ * A marksman-heavy split, DERIVED from the ruleset rather than typed.
+ *
+ * `skills.json` states the pool (50) and the per-skill clamp (0..99), and
+ * `createDriver` refuses anything that does not satisfy both — so the numbers
+ * here are computed, not recalled, and a future pool or cap change cannot
+ * quietly make the fixture illegal. This exists because the sibling test's own
+ * split is a deliberate choice with a long comment explaining why an even one
+ * lost to better-armed opponents, and copying that reasoning from a type would
+ * be the fixture-from-memory trap `AGENTS.md` is written about.
+ */
+function arenaTestSkills(): Record<SkillName, number> {
+  const cfg = skillsConfig();
+  const base = Math.floor(cfg.startingSkillPool / cfg.skills.length);
+  const skills = {} as Record<SkillName, number>;
+  for (const name of cfg.skills) skills[name] = base;
+  // Everything that is not marksmanship moves into marksmanship, within the
+  // ruleset's own clamp, so the total still equals `startingSkillPool`.
+  let spare = cfg.startingSkillPool - base * cfg.skills.length;
+  for (const name of cfg.skills) {
+    if (name === 'marksmanship') continue;
+    const take = Math.min(spare, cfg.skillMax - skills[name]);
+    skills[name] += take;
+    spare -= take;
+  }
+  skills.marksmanship = Math.min(cfg.skillMax, skills.marksmanship + spare);
+  return skills;
+}
+
+/**
+ * Mounts the real arena screen over a freshly built amateur-night match and
+ * drives its input from the production autopilot.
+ *
+ * The autopilot is built ONCE and memoized, and that is load-bearing rather
+ * than tidier: `createArenaAutopilot` holds a sticky target lock in closure
+ * state, so constructing it inside the per-tick override would hand back a
+ * brand-new driver on every sample and the car would never stop re-acquiring —
+ * which reads as "the autopilot cannot aim" rather than as the bug it is. The
+ * first sample is what has a world to lock a target from.
+ */
+function mountAmateurNightWithAutopilot(root: HTMLElement, sessionSeed: string): void {
+  const skillResult = createDriver('Arena Tester', arenaTestSkills());
+  if (!skillResult.ok) throw new Error(`test fixture: expected a legal skill split, got "${skillResult.reason}"`);
+  const driver = skillResult.driver;
+
+  // `null` vehicle: amateur-night is entered on foot (see
+  // `eligibilityFor`'s `on-foot-under-threshold` case), so eligibility has
+  // nothing to check — the same argument `showArenaEvent` passes itself.
+  const matchResult = beginArenaMatch(driver, null, ARENA_EVENT_ID);
+  if (!matchResult.ok) {
+    throw new Error(`test fixture: expected ${ARENA_EVENT_ID} to be enterable, got "${matchResult.reason}"`);
+  }
+
+  // The REAL loaner `showArenaEvent` hands a carless entrant, not the
+  // opponents' kart — the same distinction arena-victory.test.ts made when
+  // amateur-night proved unplayable the other way.
+  const playerVehicle = vehicleStateFromDesign(houseLoanerDesign(), 'veh-player', PLAYER_ID);
+  const cityState = freshCityRunState(driver, playerVehicle, {
+    sessionSeed,
+    openDb: () => Promise.reject(new Error('test: no save database')),
+    // `endMatch` only mounts the score-submit screen when
+    // `arcadeScoringEnabled` is true, and that reads `cityState.search` for
+    // `arcade=1` (`@/arcade/client`) — the same `BootOptions.search` the city
+    // walk passed through. Without it the match resolves into `onComplete`
+    // instead and the screen this whole test exists to assert never appears,
+    // which looks exactly like "the roster did not clear".
+    search: 'arcade=1',
+  });
+
+  let autopilot: ReturnType<typeof createArenaAutopilot> | null = null;
+  showArenaEvent(
+    root,
+    matchResult.driver,
+    playerVehicle,
+    matchResult.state,
+    cityState.clock,
+    cityState,
+    () => {},
+    (world) => {
+      autopilot ??= createArenaAutopilot(world, playerVehicle.id, 'competent');
+      return autopilot.sample();
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Combat script: a FIXED, non-reactive key schedule (see the file header).
 // Neither schedule below ever steers: `showArenaEvent` exposes no world
 // state to react to, and a steering schedule was tried first (found offline
@@ -529,19 +656,27 @@ describe('showArenaEvent: the match ends itself', () => {
   });
 
   it('clearing amateur-night\'s real roster ends the match automatically and shows the score submit screen, with no click — and a stale click afterward cannot resolve it twice', async () => {
-    await bootToCity(root, WIN_SEED, 'arcade=1');
-    await becomeCarlessThenEnterAmateurNight(WIN_SEED);
+    // The arena's WebGPU probe resolves on a microtask before its `.finally()`
+    // registers the first frame, exactly as in `bootToCity`.
+    installRafStub();
+    simNowMs = 0;
+    mountAmateurNightWithAutopilot(root, AMATEUR_NIGHT_VICTORY_SEED);
+    await flushMicrotasks();
+    await flushMicrotasks();
 
     // Captured BEFORE the match resolves, and never re-queried — a real
     // player's device could still deliver a queued click to this exact node
     // after the screen has already moved on.
     const staleExitBtn = findArenaExitButton();
 
-    const driver = makeCombatDriver(winScheduleAt);
-    // Comfortably past the offline-measured win tick (1102) plus the full
-    // arenaOutcomeDelayMs beat (1200ms = 72 ticks). `advanceTo` stops on its
-    // own once the match resolves, so overshooting this is harmless.
-    driver.advanceTo(3000);
+    // The autopilot is the sim's own competent bot, and
+    // `arena-victory.test.ts` already measures it clearing this exact roster
+    // at 57.3% over 40 seeds, so no seed search is involved here: this
+    // asserts the SCREEN's resolution path, not that the fight is winnable.
+    // 3000 ticks is comfortably past the measured win tick plus the full
+    // `arenaOutcomeDelayMs` beat, and `advanceTicks` stops on its own once the
+    // match resolves, so overshooting is harmless.
+    advanceTicks(3000);
 
     expect(document.querySelectorAll('.sm-screen--arena').length).toBe(0);
     expect(document.querySelectorAll('.sm-screen--arcade-submit').length).toBe(1);

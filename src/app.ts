@@ -3857,7 +3857,24 @@ export function arenaExitVehicle(activeBeforeEntry: VehicleState | null, foughtI
   return loaned ? activeBeforeEntry : foughtIn;
 }
 
-function showArenaEvent(
+/**
+ * The real competitive-arena screen — the one a paid Championship entry
+ * mounts, and the one `?screen=arena-event` routes to.
+ *
+ * Exported for the same reason `inputOverride` below exists, and the two are
+ * one decision rather than two. A DOM test cannot reach this closure by
+ * navigating the city, because the facility chain calls it internally and
+ * would have to thread the test seam through `mountFacility` and the whole
+ * arena-entry path to get there — which is a worse design than the parameter
+ * already added. Driving it directly instead means the test builds the real
+ * match itself and asserts on the real screen, the real loop and the real
+ * match resolution; what it gives up is the CITY NAVIGATION, which the sibling
+ * loss test still walks for real on every run.
+ *
+ * The other arena screen, `showArena` (the free practice field), stays private:
+ * nothing needs to reach it, and `?screen=arena` already mounts it.
+ */
+export function showArenaEvent(
   root: HTMLElement,
   chargedDriver: DriverState,
   playerVehicle: VehicleState,
