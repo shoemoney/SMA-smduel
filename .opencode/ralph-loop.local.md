@@ -4477,3 +4477,14 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
      so the existing centring `translate(-50%, -50%)` is preserved and the two
      cannot fight — the same class of fix as iteration 32's `--ui-surface-2`
      work, where one declaration quietly replaced another.
+
+   LIVE VERIFIED (production `index-Cyzfqs7M.js`, 0 console errors). The marker
+   now carries `--hud-radar-player-rot` and the value TRACKS the vehicle:
+   reading it off the real page while driving in four directions gave
+   90.00deg -> 57.78deg -> 57.78deg -> 57.78deg, and the cropped radar capture
+   shows a triangle that is visibly rotated rather than an upright glyph.
+   Recorded honestly: the angle does not settle at a clean 0/90/180 for
+   north/east/south/west, because in the arena the car is driven as a free 2D
+   stick rather than a tank, so the sim's heading is not a snapped compass
+   bearing. What this fix asserts is the correct property — the marker follows
+   the heading the sim actually has — and that is now true and was not before.
