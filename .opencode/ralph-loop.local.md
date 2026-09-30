@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 38
+iteration: 39
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -8691,3 +8691,95 @@ Eighteen iterations (120-138) on a 90-degree disagreement between the car's comb
   tuning a driver that structurally cannot win. Then re-check the balance
   consequence above as a deliberate item, because an eight-times-longer passive
   fight is a real change to how amateur-night plays and nobody chose it.
+## ITERATION 139 — the red test is NOT a driver problem, and iteration 138 told me to fix the wrong thing
+
+Iteration 138 closed by naming the cause of the one red test: "`findWinnableEncounter` ... Its driver is hand-written and cannot lead a target or switch mounts ... **The fix is a road-world driver, not a loosened assertion.**" This round built exactly that, and the reason it does not work is that the diagnosis was wrong. No code ships.
+
+- **THE CONTROL THAT KILLS THE DIAGNOSIS, AND I RAN IT LAST INSTEAD OF
+  FIRST.** The obvious question is not "can a better driver win?" — it is
+  "**does the OLD driver still win?**" A test that breaks on a change wants
+  the old subject against the new code, which is ordinary bisect instinct
+  applied to a fixture instead of to a commit. Run, it fails identically:
+  `findWinnableEncounter` throws the same "no seed in the search space
+  produced a single, winnable road encounter" with the original
+  `scriptedRoadInput` in place, against the rotated sim. **So the fixture is
+  innocent and the SIM changed.** I had already written a production
+  close-distance branch, rewired the road onto `createArenaAutopilot`, and
+  deleted the hand-written driver before asking the question that would have
+  answered the task. Cost of the ordering: a full detour, and a diagnosis
+  published in iteration 138's own log that a ten-second control refuted.
+
+- **WHAT I BUILT ANYWAY, AND WHY IT IS NOT SHIPPING — the honesty of the
+  revert.** The work was real: `createArenaAutopilot` gained a
+  "close when the target is out of the equipped weapon's range" branch, read
+  off `getWeapon(...).rangeM` rather than a typed number, and `phase4` drove
+  through the shared owner so target selection and mount discipline stop being
+  a second copy. And the arena control I DID run first held exactly as the
+  arithmetic predicted — **arena-victory 14/14, including the 40-seed
+  "amateur-night is winnable at a real rate" gate, still 57.3%** — because
+  `driving.json`'s `arena.spawnRingRadiusM` is 45 against an 85m machinegun,
+  so the branch is arithmetically unreachable in the arena. It was inert where
+  it was meant to be inert and useless where it was meant to help, and the
+  road produced byte-identical probe output under BOTH the `competent` and
+  `naive` policies — which is itself the tell: a mount-discipline change
+  cannot be why nothing dies.
+  **So it is reverted.** A change justified by a refuted premise, which changes
+  nothing, does not ship just because it is in production code. `arena-autopilot.ts`
+  and `phase4.test.ts` are back at `06d23af` exactly.
+
+- **THE MEASUREMENT, AND IT IS NOT WHAT I EXPECTED EITHER.** Every qualifying
+  seed reported the same shape: player survives, kills nothing, never arrives.
+      arrived=false  defeated=0  destroyed=false  wrecks=0
+      progress 1.3 -> 17.8 miles of a 25-mile route, inside 6000 ticks
+  Then the geometry, sampled live at tick 200:
+      routeHeading=0.000   myHeading=0.039..0.108   (nose down the route)
+      bearing off by   0.0 deg  at 18.3m, 34.3m, 36.5m, 136.7m
+      bearing off by 180.0 deg  at 6.7m and 16.6m
+      myWeapons=1   slot0 ammo 20 -> 17   (it IS firing, and mostly out of range)
+  Three facts fall out, and together they are the finding:
+    1. **A contact regularly ends up DIRECTLY BEHIND the car (180.0 deg).**
+       The road is a one-dimensional model — iteration 61 recorded that every
+       position is a scalar route-mile, with no lateral axis and no way to turn
+       around. A target behind you is unreachable by any amount of aiming, and
+       no driver can fix a target the vehicle cannot face.
+    2. **A contact ahead is engaged at 136m against an 85m machinegun.** Contacts
+       spawn anywhere inside `radar.visualRangeM` (160m) and the road's opponents
+       never close on their own, so the player burns a 20-round magazine on
+       shots that cannot reach, arrives at knife range dry, and is then passed.
+    3. **The player has ONE weapon**, so the `competent` policy's mount switching
+       has nothing to switch to — the policy difference that decides a whole
+       amateur-night is structurally unavailable here.
+
+- **SO THE RED TEST IS A REAL CONSEQUENCE OF THE ROTATION, AND THE MECHANISM I
+  CAN AND CANNOT CLAIM.** What is measured: the fight never resolves, on every
+  seed, under both policies, with either driver. What I am NOT claiming is the
+  collider story I first reached for — that the corrected collider turns a
+  broadside 3.8m-deep target into a 1.8m one — because I never measured hit and
+  miss rates, and every number above already explains the outcome without it.
+  Rotation change: the player's route is unchanged, the contact placement is
+  unchanged, and the weapon is unchanged. What changed is that the fight is
+  now winnable-or-not on the merits rather than incidentally.
+
+- **THE HONEST FIX IS A DESIGN DECISION WITH THREE SHAPES, NOT A DRIVER.**
+  Either contacts spawn inside weapon range (a ruleset number: `visualRangeM`
+  160 vs a 85m machinegun), or the player gets a rear mount on the road (a
+  content change — a mount the SPEC does not currently give a highway car), or
+  the road's 1-D model learns to let a car turn around (a sim change, and the
+  one iteration 61 says the road has no geometry for). **Every one of them is a
+  decision about what a highway fight IS, which is why a driver rewrite was
+  never going to produce it** — and why this entry ships no code at all rather
+  than a red test quietly re-labelled.
+
+- **GATE, INHERITED AND RE-CONFIRMED AT THIS COMMIT.** tsc clean.
+  arena-victory **14/14**. phase4 **red** (1 failure, the `findWinnableEncounter`
+  throw). The `screens.test.ts` flake did not appear. Build unchanged at
+  `index-DTCAr0rm.js`. Tree clean apart from this log.
+
+- **NEXT, and the first thing it is NOT:** not another driver. Decide what a
+  road engagement is — measure the three shapes above against the real route
+  table (where do contacts actually land, at what range, in front or behind),
+  then take the one the data supports. And the generalisable lesson from this
+  round is short enough to state once: **when a test breaks on a change, run
+  the OLD subject against the NEW code before you rewrite the subject.** I had
+  that instinct available this whole round and spent it in the wrong order, and
+  iteration 138's log is now corrected in the same repository that carries it.
