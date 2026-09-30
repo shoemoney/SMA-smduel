@@ -9793,3 +9793,54 @@ collaborators in full first, and the answer was not a design question at all.
   corrected physics in place, which is close to the pre-rotation 347 — worth
   noting as a balance observation, but it is a consequence of two bug fixes
   rather than a tuning change, and nobody has chosen it.
+
+- **DEPLOYED.** Release `20260930140846-7a8cc2b`, bundle `index-C5_m3G6-.js`.
+  Whole-site snapshot first, atomic swap, root + smduel + last-engineer +
+  shoplifter all 200, and the served bundle hash equals the local build's — the
+  check that exists because iteration 81 shipped the previous build while every
+  gate was green. The deployer's own hash guard fired correctly on my first
+  attempt because I ran it without the expected-hash argument; that guard is the
+  single most valuable line in the script.
+  `?event=amateur-night` REFUSES a non-null vehicle by its own eligibility rule
+  (it is the on-foot event), so the route warned and declined rather than
+  mounting — which is the contract the route documents, verified by its failure.
+
+- **LIVE A/B AGAINST THE PREVIOUS BUILD, and the first attempt was INCONCLUSIVE
+  — which is worth recording because I nearly reported it as a pass.** Serving
+  HEAD~1 locally (`index-CIaU4Z3n`) and driving BOTH with a steering input,
+  both builds resolved the match in about the same time. That is not evidence
+  the fix does nothing: my probe STEERS, and steering gives the car speed, and
+  speed is what lets the old build recover from a reverse-order decision. The
+  probe was dissolving the very condition the fix addresses.
+  The separating case is a PASSIVE player, which is what the deadlock needs.
+  Same seed `a11ce5ee`, same keys (none held), same page shape, only the bundle
+  differs:
+
+      OLD  index-CIaU4Z3n (no clamp)
+        t=2.6s   arena up, 3 hostile, FRONT 2/2
+        t=7.8s   arena up, 3 hostile, FRONT 1/2   <- damaged once
+        ...      FRONT FROZEN at 1/2 for 21 seconds, REAR never touched,
+                 three contacts parked, nothing moving
+      NEW  index-C5_m3G6- (clamp)
+        t=2.6s   arena up, 3 hostile, all five facings 2/2
+        t=5.2s   REAR 0/2 DESTROYED, roster cleared
+        t=5.2s+  arena unmounted — match resolved
+
+  On the old build the three opponents reverse-park: they land one hit on FRONT
+  and then freeze for as long as you care to watch. On the new build they
+  converge, get behind the player, and strip the REAR facing to zero. That is
+  the steering cone doing exactly what the sim's own comment says a reversing
+  car cannot do.
+  The readings are disambiguated rather than assumed: `hostile=0` is ambiguous
+  on its own (iteration 125's "roster cleared" and "radar gone" are the same
+  observation), so the probe also reads whether `.sm-screen--arena` is still
+  mounted, and only the sample where the arena is UP with a cleared roster —
+  the outcome delay window — reads as a kill. 0 page errors on both.
+
+- **THE GAME-LEVEL CLAIM IS UNCHANGED AND STILL THE STRONG ONE.** The live
+  passive A/B is on `division-5`, which the reviewer's rig uses; the
+  mechanism was measured in `amateur-night` through the real `showArenaEvent`
+  in-process, where heading error went from -176 to +22 degrees and the
+  player's RIGHT facing went 24 -> 0. The two agree, and the live one needed a
+  control (the previous build, served locally) that the in-process one gets
+  from re-running the identical probe.
