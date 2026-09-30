@@ -15,7 +15,7 @@ import type { AIPersonality } from '@/sim/ai';
 import { computeBuild } from '@/sim/construct';
 import { facingForLocalDirection, rotateVec, subtractVec, vecLength, type PenetrationReport } from '@/sim/damage';
 import { addPrestige, addSkill, losePrestige } from '@/sim/driver';
-import { FACINGS } from '@/sim/types';
+import { FACINGS, VEHICLE_LOCAL_FACING } from '@/sim/types';
 import type { DriverState, Facing, MountedWeapon, ServiceId, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
 import arenasJson from '@rulesets/classic/arenas.json';
 import encountersJson from '@rulesets/classic/encounters.json';
@@ -893,10 +893,12 @@ export function computeArenaSpawnPositions(
 // ---------------------------------------------------------------------------
 // Oriented-rectangle geometry (bodies.json's colliderLengthM/colliderWidthM)
 // for vehicle-vs-vehicle and projectile-vs-vehicle collision. Local frame
-// matches `@/sim/combat`'s own mount convention (FRONT/REAR along local Y,
-// LEFT/RIGHT along local X — see its `FACING_LOCAL_UNIT` table), reached via
-// the exact `rotateVec`/`subtractVec` `@/sim/damage` and `@/sim/ai` already
-// use for this same rotation, not a second hand-typed transform.
+// matches `VEHICLE_LOCAL_FACING` in `@/sim/types` (FRONT/REAR along local X,
+// LEFT/RIGHT along local Y), reached via the exact `rotateVec`/`subtractVec`
+// `@/sim/damage` and `@/sim/ai` already use for this same rotation, not a
+// second hand-typed transform. That table is the owner of the frame; this
+// module used to keep a second copy of the convention, and that copy is what
+// the 90-degree aim bug lived in.
 // ---------------------------------------------------------------------------
 
 export interface OrientedRect {
@@ -924,19 +926,25 @@ function clampNum(value: number, min: number, max: number): number {
 /** True when a circle (a travelling projectile, radius `driving.json`'s `collision.projectileRadiusM`) overlaps an oriented rectangle (a vehicle's collider). */
 export function circleIntersectsOrientedRect(circleCenter: Vec2, circleRadiusM: number, rect: OrientedRect): boolean {
   const local = rotateVec(subtractVec(circleCenter, rect.center), -rect.headingRad);
-  const clampedX = clampNum(local.x, -rect.halfWidthM, rect.halfWidthM);
-  const clampedY = clampNum(local.y, -rect.halfLengthM, rect.halfLengthM);
+  // Length on local X, width on local Y — `VEHICLE_LOCAL_FACING`'s frame. This
+  // function had NO TEST until the rotation landed, which is why a wide-short
+  // collider survived 120 iterations: a collider is invisible until a shot
+  // misses the nose it was aimed at.
+  const clampedX = clampNum(local.x, -rect.halfLengthM, rect.halfLengthM);
+  const clampedY = clampNum(local.y, -rect.halfWidthM, rect.halfWidthM);
   const dx = local.x - clampedX;
   const dy = local.y - clampedY;
   return dx * dx + dy * dy <= circleRadiusM * circleRadiusM;
 }
 
 function rectAxes(rect: OrientedRect): readonly [Vec2, Vec2] {
-  // Local +Y (FRONT/REAR) and +X (LEFT/RIGHT) rotated into world space —
+  // Local +X (FRONT/REAR) and +Y (LEFT/RIGHT) rotated into world space —
   // the same rotation `vehicleOrientedRect`'s local frame is built from,
-  // applied forward instead of inverted.
-  const forward = rotateVec({ x: 0, y: 1 }, rect.headingRad);
-  const right = rotateVec({ x: 1, y: 0 }, rect.headingRad);
+  // applied forward instead of inverted. A SECOND independent copy of the
+  // convention, in this same file, which the rotation's original finding did
+  // not name.
+  const forward = rotateVec(VEHICLE_LOCAL_FACING.FRONT, rect.headingRad);
+  const right = rotateVec(VEHICLE_LOCAL_FACING.RIGHT, rect.headingRad);
   return [forward, right];
 }
 

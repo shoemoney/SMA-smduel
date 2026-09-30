@@ -11,6 +11,7 @@ import type {
   DriverState,
   Facing,
   MineDeployable,
+  PenetratingFacing,
   TireDef,
   TireDPTuple,
   Vec2,
@@ -41,7 +42,8 @@ export function vecLength(v: Vec2): number {
  * produce. UNDERBODY is reachable only via mines (`applyMineDamage`), never via the
  * quadrant test, so it is deliberately excluded from this type.
  */
-export type PenetratingFacing = 'FRONT' | 'REAR' | 'LEFT' | 'RIGHT';
+/** Moved to `@/sim/types` so it sits beside `VEHICLE_LOCAL_FACING`, the table that gives those facings their directions. Re-exported here because callers already import it from this module. */
+export type { PenetratingFacing };
 
 export function isPenetratingFacing(facing: Facing): facing is PenetratingFacing {
   return facing !== 'UNDERBODY';
@@ -54,10 +56,13 @@ export function isPenetratingFacing(facing: Facing): facing is PenetratingFacing
  * Exact diagonals (abs(x) === abs(y)) fall through to the FRONT/REAR branch.
  */
 export function facingForLocalDirection(local: Vec2): PenetratingFacing {
-  if (Math.abs(local.x) > Math.abs(local.y)) {
-    return local.x > 0 ? 'RIGHT' : 'LEFT';
+  // Y decides LEFT/RIGHT and X decides FRONT/REAR — the inverse of what this
+  // read before the body-local rotation, because the nose is local +X. See
+  // `VEHICLE_LOCAL_FACING` in `@/sim/types` for the full derivation.
+  if (Math.abs(local.y) > Math.abs(local.x)) {
+    return local.y > 0 ? 'LEFT' : 'RIGHT';
   }
-  return local.y > 0 ? 'FRONT' : 'REAR';
+  return local.x > 0 ? 'FRONT' : 'REAR';
 }
 
 /**

@@ -3,8 +3,8 @@ import { createRng } from '@/util/rng';
 import type { Rng } from '@/util/rng';
 import { getWeapon } from '@/data/rulesets';
 import { applyPenetratingDamage } from '@/sim/damage';
-import { makeArmorRecord } from '@/sim/types';
-import type { DriverState, VehicleState, WeaponState } from '@/sim/types';
+import { makeArmorRecord, VEHICLE_LOCAL_FACING } from '@/sim/types';
+import type { DriverState, Vec2, VehicleState, WeaponState } from '@/sim/types';
 import {
   activeWeapons,
   coneAngleDeltaDeg,
@@ -76,8 +76,29 @@ function stubRng(overrides: Partial<Rng> = {}): Rng {
   return { ...createRng('stub-base'), ...overrides };
 }
 
-const AHEAD = { position: { x: 0, y: 50 }, headingRad: 0 };
-const BEHIND = { position: { x: 0, y: -50 }, headingRad: 0 };
+/**
+ * Built from `VEHICLE_LOCAL_FACING` rather than hand-placed. These two
+ * fixtures were `{x:0, y:±50}` against the OLD body-local frame, and every
+ * test in this file inherited which way the nose pointed without saying so —
+ * which is why `the vehicle forward convention` (the end-to-end test that
+ * derives forward from `headingRad`, the way the renderer does) disagreed with
+ * the rest of the file for as long as the 90-degree bug existed.
+ */
+const AHEAD = { position: { x: VEHICLE_LOCAL_FACING.FRONT.x * 50, y: VEHICLE_LOCAL_FACING.FRONT.y * 50 }, headingRad: 0 };
+const BEHIND = { position: { x: VEHICLE_LOCAL_FACING.REAR.x * 50, y: VEHICLE_LOCAL_FACING.REAR.y * 50 }, headingRad: 0 };
+
+/** A point `d` metres along `facing`'s centerline, straight off the owner table. */
+function alongFacing(facing: 'FRONT' | 'REAR' | 'LEFT' | 'RIGHT', d: number): Vec2 {
+  const u = VEHICLE_LOCAL_FACING[facing];
+  return { x: u.x * d, y: u.y * d };
+}
+
+/** A point `deg` degrees off `facing`'s centerline, rotated CCW from it. */
+function offCenterline(facing: 'FRONT' | 'REAR' | 'LEFT' | 'RIGHT', deg: number, d = 100): Vec2 {
+  const rad = (deg * Math.PI) / 180;
+  const u = VEHICLE_LOCAL_FACING[facing];
+  return { x: (u.x * Math.cos(rad) - u.y * Math.sin(rad)) * d, y: (u.x * Math.sin(rad) + u.y * Math.cos(rad)) * d };
+}
 
 // ---------------------------------------------------------------------------
 // Step 1: validation
@@ -205,8 +226,10 @@ describe('fire — spawn by mode', () => {
     const result = fire({ vehicle: v, weaponSlotIndex: 0, target: AHEAD, ctx, tick: 0, spawnedEntityId: 'p1', deployDropOffsetM: 3 });
     expect(result.spawn?.kind).toBe('PROJECTILE');
     if (result.spawn?.kind === 'PROJECTILE') {
-      expect(result.spawn.projectile.velocity.y).toBeCloseTo(weaponDef.projectileSpeedMps ?? 0);
-      expect(result.spawn.projectile.velocity.x).toBeCloseTo(0);
+      const speed = weaponDef.projectileSpeedMps ?? 0;
+      // The mount's OWN world direction, from the owner table at heading 0.
+      expect(result.spawn.projectile.velocity.x).toBeCloseTo(VEHICLE_LOCAL_FACING.FRONT.x * speed);
+      expect(result.spawn.projectile.velocity.y).toBeCloseTo(VEHICLE_LOCAL_FACING.FRONT.y * speed);
       expect(result.spawn.projectile.maxRangeM).toBe(weaponDef.rangeM);
     }
   });
@@ -223,7 +246,7 @@ describe('fire — spawn by mode', () => {
     expect(result.spawn?.kind).toBe('DEPLOYABLE');
     if (result.spawn?.kind === 'DEPLOYABLE') {
       expect(result.spawn.deployable.deployable.kind).toBe('MINE');
-      expect(result.spawn.deployable.position).toEqual({ x: 0, y: -3 });
+      expect(result.spawn.deployable.position).toEqual(alongFacing('REAR', 3));
     }
   });
 
@@ -351,11 +374,12 @@ describe('effectiveHitChance', () => {
 
 describe('coneAngleDeltaDeg — the flamethrower\'s actual firing arc', () => {
   it('is 0 for a target dead ahead of the mount centerline', () => {
-    expect(coneAngleDeltaDeg({ x: 1, y: 0 }, 'RIGHT')).toBeCloseTo(0);
+    expect(coneAngleDeltaDeg(alongFacing('RIGHT', 1), 'RIGHT')).toBeCloseTo(0);
   });
 
   it('is 90 for a target exactly perpendicular to the mount centerline', () => {
-    expect(coneAngleDeltaDeg({ x: 0, y: 1 }, 'RIGHT')).toBeCloseTo(90);
+    // Perpendicular to RIGHT: a quarter turn off its centerline, same distance.
+    expect(coneAngleDeltaDeg(offCenterline('RIGHT', 90, 1), 'RIGHT')).toBeCloseTo(90);
   });
 });
 
@@ -366,8 +390,8 @@ describe('validateFire — CONE weapons are gated by coneHalfAngleDeg, not the 9
       position: { x: 0, y: 0 },
       weapons: [weaponState({ weaponId: 'flamethrower', facing: 'RIGHT', dp: 3 })],
     });
-    // Directly on the RIGHT mount's centerline (world +x), any distance.
-    expect(validateFire(v, 0, { x: 100, y: 0 })).toMatchObject({ ok: true });
+    // Directly on the RIGHT mount's centerline, any distance.
+    expect(validateFire(v, 0, alongFacing('RIGHT', 100))).toMatchObject({ ok: true });
   });
 
   it('a target 40 degrees off centerline is still inside the RIGHT quadrant (< 45deg) but OUTSIDE the flamethrower\'s 26-degree half-angle, and must fail', () => {
@@ -378,11 +402,15 @@ describe('validateFire — CONE weapons are gated by coneHalfAngleDeg, not the 9
       position: { x: 0, y: 0 },
       weapons: [weaponState({ weaponId: 'flamethrower', facing: 'RIGHT', dp: 3 })],
     });
-    const angleRad = (40 * Math.PI) / 180;
-    const target = { x: 100 * Math.cos(angleRad), y: 100 * Math.sin(angleRad) };
-    // Sanity check: this target really is in the RIGHT quadrant by the old
-    // (too-permissive) test, so this is the exact case the bug let through.
-    expect(Math.abs(target.x)).toBeGreaterThan(Math.abs(target.y));
+    const target = offCenterline('RIGHT', 40);
+    // Sanity check: this target really is inside RIGHT's 90-degree quadrant, so
+    // this is the exact case the quadrant test lets through and the cone
+    // half-angle has to catch.
+    // Inside RIGHT's quadrant: the component ALONG RIGHT's centerline exceeds the
+    // one across it. Both read off the owner, so this sanity check is about the
+    // geometry rather than about a coordinate somebody typed.
+    const u = VEHICLE_LOCAL_FACING.RIGHT;
+    expect(Math.abs(target.x * u.x + target.y * u.y)).toBeGreaterThan(Math.abs(target.x * -u.y + target.y * u.x));
     expect(validateFire(v, 0, target)).toMatchObject({ ok: false, reason: 'WRONG_FACING' });
   });
 
@@ -392,12 +420,13 @@ describe('validateFire — CONE weapons are gated by coneHalfAngleDeg, not the 9
       position: { x: 0, y: 0 },
       weapons: [weaponState({ weaponId: 'flamethrower', facing: 'RIGHT', dp: 3 })],
     });
-    const edgeRad = (26 * Math.PI) / 180;
-    const justPastRad = (27 * Math.PI) / 180;
-    const atEdge = { x: 100 * Math.cos(edgeRad), y: 100 * Math.sin(edgeRad) };
-    const pastEdge = { x: 100 * Math.cos(justPastRad), y: 100 * Math.sin(justPastRad) };
-    expect(validateFire(v, 0, atEdge)).toMatchObject({ ok: true });
-    expect(validateFire(v, 0, pastEdge)).toMatchObject({ ok: false, reason: 'WRONG_FACING' });
+    // Bracketed either side of the 26-degree edge rather than sitting ON it.
+    // A target built at EXACTLY 26.0 could land one ULP either side of the
+    // production `>` and turn this into a coin flip — which it was, and did,
+    // when the frame it rode on changed. This test asserts the boundary, not
+    // the arithmetic.
+    expect(validateFire(v, 0, offCenterline('RIGHT', 25))).toMatchObject({ ok: true });
+    expect(validateFire(v, 0, offCenterline('RIGHT', 26.5))).toMatchObject({ ok: false, reason: 'WRONG_FACING' });
   });
 });
 
@@ -434,10 +463,92 @@ describe('rollDamage', () => {
 // Geometry helpers used by the pipeline
 // ---------------------------------------------------------------------------
 
+/**
+ * THE END-TO-END PROOF, and the one test in this file that must not be
+ * rewritten from the table.
+ *
+ * It derives the car's rendered nose the way the RENDERER does — from
+ * `headingRad`, which is what `rotationRad: vehicle.headingRad` hands the
+ * sprite shader — and asserts a FRONT-mounted shot leaves along it at all four
+ * cardinal headings, by cosine similarity.
+ *
+ * It does not appear anywhere else in the log as written, because it was
+ * written in iteration 121, failed as predicted, and went back out with the
+ * rest of the reverted rotation. What survived was a comment in a fixture
+ * citing it — a comment describing a test that did not exist, which is the
+ * stale-comment class this log has now hit four times. The comment is accurate
+ * as of this round and false for every commit between 121 and now.
+ */
+describe('the vehicle forward convention', () => {
+  const CARDINALS = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+
+  it('a FRONT-mounted shot leaves along the RENDERED nose at every cardinal heading', () => {
+    for (const headingRad of CARDINALS) {
+      const v = vehicle({ position: { x: 0, y: 0 }, headingRad, weapons: [weaponState({ weaponId: 'machinegun', facing: 'FRONT', dp: 3, ammo: 20 })] });
+      // The target sits along the car's OWN nose for THIS heading. A fixed
+      // target would be out of the FRONT quadrant the moment the car rotates,
+      // and `validateFire` would refuse the shot before it ever spawned.
+      const target = { position: { x: Math.cos(headingRad) * 50, y: Math.sin(headingRad) * 50 }, headingRad };
+      const result = fire({ vehicle: v, weaponSlotIndex: 0, target, ctx: ctxWith(createRng('fwd')), tick: 0, spawnedEntityId: 'p1', deployDropOffsetM: 3 });
+      expect(result.spawn?.kind).toBe('PROJECTILE');
+      if (result.spawn?.kind !== 'PROJECTILE') continue;
+      const vel = result.spawn.projectile.velocity;
+      const len = Math.hypot(vel.x, vel.y);
+      expect(len).toBeGreaterThan(0);
+      // The nose, derived the way the renderer derives it.
+      const nose = { x: Math.cos(headingRad), y: Math.sin(headingRad) };
+      const cos = (vel.x * nose.x + vel.y * nose.y) / len;
+      // Cosine similarity, because a plain subtraction reports a 2.0
+      // disagreement for what is really a 90-degree one.
+      expect(cos).toBeCloseTo(1, 6);
+    }
+  });
+
+  it('and a RIGHT-mounted shot leaves 90 degrees clockwise of it (the handedness)', () => {
+    for (const headingRad of CARDINALS) {
+      const v = vehicle({ position: { x: 0, y: 0 }, headingRad, weapons: [weaponState({ weaponId: 'machinegun', facing: 'RIGHT', dp: 3, ammo: 20 })] });
+      // Along the car's right hand for THIS heading, off the nose by a quarter
+      // turn clockwise — same derivation as the assertion below.
+      const target = { position: { x: Math.sin(headingRad) * 50, y: -Math.cos(headingRad) * 50 }, headingRad };
+      const result = fire({ vehicle: v, weaponSlotIndex: 0, target, ctx: ctxWith(createRng('rgt')), tick: 0, spawnedEntityId: 'p2', deployDropOffsetM: 3 });
+      expect(result.spawn?.kind).toBe('PROJECTILE');
+      if (result.spawn?.kind !== 'PROJECTILE') continue;
+      const vel = result.spawn.projectile.velocity;
+      const len = Math.hypot(vel.x, vel.y);
+      const nose = { x: Math.cos(headingRad), y: Math.sin(headingRad) };
+      // RIGHT is a quarter turn CLOCKWISE from the nose in this up-positive
+      // frame, which is what makes it -Y and not +Y at heading 0.
+      const right = { x: nose.y, y: -nose.x };
+      expect((vel.x * right.x + vel.y * right.y) / len).toBeCloseTo(1, 6);
+    }
+  });
+});
+
 describe('facingWorldDirection', () => {
-  it('FRONT at heading 0 points +y; REAR points -y', () => {
-    expect(facingWorldDirection(0, 'FRONT')).toEqual({ x: 0, y: 1 });
-    expect(facingWorldDirection(0, 'REAR')).toEqual({ x: 0, y: -1 });
+  it('at heading 0 each facing points along the owner table, rotated into world space', () => {
+    // Derived from the owner rather than restated, so this test cannot disagree
+    // with it. It DID disagree, for the whole life of the 90-degree bug.
+    for (const facing of ['FRONT', 'REAR', 'LEFT', 'RIGHT'] as const) {
+      const world = facingWorldDirection(0, facing);
+      // Compared componentwise: `rotateVec` can produce -0 where the table holds
+      // +0, and `-0 === +0` is true for a direction vector, so a deep equal
+      // would fail on arithmetic that is not wrong.
+      expect(world.x).toBeCloseTo(VEHICLE_LOCAL_FACING[facing].x, 12);
+      expect(world.y).toBeCloseTo(VEHICLE_LOCAL_FACING[facing].y, 12);
+      // And each mount's OPPOSITE (FRONT/REAR, LEFT/RIGHT — not "any other
+      // mount") is exactly its negation. That is what pins handedness: a table
+      // with RIGHT at +Y satisfies every perpendicular check, and only the
+      // antiparallel pair catches it.
+      const opposite: Record<typeof facing, typeof facing> = {
+        FRONT: 'REAR',
+        REAR: 'FRONT',
+        LEFT: 'RIGHT',
+        RIGHT: 'LEFT',
+      };
+      const back = facingWorldDirection(0, opposite[facing]);
+      expect(back.x).toBeCloseTo(-VEHICLE_LOCAL_FACING[facing].x, 12);
+      expect(back.y).toBeCloseTo(-VEHICLE_LOCAL_FACING[facing].y, 12);
+    }
   });
 
   it('throws for UNDERBODY, which has no world-facing direction', () => {

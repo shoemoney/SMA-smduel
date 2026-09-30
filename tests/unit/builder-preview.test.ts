@@ -198,3 +198,73 @@ describe('buildVehiclePreview: the rendered schematic', () => {
     expect(label).toMatch(/\d+(\.\d+)? metres/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The schematic's NOSE points the same way the car's does
+//
+// Nothing before this round asserted WHERE the nose was — only that a marker
+// existed and that the armour bands were tagged. A diagram pointing anywhere at
+// all passed every test here, which is how the constructor spent 120 iterations
+// showing FRONT at the top of a car that drives nose-right.
+//
+// The rotation is re-derived here from the parts the code publishes, rather than
+// read off a screenshot: rotating the drawing frame a quarter turn clockwise
+// about its own centre maps an unrotated point (x, y) to (w - y, ...), so a
+// shape near the TOP of the unrotated frame lands at the LARGE-x end — the
+// right — and that is the side FRONT must be on.
+// ---------------------------------------------------------------------------
+
+/** Where an unrotated point ends up on screen, per the group's quarter turn. */
+function rotatedX(parts: { widthPx: number; heightPx: number }, y: number): number {
+  return parts.widthPx - y;
+}
+
+function allNodes(node: FakeElement, out: FakeElement[] = []): FakeElement[] {
+  out.push(node);
+  for (const child of node.children) allNodes(child, out);
+  return out;
+}
+
+describe('buildVehiclePreview: the schematic faces the same way the car does', () => {
+  let doc: Document;
+  beforeEach(() => {
+    doc = fakeDocument();
+  });
+
+  it('puts the FRONT armour band on the RIGHT and REAR on the LEFT, derived from the rotation', () => {
+    const parts = buildVehiclePreviewParts(pristineState());
+    const root = buildVehiclePreview(doc, pristineState(), undefined) as unknown as FakeElement;
+
+    const group = allNodes(root).find((n) => n.dataset.role === 'body-frame');
+    expect(group?.getAttribute('transform')).toContain('rotate(90');
+
+    const bandFor = (facing: string): FakeElement | undefined =>
+      allNodes(root).find((n) => n.dataset.facing === facing);
+
+    const front = bandFor('FRONT');
+    const rear = bandFor('REAR');
+    expect(front).toBeTruthy();
+    expect(rear).toBeTruthy();
+
+    const frontY = Number(front!.getAttribute('y'));
+    const rearY = Number(rear!.getAttribute('y'));
+    // FRONT is drawn at the TOP of the unrotated frame (small y), which rotates
+    // to a LARGE x — the right. Asserting the rotation rather than a literal
+    // coordinate is what keeps this from becoming another restatement.
+    expect(rotatedX(parts, frontY)).toBeGreaterThan(rotatedX(parts, rearY));
+  });
+
+  it('places the viewBox over the rotated content, not the unrotated one', () => {
+    const parts = buildVehiclePreviewParts(pristineState());
+    // A viewBox is minX minY WIDTH HEIGHT — four numbers.
+    const [minX, minY, boxW, boxH] = parts.viewBox.split(' ').map(Number) as [number, number, number, number];
+    // The box's LONG axis is the car's LENGTH: the schematic is wider than it is
+    // tall now, which is the visible consequence of the nose moving to the right.
+    expect(boxW).toBeGreaterThan(boxH);
+    // And it starts where the rotated content actually is — a non-zero, negative
+    // origin, which is what a non-square rotation forces. An origin of 0 with a
+    // rotated transform is the bug this whole change exists to prevent.
+    expect(minX).toBeLessThan(0);
+    expect(Number.isFinite(minY)).toBe(true);
+  });
+});

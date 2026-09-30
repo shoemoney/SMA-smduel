@@ -21,7 +21,7 @@ import {
   type HazardInstance,
 } from '@/sim/ai';
 import { getPlant, getWeapon } from '@/data/rulesets';
-import { FACINGS, makeArmorRecord, type Facing, type VehicleDesign, type VehicleState, type WeaponState } from '@/sim/types';
+import { FACINGS, makeArmorRecord, VEHICLE_LOCAL_FACING, type Facing, type VehicleDesign, type VehicleState, type WeaponState } from '@/sim/types';
 // The authoritative fire pipeline itself — used throughout below as an
 // INDEPENDENT cross-check, so these tests actually fail if ai.ts's geometry
 // ever again drifts out of sync with what validateFire really enforces,
@@ -350,7 +350,11 @@ describe('engageWeaponNode', () => {
 
   it('does fire a REAR minedropper once the target is close enough behind to plausibly run over it', () => {
     const self = makeVehicle('self', { position: { x: 0, y: 0 }, headingRad: 0, weapons: [makeWeaponState('minedropper', 'REAR')] });
-    const target = makeVehicle('target', { position: { x: 0, y: -2 } }); // bears REAR, well inside triggerRadiusM (2.2m)
+    // Behind the car, placed along the owner's REAR direction rather than a
+    // typed coordinate: this was `{x: 0, y: -2}`, which is FRONT-and-right in
+    // the rotated frame. Well inside triggerRadiusM (2.2m).
+    const rear = VEHICLE_LOCAL_FACING.REAR;
+    const target = makeVehicle('target', { position: { x: rear.x * 2, y: rear.y * 2 } });
     const decision = engageWeaponNode(makeCtx(self, makeWorld({ vehicles: [self, target] })), target);
     expect(decision?.input.fire).toBe(true);
     expect(decision?.input.weaponSlot).toBe(0);

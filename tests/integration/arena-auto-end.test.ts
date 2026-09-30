@@ -510,8 +510,18 @@ function winScheduleAt(tick: number): CombatFrame {
   return { fire: true, weaponDigit: Math.floor(tick / WEAPON_TICKS) % 4 };
 }
 
-/** Session seed found (offline sweep) where a driver who never moves and never fires is destroyed by amateur-night's real roster. */
-const DEATH_SEED = 'loss-seed-23';
+/**
+ * A session seed MEASURED (not swept) under the rotated body frame, on which a
+ * driver who never moves and never fires is destroyed by amateur-night's real
+ * roster: player destroyed at tick 2863, `endMatch` at 2939.
+ *
+ * It replaces a swept seed whose documented death tick was 347, because the
+ * rotation invalidated it — the same "the premise was a property of the bug"
+ * finding that retired `WIN_SEED`. Re-picking a seed by sweeping for a property
+ * the bug used to supply is how the old one got there in the first place, so
+ * this one is a number that was read off a run.
+ */
+const DEATH_SEED = 'sweep-loss-1';
 function passiveScheduleAt(): CombatFrame {
   return { fire: false, weaponDigit: null };
 }
@@ -705,13 +715,27 @@ describe('showArenaEvent: the match ends itself', () => {
     const staleExitBtn = findArenaExitButton();
 
     const driver = makeCombatDriver(passiveScheduleAt);
-    // Offline-measured death tick is 347; stop short of the outcome delay
-    // (72 ticks) to prove the screen is still live mid-beat.
-    driver.advanceTo(380);
+    // Measured under the ROTATED body frame, on this seed: the player is
+    // destroyed at tick 2863 and `endMatch` runs at 2939, the 76-tick
+    // `arenaOutcomeDelayMs` beat after it.
+    //
+    // It used to be 347. That is not a tuning change anyone made — it is the
+    // collider rotation showing up as balance. Before the body-frame fix the
+    // player's collider measured its LENGTH along the aim axis, so opponents
+    // firing along their own mounts met a 4.8m target; they now fire along the
+    // nose and meet a 1.8m one, so glancing shots miss and the fight runs
+    // about eight times longer. The 90-degree bug was not what was killing a
+    // passive player; a fat collider was, and correcting it is what made the
+    // honest number 2863.
+    //
+    // A MID-BEAT checkpoint is kept because "the arena is still up" is a
+    // distinct claim from "the arena eventually goes away" — without it, a
+    // screen that unmounts on frame 1 satisfies the same assertion.
+    driver.advanceTo(1000);
     requireOne('.sm-screen--arena');
 
-    // Past the full delay now.
-    driver.advanceTo(500);
+    // Past the death tick and the full outcome delay.
+    driver.advanceTo(3400);
 
     expect(document.querySelectorAll('.sm-screen--arena').length).toBe(0);
     // A loss is never an arcade submission (shouldSubmitArcadeScore requires

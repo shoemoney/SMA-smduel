@@ -17,6 +17,7 @@ import {
 import { computeBuild } from '@/sim/construct';
 import { createDriver } from '@/sim/driver';
 import { economy } from '@/data/rulesets';
+import { circleIntersectsOrientedRect } from '@/sim/arena';
 import type { DriverState, VehicleDesign } from '@/sim/types';
 
 function driverWith(cash: number, prestige: number): DriverState {
@@ -312,5 +313,56 @@ describe('arena: house-sourced events never put a player vehicle at risk', () =>
     const resolution = resolveArenaExit(begin.state, begin.driver, 'ON_FOOT');
     expect(resolution.vehicleForfeited).toBe(true);
     expect(resolution.houseVehicleSalvageable).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Oriented-rect collision — the frame the body-local rotation changed
+//
+// `circleIntersectsOrientedRect` had NO TEST AT ALL before the rotation
+// landed, and that is why a wide-short collider survived 120 iterations: a
+// collider is invisible until a shot misses the nose it was aimed at. These
+// tests are the guard that should have existed from the start.
+// ---------------------------------------------------------------------------
+
+describe('circleIntersectsOrientedRect — the collider measures LENGTH along local X', () => {
+  /** A 4.8m x 1.8m rectangle — `midsized`'s real collider — long axis on local X. */
+  const CAR = { center: { x: 0, y: 0 }, halfLengthM: 2.4, halfWidthM: 0.9, headingRad: 0 };
+  const R = 0.15; // driving.json's projectileRadiusM
+
+  it('hits dead ahead and misses dead behind', () => {
+    // Ahead is the car's local +X — the nose. 2m is INSIDE a 2.4m half-length;
+    // 3m is 0.6m clear of the tail, which is far outside a 0.15m projectile.
+    expect(circleIntersectsOrientedRect({ x: 2, y: 0 }, R, CAR)).toBe(true);
+    expect(circleIntersectsOrientedRect({ x: -3, y: 0 }, R, CAR)).toBe(false);
+  });
+
+  it('misses beside the car even when it is closer than it is ahead', () => {
+    // 1.5m to the SIDE is 0.6m clear of a 1.8m-wide body; 2m AHEAD is inside the
+    // 4.8m length. Under the old frame (length on Y) these two answers swap,
+    // which is exactly the swap that put bolts 90 degrees from the nose.
+    expect(circleIntersectsOrientedRect({ x: 0, y: 1.5 }, R, CAR)).toBe(false);
+    expect(circleIntersectsOrientedRect({ x: 2, y: 0 }, R, CAR)).toBe(true);
+  });
+
+  it('the long axis follows the heading, not the world axis', () => {
+    const rotated = { ...CAR, headingRad: Math.PI / 2 }; // nose now points world +Y
+    expect(circleIntersectsOrientedRect({ x: 0, y: 2 }, R, rotated)).toBe(true);
+    expect(circleIntersectsOrientedRect({ x: 3, y: 0 }, R, rotated)).toBe(false);
+  });
+
+  it('agrees with the vehicle body it came from, at every quarter turn', () => {
+    // The rectangle built from a real VehicleState must match a rectangle the
+    // owner table describes, at all four headings. This is the relationship
+    // between the collider and the convention, which is the thing that drifted.
+    for (const headingRad of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+      const rect = { ...CAR, headingRad };
+      const nose = { x: Math.cos(headingRad), y: Math.sin(headingRad) };
+      // 2m along the nose: inside the 2.4m half-length.
+      expect(circleIntersectsOrientedRect({ x: nose.x * 2, y: nose.y * 2 }, R, rect)).toBe(true);
+      // 2m to the nose's right: outside the 0.9m half-width.
+      const right = { x: nose.y, y: -nose.x };
+      expect(circleIntersectsOrientedRect({ x: right.x * 2, y: right.y * 2 }, R, rect)).toBe(false);
+    }
   });
 });

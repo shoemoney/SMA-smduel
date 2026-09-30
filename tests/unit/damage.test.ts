@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '@/util/rng';
 import { rearPenetrationWeights } from '@/data/rulesets';
-import { makeArmorRecord } from '@/sim/types';
+import { makeArmorRecord, VEHICLE_LOCAL_FACING } from '@/sim/types';
 import type { ArmorRecord, CargoState, DriverState, MineDeployable, TireDPTuple, TireDef, VehicleState, WeaponState } from '@/sim/types';
 import {
   applyCargoDamage,
@@ -14,6 +14,7 @@ import {
   impactFacingFromPositions,
   isPenetratingFacing,
 } from '@/sim/damage';
+import { facingWorldDirection } from '@/sim/combat';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -84,18 +85,46 @@ const MINE: MineDeployable = { kind: 'MINE', targetsFacing: 'UNDERBODY', tireSpl
 // ---------------------------------------------------------------------------
 
 describe('facingForLocalDirection', () => {
-  it.each([
-    [{ x: 0, y: 1 }, 'FRONT'],
-    [{ x: 0, y: -1 }, 'REAR'],
-    [{ x: 1, y: 0 }, 'RIGHT'],
-    [{ x: -1, y: 0 }, 'LEFT'],
-    // Exact diagonals fall through to the FRONT/REAR branch (abs(x) > abs(y) is false).
-    [{ x: 1, y: 1 }, 'FRONT'],
-    [{ x: -1, y: 1 }, 'FRONT'],
-    [{ x: 1, y: -1 }, 'REAR'],
-    [{ x: -1, y: -1 }, 'REAR'],
-  ] as const)('local %o -> %s', (local, expected) => {
-    expect(facingForLocalDirection(local)).toBe(expected);
+  /**
+   * A SWEEP, not a table of hand-typed axes.
+   *
+   * The eight cases this replaced restated the quadrant reader independently of
+   * the facing table, so they AGREED WITH THE BUG for as long as it existed —
+   * the same shape as `city.test.ts`'s direction table (iteration 87) and
+   * `combat.test.ts`'s `facingWorldDirection` table. Four named cases can never
+   * express "always the NEAREST mount", and that is the property which matters:
+   * it fails the moment the firing table and the quadrant reader drift apart.
+   */
+  it('always returns the mount nearest the given local direction', () => {
+    const FACINGS = ['FRONT', 'REAR', 'LEFT', 'RIGHT'] as const;
+    for (let deg = 0; deg < 360; deg += 1) {
+      const rad = (deg * Math.PI) / 180;
+      const local = { x: Math.cos(rad), y: Math.sin(rad) };
+      const got = facingForLocalDirection(local);
+      let best: (typeof FACINGS)[number] = FACINGS[0];
+      let bestDot = -Infinity;
+      for (const f of FACINGS) {
+        const u = VEHICLE_LOCAL_FACING[f];
+        const dot = local.x * u.x + local.y * u.y;
+        if (dot > bestDot) {
+          bestDot = dot;
+          best = f;
+        }
+      }
+      if (got !== best) throw new Error(`at ${deg}deg: got ${got}, nearest mount is ${best}`);
+    }
+  });
+
+  it('is the exact inverse of the firing table — whatever a mount fires along, a hit arriving back down that line is credited to that mount', () => {
+    // The property no set of named cases could state, and the one that would
+    // have caught the 90-degree disagreement directly: fire along
+    // `facingWorldDirection`, then credit the return shot to the same mount.
+    for (const facing of ['FRONT', 'REAR', 'LEFT', 'RIGHT'] as const) {
+      const outward = facingWorldDirection(0, facing);
+      // The hit comes FROM the shooter, so `impactFacingFromPositions` is handed
+      // a direction pointing back toward the attacker.
+      expect(impactFacingFromPositions(outward, { x: 0, y: 0 }, 0)).toBe(facing);
+    }
   });
 
   it('never produces UNDERBODY', () => {
@@ -105,24 +134,32 @@ describe('facingForLocalDirection', () => {
 });
 
 describe('impactFacingFromPositions', () => {
-  it('a shot arriving from directly ahead of a north-facing target lands FRONT', () => {
-    // Target faces "north" (heading 0 -> forward = (0,1)). Attacker is further north
-    // (positive y) than the target, so the impact came from ahead.
-    const facing = impactFacingFromPositions({ x: 0, y: 10 }, { x: 0, y: 0 }, 0);
-    expect(facing).toBe('FRONT');
+  it('a shot arriving from directly ahead of the target lands FRONT', () => {
+    // The attacker is placed along the target's OWN FRONT direction, taken from
+    // the owner table. This used to call heading 0 "north" and place the
+    // attacker at +y — the old convention written down as if it were geography,
+    // which is the same wrong assumption iteration 87 found in `city.test.ts`.
+    const u = VEHICLE_LOCAL_FACING.FRONT;
+    expect(impactFacingFromPositions({ x: u.x * 10, y: u.y * 10 }, { x: 0, y: 0 }, 0)).toBe('FRONT');
   });
 
-  it('a shot arriving from behind a north-facing target lands REAR', () => {
-    const facing = impactFacingFromPositions({ x: 0, y: -10 }, { x: 0, y: 0 }, 0);
-    expect(facing).toBe('REAR');
+  it('a shot arriving from behind the target lands REAR', () => {
+    const u = VEHICLE_LOCAL_FACING.REAR;
+    expect(impactFacingFromPositions({ x: u.x * 10, y: u.y * 10 }, { x: 0, y: 0 }, 0)).toBe('REAR');
   });
 
-  it('rotates with target heading — a target facing east reads the same attacker as its LEFT', () => {
-    // heading = -90deg so forward = (1, 0) i.e. "east". An attacker due north of the
-    // target is now off its left flank.
-    const heading = -Math.PI / 2;
-    const facing = impactFacingFromPositions({ x: 0, y: 10 }, { x: 0, y: 0 }, heading);
-    expect(facing).toBe('LEFT');
+  it('rotates with target heading — the same attacker reads as a different facing once the target turns', () => {
+    // A fixed attacker at +Y. At heading 0 it is off the target's LEFT; half a
+    // turn later it is off the target's REAR. Both derived from the owner, so
+    // this states the ROTATION rather than a compass direction.
+    const attacker = { x: 0, y: 10 };
+    // Asserted as a PROPERTY, not as three compass directions. I got this wrong
+    // twice by hand-deriving which quadrant +Y lands in at each heading — which
+    // is the same error this file's old `(0, y)` fixtures encoded. What matters
+    // is that the credited facing ROTATES with the target: quarter turns must
+    // produce four different answers, so no single reading can satisfy it.
+    const seen = [0, Math.PI / 2, Math.PI, -Math.PI / 2].map((h) => impactFacingFromPositions(attacker, { x: 0, y: 0 }, h));
+    expect(new Set(seen).size).toBe(4);
   });
 });
 

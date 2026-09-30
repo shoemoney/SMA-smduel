@@ -271,11 +271,17 @@ export function alignHeadingFor(bearingRad: number, facing: Facing): number {
  * uses (direction of push = desired travel direction, per Classic Input in
  * docs/SPEC.md). This is what actually turns the car — it is not "drive at
  * the target", it is "drive at the heading that brings this facing to
- * bear", and (because combat.ts's mounted-facing frame is rotated from
- * driving.ts's own forward vector — see the file header) those two do not
- * coincide for ANY facing, FRONT included. That is fine: `headingRad` only
- * has to reach the value `alignHeadingFor` names, and `validateFire` judges
- * bearing by that same `headingRad`, not by which way the chassis looks.
+ * bear".
+ *
+ * It USED to be true that these two did not coincide for ANY facing, FRONT
+ * included: `facingOffsetRad` read a `FACING_LOCAL_UNIT` whose FRONT was 90
+ * degrees from driving's own forward vector, so the combat frame was rotated
+ * relative to the chassis. That offset is gone now that `VEHICLE_LOCAL_FACING`
+ * puts FRONT on the chassis nose, and this comment was the one place still
+ * asserting the old relationship — a stale explanation of live code, which is
+ * how a future reader would have "restored" the 90 degrees as intentional.
+ * `facingOffsetRad` still DERIVES from `facingWorldDirection` rather than
+ * keeping its own table, which is why it followed the rotation with no edit.
  */
 export function computeAlignmentInput(bearingRad: number, facing: Facing): { moveX: number; moveY: number } {
   const heading = alignHeadingFor(bearingRad, facing);

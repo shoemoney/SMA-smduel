@@ -52,6 +52,8 @@ function svg<K extends keyof SVGElementTagNameMap>(
 export interface VehiclePreviewParts {
   readonly widthPx: number;
   readonly heightPx: number;
+  /** viewBox for the ROTATED schematic — see `buildVehiclePreviewParts`. */
+  readonly viewBox: string;
   /** Data attributes so DOM tests can assert on the schematic, not just its pixels. */
   readonly data: {
     readonly bodyId: string;
@@ -80,6 +82,12 @@ export function buildVehiclePreviewParts(state: BuilderState): VehiclePreviewPar
   return {
     widthPx: widthM * PX_PER_M + PAD * 2,
     heightPx: lengthM * PX_PER_M + PAD * 2,
+    // The rotated content's bounding box, DERIVED from the rotation above
+    // rather than measured off a screenshot. Rotating the drawing frame a
+    // quarter turn clockwise about its own centre maps a point (x, y) to
+    // (w - y, h/2 + x - w/2), so the content spans x in [w-h, w] and y in
+    // [h/2 - w/2, h/2 + w/2] — which is where this viewBox starts.
+    viewBox: `${widthM * PX_PER_M + PAD * 2 - (lengthM * PX_PER_M + PAD * 2)} ${(lengthM * PX_PER_M + PAD * 2) / 2 - (widthM * PX_PER_M + PAD * 2) / 2} ${lengthM * PX_PER_M + PAD * 2} ${widthM * PX_PER_M + PAD * 2}`,
     data: {
       bodyId: body.id,
       lengthM,
@@ -132,8 +140,21 @@ export function buildVehiclePreview(doc: Document, state: BuilderState, selectio
   title.className = 'sm-builder__preview-title';
   title.textContent = `${body.name} ${t('ui.builder.previewTitleSuffix')}`;
 
+  // The whole schematic is drawn length-VERTICAL and then rotated a quarter turn
+  // clockwise, so the nose points RIGHT — the same way the driven car points,
+  // and the same way `VEHICLE_LOCAL_FACING` says FRONT points. Before this the
+  // diagram was nose-UP while the car was nose-RIGHT, which is the constructor
+  // telling the player their armour lands on the wrong end of the vehicle; a
+  // diagram that disagrees with the car is worse than no diagram.
+  //
+  // A `<g transform="rotate(90)">` is not enough on its own, and that is why
+  // every prior round deferred this as "not a transform": the viewBox is
+  // NON-SQUARE, so rotating the content leaves it outside the box. The box is
+  // therefore rotated too — its extent swapped, and its origin moved to whatever
+  // corner the rotated content actually lands in (derived, not eyeballed, in
+  // `buildVehiclePreviewParts`).
   const root = svg(doc, 'svg', {
-    viewBox: `0 0 ${parts.widthPx} ${parts.heightPx}`,
+    viewBox: parts.viewBox,
     width: '100%',
     // A fixed aspect so the schematic keeps its shape as the pane is resized.
     preserveAspectRatio: 'xMidYMid meet',
@@ -145,6 +166,12 @@ export function buildVehiclePreview(doc: Document, state: BuilderState, selectio
   root.dataset.armorTotal = String(parts.data.armorTotal);
   root.dataset.weaponCount = String(parts.data.weaponCount);
   root.dataset.forward = parts.data.forward;
+
+  // Everything below draws in the UNROTATED frame (length vertical, nose up)
+  // and lands inside `parts.group`; the group carries the quarter turn.
+  const group = svg(doc, 'g', { transform: `rotate(90 ${parts.widthPx / 2} ${parts.heightPx / 2})` });
+  group.dataset.role = 'body-frame';
+  root.appendChild(group);
 
   const cx = parts.widthPx / 2;
   const cy = parts.heightPx / 2;
@@ -171,7 +198,7 @@ export function buildVehiclePreview(doc: Document, state: BuilderState, selectio
     [cx + halfW - wheelW, cy + halfL * 0.56 - wheelL],
   ] as const) {
     const wheel = svg(doc, 'rect', { x: wx, y: wy, width: wheelW, height: wheelL, rx: 3, class: 'sm-builder__preview-wheel' });
-    root.appendChild(wheel);
+    group.appendChild(wheel);
   }
 
   // --- the hull -------------------------------------------------------------
@@ -185,7 +212,7 @@ export function buildVehiclePreview(doc: Document, state: BuilderState, selectio
     rx: Math.min(halfW, 22),
     class: 'sm-builder__preview-hull',
   });
-  root.appendChild(hull);
+  group.appendChild(hull);
 
   // --- cabin and bonnet -----------------------------------------------------
   // Two inset panels breaking up the hull, so the silhouette has a front, a
@@ -200,7 +227,7 @@ export function buildVehiclePreview(doc: Document, state: BuilderState, selectio
     class: 'sm-builder__preview-cabin',
   });
   cabin.dataset.role = 'cabin';
-  root.appendChild(cabin);
+  group.appendChild(cabin);
   const bonnet = svg(doc, 'rect', {
     x: cx - halfW * 0.5,
     y: cy - halfL * 0.78,
@@ -210,7 +237,7 @@ export function buildVehiclePreview(doc: Document, state: BuilderState, selectio
     class: 'sm-builder__preview-bonnet',
   });
   bonnet.dataset.role = 'bonnet';
-  root.appendChild(bonnet);
+  group.appendChild(bonnet);
 
   // --- armour zones ---------------------------------------------------------
   // A faint OUTLINE is drawn for every facing, always, including the ones with
@@ -249,13 +276,13 @@ export function buildVehiclePreview(doc: Document, state: BuilderState, selectio
     const selected = selection?.facing === facing ? ' sm-builder__preview-zone--selected' : '';
     if (isUnder) {
       rect.setAttribute('class', `sm-builder__preview-armor sm-builder__preview-armor--under${selected}`);
-      root.insertBefore(rect, hull);
+      group.insertBefore(rect, hull);
     } else if (points <= 0) {
       rect.setAttribute('class', `sm-builder__preview-zone${selected}`);
-      root.appendChild(rect);
+      group.appendChild(rect);
     } else {
       rect.setAttribute('class', `sm-builder__preview-armor${selected}`);
-      root.appendChild(rect);
+      group.appendChild(rect);
     }
   }
 
@@ -286,19 +313,22 @@ export function buildVehiclePreview(doc: Document, state: BuilderState, selectio
     if (selection?.slot === index) {
       mark.setAttribute('class', 'sm-builder__preview-weapon sm-builder__preview-weapon--selected');
     }
-    root.appendChild(mark);
+    group.appendChild(mark);
   });
 
   // --- nose marker ----------------------------------------------------------
-  // An explicit "this end is the front" arrow. The world convention is +Y
-  // forward, which on a screen is UP, and a schematic with no orientation cue
-  // is the single easiest thing to misread in a vehicle builder.
+  // An explicit "this end is the front" arrow, drawn at the top of the
+  // UNROTATED frame and carried to the RIGHT by the group's quarter turn. The
+  // body convention is local +X forward (`VEHICLE_LOCAL_FACING`), so on the
+  // rendered diagram the nose points right — the same way the driven car does.
+  // A schematic with no orientation cue is the single easiest thing to misread
+  // in a vehicle builder, and one whose cue points the wrong way is worse.
   const nose = svg(doc, 'path', {
     d: `M ${cx} ${cy - halfL - 3} l -7 -10 l 14 0 z`,
     class: 'sm-builder__preview-nose',
   });
   nose.dataset.role = 'nose';
-  root.appendChild(nose);
+  group.appendChild(nose);
 
   const label = doc.createElement('p');
   label.className = 'sm-builder__preview-caption';

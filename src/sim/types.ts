@@ -29,6 +29,50 @@ export interface Vec2 {
 }
 
 // ---------------------------------------------------------------------------
+// Vehicle body-local frame — THE single owner of "which local axis is the nose"
+//
+// This table existed FIVE times before, and four of the copies said +Y while
+// the renderer said +X. Every subsystem was internally consistent: the shot
+// flew along the mount table, the same table decided which facing absorbed it,
+// the collider measured length on the same axis, the preview drew FRONT on it.
+// Each was individually correct, so the 90-degree disagreement between the
+// combat geometry and the DRIVEN car was invisible to file-by-file reading and
+// survived 120 iterations and 82 vision reviews. It lives only in the SPACES
+// BETWEEN subsystems — which is precisely what a duplication makes unreadable.
+//
+// The derivation, from the three sources that all agree the rendered nose is
+// local +X:
+//   - `assets/atlas.json` gives every car frame `rotationOffsetDeg: 270`.
+//     `tests/unit/vehicle-sprite-orientation.test.ts` derives that value from
+//     the RAW ART and documents the method (hood and windshield at the top,
+//     rear louvres and bumper at the bottom, on all nine bodies), and its
+//     comment states the reason: "nose at local +Y needs 270". So 270 maps the
+//     art's nose-UP nose onto local +X.
+//   - `@/sim/driving`'s `newForward = (cos h, sin h)` — a car's heading is a
+//     world angle, so heading 0 must be world +X, and the renderer's
+//     `rotationRad: vehicle.headingRad` inherits exactly that.
+//   - `sprite.wgsl` applies that rotation in WORLD space, CCW, in an
+//     up-positive frame (`buildOrthoMatrix` puts clip +y at the top).
+//
+// HANDEDNESS, which is the part a rotated table quietly gets backwards: CCW in
+// that frame means a car pointing screen-RIGHT has its right hand screen-DOWN,
+// which is -Y. So RIGHT is (0, -1) at heading 0, and LEFT is (0, +1).
+// `combat.test.ts`'s antiparallel check is what pins this: a table with RIGHT
+// at +Y satisfies every perpendicular check and fails that one.
+// ---------------------------------------------------------------------------
+
+/** The four facings a penetrating shot can be absorbed through. `UNDERBODY` has no direction and is excluded. */
+export type PenetratingFacing = 'FRONT' | 'REAR' | 'LEFT' | 'RIGHT';
+
+/** Unit direction, in the vehicle's OWN local frame, each facing points. Rotated by `headingRad` to reach world space. */
+export const VEHICLE_LOCAL_FACING: Record<PenetratingFacing, Vec2> = {
+  FRONT: { x: 1, y: 0 },
+  REAR: { x: -1, y: 0 },
+  RIGHT: { x: 0, y: -1 },
+  LEFT: { x: 0, y: 1 },
+};
+
+// ---------------------------------------------------------------------------
 // Armor helpers
 // ---------------------------------------------------------------------------
 

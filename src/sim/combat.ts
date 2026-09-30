@@ -24,6 +24,7 @@ import type {
   WeaponDeployable,
   WeaponState,
 } from '@/sim/types';
+import { VEHICLE_LOCAL_FACING, type PenetratingFacing } from '@/sim/types';
 import {
   applyMineDamage,
   applyPenetratingDamage,
@@ -35,7 +36,6 @@ import {
   subtractVec,
   vecLength,
   type MineDamageResult,
-  type PenetratingFacing,
   type PenetrationReport,
   type TireHitResult,
 } from '@/sim/damage';
@@ -99,12 +99,8 @@ export function rollDamage(weaponDef: WeaponDef, rng: Rng): number {
 // Facing geometry (fixed mounts, no turret)
 // ---------------------------------------------------------------------------
 
-const FACING_LOCAL_UNIT: Record<PenetratingFacing, Vec2> = {
-  FRONT: { x: 0, y: 1 },
-  REAR: { x: 0, y: -1 },
-  RIGHT: { x: 1, y: 0 },
-  LEFT: { x: -1, y: 0 },
-};
+/** The body-local frame is owned by `VEHICLE_LOCAL_FACING` in `@/sim/types` — see the derivation there. This module used to keep its own copy, and that copy is what the 90-degree aim bug lived in. */
+const FACING_LOCAL_UNIT = VEHICLE_LOCAL_FACING;
 
 /** World-space unit direction a fixed mount on `facing` points, given the hull's heading. */
 export function facingWorldDirection(headingRad: number, facing: Facing): Vec2 {
