@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 30
+iteration: 31
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -7896,3 +7896,81 @@ because the reason it cannot land in one round is itself the useful finding.
      re-derive the preview tests.
   5. Only then: deploy, and live-verify by firing at all four headings and
      confirming the bolt leaves along the nose.
+## ITERATION 122 — the rotation's real blocker is NOT a seed sweep, and the sweep is what proved it
+
+Iteration 121 itemised the remaining work and named "re-run the seed sweep" as
+the real cost. This round re-applied the rotation, re-derived every unit fixture
+(1408 unit tests green, tsc clean), then ran the sweep — and the sweep's result
+INVALIDATES iteration 121's own work list. Recording that rather than repeating
+the itemised plan.
+
+- **THE ROTATION AND THE FIXTURES LAND CLEANLY AGAIN.** Five source changes
+  (`FACING_LOCAL_UNIT`, `facingForLocalDirection`, the collider clamp,
+  `rectAxes`, and the `arena.ts:894` block comment that cited the table) plus
+  the re-derived `AHEAD`/`BEHIND`, projectile-velocity, deployable-drop, four
+  cone, `damage.ts` quadrant, `impactFacingFromPositions` and AI-minedropper
+  fixtures. 1408 unit tests, 0 failures, tsc clean. The unit half of this fix is
+  mechanical and repeatable; it is NOT the blocker.
+
+- **AND THE SIM IS INTERNALLY CONSISTENT AFTERWARDS, which I checked rather
+  than assumed.** `arena.ts`'s `facingQuadrant` — the function the AI uses to
+  pick which mount bears on which target — delegates to `facingForLocalDirection`,
+  so the opponents' aiming rotates WITH the facing table rather than being left
+  behind. A rotation that fixed the table and the collider but left the AI on
+  the old frame would have been a much worse outcome than this one: two frames
+  in the same subsystem instead of one.
+
+- **THE SWEEP, AND IT IS NOT WHAT ANYONE EXPECTED.** 24 numeric seeds through
+  the real harness (one probe per seed, reporting reach and outcome together,
+  because two probes per seed let the first probe's leftover
+  `.sm-screen--city` manufacture the second probe's "loss" result — the
+  iteration-50 rule about a probe that finds the wrong thing, in a new costume):
+  ```
+    13 of 24 seeds  reach the arena at all
+                     (the other 11 fail in the CITY WALK, at the door)
+    of those 13, win schedule   -> 11 stalemate, 2 lost,   0 WON
+    of those 13, passive schedule-> 13 survived,             0 LOST
+  ```
+  **Zero wins and zero deaths across every reachable seed.** Iteration 121
+  called this "re-run a seed sweep" and budgeted it as a mechanical cost. It is
+  not a seed hunt: a bounded search of 13 reachable seeds found nothing, and the
+  shape of the result (every seed a stalemate or a survival) is systematic, not
+  unlucky.
+
+- **WHY, AND IT IS THE ACTUAL FINDING.** The win test's own comment says the
+  schedule works because "holding still (heading frozen at spawn...) CLEARS
+  amateur-night's real 5-opponent roster" — and the original seeds were FOUND by
+  sweeping for exactly that relationship between the player's spawn heading and
+  the seeded roster. The rotation does not move anything in the WORLD: the same
+  seed produces the same positions. What it changes is which DIRECTION the
+  player's nose and guns point relative to those positions — the front mount
+  was 90 degrees off the nose before, and the seed that "won" was a seed whose
+  roster happened to sit in that 90-degree wedge. Correct the wedge and every
+  seed's win is gone at once, which is precisely what the sweep shows.
+  So this is not "the seeds are stale", it is **"the test's premise was a
+  property of the BUG"** — the same class as iteration 21's fake arena walls and
+  iteration 28's city instruments: a fixture that reads as a fact about the
+  game and is actually a fact about a defect.
+
+- **SO THE REMAINING WORK IS DIFFERENT FROM WHAT I WROTE LAST ROUND, and the
+  correction is the point of this entry.** Not "re-run the sweep" but:
+    1. the win test needs a driver that can actually STEER toward its target
+       (a real player aims; the old one aimed by accident, via the bug), or a
+       win condition that does not depend on the player's spawn facing lining up
+       with a seeded roster;
+    2. the loss test needs a reachable seed AND a longer horizon — "survived" at
+       900 ticks may simply be a slower death, and iteration 100's whole lesson
+       is that a flat signal is not a resolved one;
+    3. only then does a seed sweep have anything to search for.
+  Iteration 121's list would have sent the next round to sweep seeds for an
+  hour and found nothing, which is the cost of writing a plan from a diagnosis
+  rather than from a measurement.
+
+- GATE: tsc clean; 1538 tests with the 2 documented flakes; 7 browser tests;
+  build `index-Hrr9Wz8r.js` identical to what is live. Reverted whole, tree
+  clean, nothing deployed.
+
+- NEXT: the rotation's unit half is now proven repeatable, so the round's
+  budget should go to the two integration tests' PREMISES rather than to seeds
+  — starting by reading what the passive player's actual death tick is under the
+  rotated frame, which is one instrumented run and not a search.
