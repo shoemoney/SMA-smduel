@@ -16,7 +16,7 @@
  * that wires that core to `builder.css` classes and keyboard events.
  */
 import { allBodies, allChassis, allPlants, allSuspensions, allTires, allWeapons, economy, getBody, getChassis, getPlant, getSuspension, getTire, getWeapon, skillsConfig } from '@/data/rulesets';
-import { computeBuild, validateDesign, type BuildDesign } from '@/sim/construct';
+import { computeBuild, roadLegalityMisses, validateDesign, type BuildDesign } from '@/sim/construct';
 import { drivingConfig } from '@/data/rulesets';
 import { FACINGS, makeArmorRecord, sumArmor } from '@/sim/types';
 import type { BuildMetrics, BuildViolation, Facing, MountedWeapon, VehicleDesign, WeaponDef } from '@/sim/types';
@@ -178,15 +178,41 @@ function titleCase(word: string): string {
  * read after editing it say the same three things.
  */
 export function unmetRequirements(state: BuilderState): readonly string[] {
-  const missing: string[] = [];
-  if (state.name.trim().length === 0) missing.push(t('ui.builder.legalityStepName'));
-  if (FACINGS.reduce((sum, facing) => sum + state.armor[facing], 0) === 0) {
-    missing.push(t('ui.builder.legalityStepArmor'));
-  }
-  if (state.weaponSlots.every((slot) => slot === null)) {
-    missing.push(t('ui.builder.legalityStepWeapon'));
-  }
-  return missing;
+  // The RULE comes from `@/sim/construct`'s `roadLegalityMisses` — this
+  // function only supplies the wording. Iteration 84 made the panel read
+  // `unmetRequirements` so the rails and the panel could not drift; iteration 92
+  // found the rule itself had a third copy in the city strip and a FOURTH
+  // absence at the gate, so the condition list now lives in exactly one place
+  // and this is a pure naming layer over it.
+  //
+  // The `BuilderState` -> `VehicleDesign` shape is explicit rather than a cast:
+  // `weaponSlots` is a fixed-length UI array of nullable entries, while a design
+  // carries only the weapons that are actually mounted, so "a weapon is fitted"
+  // means the two shapes' different things here.
+  const misses = roadLegalityMisses({
+    name: state.name,
+    bodyId: '',
+    chassisId: '',
+    suspensionId: '',
+    plantId: '',
+    tireId: '',
+    armor: state.armor,
+    // `weaponSlots` is already `(MountedWeapon | null)[]`, so "a weapon is
+    // fitted" is exactly "at least one slot is non-null" — no projection needed.
+    weapons: state.weaponSlots.filter((slot): slot is MountedWeapon => slot !== null),
+  });
+  // A switch rather than a `Record<RoadLegalityMiss, string>`: indexing a record
+  // widens the value to `string`, and `t()` only accepts the literal key union, so
+  // the record form fails to typecheck. The switch keeps each key literal.
+  return misses.map((miss) =>
+    t(
+      miss === 'name'
+        ? 'ui.builder.legalityStepName'
+        : miss === 'armor'
+          ? 'ui.builder.legalityStepArmor'
+          : 'ui.builder.legalityStepWeapon',
+    ),
+  );
 }
 
 export function computeRows(state: BuilderState): BuilderRow[] {

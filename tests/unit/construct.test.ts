@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { computeBuild, validateDesign, type BuildDesign } from '@/sim/construct';
+import { computeBuild, roadLegalityMisses, validateDesign, type BuildDesign } from '@/sim/construct';
 import { getBody, getPlant, getTire, getWeapon, wheelCount } from '@/data/rulesets';
-import { makeArmorRecord } from '@/sim/types';
+import { FACINGS, makeArmorRecord } from '@/sim/types';
 import type { MountedWeapon } from '@/sim/types';
 // MAX_WEAPON_ROWS is a UI layout constant, not a legality rule, so its one
 // definition lives in `@/ui/hud`, not `@/sim/construct` — see that module's
@@ -224,5 +224,84 @@ describe('chassis and suspension add cost only, never weight or spaces', () => {
     expect(heavy.spacesUsed).toBe(light.spacesUsed);
     expect(heavy.spacesTotal).toBe(light.spacesTotal);
     expect(heavy.costTotal).not.toBe(light.costTotal);
+  });
+});
+
+/**
+ * The road-legal rule, and specifically the copy-paste guard.
+ *
+ * This rule lived in three hand-written copies for most of the loop's life: the
+ * constructor's LEGALITY panel, the city car strip, and (absent entirely) the
+ * city gate. Each of the two that existed re-derived the armour total with its
+ * own `FACINGS.reduce`, which is exactly the shape of bug that hides — a reduce
+ * that forgets one facing passes every test that fits armour in the facings the
+ * test happened to reach for. So the guard below is not "some armour satisfies
+ * the rule"; it is "armour in the LAST facing alone satisfies the rule", which
+ * is the assertion that fails if anyone reintroduces a positional sum.
+ */
+describe('roadLegalityMisses', () => {
+  const complete = baseDesign({
+    name: 'Legal Rig',
+    armor: makeArmorRecord(2),
+    weapons: [{ weaponId: getWeapon('machinegun').id, facing: 'FRONT', ammo: 10 }],
+  });
+
+  it('finds nothing wrong with a build that meets all three conditions', () => {
+    expect(roadLegalityMisses(complete)).toEqual([]);
+  });
+
+  it('reports all three misses, in requirement order, for an empty build', () => {
+    // The name is set EXPLICITLY rather than left to `baseDesign()`'s default of
+    // 'Test Rig' — the sixth fixture in this log that lied about the shape of
+    // the thing it was meant to represent, and the first one written while
+    // explicitly warned about exactly that. A pristine build is the state the
+    // constructor boots into, so its name really is empty.
+    const empty = baseDesign({ name: '', armor: makeArmorRecord(0), weapons: [] });
+    expect(roadLegalityMisses(empty)).toEqual(['name', 'armor', 'weapon']);
+  });
+
+  it('treats a whitespace-only name as no name', () => {
+    // `.trim()`, not `.length`: a car called "   " is not named, and the
+    // constructor's own `valueLabel` already shows it as `(unnamed)`.
+    expect(roadLegalityMisses({ ...complete, name: '   ' })).toEqual(['name']);
+  });
+
+  it('accepts armour fitted in the LAST facing alone', () => {
+    // The copy-paste guard. `UNDERBODY` is last in `FACINGS`, so any hand-rolled
+    // reduce that reads the first four and forgets it fails exactly here and
+    // nowhere else. Asserted on its own so the failure names the cause.
+    const underbodyOnly = baseDesign({
+      ...complete,
+      armor: { ...makeArmorRecord(0), UNDERBODY: 3 },
+    });
+    expect(roadLegalityMisses(underbodyOnly)).toEqual([]);
+  });
+
+  it('accepts armour in ANY single facing', () => {
+    // The general form of the guard above: every facing must count, so the rule
+    // is not satisfied by four out of five. Iterates the real `FACINGS` rather
+    // than a literal list, so a new facing cannot be added without this covering it.
+    for (const facing of FACINGS) {
+      const one = baseDesign({ ...complete, armor: { ...makeArmorRecord(0), [facing]: 1 } });
+      expect(roadLegalityMisses(one), `armour only in ${facing} should satisfy the rule`).toEqual([]);
+    }
+  });
+
+  it('treats zero armour points in every facing as no armour', () => {
+    // The zero/negative boundary. `makeArmorRecord(0)` is a well-formed armour
+    // record, so this is the state iteration 21's dashed chip was built to
+    // report honestly — and it must not pass the gate.
+    expect(roadLegalityMisses({ ...complete, armor: makeArmorRecord(0) })).toEqual(['armor']);
+  });
+
+  it('requires an actual mounted weapon, not a slot', () => {
+    expect(roadLegalityMisses({ ...complete, weapons: [] })).toEqual(['weapon']);
+  });
+
+  it('does not mutate the design it inspects', () => {
+    const design = baseDesign();
+    const before = JSON.stringify(design);
+    roadLegalityMisses(design);
+    expect(JSON.stringify(design)).toBe(before);
   });
 });

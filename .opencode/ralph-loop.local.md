@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 8
+iteration: 9
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -4655,3 +4655,134 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
      is the whole finding. The reviewer's proposed remedy — "centre the asphalt
      on the vehicle's PROJECTION onto the route centreline, preserving the
      route's fixed lateral position" — is what this does.
+92. Iteration 86's finding 4, EXECUTED: **"Not road-legal" did not prevent
+   departure.** Codex `gpt-6.1-sol` drove the deployed build, walked out of the
+   gate with the starter car, and named the defect exactly: "The warning
+   promises a restriction that the gate does not enforce." A label naming a
+   rule the game does not apply is worse than no label, because the player is
+   promised a consequence and then watches it not happen.
+
+   - **THE RULE EXISTED IN THREE PLACES AND THE GATE HAD NONE OF THEM.**
+         constructor LEGALITY panel   name + armour + weapon
+         city car strip (app.ts)      the same three, re-derived inline
+         CITY GATE (openGatePrompt)   only "do you have a car"
+     Two of the three re-derived the armour total with their own
+     `FACINGS.reduce` as well, so the five-facings addition existed three
+     times. This is the iteration-59/82/84/91 shape for the fourth time — two
+     surfaces deriving one rule from two places is how they drift — and the
+     drift had run all the way to ABSENCE in the one place that actually
+     enforced anything.
+   - `roadLegalityMisses(design)` now lives in `@/sim/construct`, whose own
+     header already calls it "capacity math + legality engine", returns the
+     MISSES rather than a boolean (a bare `isRoadLegal()` would let the panel
+     and the gate disagree about WHY, which is the half the player needs), and
+     uses `sumArmor` rather than a local reduce. Deliberately NOT folded into
+     `validateDesign`: that function answers "is this coherent, affordable and
+     physically legal" and those are RULES, while these three are an
+     ONBOARDING GATE the constructor teaches in three plain-language steps and
+     promises by. Iteration 84 drew that same line and it held.
+   - **THE GATE REFUSES USING THE SEAM THAT ALREADY EXISTED.** `carless`
+     already marked rows `eligible: false` with a `reason`, and `handleMenuKey`
+     already refuses ACTIVATE for them. No new mechanism — the same shape
+     `@/ui/buildings/arena`'s ineligible rows use. The vehicle is now resolved
+     ONCE and the same `parked` value decides what the rows say and what gets
+     driven, where before the label and the action were two separate readings
+     of the same state. `gateRefusal` is exported for the same reason
+     `vehicleParkedAtGate` is: the decision was a closure nobody could reach,
+     which is why the `carless` half had no test either.
+   - THE REFUSAL NAMES THE FIX, because a locked door with no reason is just a
+     locked door: "not road-legal — fit it at the assembly plant first: armour ·
+     a weapon". Verified live by walking to the gate: all five route rows
+     ineligible, and row 6 (Leave) still selectable.
+
+   - **AND FIXING IT BROKE A TEST THAT WAS PINNING THE BUG — the fourth time
+     in this log, after iterations 29, 33 and 72, and the first time the thing
+     pinned was a rule the UI was actively lying about.**
+     `tests/integration/road-bounds-wiring.test.ts` walks to the gate and picks
+     a route row like a person, and could no longer reach the road. Its
+     `bootToCity` typed a name and nothing else, and its comment claimed the
+     default build "is legal EXCEPT its name" — true of `computeViolations`,
+     false of the stricter three-condition gate. A stale comment (the log's
+     third class) that here did real damage.
+     The deeper cause is duplication: that file has its OWN `bootToCity`,
+     "duplicated here rather than imported because those are module-private",
+     so "how to build a car that can leave the city" lived in two files. The
+     shared `screens.test.ts` copy had the same gap. Both now fit a real
+     road-legal car, which is the fourth independent copy of the boot helper
+     drifting from a rule the other three never had.
+     Measured rather than assumed, per iteration 90: the branch failed that
+     file 2/2 in isolation while clean master passed 2/2, so it was a real
+     consequence and not the flake.
+
+   - **AND THE CAPTURE RIG'S CAR WAS NOT ROAD-LEGAL EITHER**, which is the
+     finding underneath both of the above. `?screen=road` reaches the highway by
+     calling `beginRoadTripWithEncounters` directly and never met the gate, but
+     the rig's Duster had 0 armour and 0 weapons — so the fixture that every
+     reviewer and every capture in this log has looked at was a car the game
+     itself refuses to let onto a highway. It is now fitted on every facing
+     with one weapon, because the rig's job is to show what the game looks like
+     in play. Blast radius measured against iteration 91: title, controls,
+     driver, constructor and fleet all BYTE-IDENTICAL; city, arena and road
+     moved, which is exactly the three screens that show the car.
+     The arena got visibly better for it — the CONDITION panel now shows real
+     depleting bars on all five facings instead of five dashed chips, and
+     WEAPONS shows an actual mounted weapon, which is why its spread rose
+     125.98 -> 144.90 (saturated green is structure, not regression).
+
+   - **WHICH EXPOSED A LAYOUT DEFECT THAT HAD BEEN WRONG THE WHOLE TIME.**
+     Putting a real weapon in the frame showed the weapons row rendering
+     "FRO**Mach…** 20/20" — the facing cell's text painted on top of the name.
+     Six-column grid, 260px panel, facing track fixed at 3.2em rendering
+     "↑ FRONT" with `white-space: nowrap` and NO overflow rule. Measured in
+     real Chrome: 49px of content in a 33px box, 6px gap, so 10px of "NT" landed
+     on the name. A grid track does not clip its own content, so the LAYOUT
+     boxes never overlapped and only the painted glyphs did.
+     Fixed by dropping the redundant WORD and keeping the arrow, with the
+     facing word already in the aria-label. Both options were measured rather
+     than chosen: widening the track to its 49px takes the name from 37px to
+     21px, so "Machine Gun" truncates to "Mac…", whereas dropping the word
+     gives the name ~58px and it now reads "Machin…". Plus the CLASS guard —
+     `overflow: hidden; text-overflow: ellipsis` on the facing, which the name
+     beside it already had. Mutation-proven both ways: restoring the word WITH
+     the guard still passes (the guard alone prevents the paint-over), and the
+     exact shipped state fails with "renders ↑ FRONT at 49px inside a 12px
+     track with overflow-x: visible".
+
+   - **THE REASON EVERY CAPTURE MISSED IT, and the sharpest harness finding in
+     the log since iteration 71's sips bug: the capture gate's numeric
+     assertions CANNOT SEE A HUD TEXT DEFECT.** Measured, not guessed: the fix
+     changes 411 pixels of 1,296,000 — 0.03% of the frame, in a 61x11 bounding
+     box, at max channel delta 543 — and the arena's own meanLuma, spread, p05
+     and p95 are all IDENTICAL before and after. Whole-frame statistics are
+     simply below the threshold for a small-panel text change. So "8 screens,
+     0 with problems" has never meant "the HUD is correct", and roughly ninety
+     reviews of these frames could not have caught this.
+     The gate itself is NOT changed — it is doing its job (a blank frame, a
+     missing panel, a splash) — but the gap is now covered where it has to be:
+     `tests/browser/hud-row-overflow.test.ts`, in real Chrome, because
+     happy-dom returns 0/0 for every rect. Its assertion is "no cell PAINTS
+     OVER its neighbour", i.e. an overflowing cell must CLIP — the first
+     version asserted `scrollWidth <= clientWidth` on every cell and failed
+     against the NAME doing its job legitimately at 81px of content in a 58px
+     track, which is the distinction that matters between the bug and the fix.
+
+   - THE USUAL MEASUREMENT-SCOPE DISCIPLINE, one more time: full-suite failures
+     were 10, then 1, then 2, then 4 across runs. Scope measured rather than
+     assumed — the only failing FILE on branch and on clean master is
+     `tests/integration/screens.test.ts` (master full runs gave 4 and 2, branch
+     4), and in isolation both trees fail the same single campaign "Continue"
+     test every run. Pre-existing cross-file pollution, not this change.
+
+   - FOUR FIXTURES LIED IN THIS ROUND, three of them written by me while
+     explicitly warned about the class: `baseDesign()`'s default name is 'Test
+     Rig', not empty, so it was never the pristine build its comment claimed;
+     `TEST_DESIGN` in `no-active-vehicle.test.ts` is named but carries ZERO
+     armour and ZERO weapons, so it is not the legal fixture its neighbours
+     assume; and a `Record<RoadLegalityMiss, string>` widens to `string` and
+     fails `t()`'s literal-key type, which is why the wording map is a switch.
+     The log now holds eight, and the rule has not changed: derive fixtures
+     from the real type, not from memory of its shape.
+
+   GATE: tsc clean, 67 files / 1460 tests (7 new; the 1-4 failures are the
+   measured `screens.test.ts` flake), 5 browser tests (1 new, proven to fire),
+   build clean, `.shots/iter92` = 8 screens / 0 problems.

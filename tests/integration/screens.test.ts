@@ -150,9 +150,41 @@ async function bootFresh(root: HTMLElement): Promise<Element> {
  * Mounting one slot expands its row into three (weapon/facing/ammo), which is
  * why the step to the next slot's weapon row is exactly 3 `ArrowDown`s.
  */
+/**
+ * Row offsets into `@/ui/builder`'s `computeRows`: name, 5 components, 5 armor
+ * facings, then the weapon slots, then the pinned confirm footer.
+ */
+const ARMOR_FACING_0_ROW = 6;
+const WEAPON_SLOT_0_ROW = 11; // name, 5 components, 5 armor facings — see `@/ui/builder`'s computeRows
+
+/**
+ * Moves the selected row back to the top of the list.
+ *
+ * Both helpers below navigate by pressing ArrowDown a fixed number of times,
+ * which silently means "from row 0" — so the order they are called in is part
+ * of their contract, and the first version of this pair was called with armour
+ * already fitted and armed nothing, because it counted from wherever it landed.
+ * `clampSelected` pins at both ends, so an overshoot is free and this makes the
+ * helpers order-independent rather than order-sensitive by accident.
+ */
+function selectTopRow(constructorScreen: Element): void {
+  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowUp' });
+}
+
+function selectRow(constructorScreen: Element, index: number): void {
+  selectTopRow(constructorScreen);
+  for (let i = 0; i < index; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
+}
+
+function mountArmorInConstructor(constructorScreen: Element, facing: number, points: number): void {
+  selectRow(constructorScreen, ARMOR_FACING_0_ROW + facing);
+  // `applyCycle` steps an armour row by one per press, clamped at 0, so the
+  // overshoot lands on exactly `points` and cannot run away.
+  for (let i = 0; i < points; i++) dispatchKey(constructorScreen, { key: 'ArrowRight' });
+}
+
 function mountWeaponsInConstructor(constructorScreen: Element, count: number): void {
-  const WEAPON_SLOT_0_ROW = 11; // name, 5 components, 5 armor facings — see `@/ui/builder`'s computeRows
-  for (let i = 0; i < WEAPON_SLOT_0_ROW; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
+  selectRow(constructorScreen, WEAPON_SLOT_0_ROW);
   for (let slot = 0; slot < count; slot++) {
     if (slot > 0) for (let i = 0; i < 3; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
     for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowRight' });
@@ -173,18 +205,29 @@ async function bootToCity(root: HTMLElement, options: { readonly weaponMounts?: 
   const submit = requireOne('.sm-screen--driver button');
   submit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-  // --- Constructor: default builder state (first body/chassis/suspension/
-  // plant/tire, no weapons, no armor) is legal EXCEPT its name, which
-  // starts empty (`@/ui/builder`'s own `computeViolations`: `NAME_EMPTY`)
-  // — type one onto the selected (default-selected, index 0) Name row,
-  // same as a player typing character keys, then move down to the
-  // 'confirm' row (`ArrowDown`, clamped at the last row so a generous,
-  // deliberately-overshooting count of presses is safe regardless of
-  // exactly how many rows this build has) and press Enter, exactly what a
-  // player's Enter key does there. ---
+  // --- Constructor: fit a REAL, road-legal car. ---
+  //
+  // This comment used to say the default builder state "is legal EXCEPT its
+  // name". That was true of `computeViolations` — the rules function — and false
+  // of the road gate, which is a stricter, three-condition rule (`@/sim/
+  // construct`'s `roadLegalityMisses`: a name, some armour, a mounted weapon).
+  // Naming the car and nothing else produced a car the game would REFUSE to put
+  // on the highway, so every test that walks to the gate — including
+  // `tests/integration/road-bounds-wiring.test.ts`, which was passing three
+  // iterations before this one — silently depended on the gate not enforcing
+  // what the car strip advertised. That is the third time in this log a test has
+  // turned out to be holding a bug in place (iterations 29, 33, 72), and the
+  // first time the thing it pinned was a rule the UI was actively lying about.
+  //
+  // So the shared fixture is now a road-legal car, which is what a player who
+  // wants to leave town actually has. Armour goes on the FRONT facing only, so
+  // the condition panel shows one real depleting bar next to four unfitted
+  // chips — the mixed state that represents actual play best, and the one that
+  // exercises both of iteration 21's and iteration 25's treatments at once.
   const constructorScreen = requireOne('.sm-screen--constructor');
   for (const ch of 'TestRig') dispatchKey(constructorScreen, { key: ch });
-  if (options.weaponMounts !== undefined) mountWeaponsInConstructor(constructorScreen, options.weaponMounts);
+  mountArmorInConstructor(constructorScreen, 0, 2);
+  mountWeaponsInConstructor(constructorScreen, options.weaponMounts ?? 1);
   for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
   dispatchKey(constructorScreen, { key: 'Enter' });
 

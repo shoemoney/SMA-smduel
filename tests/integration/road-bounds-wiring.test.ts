@@ -121,8 +121,36 @@ async function bootToCity(root: HTMLElement): Promise<void> {
   const submit = requireOne('.sm-screen--driver button');
   submit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
+  // Fit a ROAD-LEGAL car, which this copy of the boot helper did not do until
+  // iteration 92 forced the issue: it typed a name and nothing else, so the car
+  // it built was named but carried no armour and no weapon — a car the city
+  // gate now refuses, correctly, because `@/sim/construct`'s `roadLegalityMisses`
+  // requires all three. This file walks to the gate and picks a route row like
+  // a player, so it was the test that broke when the gate started enforcing
+  // what the car strip had been advertising.
+  //
+  // THE DUPLICATION IS THE ACTUAL RISK, and the comment above admits the cause:
+  // `bootFresh`/`bootToCity` are duplicated rather than imported, so "how to
+  // build a car that can leave the city" now lives in two files that must be
+  // edited together. That is the same drift shape as `unmetRequirements` and
+  // the car strip, in the test harness instead of the game — which is how this
+  // suite ended up depending on a gate that did not enforce. Row offsets come
+  // from `@/ui/builder`'s `computeRows`: name, 5 components, 5 armour facings,
+  // then the weapon slots, then the pinned confirm footer.
+  const ARMOR_FACING_0_ROW = 6;
+  const WEAPON_SLOT_0_ROW = 11;
   const constructorScreen = requireOne('.sm-screen--constructor');
   for (const ch of 'TestRig') dispatchKey(constructorScreen, { key: ch });
+  // Select from the top each time rather than counting relative presses:
+  // `clampSelected` pins at both ends, so the overshoot is free and the two
+  // mounts cannot silently depend on the order they are called in.
+  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowUp' });
+  for (let i = 0; i < ARMOR_FACING_0_ROW; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
+  dispatchKey(constructorScreen, { key: 'ArrowRight' });
+  dispatchKey(constructorScreen, { key: 'ArrowRight' });
+  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowUp' });
+  for (let i = 0; i < WEAPON_SLOT_0_ROW; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
+  for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowRight' });
   for (let i = 0; i < 40; i++) dispatchKey(constructorScreen, { key: 'ArrowDown' });
   dispatchKey(constructorScreen, { key: 'Enter' });
 

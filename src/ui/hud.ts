@@ -275,12 +275,37 @@ function buildWeaponRow(doc: HudDocument, index: number, state: WeaponState, act
   if (active) row.setAttribute('aria-current', 'true');
 
   row.appendChild(el(doc, 'span', { class: 'hud-weapon-slot' }, String(index + 1)));
+  // The ARROW ALONE, with the facing word kept in the accessible name.
+  //
+  // This row used to render "↑ FRONT" in a fixed 3.2em column with
+  // `white-space: nowrap` and no overflow rule, so the text painted straight
+  // over the weapon name beside it. Measured in a real browser: the facing's
+  // content is 49px in a 33px box, the inter-column gap is 6px, so 10px of
+  // "NT" landed on top of the name — the row read "FRO**Mach…** 20/20".
+  //
+  // Every capture in this project's history missed it, and the reason is worth
+  // recording: the capture rig's car carried NO WEAPONS, so the weapons panel
+  // rendered its "none fitted" line and this row's layout was never
+  // photographed. It took making the rig's car genuinely road-legal — the
+  // change that let the city gate stop lying — to put a real weapon in the
+  // frame and expose a layout that had been wrong the whole time. An
+  // unrepresentative fixture does not merely document less; it HIDES defects.
+  //
+  // Why the arrow and not a wider column: the panel is 260px wide holding six
+  // columns, and the name is the one value that identifies the row (the
+  // stylesheet says so). Measuring both options rather than picking: widening
+  // the facing column to its 49px of content takes the name from 37px to 21px,
+  // so "Machine Gun" truncates to "Mac…". Dropping the redundant word instead
+  // gives the name roughly 72px, which fits it whole. The arrow is the
+  // pre-attentive read, the word was already in the aria-label, and this is the
+  // same answer the radar got 44 times over — the symbol is explained, in text,
+  // for anyone who needs it.
   row.appendChild(
     el(
       doc,
       'span',
       { class: 'hud-weapon-facing', 'aria-label': t('ui.hud.weaponFacing', { facing: state.facing }) },
-      `${facingArrow(state.facing)} ${state.facing}`,
+      facingArrow(state.facing),
     ),
   );
   row.appendChild(el(doc, 'span', { class: 'hud-weapon-name' }, def.name));

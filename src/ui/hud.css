@@ -234,7 +234,13 @@
 /* slot · facing · name · ammo · cooldown · dp — the column order hud.ts emits. */
 .hud-weapon-row {
   display: grid;
-  grid-template-columns: 1.4em 3.2em minmax(0, 1fr) auto auto auto;
+  /* Column 2 holds the facing ARROW (see `buildWeaponRow` for why the word was
+     dropped) and is sized to it. It was 3.2em, which is the width of the old
+     "↑ FRONT" text's INTENT and not its content: `white-space: nowrap` with no
+     overflow rule meant the glyphs painted over the neighbouring name, and a
+     grid cell never clips its own overflow, so the layout box looked correct
+     while the text on screen did not. */
+  grid-template-columns: 1.4em 1.2em minmax(0, 1fr) auto auto auto;
   align-items: baseline;
   gap: var(--gap);
   padding: var(--gap) var(--gap);
@@ -253,6 +259,15 @@
   letter-spacing: var(--ui-tracking-wide);
   text-transform: uppercase;
   white-space: nowrap;
+  /* The class guard, added with the instance fix. A grid track does not clip
+     its content, so an unbreakable string in a narrow column silently paints
+     over its neighbour — the weapon row's facing did exactly that for as long
+     as it held a word. Anything unbreakable in a HUD row gets these two lines
+     so a future value that outgrows its track truncates instead of overlapping.
+     The name beside it already had them; the facing had `white-space` without
+     the other half. */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The one value that identifies the row: the brightest ink in the panel. */

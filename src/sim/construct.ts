@@ -290,3 +290,50 @@ export function validateDesign(design: BuildDesign, cash: number): BuildViolatio
   }
   return violations;
 }
+
+/**
+ * The road-legal rule, in one place, and the reason it needed one.
+ *
+ * Three surfaces care whether a vehicle may be driven onto the highway, and
+ * this function exists because they had drifted apart — in the worst possible
+ * direction. The constructor's LEGALITY panel and the city car strip each
+ * carried their own copy of the same three conditions (a name, some armour, a
+ * mounted weapon) and each re-derived the armour total with its own
+ * `FACINGS.reduce`, while the CITY GATE carried none of them at all: it checked
+ * only whether you had a car. So the strip would tell you "Not road-legal" in
+ * amber, the constructor would say the build was not ready, and then the gate
+ * would cheerfully let you out onto the highway anyway. Codex `gpt-6.1-sol`
+ * drove it and reported the shape exactly right: "the warning promises a
+ * restriction that the gate does not enforce." A label that names a rule the
+ * game does not apply is worse than no label, because the player is told a
+ * consequence exists and then watches it not happen.
+ *
+ * This is deliberately NOT folded into `validateDesign`, and the distinction
+ * matters. `validateDesign` answers "is this a coherent, affordable,
+ * physically legal design" — component validity, cost, spaces, fractional
+ * input — and those are RULES. These three are an ONBOARDING GATE: the
+ * constructor teaches them in three plain-language steps (iteration 23) and
+ * promises the car is road-legal when they are met. Mixing an onboarding
+ * prompt into a rules function would put player-facing copy in the wrong layer
+ * and make `legal: true` mean two different things in two different places.
+ * Iteration 84 drew the same line and it held up.
+ *
+ * Returns the MISSES rather than a boolean so every caller can name what is
+ * wrong. A bare `isRoadLegal()` would have let all three surfaces disagree
+ * again about *why*, which is the half the player actually needs.
+ *
+ * Takes a `VehicleDesign`, not a `BuildDesign`: the gate and the strip both hold
+ * a real `VehicleState`, and requiring the build-only cargo fields would push
+ * callers into synthesising throwaway objects.
+ */
+export type RoadLegalityMiss = 'name' | 'armor' | 'weapon';
+
+export function roadLegalityMisses(design: VehicleDesign): readonly RoadLegalityMiss[] {
+  const misses: RoadLegalityMiss[] = [];
+  if (design.name.trim().length === 0) misses.push('name');
+  // `sumArmor` rather than a local reduce: the other two copies of this
+  // calculation were each one forgotten FACING away from correct.
+  if (sumArmor(design.armor) === 0) misses.push('armor');
+  if (design.weapons.length === 0) misses.push('weapon');
+  return misses;
+}

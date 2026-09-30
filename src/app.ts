@@ -70,7 +70,7 @@ import {
   triggerSpikes,
   type DeployableState,
 } from '@/sim/combat';
-import { computeBuildCached } from '@/sim/construct';
+import { computeBuildCached, roadLegalityMisses, type RoadLegalityMiss } from '@/sim/construct';
 import {
   createCityPlayerState,
   generateCityLayout,
@@ -121,7 +121,7 @@ import {
   type FleetVehicle,
 } from '@/sim/fleet';
 import type { DayPhase, DriverState, RouteDef, SkillName, Vec2, VehicleDesign, VehicleState, WeaponDef } from '@/sim/types';
-import { FACINGS } from '@/sim/types';
+import { FACINGS, makeArmorRecord, sumArmor } from '@/sim/types';
 import { createWorld, type World } from '@/sim/world';
 import { createRng, type Rng } from '@/util/rng';
 import { hashState } from '@/util/hash';
@@ -3855,6 +3855,42 @@ export function vehicleParkedAtGate(vehicle: VehicleState | null, gate: Vec2): V
   return vehicle === null ? null : { ...vehicle, position: { ...gate }, headingRad: 0 };
 }
 
+/**
+ * The city gate's refusal, or `null` when the route is open.
+ *
+ * Exported for the same reason `vehicleParkedAtGate` is: this decision is a
+ * closure inside `showCity`, and a test written against a reimplementation of
+ * it would pass whether or not the gate agreed. The refusal texts used to be
+ * decided inline here, which is why the `carless` half had no test at all and
+ * the road-legal half had no existence.
+ *
+ * Takes the ALREADY-parked vehicle, so a caller (and a test) resolves it once
+ * through the same `vehicleParkedAtGate` production uses — the value that
+ * decides what the rows say is then literally the value that gets driven.
+ */
+export function gateRefusal(parked: VehicleState | null): string | null {
+  if (parked === null) return t('ui.city.gateNoVehicle');
+  // SECOND REFUSAL, and the one that used to be missing entirely. The strip
+  // told the player "Not road-legal" in amber and the constructor said the
+  // build was not ready, and then this gate waved them onto the highway
+  // anyway — so the warning named a restriction that did not exist. The same
+  // three conditions decide it now, read from `roadLegalityMisses` (see there
+  // for why the copies had drifted).
+  const misses = roadLegalityMisses(parked.design);
+  if (misses.length === 0) return null;
+  // A `Record` is not an option here: indexing it widens the value to `string`
+  // and `t()` only takes the literal key union. Switches keep the literals.
+  const word = (miss: RoadLegalityMiss): string =>
+    t(
+      miss === 'name'
+        ? 'ui.city.gateNeedName'
+        : miss === 'armor'
+          ? 'ui.city.gateNeedArmor'
+          : 'ui.city.gateNeedWeapon',
+    );
+  return `${t('ui.city.gateNotLegal')} ${misses.map(word).join(' · ')}`;
+}
+
 interface CityRenderResources extends PostTemplate {
   readonly pipeline: GPURenderPipeline;
   readonly cameraBuffer: GPUBuffer;
@@ -4171,10 +4207,17 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     'position:absolute;bottom:10px;left:10px;max-width:min(320px, 42vw);color:#c9d6e4;font-family:system-ui,sans-serif;font-size:var(--ui-text-base, 13px);background:rgba(10,14,20,0.78);border:1px solid var(--ui-line, rgba(146,176,204,0.2));border-left:3px solid var(--ui-accent-strong, #4fd6c4);border-radius:6px;padding:6px 9px;pointer-events:none;box-shadow:0 3px 14px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset;';
   if (state.vehicle !== null) {
     const v = state.vehicle;
-    const armourTotal = FACINGS.reduce<number>((sum, f) => sum + (v.design.armor[f] ?? 0), 0);
-    const hasWeapon = v.design.weapons.length > 0;
+    // `sumArmor`, not a local reduce: this line used to be a third independent
+    // copy of the same five-facings addition, and the two other copies had each
+    // already been found one FACING away from correct.
+    const armourTotal = sumArmor(v.design.armor);
     const named = v.design.name.length > 0;
-    const ready = armourTotal > 0 && hasWeapon && named;
+    // The SAME rule the constructor's LEGALITY panel reads and the city gate
+    // now enforces, so "Not road-legal" below is a statement about a
+    // restriction that actually exists. See `roadLegalityMisses` for why the
+    // three copies this replaces had drifted apart.
+    const misses = roadLegalityMisses(v.design);
+    const ready = misses.length === 0;
     carStrip.innerHTML = '';
     const nameLine = document.createElement('div');
     nameLine.style.cssText = 'font-weight:600;letter-spacing:0.04em;';
@@ -4420,12 +4463,19 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     // row, the same shape `@/ui/buildings/arena`'s ineligible rows use, rather
     // than a silent dead menu — and `@/ui/menu`'s `handleMenuKey` never
     // dispatches ACTIVATE for an ineligible row, so it is also the gate.
-    const carless = runState.vehicle === null;
+    //
+    // The vehicle is resolved ONCE, here, and the same `parked` value decides
+    // both what the rows say and what activation uses. It used to be resolved
+    // inside `onActivate` and nowhere else, which meant the row's eligibility
+    // and the thing actually driven were two separate readings of the same
+    // state — one more place for the label and the behaviour to disagree.
+    const parked = vehicleParkedAtGate(runState.vehicle, layout.gate.position);
+    const refusal = gateRefusal(parked);
     const actions: MenuAction[] = neighbors.map((n) => ({
       id: `route-${n.route.id}`,
       label: t('ui.city.routeOption', { city: cityName(n.neighborCityId), miles: n.route.lengthMiles, danger: n.route.danger }),
-      eligible: !carless,
-      ...(carless ? { reason: t('ui.city.gateNoVehicle') } : {}),
+      eligible: refusal === null,
+      ...(refusal !== null ? { reason: refusal } : {}),
     }));
     actions.push(leaveAction());
 
@@ -4441,7 +4491,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
         }
         const routeId = id.slice('route-'.length);
         const found = neighbors.find((n) => n.route.id === routeId);
-        const vehicle = vehicleParkedAtGate(runState.vehicle, layout.gate.position);
+        const vehicle = parked;
         if (found === undefined || vehicle === null) {
           closePanel();
           return;
@@ -6214,6 +6264,22 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
       return true;
     }
 
+    // The capture rig's car is ROAD-LEGAL, and that is a correctness property
+    // rather than a framing choice. `?screen=road` reaches the highway by
+    // calling `beginRoadTripWithEncounters` directly, so it never met the gate —
+    // but a player (and `tests/integration/road-bounds-wiring.test.ts`, which
+    // walks to the gate and picks a route row like a person would) goes through
+    // `openGatePrompt`, which since iteration 92 enforces the same three
+    // conditions the strip advertises. A rig car with 0 armour and 0 weapons
+    // could no longer reach the road by the front door, which made the fixture
+    // unrepresentative: every reviewer who walked the gate got refused.
+    //
+    // It is fitted on every facing with one weapon mounted, not minimally
+    // sufficient, because the rig's job is to show what the game actually looks
+    // like in play — and a road-legal car shows the strip's "Road-legal" state
+    // and the condition panel's real depleting bars, where a 0/0 car showed
+    // five dashed chips. The unfitted-chip state is still reachable in real play
+    // at the constructor, which is where it belongs.
     const design: VehicleDesign = {
       name: 'Duster',
       bodyId: 'subcompact',
@@ -6221,8 +6287,8 @@ export async function boot(root: HTMLElement, bootOptions: BootOptions = {}): Pr
       suspensionId: 'light',
       plantId: 'small',
       tireId: 'standard',
-      armor: { FRONT: 0, REAR: 0, LEFT: 0, RIGHT: 0, UNDERBODY: 0 },
-      weapons: [],
+      armor: makeArmorRecord(2),
+      weapons: [{ weaponId: 'machinegun', facing: 'FRONT', ammo: getWeapon('machinegun').ammoCapacity }],
     };
     const vehicle = vehicleStateFromDesign(design, 'veh-screencap', PLAYER_ID);
     const cityState: CityRunState = {

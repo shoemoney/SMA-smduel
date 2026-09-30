@@ -43,13 +43,14 @@ import {
   arenaExitVehicle,
   arenaPlayerVehicle,
   buildingContextFrom,
+  gateRefusal,
   vehicleParkedAtGate,
   vehicleStateFromDesign,
   type CityRunState,
 } from '@/app';
 import { houseKartDesign, houseLoanerDesign, isHouseVehicleSalvageable, loanerVehicleDef } from '@/sim/arena';
-import { computeBuild } from '@/sim/construct';
-import { FACINGS } from '@/sim/types';
+import { computeBuild, roadLegalityMisses } from '@/sim/construct';
+import { FACINGS, makeArmorRecord } from '@/sim/types';
 import { economy, getWeapon, skillsConfig } from '@/data/rulesets';
 import { initialClock } from '@/sim/calendar';
 import { createDriver } from '@/sim/driver';
@@ -58,6 +59,7 @@ import { createRng } from '@/util/rng';
 import { arenaActions } from '@/ui/buildings/arena';
 import { createSalvageState, salvageEngine, vehicleSaleValue } from '@/ui/buildings/salvage';
 import type { MenuAction } from '@/ui/menu';
+import { t } from '@/ui/strings';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -361,5 +363,115 @@ describe('crossing a city boundary parks the car at the gate', () => {
 
   it('has nothing to park for a carless driver', () => {
     expect(vehicleParkedAtGate(null, GATE)).toBeNull();
+  });
+});
+
+/**
+ * The city gate enforces what the strip promises.
+ *
+ * The strip said "Not road-legal" in amber and the constructor's LEGALITY panel
+ * said the build was not ready, and then `openGatePrompt` waved the player onto
+ * the highway anyway — its only eligibility check was "do you have a car". Codex
+ * `gpt-6.1-sol` drove the deployed build, drove onto the route with a starter
+ * car carrying 0 armour and 0 mounted, and named it exactly: "the warning
+ * promises a restriction that the gate does not enforce."
+ *
+ * These run through the exported `gateRefusal` seam rather than a
+ * reimplementation, so a test here can only pass if the real gate agrees. The
+ * carless half of the same refusal had NO test at all before this — it was
+ * decided inline in a closure nobody could reach.
+ */
+describe('gateRefusal — the gate enforces the promise the strip makes', () => {
+  const gate = { x: 0, y: 0 };
+
+  it('refuses when there is no car at all', () => {
+    expect(gateRefusal(null)).toBe(t('ui.city.gateNoVehicle'));
+  });
+
+  it('refuses the starter car that could previously drive out unarmoured', () => {
+    // `TEST_DESIGN` is this file's legal fixture, so strip the armour and the
+    // weapon to reconstruct the exact state the reviewer drove with: named, but
+    // carrying nothing. Driven through `vehicleParkedAtGate` first, because that
+    // is the value the gate is handed.
+    const stripped = makeVehicle('veh-starter');
+    stripped.design = { ...stripped.design, armor: makeArmorRecord(0), weapons: [] };
+    const parked = vehicleParkedAtGate(stripped, gate);
+    expect(parked).not.toBeNull();
+
+    const refusal = gateRefusal(parked);
+    expect(refusal).not.toBeNull();
+    // The refusal must NAME what is missing, or it is just a locked door.
+    expect(refusal).toContain(t('ui.city.gateNotLegal'));
+    expect(refusal).toContain(t('ui.city.gateNeedArmor'));
+    expect(refusal).toContain(t('ui.city.gateNeedWeapon'));
+  });
+
+  it('refuses an unnamed car even when it is fully fitted', () => {
+    // The inverse ordering check: a name is one of the three conditions, so a
+    // fully-armoured, fully-armed, UNNAMED car must still be refused. Without
+    // this, a rule written as "armour && weapon" would pass every other test here.
+    const unnamed = legalVehicle('veh-unnamed');
+    unnamed.design = { ...unnamed.design, name: '' };
+    expect(gateRefusal(vehicleParkedAtGate(unnamed, gate))).toBe(
+      `${t('ui.city.gateNotLegal')} ${t('ui.city.gateNeedName')}`,
+    );
+  });
+
+  /**
+   * `TEST_DESIGN` — this file's shared fixture — is named but carries ZERO
+   * armour and ZERO weapons, deliberately: it is the bare car a broke driver
+   * owns, which is the whole premise of the suite this block lives inside. So it
+   * is exactly the state the gate must refuse, and useless as the "opens" case.
+   * The legal variant is built here rather than borrowed, and the weapon id is
+   * taken from the real `getWeapon` lookup instead of typed from memory — the
+   * log has six fixtures that lied about the shape of the thing they stood for,
+   * and `w-machine-gun` versus `machinegun` was one of them.
+   */
+  function legalVehicle(id = 'veh-legal'): VehicleState {
+    const v = makeVehicle(id);
+    const def = getWeapon('machinegun');
+    v.design = {
+      ...v.design,
+      armor: makeArmorRecord(4),
+      weapons: [{ weaponId: def.id, facing: 'FRONT', ammo: def.ammoCapacity }],
+    };
+    return v;
+  }
+
+  it('refuses the bare TEST_DESIGN, which is named but unfitted', () => {
+    // Spelled out because it is the least obvious assertion here: `makeVehicle()`
+    // is a legal-looking car as far as the rest of this file is concerned.
+    const parked = vehicleParkedAtGate(makeVehicle('veh-bare'), gate);
+    expect(roadLegalityMisses(parked!.design)).toEqual(['armor', 'weapon']);
+    expect(gateRefusal(parked)).toBe(
+      `${t('ui.city.gateNotLegal')} ${t('ui.city.gateNeedArmor')} · ${t('ui.city.gateNeedWeapon')}`,
+    );
+  });
+
+  it('opens for a car that meets all three conditions', () => {
+    expect(gateRefusal(vehicleParkedAtGate(legalVehicle(), gate))).toBeNull();
+  });
+
+  it('agrees with the constructor panel on every one of the three conditions', () => {
+    // The anti-drift guard. The panel and the gate are two surfaces reading the
+    // same rule, and the whole bug was that they were two surfaces reading two
+    // copies of it. Asserted as `!gateRefusal <=> no misses` over a matrix, so a
+    // future edit that reintroduces an independent check in either place fails.
+    const conditions: ReadonlyArray<readonly [string, (d: VehicleDesign) => VehicleDesign]> = [
+      ['fitted', (d) => d],
+      ['fitted but unnamed', (d) => ({ ...d, name: '' })],
+      ['fitted but unarmoured', (d) => ({ ...d, armor: makeArmorRecord(0) })],
+      ['fitted but unarmed', (d) => ({ ...d, weapons: [] })],
+    ];
+    for (const [label, mutate] of conditions) {
+      const vehicle = legalVehicle(`veh-${label}`);
+      const design = mutate(vehicle.design);
+      vehicle.design = design;
+      const parked = vehicleParkedAtGate(vehicle, gate);
+      const misses = roadLegalityMisses(design);
+      expect(gateRefusal(parked) !== null, `${label}: gate should ${misses.length === 0 ? '' : 'not '}refuse`).toBe(
+        misses.length > 0,
+      );
+    }
   });
 });
