@@ -4437,3 +4437,16 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
    GATE: tsc clean, 55 unit files / 1334 tests all pass, 4 browser tests, build
    clean. `tests/integration/screens.test.ts` remains flaky on master and here;
    it is not fixed by this round and is now measured rather than assumed.
+
+   LIVE VERIFICATION (production, `index-CGmvk_5e.js`, 0 console errors). The
+   camera follows the car, so the car stays centred and the WORLD scrolls — the
+   inverse reading. Measured on the real deployment: between the start frame and
+   the frame after holding W, every landmark in the plaza, including the cyan
+   gate beacon above the car, shifted DOWN by roughly 60px. World down means the
+   car moved UP, which is the property that was inverted.
+   The S leg in the same capture is INCONCLUSIVE rather than confirmed: the
+   beacon barely moved after S, most likely because the W leg had already pushed
+   the car against the plaza's north wall and it was clamped. Recorded as
+   unverified rather than as a second pass, because the S direction is the same
+   single flipped sign as the W one and is already covered by the end-to-end
+   unit guard and by the traced convention.
