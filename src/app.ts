@@ -3993,17 +3993,23 @@ export function showArenaEvent(
   const menuHost = el('div');
   menuHost.style.cssText =
     'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,90vw);max-height:80vh;overflow:auto;display:none;';
-  // The persistent hint. A pause control nobody knows about is not one —
-  // iteration 100's rule, and the reason the road's trip menu ships a hint at
-  // all. It sits top-centre at 88px, the same band the road uses: below the
-  // status pill and clear of every HUD corner, so it adds no new collision.
-  const menuHint = el('div');
-  menuHint.style.cssText =
-    'position:absolute;top:88px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:3px 9px;border-radius:4px;pointer-events:none;';
-  menuHint.textContent = t('ui.arena.menuHint');
+  // The persistent pause hint used to be its own element here, hardcoded at
+  // `top: 88px`, on the reasoning that it sat "below the status pill and clear
+  // of every HUD corner, so it adds no new collision". A Codex review
+  // (iteration 151) measured the collision that reasoning missed, and a
+  // real-browser probe reproduced it from live bounding boxes: this element
+  // spans y 88–110.8 while `.hud-panel--messages` starts at
+  // `calc(var(--inset) + 44px)` = 56px and grows DOWNWARD as messages arrive.
+  // In Division 5 the match-entry message alone overlapped this hint by
+  // 21.7px — so most of the one line that teaches the pause key was hidden by
+  // the first message the player ever sees.
+  //
+  // The hint is not deleted, it MOVES: into the top controls banner, which sits
+  // above the message feed by construction, so no amount of message growth can
+  // reach it. A hardcoded pixel offset cannot have that property; a sibling of
+  // the banner can. `tools/probe-arena-hud-overlap.mjs` is the gate.
   container.appendChild(pauseScrim);
   container.appendChild(menuHost);
-  container.appendChild(menuHint);
   clearAndAppend(root, container);
 
   lastSessionSeed = cityState.sessionSeed;
@@ -4313,6 +4319,11 @@ export function showArenaEvent(
       event: event.name,
       fire: describeAction(currentControlBindings, currentControlPreset, 'fire'),
       cycle: describeCyclePair(currentControlBindings, currentControlPreset, 'cycleWeaponPrev', 'cycleWeaponNext'),
+      // The pause key rides in this banner rather than in its own absolutely
+      // positioned element — see the note where that element used to be built.
+      // `ui.arena.menuHint` stays the single owner of the wording, so the
+      // banner cannot drift from it.
+      pause: t('ui.arena.menuHint'),
     });
 
     atlasIndex = loadAtlasIndex(atlasManifestRaw);
