@@ -4488,3 +4488,59 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
    stick rather than a tank, so the sim's heading is not a snapped compass
    bearing. What this fix asserts is the correct property — the marker follows
    the heading the sim actually has — and that is now true and was not before.
+
+89. Codex review (title/constructor/driver pass) finding 3, EXECUTED: **the
+   WEAPONS panel covered the Arcade navigation link, and swallowed its clicks.**
+   The reviewer measured it rather than eyeballing it: "Arcade occupies
+   approximately (8, 8, 87, 44) CSS pixels. WEAPONS starts at (12, 12) and
+   covers the link's icon and text. Pointer hit testing at (40, 25) reaches the
+   WEAPONS heading."
+
+   - ROOT CAUSE. `.arcade-home-link` is `position: fixed; top/left:
+     var(--ui-space-4); min-height: 44px; z-index: 10` in tokens.css, living
+     outside `#app` so it survives every screen mount. `.hud-panel--weapons`
+     was pinned to the same corner, and `.hud-root` is `z-index: 20` — so
+     WEAPONS both painted over the one control that leaves a run in one key
+     AND received its pointer events. Same failure iteration 71 recorded for
+     the arena's exit button behind the CONDITION panel, different pair of
+     elements.
+   - FIXED BY RESERVING A SLOT, NOT RAISING Z-INDEX. The panel now starts at
+     `calc(var(--inset) + 52px)`. Raising the link above the panel would have
+     hidden the panel's own top edge underneath it, and left the next panel
+     added to that corner free to collide again. The 52 is NOT scaled by
+     `--hud-scale` on purpose: the link is plain fixed chrome, so a scaled
+     reservation would be wrong on exactly the small viewports where the link
+     is proportionally largest.
+   - **TWO ATTEMPTS TO ABSTRACT IT FAILED SILENTLY, AND THAT IS THE ROUND.**
+     First pass wrote `.hud-nav-reserved: 52px` — a SELECTOR, not an
+     assignment. Second declared `--hud-nav-reserved: 52px` at the top level,
+     where `getComputedStyle(documentElement).getPropertyValue(...)` came back
+     EMPTY, so the `calc()` was invalid, `top` fell back to `auto`, and the
+     panel sat at y=0 exactly as before.
+     Neither produced an error, a failed build, or a visible change, and the
+     panel looked identical in a screenshot both times. **That is iteration
+     32's shape exactly: a declaration that resolves to nothing is
+     indistinguishable from a declaration that was never written.** The only
+     reason it was caught at all is that I hit-tested rather than eyeballed,
+     after the first measurement came back `weaponsTop: 0` and did not match
+     the change I had just made.
+     It ships as a literal, and the comment says why: one honest number in one
+     place beats a name that does not resolve.
+
+   - VERIFIED BY HIT TESTING IN PRODUCTION (`index-BYtNy5lY.js` build,
+     0 console errors), the same method the reviewer used:
+       arena  link y=8 h=44 | weapons y=64 | overlaps false | centre hits link
+       road   link y=8 h=44 | weapons y=64 | overlaps false | centre hits link
+       city   link y=8 h=44 | no weapons panel   | overlaps false | hits link
+     Before the fix all three read `overlaps: true` and
+     `centreHitIsLink: false`.
+
+   Other findings from the same pass, queued: the "Jobs" markers pointing at a
+   Federal Building that is a future-phase placeholder and at a Truck Stop that
+   is not (the facility-identity item, now asked for twice); the road asphalt
+   following the car sideways off-route with a concrete remedy — centre the
+   surface on the vehicle's PROJECTION onto the route centreline and use one
+   origin and heading for surface, paint and furniture; the unarmed car
+   carrying a gun baked into its body artwork while the panel says
+   "— none fitted"; and the ground-texel item, which remains the NEAREST-sampler
+   art deferral.

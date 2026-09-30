@@ -107,8 +107,33 @@
 
 /* --- layout slots ----------------------------------------------------- */
 
+/* The Arcade home link owns the top-left corner on EVERY screen — it is
+   `position: fixed; top: 8px; min-height: 44px` in tokens.css, living outside
+   #app so it survives every screen mount. This panel was pinned to the same
+   corner, and `.hud-root` is `z-index: 20` against the link's 10, so WEAPONS
+   both PAINTED OVER the one control that leaves a run in one key and
+   RECEIVED POINTER EVENTS at its centre.
+   That is the same failure iteration 71 recorded for the arena's exit button
+   behind the CONDITION panel, with a different pair of elements, and it is why
+   the fix is a reserved SLOT rather than a z-index bump: raising the link above
+   the panel would leave the panel's own top edge hidden underneath it, and any
+   future panel in that corner would collide again.
+   The reserved height is deliberately NOT scaled by --hud-scale: the link is
+   plain fixed chrome, so a scaled reservation would be wrong on small viewports
+   and leave the overlap in exactly the case where the link is largest.
+
+   And it is a literal rather than a custom property, after two attempts to
+   abstract it failed to resolve: a first pass wrote `.hud-nav-reserved: 52px`,
+   which is a SELECTOR and not an assignment, and a second declared
+   `--hud-nav-reserved` at the top level where the computed value on the root
+   element came back EMPTY — so `calc()` with it was invalid, `top` silently
+   fell back to `auto`, and the panel sat at y=0 exactly as before. Both
+   failures produced no error and no visual change, which is the iteration-32
+   shape precisely: a declaration that resolves to nothing looks identical to a
+   declaration that was never written. Verified by hit-testing, not by looking.
+   One honest number, in one place, is worth more here than a name. */
 .hud-panel--weapons {
-  top: var(--inset);
+  top: calc(var(--inset) + 52px);
   left: var(--inset);
 }
 
