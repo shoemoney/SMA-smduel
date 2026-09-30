@@ -765,6 +765,26 @@ function buildLeftPane(state: BuilderState, handlers: BuilderRowHandlers): HTMLE
         ev.stopPropagation();
       });
       input.addEventListener('input', () => handlers.onNameInput(input.value));
+      // CLICK must not bubble out of the input, for the same reason `keydown`
+      // above must not: the row owns a click listener that calls
+      // `onRowActivate`, which re-renders the whole constructor and therefore
+      // DESTROYS this very input element. A click inside the field bubbled to
+      // the row, the rebuild replaced the input, and the browser dropped focus
+      // to <body> — so clicking the one field the player is required to fill,
+      // and then typing, silently did nothing.
+      //
+      // Reproduced against the real build with a real browser, not read off the
+      // source: `activeElement` was BODY after `input.click()`, and typing
+      // produced an empty value. Focusing the element directly and typing
+      // worked, which is what made it look like a keyboard problem rather than
+      // a click-propagation one.
+      //
+      // The trade is that clicking the field no longer re-selects its row, so
+      // the selection highlight does not follow a click into the name field
+      // from another row. That is invisible in the state a player actually
+      // meets it in (the name row is selected on open), and it is a much
+      // smaller cost than a field that cannot be typed into.
+      input.addEventListener('click', (ev) => ev.stopPropagation());
       li.appendChild(input);
     } else {
       const value = document.createElement('span');

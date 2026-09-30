@@ -1,0 +1,37 @@
+model = "openai/gpt-6.1-sol"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+service_tier = "default"
+model_verbosity = "medium"
+model_reasoning_summary = "concise"
+
+# No [features] skills/memories/chronicle here, and no skills directory: the
+# 537-skill context tax is what killed the first two runs.
+[features]
+skills = false
+memories = false
+
+[model_providers.openrouter]
+name = "OpenRouter"
+base_url = "https://openrouter.ai/api/v1"
+env_key = "OPENROUTER_API_KEY"
+wire_api = "responses"
+
+# Screenshots. `browser_navigate` needs no approval prompt or the run stalls.
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp@latest"]
+
+[mcp_servers.playwright.tools.browser_navigate]
+approval_mode = "approve"
+
+# Computer use — DISABLED in the user's own config (`enabled = false`), which is
+# why a review relying on it would have had neither tool. Enabled here, and
+# pointed at absolute paths because the stock config uses a relative command
+# with cwd="." that only resolves from ~/.codex.
+[mcp_servers.computer-use]
+command = "/Users/shoemoney/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient"
+args = ["mcp"]
+cwd = "/Users/shoemoney/.codex/computer-use"
+enabled = true
+startup_timeout_sec = 60

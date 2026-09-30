@@ -4025,3 +4025,111 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
      City spread 65.99 -> 66.65 with luma 93.34 -> 93.18, so the stains add
      structure and take almost nothing off the mean. Every other screen
      byte-identical.
+
+83. **REVIEWER CHANGED: Codex CLI, `gpt-6.1-sol`, driving the live app.** The
+   advisory reviewer is no longer a vision model handed downscaled stills. Four
+   things had to be true before a single review could run, and each failure is
+   worth more than the findings that followed.
+   - `gpt-6-1-sol` is not a real slug; the model cache calls it `gpt-6.1-sol`.
+     My first call used the dashed name and the error said the model was
+     unsupported, which read as an auth problem and was actually a typo.
+   - The ChatGPT subscription is EXHAUSTED ("usage limit, resets 2026-10-04"),
+     and the stored OpenAI API key is out of quota. So neither native codex
+     path could run a single call.
+   - `gpt-6.1-sol` IS on OpenRouter, and `OPENROUTER_API_KEY` is set in the
+     environment. So codex runs it through a custom provider, added to
+     `~/.codex/config.toml` as a purely ADDITIVE `[model_providers.openrouter]`
+     block with `model_provider` passed per-invocation, so no other codex use
+     changes behaviour. `auth.json` was backed up and restored to ChatGPT auth
+     after testing. Revert: delete that block.
+   - **A TRIVIAL PROMPT COST 25,773 TOKENS.** The cause was not the model, the
+     browser or the context window: codex loaded 537 skill descriptions, the
+     user's AGENTS.md, RTK, Poteto, Unslop and a project memory index into every
+     call. The trace of the first doomed run ended on the literal reasoning step
+     "Assessing token budget". Running from an ISOLATED HOME (auth + a config
+     carrying only the openrouter provider and the browser MCP servers, and
+     deliberately NO skills directory) cut the baseline to 11,185.
+   - **AND THE REAL KILLER WAS A RATE LIMIT, not any of the above.** Every run
+     died silently at ~130s having done real work. `-o/--output-last-message`
+     writes the answer only on a CLEAN completion, so a rate-limited run wrote
+     nothing — the symptom was "codex produced no review", three separate
+     times, and the reason was only visible in the tail of a trace nobody would
+     otherwise read. OpenRouter rate-limits `gpt-6.1-sol` upstream and a
+     computer-use loop trips it; the limit is bursty, not a quota. Fixed with
+     retry + backoff around the whole review, and `-o` truncated per attempt so
+     a partial run can never pass as a fresh answer.
+   - `tools/review-codex.sh` now encapsulates all of it, and the reviewer's
+     `computer-use` MCP is ENABLED there — it is `enabled = false` in the
+     user's own config, so a review relying on it would have had neither tool.
+
+   **TWO REAL FINDINGS, both confirmed against the current build.**
+
+   - **1. THE MANDATORY CAR-NAME FIELD COULD NOT BE TYPED INTO AFTER CLICKING
+     IT.** The name row owns a click listener calling `onRowActivate`, which
+     re-renders the constructor. A click inside the input bubbled to it, the
+     re-render replaced the input, and the browser dropped focus to `<body>`.
+     Reproduced in a real browser before changing anything: `activeElement` was
+     BODY after `input.click()`, and typing produced an empty value; focusing
+     the element directly and typing worked, which is what made it look like a
+     keyboard bug rather than a click-propagation one. The field is MANDATORY,
+     so the obvious interaction failed at exactly the point a new player must
+     act, with the LEGALITY panel still saying "car name is required" and never
+     explaining why the field ignored them.
+     Fixed with one line — `ev.stopPropagation()` on the input's click — which
+     is the same guard the `keydown` path beside it already had. The trade is
+     recorded: clicking the field no longer re-selects its row, which is
+     invisible in the state a player meets it in.
+     **AND THIS IS A BROWSER TEST, NOT A UNIT TEST, and that is the point.**
+     `tests/unit/builder.test.ts` drives a DOM double that stores listeners per
+     element and fires them on the element — it does not model BUBBLING. A
+     test written there would have passed with the bug present and failed to
+     fail without it. `tests/browser/menu-layout.test.ts` already exists for
+     the same class of reason (happy-dom returns 0/0 for every rect); this is
+     the bubbling equivalent. Proven to fail on both assertions with the fix
+     removed, and to pass with it restored.
+   - **2. LEGALITY SAID "NO VIOLATIONS — READY TO BUILD" FOR A CAR WITH ZERO
+     ARMOUR AND ZERO WEAPONS, AND CONFIRM LET IT THROUGH.** Worse than the
+     reviewer first stated, which was that the message appeared. Tested
+     directly: naming the car switched the panel out of its pristine branch
+     (`isPristineBuilder` returns false as soon as a name exists), the panel
+     then took the `violations.length === 0` branch, and pressing Enter on
+     CONFIRM BUILT THE CAR — arriving in the city strip reading
+     "Duster · 0 armour · 0 mounted · **Not road-legal**".
+     So two surfaces on the same screen contradict each other, and the screen
+     the player trusts told them a build was ready when the rest of the game
+     did not agree. Root cause: the requirement gate (name + armour + a mounted
+     weapon) is enforced somewhere other than `validateDesign`, so the
+     violation list the panel renders never contained it. NOT FIXED THIS ROUND
+     — the fix is a question about where the requirement belongs, and the
+     iteration-48 amber rails already mark the unmet rows, so the honest fix is
+     to make the panel's definition of "violation" include what actually gates
+     CONFIRM rather than to add a second, parallel check. That deserves its own
+     iteration rather than a patch bolted on at the end of one.
+   - Two of the reviewer's other findings (Confirm clipped at the bottom; city
+     facilities unlabelled) are STALE against this build — the first was fixed
+     by iteration 39's pinned footer and the second is answered by iteration
+     79's pictogram mats plus iteration 39's legend — but they were made
+     against a build this loop was not shipping, which is its own finding below.
+   - FINDING #4 (the budget is never shown, so a player only learns their $2000
+     limit by exceeding it) is real against this build and is queued.
+
+   **AND THE REVIEWER CAUGHT A DEPLOYMENT PROBLEM, WHICH IS THE MOST USEFUL
+   THING IN THE ROUND.** It reported the live deployment serving
+   `index-bVh14wWE.js` and noted the constructor and city "differ from the build
+   described in your brief" and that the served bundle "does not handle
+   `?screen=`". Checking: correct, and the cause was not a code defect at all.
+   The concurrent arcade deployer had overwritten my release AGAIN — live was
+   `20260929222348-0e1398`, not my `20260930024000-b8b8e90`. Two shipped
+   iterations (81 and 82) were not actually live when the review ran, and every
+   finding in it was made against someone else's build.
+   So three of the loop's own deployment facts were wrong or unverified at once:
+   the live build was not mine, "iteration 81/82 are deployed" was false, and
+   an earlier check of mine had reported the site CURRENT on the strength of a
+   route returning 200. A 200 says the site is UP, not that it is MINE — the
+   same shape as the 48th radar report and the iteration-16 phantom "0 models
+   asked": a healthy signal standing in for a fact. The release check now
+   compares the served bundle hash against the local build, which is the only
+   thing that actually answers the question. Redeployed and re-verified.
+   - VERIFIED: tsc clean, 67 files / 1439 tests, 4 browser tests (2 new), build
+     clean (`index-Cs2Oosdf.js`), `.shots/iter83` = 8 screens / 0 problems,
+     every screen byte-identical (the fix is behaviour, not appearance).
