@@ -6576,3 +6576,60 @@ correction to iteration 105 that matters more than any of them
                 not `hud-radar-face`
     off-road     glyph `▲`, `rotate(0deg)`, label "Road — 15 m"
     flip         0deg -> (hidden on road) -> 180deg on the far side
+
+ITERATION 108 — Codex finding 4: two working features with no visible control
+- **"J opens Journal and F opens Fleet, but neither shortcut appears in the
+  city's visible instructions or as a desktop action button. I opened both
+  successfully; the features exist."** The affordance audit is unambiguous and
+  took one grep: both screens have real handlers AND real touch buttons
+  (`ui.touch.fleet`, `ui.touch.journal`) — but `mountTouchControls` only
+  surfaces those on coarse pointers, so on a desktop keyboard the only way to
+  reach either feature was a key nothing mentioned. Two central parts of the
+  city loop were undiscoverable by construction. Iteration 100's "a pause
+  control nobody knows about is not one", in a screen that already had a
+  control line and simply was not using it.
+  The line had room — it already ends "head into a building or the gate", so
+  the two shortcuts slot into an existing enumeration rather than adding a new
+  element. Cropped and READ rather than trusting luma: one line, no truncation,
+  no ellipsis.
+
+  **NOT generated from `controls.json`, and recorded at the handler as a KNOWN
+  GAP rather than quietly shipped.** J and F are hardcoded screen shortcuts with
+  no entry in the binding table, so there is no `keyLabel` to read and no
+  rebind to honour. Naming them makes them VISIBLE; it does not make them
+  REBINDABLE, which is the same stale-instruction risk iteration 94 fixed for
+  `fire`. Moving them into the binding system is a schema change to a file
+  validated at module load, and that belongs in its own round rather than at
+  the end of this one.
+
+- **MY LIVE PROBE REPORTED "F DOES NOT WORK" AND IT WAS WRONG, for the fifth
+  time in this log.** The check asserted `body.textContent` matched /fleet/i
+  and read `false`, which read exactly like the reviewer's gap being still
+  open. Re-probing printed the actual text: the Fleet screen shows
+  `"$2,000 | 2030-01-01 (DAY) — New York / 1 Duster — active / 2 Leave"` — the
+  feature works, the word "fleet" is simply not on that screen. Had I trusted
+  the first reading I would have "fixed" a working feature by adding a word to
+  it. The same rule that has cost this log four sample boxes and one stale
+  coordinate is now costing a boolean assertion, and the shape is always the
+  same: a probe that asserts on a WORD rather than on the thing the player
+  perceives.
+
+- GATE: tsc clean, 69 files / 1506 tests, 1 failure — `screens.test.ts`, the
+  measured cross-file flake (1 isolated, 2 in-suite, identical on stashed
+  master). Build `index-CTkezWiG.js`. `.shots/iter108` = 8 screens / 0 problems;
+  city luma 93.13 -> 92.96 and spread 66.85 -> 70.14 (added text is structure,
+  not a regression), every other screen byte-identical.
+
+- DEPLOY: release `20260930061500-147ffaf`, bundle `index-CTkezWiG.js`, live
+  hash matched, 0 console errors. LIVE: the status line carries both shortcuts
+  and J opens the Journal.
+
+- STILL QUEUED, unchanged: **the arena has no pause** (107 finding 1 — "the car
+  accelerated from 5 to 25 mph over two seconds" while opponents kept moving,
+  and Leaving ENDS the match so it is not a substitute for pausing). Same shape
+  as iteration 100's road menu, and the pattern is already built, so it is the
+  next build rather than an open question. Then moving J/F into the binding
+  table, then the on-foot survival phase (107's content gap, restated
+  independently from the abandoned-trip flow). With the pacing decision taken in
+  iteration 106 the largest open BALANCE item is closed, and what remains is
+  feature work rather than tuning.
