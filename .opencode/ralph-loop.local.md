@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 33
+iteration: 34
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -8198,3 +8198,101 @@ to contain a finding worth more than the diff.
      the driver's competence. The rotation cannot land honestly until that
      question is answered, because the only victory path the test had was a
      property of the bug.
+## ITERATION 125 — the balance question I raised last round was ALREADY ANSWERED, by a test in this repo I had not read
+
+Iteration 124 closed by saying the rotation "cannot land honestly until" one
+question is answered: is amateur-night meant to be winnable 1-v-5 with a house
+kart? I asked it as if it were open. It was answered, permanently, in
+`tests/integration/arena-victory.test.ts`, which I had read a section of last
+round and then not finished.
+
+- **THE ANSWER, AND IT IS A GATE, NOT AN OBSERVATION.** `amateur-night is
+  winnable at a real rate, and never a walkover` runs 40 seeds and fails on
+  EITHER failure mode: a competent player winning too rarely (unwinnable) or too
+  often (a walkover). The shipped tuning sits at **57.3%**, and the band is
+  deliberately wide so a retune has room while 0% and 100% can never pass. That
+  test passes today and passed in the full suite in iterations 122 and 124.
+  So amateur-night IS winnable, five house karts and all, and my iteration-124
+  entry recorded a "decision" that the repo had already made and tested.
+
+  **AND THE COMMENT ABOVE THAT TEST SAYS WHY I BELIEVE IT.**
+  "Amateur-night shipped unwinnable. The loaner was the opponents' own row, so
+  one player faced five cars that all prefer the player as a target: the player
+  died around tick 152 on every seed, and clearing the roster cost about 59
+  rounds against a 20-round magazine, so VICTORY was unreachable at any skill
+  level on any seed. Nothing in the suite asserted a player could ever win,
+  only that the pipeline COULD record a win once handed a full sweep."
+  That is a balance defect this loop already found and fixed, with a gate
+  written so it could not come back. I queued a question whose answer was
+  sitting in the file I was already reading.
+
+- **SO THE REAL BLOCKER IS A HARNESS CAPABILITY GAP, AND I MEASURED IT TWICE
+  WITH TWO INDEPENDENT DRIVERS.** `beginAmateurNightMatch` and the `competent`
+  policy are TEST-LOCAL to `arena-victory.test.ts` (line 141), not production.
+  `showArenaEvent` builds its own match and reads DOM input. And
+  `grep -rn "__smduel|testHook|__test" src/app.ts` returns nothing: **the app
+  exposes no seam to its live match at all.**
+  So the DOM test cannot borrow the sim's policy, and cannot read real positions
+  or headings — only the radar's two coarse floats per contact.
+
+  The two drivers, and the wall, stated as a property rather than a shrug:
+  | driver | outcome |
+  |--------|---------|
+  | steer + fire continuously + THROTTLE | arena resolves ~t350, 0 kills |
+  | steer + fire continuously, no throttle | arena resolves ~t600, 0 kills |
+  | spin (iteration 124) | arena resolves as a DEFEAT — driven in circles |
+  | passive (iteration 122 sweep) | SURVIVES past 900 ticks, 0 kills |
+  **A driver that aims does not survive, and a driver that survives does not
+  hit.** Moving to shoot exposes the car to three machinegun-armed rookies;
+  standing still means the targets are never inside a mount's quadrant long
+  enough to connect. The competent bot solves both at once — it aims AND it
+  evades — and a driver with two coarse floats cannot, because the information
+  needed to evade was never on the wire.
+
+  Worth noting the measurement that made this legible rather than a guess: the
+  arena unmounting makes `contacts` read 0, so "the roster is clear" and "the
+  radar is gone" are the SAME observation. That is the log's own rule (a probe
+  that finds nothing is not a measurement) and it has now cost me two rounds of
+  reading a vanishing HUD as a kill count.
+
+- **THE NAMED FIX, AND IT IS BUILDABLE.** The rotation needs a DOM test that can
+  win a match it is entitled to win, and the only driver that can is sim-level.
+  So the app needs a test seam, and there are two honest shapes:
+    (a) a test-only accessor for the live `showArenaEvent` match, so the DOM
+        driver can read the player's heading and each opponent's real position
+        and steer toward a real bearing instead of a face-normalised float; or
+    (b) an `inputPolicy` parameter on `showArenaEvent` so a test can supply the
+        sim's existing `competent` policy, exactly as `beginAmateurNightMatch`
+        does for the sim path.
+  (b) is the smaller change and reuses code that already exists and already
+  passes its 57.3% gate. Either way the DOM assertion keeps testing its actual
+  subject — that a VICTORY auto-resolves to the score-submit screen with no
+  click, and that a stale click cannot remount it — which is coverage that
+  exists NOWHERE else: `arena-victory.test.ts` proves the victory DECISION and
+  never asserts a screen.
+
+- **NOT LANDED, AND THE REASON IS NOW A NAMED GAP RATHER THAN A VAGUE ONE.**
+  Five rounds have deferred this rotation and each deferral has been correct,
+  but iteration 124's reason ("the balance is undecided") was wrong and this
+  round replaces it with the real one. The rotation itself is READY: five sites,
+  one extracted owner, every fixture re-derived from it, two mutation-proven
+  guards, 1405 unit tests green. It needs a DOM victory driver, and the driver
+  needs a seam that does not exist yet. Building the seam is the next round,
+  and it is a small, well-specified piece of work rather than a seed sweep.
+
+- **THE PATTERN, AND IT IS THE THIRD CONSECUTIVE ROUND OF IT.** Iteration 123
+  re-derived an orientation that a derived test in the repo already stated;
+  iteration 124 re-derived a win condition that `arena-victory.test.ts` already
+  gated; this round re-derived a balance question the same file already
+  answered. **Three rounds in a row, the thing that would have saved me was a
+  file in the repository I had partially read.** Reading a file's first 40 lines
+  is not the same as having read it, and the cost of the difference is now
+  three rounds of the most severe defect in the log. That is a sharper lesson
+  than anything about body frames: finish the file.
+
+- GATE: unchanged and green — nothing shipped this round, so the standing gate
+  from iteration 119 holds (tsc clean, 1406 unit tests with the measured
+  `screens.test.ts` and `road-trip-menu` flakes, 7 browser tests, build
+  `index-Hrr9Wz8r.js`, identical to what is live). The two driver experiments
+  ran against the committed tree and were reverted; `git status` is clean apart
+  from this log.
