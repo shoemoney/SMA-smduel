@@ -71,7 +71,14 @@ function installRafStub(): void {
   }) as typeof window.cancelAnimationFrame;
 }
 
-let simNowMs = 0;
+let // Seeded from the SAME clock the app seeds `lastTimeMs` from. A stub clock
+// starting at 0 makes every early frame's delta hugely NEGATIVE, which
+// `frame()` clamps to 0 -- so those frames advance ZERO sim ticks. How
+// many frames are wasted is `performance.now()` at mount, i.e. MACHINE
+// LOAD, so a handful of `stepFrame()` calls silently stop driving the
+// simulation and the failure only appears in a parallel run. Iteration 137
+// recorded the same trap from the other side; this is the general fix.
+simNowMs = performance.now();
 function stepFrame(deltaMs: number): void {
   simNowMs += deltaMs;
   const cb = rafCallback;
@@ -132,7 +139,7 @@ async function bootToCity(root: HTMLElement, seed: string, search: string): Prom
   const { boot } = await import('@/app');
 
   installRafStub();
-  simNowMs = 0;
+  simNowMs = performance.now();
 
   const bootPromise = boot(root, {
     search,
@@ -687,7 +694,7 @@ describe('showArenaEvent: the match ends itself', () => {
     // The arena's WebGPU probe resolves on a microtask before its `.finally()`
     // registers the first frame, exactly as in `bootToCity`.
     installRafStub();
-    simNowMs = 0;
+    simNowMs = performance.now();
     mountAmateurNightWithAutopilot(root, AMATEUR_NIGHT_VICTORY_SEED);
     await flushMicrotasks();
     await flushMicrotasks();

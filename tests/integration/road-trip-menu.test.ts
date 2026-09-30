@@ -39,12 +39,19 @@ import { DB_NAME, openSaveDatabase } from '@/persist/save';
 type Raf = (nowMs: number) => void;
 let rafCallback: Raf | null = null;
 let rafHandleCounter = 0;
-let simNowMs = 0;
+let // Seeded from the SAME clock the app seeds `lastTimeMs` from. A stub clock
+// starting at 0 makes every early frame's delta hugely NEGATIVE, which
+// `frame()` clamps to 0 -- so those frames advance ZERO sim ticks. How
+// many frames are wasted is `performance.now()` at mount, i.e. MACHINE
+// LOAD, so a handful of `stepFrame()` calls silently stop driving the
+// simulation and the failure only appears in a parallel run. Iteration 137
+// recorded the same trap from the other side; this is the general fix.
+simNowMs = performance.now();
 
 function installRafStub(): void {
   rafCallback = null;
   rafHandleCounter = 0;
-  simNowMs = 0;
+  simNowMs = performance.now();
   window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
     rafCallback = cb as Raf;
     return ++rafHandleCounter;
@@ -238,17 +245,82 @@ beforeEach(async () => {
   // feature writing anything.
   openDb_?.close();
   openDb_ = null;
-  await new Promise<void>((resolve) => {
-    const req = indexedDB.deleteDatabase(DB_NAME);
-    req.onsuccess = () => resolve();
-    req.onerror = () => resolve();
-    req.onblocked = () => resolve();
+  // `onblocked` is a FAILURE, not a slow success. It fires when some other
+  // connection to the same DB is still open, which means **the wipe did not
+  // happen** — and this hook's own comment says a stale blob from a prior test
+  // would otherwise satisfy the assertions below without this feature writing
+  // anything. Resolving on `blocked` therefore defeated the stated purpose of
+  // the line, and it is what made "abandoning returns to the city" fail
+  // intermittently under parallel load: a previous test's `saveAndQuit` write
+  // was still in flight, the delete blocked, the hook resolved, and the next
+  // test ran against a dirty database. Treating it as success is precisely
+  // the "a healthy-looking signal standing in for a fact" shape — so it throws.
+  //
+  // The `InvalidStateError` on stderr in that state is the same defect seen
+  // from the other side: `commitSave` reaching `db.transaction()` on a handle
+  // the teardown had already closed.
+  //
+  // A block is TRANSIENT here and it has a known cause: the arena's "Exit to
+  // Title" control fires `void persistArenaSession(...)` and navigates without
+  // awaiting it, so that write can still be in flight when the next test's
+  // `beforeEach` runs. `openDb_?.close()` above then reaches `commitSave`'s
+  // `db.transaction()` on a closed handle (the `InvalidStateError` this file
+  // printed on stderr for four iterations) and leaves a connection open, which
+  // blocks the wipe.
+  //
+  // So the block is WAITED OUT rather than resolved and rather than thrown: a
+  // wiped database is the actual requirement, and re-issuing the delete lets an
+  // in-flight write land and release. A block that never clears is a real stuck
+  // connection and still fails loudly, with the attempt count — which is what
+  // the old `onblocked = resolve()` could never do, since it reported success
+  // for a delete that had not happened.
+  await new Promise<void>((resolve, reject) => {
+    const MAX_ATTEMPTS = 50;
+    let attempt = 0;
+    const issue = (): void => {
+      attempt += 1;
+      const req = indexedDB.deleteDatabase(DB_NAME);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(new Error(`test: could not wipe ${DB_NAME}: ${String(req.error)}`));
+      req.onblocked = () => {
+        if (attempt >= MAX_ATTEMPTS) {
+          reject(
+            new Error(
+              `test: wipe of ${DB_NAME} still BLOCKED after ${MAX_ATTEMPTS} attempts — a connection is genuinely stuck open`,
+            ),
+          );
+          return;
+        }
+        // Let the in-flight transaction finish, then try again.
+        setTimeout(issue, 20);
+      };
+    };
+    issue();
   });
   dbPromise = null;
   root = document.createElement('div');
   document.body.appendChild(root);
   vi.restoreAllMocks();
 });
+
+/**
+ * Waits for a selector to actually MOUNT, rather than assuming a fixed number
+ * of event-loop turns is enough.
+ *
+ * Abandoning is an async navigation (it persists the trip before it leaves), and
+ * that persist is several `await`s deep on IndexedDB transactions. Two
+ * `setTimeout(0)` flushes cover that on an idle machine and do not cover it
+ * under parallel load, which is why this test read `found 0` intermittently for
+ * four iterations while passing every time in isolation. A count of turns is a
+ * guess about someone else's timing; the screen being on the page is the fact.
+ */
+async function waitForMount(selector: string, maxTurns = 400): Promise<void> {
+  for (let i = 0; i < maxTurns; i += 1) {
+    if (document.querySelector(selector) !== null) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+  throw new Error(`test: "${selector}" never mounted within ${maxTurns} event-loop turns`);
+}
 
 /** Reads the trip's identity straight off the screen, so the assertion is about game state. */
 async function p3(): Promise<{ origin: string }> {
@@ -399,8 +471,7 @@ describe('road trip menu', () => {
     await flushMicrotasks();
     // Row 3 is Abandon; `handleMenuKey` maps digit 3 to index 2.
     dispatchKey(requireOne('.sm-menu'), { key: '3' });
-    await flushMicrotasks();
-    await flushMicrotasks();
+    await waitForMount('.sm-screen--city');
 
     // Back in a city, at the ORIGIN — not teleported to the destination. The
     // assertion is on the DISPLAY name, not `originCity`: `skillsConfig()

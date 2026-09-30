@@ -32,11 +32,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildRoadLegalCar, dispatchKey } from './constructor-fixture';
 
-import { currentSessionSeed, PLAYER_ID, persistArenaSession, showArcadeScoreSubmit, vehicleStateFromDesign } from '@/app';
+import {
+  cityDirectionFromVector,
+  currentSessionSeed,
+  PLAYER_ID,
+  persistArenaSession,
+  showArcadeScoreSubmit,
+  vehicleStateFromDesign,
+} from '@/app';
 import { initialClock } from '@/sim/calendar';
 import { drivingConfig, economy, skillsConfig } from '@/data/rulesets';
 import { createDriver } from '@/sim/driver';
-import { generateCityLayout, type CityLayout } from '@/sim/city';
+import { DIRECTION_UNIT_VECTORS, generateCityLayout, type CityDirection, type CityLayout } from '@/sim/city';
 import type { DayPhase, DriverState, SkillName, Vec2, VehicleDesign, VehicleState } from '@/sim/types';
 import { isVictoryQuest, questCargoId, questDefs } from '@/sim/victory';
 import { openSaveDatabase, type QuestState } from '@/persist/save';
@@ -65,7 +72,14 @@ function installRafStub(): void {
 }
 
 /** Invokes whatever screen's frame callback is currently registered, advancing its internal clock by `deltaMs` (default 250ms — `frame()`'s own dt clamp in `@/app` is 0.25s, so this is the largest single step every screen already treats as one real tick). */
-let simNowMs = 0;
+let // Seeded from the SAME clock the app seeds `lastTimeMs` from. A stub clock
+// starting at 0 makes every early frame's delta hugely NEGATIVE, which
+// `frame()` clamps to 0 -- so those frames advance ZERO sim ticks. How
+// many frames are wasted is `performance.now()` at mount, i.e. MACHINE
+// LOAD, so a handful of `stepFrame()` calls silently stop driving the
+// simulation and the failure only appears in a parallel run. Iteration 137
+// recorded the same trap from the other side; this is the general fix.
+simNowMs = performance.now();
 function stepFrame(deltaMs = 250): void {
   simNowMs += deltaMs;
   const cb = rafCallback;
@@ -120,7 +134,7 @@ async function bootFresh(root: HTMLElement): Promise<Element> {
   const { boot } = await import('@/app');
 
   installRafStub();
-  simNowMs = 0;
+  simNowMs = performance.now();
 
   const bootPromise = boot(root, {
     search: '',
@@ -455,57 +469,77 @@ describe('DOM screens: winning the campaign and pressing "Continue" keeps the sa
   };
 
   // --- Homing walk: recomputes which WASD keys to hold every real
-  // `stepFrame()` tick from a LOCAL position mirror (identical arithmetic to
-  // `@/sim/city`'s own `stepWalk`: the same `drivingConfig().pedestrian.
-  // speedMps`, the same 250ms-per-tick default, the same diagonal unit
-  // vectors), rather than a single fixed compass direction held for a fixed
-  // step count (this file's own gate-trigger test can get away with that
-  // only because its target — the gate — sits exactly back where the walk
-  // started). A seeded ring's doorway sits at an arbitrary angle, and a
-  // fixed direction drifts wide of it over any real distance; recomputing
-  // every tick keeps this converging on the real target regardless of that
-  // angle. ---
-  function keysTowards(dx: number, dy: number): KeyboardEventInit[] {
-    const keys: KeyboardEventInit[] = [];
-    if (dx > 0) keys.push({ key: 'd', code: 'KeyD' });
-    else if (dx < 0) keys.push({ key: 'a', code: 'KeyA' });
-    if (dy > 0) keys.push({ key: 's', code: 'KeyS' });
-    else if (dy < 0) keys.push({ key: 'w', code: 'KeyW' });
-    return keys;
+  // `stepFrame()` tick from a LOCAL position mirror, rather than a single
+  // fixed compass direction held for a fixed step count (this file's own
+  // gate-trigger test can get away with that only because its target — the
+  // gate — sits exactly back where the walk started). A seeded ring's doorway
+  // sits at an arbitrary angle, and a fixed direction drifts wide of it over
+  // any real distance.
+  //
+  // **BOTH HALVES NOW COME FROM `@/sim/city`, and that is the fix.**
+  // Which KEY drives which compass direction is a real, separate fact (it has
+  // to match `resolveInput`'s bindings), so it is one table here. But the
+  // direction that key produces — and therefore how far the mirror advances —
+  // is read from `DIRECTION_UNIT_VECTORS`, the sim's own table. This walk
+  // previously re-derived "which way does W go" twice, from the key codes,
+  // and **the two copies were inverted relative to each other**: the keys drove
+  // the real player north while the mirror believed it was going south, so the
+  // two diverged within one step and the walk ran away across the city into a
+  // doorway it never aimed at. The same convention has been inverted in this
+  // codebase three separate times (iterations 87 and 138, and here), which is
+  // what one owner plus a guard is for. ---
+  const DIRECTION_KEYS: Readonly<Record<CityDirection, readonly string[]>> = {
+    N: ['KeyW'],
+    S: ['KeyS'],
+    E: ['KeyD'],
+    W: ['KeyA'],
+    NE: ['KeyW', 'KeyD'],
+    NW: ['KeyW', 'KeyA'],
+    SE: ['KeyS', 'KeyD'],
+    SW: ['KeyS', 'KeyA'],
+  };
+
+  function directionTowards(dx: number, dy: number): CityDirection | null {
+    if (dx === 0 && dy === 0) return null; // exactly on target — nothing left to press
+    const key = `${Math.sign(dx)},${Math.sign(dy)}`;
+    const found = DIRECTIONS_BY_SIGN.get(key);
+    if (found === undefined) throw new Error(`test: no compass direction for signs ${key}`);
+    return found;
   }
+
+  const DIRECTIONS_BY_SIGN = new Map<string, CityDirection>([
+    ['0,1', 'N'],
+    ['0,-1', 'S'],
+    ['1,0', 'E'],
+    ['-1,0', 'W'],
+    ['1,1', 'NE'],
+    ['-1,1', 'NW'],
+    ['1,-1', 'SE'],
+    ['-1,-1', 'SW'],
+  ]);
 
   function homeTowards(from: Vec2, to: Vec2, maxSteps: number, stopWhen: (pos: Vec2) => boolean): Vec2 {
     const stepDist = drivingConfig().pedestrian.speedMps * 0.25; // stepFrame()'s own default deltaMs
     let pos: Vec2 = { ...from };
     for (let i = 0; i < maxSteps; i++) {
-      const keys = keysTowards(to.x - pos.x, to.y - pos.y);
-      if (keys.length === 0) return pos; // exactly on target — nothing left to press
+      const direction = directionTowards(to.x - pos.x, to.y - pos.y);
+      if (direction === null) return pos;
+      const keys = DIRECTION_KEYS[direction].map((code) => ({
+        key: code.slice(3).toLowerCase(),
+        code,
+      }));
       for (const k of keys) window.dispatchEvent(new KeyboardEvent('keydown', { ...k, bubbles: true }));
       stepFrame();
       for (const k of keys) dispatchKeyUp(window, k);
-      const ux = keys.some((k) => k.code === 'KeyD') ? 1 : keys.some((k) => k.code === 'KeyA') ? -1 : 0;
-      const uy = keys.some((k) => k.code === 'KeyS') ? 1 : keys.some((k) => k.code === 'KeyW') ? -1 : 0;
-      const norm = ux !== 0 && uy !== 0 ? Math.SQRT1_2 : 1;
-      pos = { x: pos.x + ux * norm * stepDist, y: pos.y + uy * norm * stepDist };
+      // The mirror advances along the SIM's own unit vector for the direction
+      // just dispatched, so it cannot disagree with how the car actually moved.
+      const unit = DIRECTION_UNIT_VECTORS[direction];
+      pos = { x: pos.x + unit.x * stepDist, y: pos.y + unit.y * stepDist };
       if (stopWhen(pos)) return pos;
     }
     throw new Error('test: homeTowards exceeded maxSteps without reaching its stop condition');
   }
 
-  /**
-   * Walks the on-foot player (always spawned at `layout.gate.position` —
-   * `showCity`'s own contract) to `doorwayPosition`, via the plaza CENTRE
-   * first rather than a direct line: `generateCityLayout`'s own doc comment
-   * guarantees every doorway/gate sits at least `interactionRadiusM * 2`
-   * apart from its ring neighbors, and every doorway sits the SAME distance
-   * (the ring radius) from the centre at its own unique angle — so a
-   * straight radius line from the centre to one doorway never comes within
-   * `interactionRadiusM` of any OTHER doorway, while a direct gate-to-
-   * doorway chord could. Stops leg 2 the instant a real `.sm-menu` mounts —
-   * a facility panel, or, for the victory quest's own destination, the
-   * victory screen itself (which never opens a facility panel first, see
-   * `openFacility`).
-   */
   function walkToFacility(layout: CityLayout, doorwayPosition: Vec2): void {
     const stepDist = drivingConfig().pedestrian.speedMps * 0.25;
     const maxSteps = Math.ceil((layout.boundsRadiusM * 2) / stepDist) + 100;
@@ -516,6 +550,41 @@ describe('DOM screens: winning the campaign and pressing "Continue" keeps the sa
     }
     homeTowards(nearCentre, doorwayPosition, maxSteps, () => document.querySelector('.sm-menu') !== null);
   }
+
+  /**
+   * The key table above is the ONLY copy in this file of "which key walks
+   * which way", and it is a real fact it has to get right: `resolveInput` is
+   * world-up-positive, so W must move the player to +y, and
+   * `DIRECTION_UNIT_VECTORS` calls +y NORTH.
+   *
+   * **This convention has been inverted in this codebase three separate
+   * times** — `DIRECTION_UNIT_VECTORS` itself (iteration 87), the facing
+   * table (iteration 138), and this walk's own mirror, where the keys and the
+   * position model disagreed with EACH OTHER and sent the player across the
+   * city into a doorway nobody aimed at. Two of those three were caught only
+   * because a test happened to walk; nothing pinned the correspondence.
+   *
+   * So it is pinned here, and pinned as a DERIVATION rather than a list of
+   * eight literals: for every direction, the keys pressed must match the SIGNS
+   * of the sim's own unit vector. Inverting any entry fails here, whether or
+   * not a given walk happens to travel that way.
+   */
+  it('the homing walk presses the keys the sim actually reads, for every direction', () => {
+    expect(cityDirectionFromVector({ x: 0, y: 1 })).toBe('N');
+    for (const [name, keys] of Object.entries(DIRECTION_KEYS)) {
+      const dir = name as CityDirection;
+      const unit = DIRECTION_UNIT_VECTORS[dir];
+      const pressed = (code: string): boolean => keys.includes(code);
+      expect(
+        [pressed('KeyD'), pressed('KeyA')],
+        `${name}: KeyD/KeyA must be (${unit.x > 0}, ${unit.x < 0}) from DIRECTION_UNIT_VECTORS`,
+      ).toEqual([unit.x > 0, unit.x < 0]);
+      expect(
+        [pressed('KeyW'), pressed('KeyS')],
+        `${name}: KeyW/KeyS must be (${unit.y > 0}, ${unit.y < 0}) from DIRECTION_UNIT_VECTORS`,
+      ).toEqual([unit.y > 0, unit.y < 0]);
+    }
+  });
 
   it('delivering the-boss-tape and pressing "Continue" preserves cash, prestige, the quest ledger and the fleet', async () => {
     const victoryQuest = questDefs().find(isVictoryQuest);
@@ -590,7 +659,7 @@ describe('DOM screens: winning the campaign and pressing "Continue" keeps the sa
     });
 
     installRafStub();
-    simNowMs = 0;
+    simNowMs = performance.now();
     const { boot } = await import('@/app');
     await boot(root, {
       search: '',
@@ -1526,7 +1595,7 @@ describe('DOM screens: the title screen shows a won campaign', () => {
     });
 
     installRafStub();
-    simNowMs = 0;
+    simNowMs = performance.now();
     const { boot } = await import('@/app');
     await boot(root, { search: '', randomSeed: () => 'unused-fresh-session-seed', openDb });
 

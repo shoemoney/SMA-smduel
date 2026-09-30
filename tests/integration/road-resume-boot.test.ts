@@ -44,12 +44,19 @@ import { cityName } from '@/ui/strings';
 type Raf = (nowMs: number) => void;
 let rafCallback: Raf | null = null;
 let rafHandleCounter = 0;
-let simNowMs = 0;
+let // Seeded from the SAME clock the app seeds `lastTimeMs` from. A stub clock
+// starting at 0 makes every early frame's delta hugely NEGATIVE, which
+// `frame()` clamps to 0 -- so those frames advance ZERO sim ticks. How
+// many frames are wasted is `performance.now()` at mount, i.e. MACHINE
+// LOAD, so a handful of `stepFrame()` calls silently stop driving the
+// simulation and the failure only appears in a parallel run. Iteration 137
+// recorded the same trap from the other side; this is the general fix.
+simNowMs = performance.now();
 
 function installRafStub(): void {
   rafCallback = null;
   rafHandleCounter = 0;
-  simNowMs = 0;
+  simNowMs = performance.now();
   window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
     rafCallback = cb as Raf;
     return ++rafHandleCounter;
@@ -242,7 +249,7 @@ describe('boot: resuming a saved road trip', () => {
     });
 
     installRafStub();
-    simNowMs = 0;
+    simNowMs = performance.now();
     const { boot } = await import('@/app');
     await boot(root, { search: '', randomSeed: () => 'unused-fresh-seed', openDb: openDbHandle });
     for (let i = 0; i < 4; i++) await flushMicrotasks();
@@ -293,7 +300,7 @@ describe('boot: resuming a saved road trip', () => {
     });
 
     installRafStub();
-    simNowMs = 0;
+    simNowMs = performance.now();
     const { boot } = await import('@/app');
     await boot(root, { search: '', randomSeed: () => 'unused-fresh-seed', openDb: openDbHandle });
     for (let i = 0; i < 4; i++) await flushMicrotasks();
@@ -338,7 +345,7 @@ describe('boot: resuming a saved road trip', () => {
     await save(await openDbHandle(), game as never);
 
     installRafStub();
-    simNowMs = 0;
+    simNowMs = performance.now();
     const { boot } = await import('@/app');
     await boot(root, { search: '', randomSeed: () => 'unused-fresh-seed', openDb: openDbHandle });
     for (let i = 0; i < 4; i++) await flushMicrotasks();

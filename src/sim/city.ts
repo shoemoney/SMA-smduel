@@ -196,7 +196,14 @@ export const CITY_DIRECTIONS: readonly CityDirection[] = ['N', 'NE', 'E', 'SE', 
  * the player walks and nothing else — not the doorway ring, not the radar, not
  * `generateCityLayout`'s geometry.
  */
-const DIRECTION_UNIT_VECTORS: Readonly<Record<CityDirection, Vec2>> = {
+/**
+ * World unit vector per compass direction. EXPORTED so a consumer that has to
+ * model walking (a headless test driving the real key handler) derives its step
+ * from the SAME table the sim does, rather than re-deriving "which way does W
+ * actually go" from the key codes — a convention this codebase has now had
+ * inverted in three separate places.
+ */
+export const DIRECTION_UNIT_VECTORS: Readonly<Record<CityDirection, Vec2>> = {
   N: { x: 0, y: 1 },
   NE: { x: Math.SQRT1_2, y: Math.SQRT1_2 },
   E: { x: 1, y: 0 },

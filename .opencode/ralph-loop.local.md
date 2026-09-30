@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 48
+iteration: 49
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9844,3 +9844,194 @@ collaborators in full first, and the answer was not a design question at all.
   player's RIGHT facing went 24 -> 0. The two agree, and the live one needed a
   control (the previous build, served locally) that the in-process one gets
   from re-running the identical probe.
+## Iteration 149 — the eight-round flake is TWO bugs, and one of them was a clock in the wrong domain
+
+Iteration 147 closed the AI standoff. This round took the item this log has
+deferred the most and measured most honestly: **`screens.test.ts` fails 1-in-isolation
+and 4-in-suite**, and that has corrupted a *measurement* in at least six rounds
+(87, 90, 104, 119, 136, 147). Every one of those spent budget re-measuring scope
+because the count moved. It is not one bug. It is two, in two different files,
+with two different mechanisms, and neither was load-bearing on the code at all.
+
+- **PART ONE — A TEST'S OWN POSITION MIRROR AND ITS OWN KEY TABLE DISAGREED
+  WITH EACH OTHER, AND THE WALK RAN AWAY ACROSS THE CITY.**
+
+  The isolated failure was `test: an unexpected menu opened while walking toward
+  the plaza centre — check the layout geometry assumptions`, and the menu that had
+  opened was `"$246,000 | 2030-01-01 (DAY) — New York1**Buy a Drink** — $52"`.
+
+  The comment above `walkToFacility` argues the geometry is safe: "every doorway
+  sits the SAME distance (the ring radius) from the centre at its own unique
+  angle — so a straight radius line from the centre to one doorway never comes
+  within `interactionRadiusM` of any OTHER doorway". That argument is about the
+  IDEAL line, and the walk is not an ideal line — it is a staircase over eight
+  compass directions. But the geometry was not the bug either; I measured the
+  walk and the minimum doorway distance over the whole leg was 0.55m, against a
+  trigger radius of 3.0, and the walk starts AT the gate, so 0.55m is simply the
+  walk sitting on its own starting point. Both readings were the probe's, not the
+  game's.
+
+  The decisive instrument was the app's own trigger path, one line of logging in
+  `showCity`'s frame:
+      CITYTRACE trigger=facility:bar pos=(-7.88,-5.33) near=[bar@2.86,...]
+  The player was genuinely 2.86m from the bar — inside the radius — so
+  `checkCityTrigger` was CORRECT and fired correctly. The test's mirror, at the
+  same step, believed the player was somewhere else entirely.
+
+  With the real position and the mirror's position printed on one line, the
+  disagreement is the finding:
+      STEP dir=NE to=(-9.83,-2.61) model={"x":-9.83,"y":-3.39}
+  The real player moved **+y**; the mirror believed it moved **−y**. And the
+  reason is that the y-convention was duplicated INSIDE the test:
+  `keysTowards` mapped `dy > 0` to KeyS (so +y is south), while the model read
+  `KeyS` back as `uy = +1`. **Those two copies were inverted relative to each
+  other**, so the keys drove the car north and the mirror tracked it going
+  south; the mirror therefore never thought it had arrived, kept steering "inward"
+  forever, and walked out through the far side of the city into a doorway nobody
+  aimed at. Fixed by deleting the second copy: the mirror now advances along
+  `DIRECTION_UNIT_VECTORS[direction]`, read from `@/sim/city` — which is now
+  exported for exactly this reason — so the model cannot disagree with the sim by
+  construction.
+
+  **AND THIS IS ITERATION 87'S BUG, THIRD TIME, IN THE FILE ITERATION 87 EDITED.**
+  That round flipped `DIRECTION_UNIT_VECTORS` and fixed two *inline* sites in
+  `screens.test.ts` that computed "walk inward" as `gate.y > 0 ? 'w' : 's'`, and
+  missed the shared helper underneath them. A partial fix of a duplicated
+  assumption leaves the assumption duplicated, which is the whole lesson of
+  iteration 142 stated as a rule. `walkThroughGateToRoad` in the same file still
+  carries a FOURTH copy with a hand-written inverse map; it happens to be
+  correct, and it is the obvious next reader to be misled.
+
+  A guard now derives the correspondence instead of listing it: for every
+  direction, the keys pressed must match the SIGNS of the sim's own unit vector,
+  so inverting any entry fails whether or not a given walk travels that way.
+  **Three mutations, all firing:** N→S (1 failed), E→A (1 failed), NE→NW (2 —
+  the guard plus the walk). A fourth mutation, swapping N and S, did **not** fire,
+  and the reason is worth recording: that walk only ever dispatches diagonals, so
+  the cardinal entries are dead code on this path. A mutation that cannot fire is
+  evidence about the mutation, which is why the guard exists rather than the
+  mutation.
+
+- **PART TWO — THE TEST SUITE'S CLOCK WAS IN A DIFFERENT DOMAIN FROM THE APP'S,
+  SO A HANDFUL OF `stepFrame()` CALLS COULD SIMULATE NOTHING.**
+
+  With part one fixed, three weapon-slot tests still failed in-suite and passed
+  in isolation. The obvious bisect instinct — find the partner file that poisons
+  it — produced **nothing**: `screens` paired individually with `road-trip-menu`,
+  `road-bounds-wiring`, `arena-auto-end`, `phase4` and `pursuit` all passed
+  (39, 32, 37, 32, 31). The vitest config sets no `pool` or `isolate`, so files
+  are isolated by default and cross-file module state cannot be the cause.
+
+  So it was not a leak. **It was load.** `--no-file-parallelism` gave
+  **1555/1555**, and the plain parallel run failed the same three. That is a
+  timing sensitivity, and the mechanism is in two lines:
+
+      src/app.ts:3200    let lastTimeMs = performance.now();
+      screens.test.ts    let simNowMs = 0;   // +250 per stepFrame()
+
+  `frame()` computes `(nowMs - lastTimeMs) / 1000` and clamps it to `[0, 0.25]`.
+  With the app seeded from real wall-clock and the stub starting at **0**, every
+  early frame's delta is hugely NEGATIVE, so it clamps to **0 and the frame
+  advances zero sim ticks**. How many frames are wasted is exactly
+  `performance.now()` at mount — i.e. **machine load**. On an idle machine that is
+  a few hundred ms, a couple of wasted calls; under 73 parallel files it is
+  thousands, and a test that calls `stepFrame()` a handful of times silently
+  drives nothing. The symptom was `expected [] to deeply equal [ +0 ]` — not one
+  shot, zero, because the simulation had never run.
+
+  Fixed at all **16 sites across the six integration files** by seeding the stub
+  from the same clock the app seeds from. This is iteration 137's trap generalised:
+  that round recorded a constant-timestamp probe producing a beautifully
+  confident false negative, and the fix was local to one test. The class is
+  every rAF stub in the suite.
+
+  **MUTATION-PROVEN END TO END, AND IT REPRODUCED A SECOND FLAKE.** Reverting
+  `screens.test.ts` alone to the 0-origin clock and running the full suite in
+  parallel brought back the three weapon-slot failures **and**
+  `road-trip-menu > abandoning returns to the city` — the flake iterations 101,
+  111 and 119 each measured as intermittent and could never attribute. Two
+  apparently unrelated flakes, one cause.
+
+- **PART THREE — WHAT WAS LEFT WAS NOT A FLAKE EITHER, AND ITS OWN ERROR MESSAGE
+  SAY SO.** One failure survived, intermittently (2 of 3 parallel runs), never in
+  isolation. The stderr next to it named a *different* test and the real defect:
+
+      smduel: autosave failed InvalidStateError: An operation was called on an
+      object on which it is not allowed...
+        at commitSave (src/persist/save.ts:412)
+        at persistArenaSession (src/app.ts:2825)
+        at saveAndQuit (src/app.ts:6935)
+
+  `commitSave` reaching `db.transaction()` on a **closed** handle, from a
+  fire-and-forget write that outlived its test. And the teardown that closed it
+  contained the sharpest line in this entry:
+
+      req.onblocked = () => resolve();
+
+  `onblocked` fires when another connection is still open, which means **the wipe
+  did not happen** — and the hook's own comment two lines above says "a stale
+  blob from a prior test would otherwise satisfy the assertion below without this
+  feature writing anything". **Resolving on `blocked` reported success for a
+  delete that had not occurred, defeating the stated purpose of the line it sits
+  in.** Throwing on it immediately made the suite *worse* (3-5 failures), which
+  is the correct signal: the block is real and transient — the arena's "Exit to
+  Title" control does `void persistArenaSession(...)` and navigates without
+  awaiting it, so that write is legitimately still in flight.
+
+  So the block is now WAITED OUT: the delete is re-issued on a short timer, up to
+  50 attempts, and a block that never clears fails loudly with the attempt count.
+  A wiped database is the actual requirement; a guess about how many turns a
+  transaction needs is not.
+
+  **AND THE REMAINING INTERMITTENCY WAS THE TEST COUNTING EVENT-LOOP TURNS.**
+  The abandon assertion was two `await flushMicrotasks()` (each one
+  `setTimeout(0)`) followed by `requireOne('.sm-screen--city')`. Abandoning is an
+  async navigation — it persists the trip before it leaves, several `await`s deep
+  on IndexedDB transactions — so two turns cover it on an idle machine and not
+  under load. Replaced with `waitForMount`, which polls for the screen actually
+  being on the page. **A count of turns is a guess about someone else's timing;
+  the screen being mounted is the fact** — iteration 100's rule, applied to a wait.
+
+- **GATE, and the number that matters is the one that MOVED.**
+      tsc clean.
+      Parallel:  1555/1555, four consecutive runs.
+      Serial:    1555/1555.
+      7 browser tests pass. `.shots/iter149` = 8 screens / 0 problems.
+      Build: `index-C5_m3G6-.js` — **UNCHANGED** from iteration 147, which is
+      correct: the only `src/` change is `export`ing `DIRECTION_UNIT_VECTORS`, and
+      an export erases at build time. So there is nothing to deploy, and the
+      repository and production are already in step.
+  The baseline this round started from was **1550 passed / 4 failed, plus a
+  fourth intermittent failure the log had been tracking separately since iteration
+  101.** It is now 1555/1555 in both execution modes, and the "4 failures are
+  pre-existing, measured identical on clean master" sentence that has appeared in
+  roughly a dozen entries is **retired** — it described three distinct defects
+  (a duplicated convention, a cross-domain clock, and a fixed-turn-count wait)
+  as one pre-existing condition, which is the log's own "a healthy-looking signal
+  standing in for a fact" wearing the most comfortable costume available: it was
+  pre-existing, so it was not mine.
+
+- **THE GENERALISABLE PART, and it is three rules this log already had.**
+  1. **A partial fix of a duplicated assumption leaves the assumption
+     duplicated.** Iteration 87 fixed two inline sites and missed the helper
+     beneath them; the helper then sent a test walking the wrong way for thirty
+     iterations. The fix that ends the class is one owner plus a derived guard,
+     not a third patch.
+  2. **A test that models the simulation is a second copy of it.** The mirror
+     existed because the app exposes no player position, and every property it
+     asserted about where the car was really going was a property of the mirror.
+     The honest long-term answer is a seam; the achievable one now is to derive
+     the mirror's step from the sim's own table so it cannot drift, which is
+     what shipped.
+  3. **Parallel-only failures are timing failures, and the cheapest way to tell
+     is to run the suite serially once.** Five bisect pairs found nothing because
+     there was nothing to find; one flag found it. Bisect answers "what state
+     leaked", and the answer here was "no state leaked — time did".
+
+- **NEXT.** The queue is materially shorter than it was: no measured flakes
+  remain, so every future full-suite number is trustworthy for the first time in
+  eight rounds. The open items are unchanged and are all real work rather than
+  instrumentation: the "surface a failed save" message (93), the Federal
+  Building's missing service (98/119), and the `screens.test.ts` constructor
+  dead space that three reviews have raised with no remedy that does not
+  restructure the screen. A fresh Codex review is the next reviewer in the cycle.
