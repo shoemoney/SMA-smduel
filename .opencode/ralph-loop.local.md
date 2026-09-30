@@ -6935,3 +6935,73 @@ path rather than by looking at it
   odometer round trip assertable in BOTH the unit and live harnesses. Until
   that exists, the fix stands on the reduction above and nothing should be
   claimed for it beyond that.
+
+## ITERATION 112 — the Controls round trip re-paused the screen it had just built
+
+Iteration 111 said the Controls state-preservation fix was unobservable because
+no harness could hold a match still long enough to read mid-match state, and
+recommended a survivable rig. The rig was the wrong diagnosis and building it
+was unnecessary: the arena was mounting perfectly well the whole time.
+
+- WHAT WAS ACTUALLY WRONG. A player pressed Escape once to leave the Controls
+  screen and came back to an ALREADY-PAUSED match — pause menu up, frame loop
+  short-circuiting on `if (paused)`, HUD never painted, odometer dead, and no
+  error or clue anywhere. Identical defect on the road's trip menu.
+
+- MECHANISM, MEASURED NOT GUESSED. `showControls` calls its BACK SYNCHRONOUSLY
+  inside the keydown it is handling; `onExit` calls `showArenaEvent`/
+  `showRoad`; the new screen attaches its own `keydown` listener on `window`
+  before that same Escape has finished propagating. The Escape therefore lands
+  on the screen it just built. `menuHandledKey` cannot save it, because that
+  latch belongs to the PREVIOUS closure and the new one starts `false`.
+  Instrumented directly: the round trip landed with `paused === true` on the
+  FIRST frame of the new mount, and `.sm-menu-root` was already among the new
+  arena's children.
+
+- WHY ITERATION 111 READ IT AS "DOES NOT RENDER". Two harness mistakes stacked.
+  The probe read `.hud-speed-dial` before running a frame, and the HUD is only
+  painted from inside `frame()`. And it used `amateur-night`, whose Division 5
+  roster legitimately resolves inside the probe's own drive, so the "before"
+  reading was on a finished match. Switching to `practice` — the one event with
+  ZERO opponents, already covered by a test proving it never auto-ends — made
+  the state observable immediately. No new rig was needed; the existing event
+  was the rig.
+
+- FIX. Structural, not temporal: a key aimed inside a menu's own DOM belongs to
+  that menu, so `onPauseKey` now returns when `ev.target` is within
+  `.sm-menu-root, .sm-menu`. Ownership is answered from the event itself, so it
+  holds regardless of what is mounted by the time the event arrives.
+
+- THE FIX THAT LOOKED RIGHT AND WAS NOT. Deferring the listener attachment by a
+  `queueMicrotask` also passes, and is strictly worse: it swallows any key
+  dispatched synchronously right after a mount, which is exactly how
+  `road-trip-menu.test.ts`'s own `abandoning returns to the city` test opens its
+  menu. It broke that test in the full suite. Timing games are not fixes.
+
+- A REAL DEFECT IN MY OWN FIRST VERSION OF THE STRUCTURAL FIX. The guard returned
+  BEFORE consuming the one-shot `menuHandledKey` latch, so a menu-handled key
+  left the latch set and the NEXT legitimate window Escape was swallowed — a
+  pause that silently stopped working. It showed up as a rare, order-dependent
+  `road-trip-menu` failure (1 failure in 5 runs, then 0 in 6 — a tally that
+  proves nothing, which is why the mechanism had to be read rather than counted).
+  Both arms now consume the latch in one place. 12 consecutive runs of
+  `road-trip-menu` after the fix: 0 failures.
+
+- TESTS. `returns from Controls to a LIVE match/trip, not an already-paused
+  one`, in `tests/integration/arena-auto-end.test.ts` and
+  `tests/integration/road-trip-menu.test.ts`. Each asserts the menu is ABSENT on
+  return, then asserts the signal MOVES afterwards — a control reading, so
+  "not paused" cannot pass vacuously. Both proven to bite: removing the
+  `aimedAtMenu` arm fails both with the intended message.
+
+- SCOPE, MEASURED. `src`-only with the new tests stashed reproduces the
+  clean-master baseline EXACTLY (4 `screens.test.ts` failures, 1508/1512), so
+  the fix adds no regression; `screens.test.ts` then failed 3/3 in isolation,
+  confirming the documented cross-file flake rather than anything new here.
+
+- GATE: tsc clean, 1514 tests, 4 failures — the same 4 `screens.test.ts` that
+  fail on clean master and in isolation. 6 browser tests pass in real Chrome.
+
+- NEXT. Live-verify in a real browser (Escape → Controls → Escape lands on a
+  live match, HUD present, odometer moving), then move the hardcoded `J`/`F`
+  Journal/Fleet shortcuts into `rulesets/classic/controls.json`.

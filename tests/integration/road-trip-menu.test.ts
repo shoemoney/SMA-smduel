@@ -448,4 +448,51 @@ describe('road trip menu', () => {
     await flushMicrotasks();
     expect(queryAll('.sm-menu').length).toBe(0);
   });
+
+  it('returns from Controls to a LIVE trip, not an already-paused one', async () => {
+    await bootToRoad(root);
+    const speedOf = (): number => {
+      const raw = requireOne('.sm-screen--road').textContent ?? '';
+      const match = /(\d+)\s*mph/.exec(raw);
+      if (match === null) throw new Error(`road status carried no speed readout: ${raw.slice(0, 120)}`);
+      return Number.parseInt(match[1] ?? '', 10);
+    };
+
+    dispatchKey(window, { key: 'Escape' });
+    await flushMicrotasks();
+    const controlsRow = queryAll('.sm-menu__item').find((i) => /Controls/i.test(i.textContent ?? ''));
+    expect(controlsRow, 'the trip menu should offer Controls').toBeDefined();
+    controlsRow?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await flushMicrotasks();
+    await flushMicrotasks();
+    requireOne('.sm-screen--controls');
+
+    dispatchKey(requireOne('.sm-menu'), { key: 'Escape' });
+    await flushMicrotasks();
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    requireOne('.sm-screen--road');
+    // THE BUG, same shape as the arena's: `showControls` mounts the road
+    // synchronously inside the keydown whose BACK it is handling, so the road's
+    // own Escape handler — attached synchronously — caught that same Escape and
+    // re-opened the trip menu on the road it had just returned to. Measured
+    // before the fix: one menu already mounted on return, odometer dead.
+    expect(
+      queryAll('.sm-menu').length,
+      'Controls round trip came back to a paused trip — the Escape that mounted it re-paused it',
+    ).toBe(0);
+
+    // The HUD is painted from inside `frame()`, so its readout does not exist
+    // on the first frame after a mount. Its absence before that is not a defect.
+    for (let i = 0; i < 3; i++) stepFrame();
+
+    // CONTROL: the signal must be able to MOVE, or "not paused" proves nothing.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW', bubbles: true }));
+    const before = speedOf();
+    for (let i = 0; i < 20; i++) stepFrame();
+    const after = speedOf();
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'w', code: 'KeyW', bubbles: true }));
+    expect(after, `the trip stayed at ${after} mph after returning from Controls`).toBeGreaterThan(before);
+  });
 });

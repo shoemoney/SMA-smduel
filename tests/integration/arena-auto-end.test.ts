@@ -650,4 +650,58 @@ describe('showArenaEvent: the match can be paused', () => {
       `the dial stayed at ${afterResume.toFixed(3)} after resuming; the freeze gate never released`,
     ).toBeGreaterThan(whilePaused + 0.01);
   });
+
+  it('returns from Controls to a LIVE match, not an already-paused one', async () => {
+    // The practice event, deliberately. Its eligibility aside, it is the one
+    // event with ZERO opponents, and `tests/integration/arena-auto-end.test.ts`
+    // already proves it never auto-ends on its own — which makes it the only
+    // arena in this file whose mid-match state can be observed at a known time.
+    // Every attempt to observe this round trip on amateur-night failed for one
+    // reason: Division 5 legitimately resolves within the probe's drive, so the
+    // "before" reading was taken on a finished match and the "after" reading on
+    // the title screen. The rig was the problem, not the fix.
+    await bootToCity(root, 'roundtrip-seed', '');
+    await enterPracticeFromGate('roundtrip-seed');
+    advanceTicks(20);
+    holdThrottleFor(1200);
+
+    dispatchKeyDown(window, { key: 'Escape' });
+    await flushMicrotasks();
+    clickMenuRowByLabel(t('ui.arena.menuControls'));
+    await flushMicrotasks();
+    await flushMicrotasks();
+    requireOne('.sm-screen--controls');
+
+    // Back out of Controls. Dispatched at the controls MENU, because that menu
+    // owns the keyboard while it is mounted and this is its own BACK.
+    dispatchKeyDown(requireOne('.sm-menu-root'), { key: 'Escape' });
+    await flushMicrotasks();
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    requireOne('.sm-screen--arena');
+    // THE BUG. The Escape above mounts this arena synchronously, and the arena
+    // attached its own pause listener synchronously too — so that same Escape
+    // was still propagating and landed on the screen it had just built. The
+    // player pressed Escape once to leave a settings menu and returned to an
+    // already-paused match: menu up, frame loop short-circuiting on
+    // `if (paused)`, HUD never painted, odometer dead. No error, no clue on
+    // screen. Asserting the menu is absent is the direct statement of that.
+    expect(
+      document.querySelectorAll('.sm-screen--arena .sm-menu-root').length,
+      'Controls round trip came back to a paused arena — the Escape that mounted it re-paused it',
+    ).toBe(0);
+
+    // The HUD is only painted from inside `frame()`, so it cannot exist until a
+    // real frame runs. Its absence before that is not a defect.
+    advanceTicks(2);
+    const returned = speedFrac();
+    // CONTROL: the signal must be able to MOVE, or the rest proves nothing.
+    holdThrottleFor(1200);
+    const afterReturn = speedFrac();
+    expect(
+      afterReturn,
+      `the car stayed at ${afterReturn.toFixed(3)} after returning from Controls; the match did not resume`,
+    ).toBeGreaterThan(returned + 0.01);
+  });
 });

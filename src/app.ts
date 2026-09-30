@@ -3874,7 +3874,37 @@ function showArenaEvent(
    * so a future binding to either key would be a real collision.
    */
   function onPauseKey(ev: KeyboardEvent): void {
-    if (menuHandledKey) {
+    // A key aimed INSIDE a menu belongs to that menu, full stop.
+    //
+    // This is not a restatement of the `menuHandledKey` latch below — it covers
+    // the case that flag structurally cannot, which is a menu that MOUNTED this
+    // screen mid-dispatch. `showControls` calls its BACK synchronously inside
+    // the keydown it is handling, `onExit` calls `showArenaEvent`, and the new
+    // arena attaches its own listener before that same Escape has finished
+    // bubbling to `window`. The new closure's `menuHandledKey` starts `false`,
+    // so the flag waved it through and the arena re-paused itself: the player
+    // pressed Escape once to leave a settings menu and came back to a match
+    // that was already frozen — pause menu up, frame loop short-circuiting on
+    // `if (paused)`, HUD never painted, odometer dead, no cause on screen.
+    // Measured on the practice event: `paused === true` on the very first
+    // frame of the new mount.
+    //
+    // `ev.target` is what makes it airtight and worth more than timing games:
+    // that Escape's target is the CONTROLS menu, whichever screen is mounted by
+    // the time it arrives, so the ownership question is answered from the event
+    // itself. Deferring the listener by a microtask also "works" and is
+    // strictly worse — it swallows any key dispatched synchronously right
+    // after the mount, which is exactly how this file's own
+    // `abandoning returns to the city` test opens its menu.
+    // Any key a menu OWNS is consumed here exactly once — whether `mountMenu`
+    // raised the latch, or the event was aimed inside the menu's own DOM.
+    // Both arms clear the latch, because leaving it set swallows the NEXT
+    // legitimate Escape: `menuHandledKey` is one-shot, so a leaked `true` makes
+    // an unrelated later pause look handled. Consuming in one place is what
+    // keeps the two ways of knowing the same thing from disagreeing.
+    const target = ev.target;
+    const aimedAtMenu = target instanceof Element && target.closest('.sm-menu-root, .sm-menu') !== null;
+    if (menuHandledKey || aimedAtMenu) {
       menuHandledKey = false;
       return;
     }
@@ -6829,10 +6859,24 @@ function showRoad(
     // A keypress the menu already handled (BACK, an action, a digit) is not a
     // second, independent request to pause. Read-and-clear, so the very next
     // keypress is judged on its own.
-    if (menuHandledKey) {
+    // Any key a menu OWNS is consumed here exactly once — whether `mountMenu`
+    // raised the latch, or the event was aimed inside the menu's own DOM.
+    // Both arms clear the latch, because leaving it set swallows the NEXT
+    // legitimate Escape: `menuHandledKey` is one-shot, so a leaked `true` makes
+    // an unrelated later pause look handled. Consuming in one place is what
+    // keeps the two ways of knowing the same thing from disagreeing.
+    const target = ev.target;
+    const aimedAtMenu = target instanceof Element && target.closest('.sm-menu-root, .sm-menu') !== null;
+    if (menuHandledKey || aimedAtMenu) {
       menuHandledKey = false;
       return;
     }
+    // A key aimed inside a menu belongs to that menu — the full reasoning is on
+    // the arena's own `onPauseKey`, and the bug is identical: `showControls`
+    // mounts the road synchronously inside the keydown whose BACK it is
+    // handling, so without this guard the Escape that leaves Controls also
+    // re-opens the trip menu on the road it just returned to. Measured there:
+    // one menu already mounted on return, odometer never advancing.
     if (ev.key !== 'Escape' && ev.key.toLowerCase() !== 'p') return;
     // Only open. Closing is the menu's own job (its BACK maps to `onBack`),
     // because `mountMenu` focuses its container and therefore owns the keyboard
