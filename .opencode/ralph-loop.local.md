@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 46
+iteration: 47
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -9477,4 +9477,118 @@ chasing it refuted the framing AND the first fix hypothesis.
   opponents are actually running. Everything else about the standoff is already
   measured: range ~3.7m, inside minimum range, static, not firing, not
   overlapping, identical opening to the working build. The one thing missing is
-  the name of the behaviour, and that is what this round could not reach.
+  the name of the behaviour, and that is what this round could not reach.## Iteration 146 — the standoff is a contact-range ALIGNMENT deadlock, and the AI fix that was NOT it
+
+Iteration 145 ended with a specific next move: name the node the two stuck
+opponents are running. I named it, shipped a real AI fix, and was wrong about
+the standoff TWICE more before the trace settled it. Both wrong turns are the
+round's real product, because iteration 145's own conclusion was also wrong and
+the correction matters more than the fix.
+
+- **FIRST CORRECTION — ITERATION 145'S "INSIDE MINIMUM RANGE" IS FALSE FOR
+  THIS ROSTER, AND ONE LINE OF RULESET PROVES IT.** I wrote that the survivors
+  sit "inside every mount's `minRangeM`, so nothing fires." Reading
+  `weapons.json` in full: **exactly one weapon in the entire game has a
+  `minRangeM` at all** — the `rocketlauncher` (`rangeM 115, minRangeM 8`).
+  Every other gun, including the `machinegun` the house kart carries, has none.
+  So a machinegun can fire at 3.7m and always could. I asserted a rule without
+  checking which rules existed, which is this log's "grep for what reads the
+  number" arriving as "grep for what the rule even says."
+
+- **SECOND CORRECTION — AND THE NODE IS NOT `ramAndPinNode` EITHER.** I found
+  `ramAndPinNode` in `AI_NODES`, its name fit the symptom exactly, and its
+  range gate has a real hole (it consults the maximum `rangeM` and never
+  `minRangeM`). I fixed it, and **the standoff did not move.** Instrumenting
+  the real pipeline instead of reasoning about it gave the answer in one line:
+      AITRACE tick=600 opp-0 tgt=veh-player-loaner d=3.08 agg=0.45 cau=0.55
+  `aggression 0.45 < caution 0.55`, so `ramAndPinNode`'s FIRST line
+  (`if (!(aggression > caution)) return null`) bails before any of my work.
+  **RAM never runs in amateur-night at all.** The name fit; the mechanism did
+  not, and only the trace could tell the difference. This is iteration 50's
+  "a probe that finds the wrong element is worse than one that finds nothing"
+  applied to a function NAME — and it is why the fix below ships as a
+  standalone improvement with its own proof rather than as the standoff's cure.
+
+- **WHAT THE STANDOFF ACTUALLY IS, MEASURED IN THE REAL RUN.**
+      AITRACE t=900  opp-0 node=ALIGN_AND_FIRE d=3.29 fire=false
+      AITRACE t=900  opp-1 node=ALIGN_AND_FIRE d=4.03 fire=false
+              w=FRONT inR=true bear=false los=true rdy=true sc=5.0
+  `engageWeaponNode` is doing exactly its job — steering, in range, line of
+  sight clear, weapon ready — and **`bearsNow` is permanently false**. The house
+  arena kart carries ONE mount, a machinegun on FRONT (`arena-kart` in
+  `arenas.json`), and `bearsNow` is `bearingQuadrant(self.headingRad, delta)
+  === state.facing`. So every opponent must have the target in its forward
+  quadrant to fire, and **at 2-4m contact range the car cannot complete that
+  alignment without driving back through the target it is already touching.**
+  It strains against the player forever, in range and ready, and never fires.
+  The standoff is a contact-range ALIGNMENT deadlock, not a range gate and not
+  RAM: nothing in `engageWeaponNode` handles "I am already touching it and
+  turning away is not possible."
+
+- **SO THE CLOSING-SPEED FORMULA IS STILL NOT SHIPPABLE, and it is now blocked
+  for a MEASURED reason rather than an assumed one.** Applied on top of the AI
+  fix, `arena-auto-end` still reads `expected 1 to be +0`: the arena is still
+  mounted at t=3400. The formula is arithmetically correct and remains gated
+  on this deadlock, which is an AI behaviour question with real design content
+  (back off and re-approach? fire regardless of facing at contact range? allow
+  a wider effective arc?). That is a design call, not a line, and the log's
+  rule is not to ship one at the end of a round.
+
+- **WHAT DOES SHIP: `ramAndPinNode` YIELS WHEN IT HAS WEAPONS AND NONE
+  BEARS.** It is a straight-line charge with no steering of its own, and it sits
+  ABOVE `engageWeaponNode` in `decideAI`'s priority chain, so whenever it
+  returns a decision the steering node never runs. A RAM that cannot fire is
+  therefore full-throttle push toward a target it cannot shoot at — the worst of
+  both nodes, and a permanent standoff against an equally-weighted or lighter
+  car. It now returns `null` in exactly that case, and `engageWeaponNode`
+  steers.
+  **The `usable.length > 0` half of that condition is load-bearing, and the
+  pre-existing suite is what proved it.** My first version gated on
+  `bearingCandidates.length === 0`, which also nulls a WEAPONLESS AI — and there
+  is a test named *"has no range gate at all when it has no ranged weapon to
+  compare against (nothing better to do than close in)"*. I had written that
+  exception in my own new comment and then not implemented it. Three
+  pre-existing `ramAndPinNode` tests went red and every one was right: a
+  weaponless AI has no steering node to fall through to, so closing genuinely
+  is its only option and gating that would strand it.
+
+- **AND ONE PRE-EXISTING TEST WAS PINNING THE BUG UNDER A NAME THAT CLAIMED
+  THE OPPOSITE — the fourth time this log has found that shape.** `still rams
+  once the target is within its mounted weapon's range` built a self with a
+  **LEFT** mount and put the target **dead ahead** (+x), so nothing bore and the
+  test was really asserting "rams even when it cannot shoot" — this standoff,
+  wearing a name about range. Its fixture now puts the target where the mount
+  bears, so it pins the RANGE gate (the claim its name makes) and the yield case
+  lives in its own test. Same family as `city.test.ts`'s restated direction
+  table (iteration 87) and `facingWorldDirection` (138): a test that restates a
+  thing is only a guard if its own derivation is right.
+
+- **THE NEW TEST, AND WHY IT DOES NOT NAME THE STEERING NODE.** It asserts RAM
+  is not chosen and that the AI did not fall through to `IDLE`. It deliberately
+  does NOT assert `'ENGAGE_WEAPON'`, because `engageWeaponNode`'s label is
+  DERIVED from whichever facing it steers to (`behaviorForFacing`) — so there is
+  no stable string to type, and typing one would be a hand-copied literal that
+  rots exactly the way this round's other hand-copied literal did.
+  Mutation-proven: before the fix it failed with
+  `expected 'RAM' not to be 'RAM'` at a target 90° to the side of a
+  single-FRONT-mount AI.
+
+- **GATE.** tsc clean. `ai.test.ts` **49/49**. `arena-victory` **14/14**,
+  including the 40-seed "amateur-night is winnable at a real rate, and never a
+  walkover" gate — the control that matters, since this change is AI behaviour
+  and that gate is the only thing standing between it and a balance
+  regression. Full suite **1548 passed / 2 failed**, and scope was measured
+  rather than assumed: `road-trip-menu` is **8/8 in isolation** (pure
+  cross-file pollution) and `screens.test.ts` reads **1 failed / 29 passed**,
+  the documented baseline identical on clean master across iterations
+  142/143/144. No regression. The closing-speed formula and all trace
+  instrumentation are reverted; `git diff` is `src/sim/ai.ts` plus its test.
+  Build hash unchanged at `index-CySPMTVi.js`, so nothing to deploy.
+
+- **NEXT, and it is now a design question with its mechanism named.** What a
+  single-front-mount AI should do at contact range. The instrument now exists
+  (`decideAI` traced through the real arena) and the state is fully measured:
+  node `ALIGN_AND_FIRE`, `inR`/`los`/`rdy` all true, `bearsNow` false, range
+  2-4m, unmoved. A `bearsNow` relaxation at contact range, or a back-off
+  behaviour, are the two honest shapes — and the second is the one this log's
+  own rules prefer, because it is the one that changes no firing rule.

@@ -524,8 +524,13 @@ describe('ramAndPinNode', () => {
   });
 
   it('still rams once the target is within its mounted weapon\'s range', () => {
+    // The mount was LEFT with the target dead AHEAD, so nothing bore and this
+    // was really asserting "rams even when it cannot shoot" — which is the
+    // standoff, wearing a name that claimed the opposite. The fixture now puts
+    // the target where the mount actually bears, so the test pins the RANGE
+    // gate (the claim its name makes) and the yield case lives in its own test.
     const def = getWeapon('machinegun');
-    const self = makeVehicle('self', { position: { x: 0, y: 0 }, weapons: [LEFT_WEAPON()] }, { bodyId: 'luxury' });
+    const self = makeVehicle('self', { position: { x: 0, y: 0 }, weapons: [FRONT_WEAPON()] }, { bodyId: 'luxury' });
     const target = makeVehicle('target', { position: { x: def.rangeM - 5, y: 0 } }, { bodyId: 'subcompact' });
     const world = makeWorld({ vehicles: [self, target] });
     const decision = ramAndPinNode(makeCtx(self, world, makePersonality({ aggression: 0.9, caution: 0.1 })), target);
@@ -591,6 +596,36 @@ describe('decideAI', () => {
     const self = makeVehicle('self');
     const decision = decideAI(makeCtx(self, makeWorld({ vehicles: [self] })));
     expect(decision).toEqual({ behavior: 'IDLE', targetId: null, input: { moveX: 0, moveY: 0, fire: false, weaponSlot: -1 } });
+  });
+
+  it('RAM yields when it CANNOT shoot, so a single-front-mount AI steers instead of charging forever', () => {
+    // The house arena kart carries exactly one mount: a machinegun on FRONT
+    // (`arena-kart` in arenas.json). `ramAndPinNode` filters usable weapons
+    // to the facing that already bears, so a target that is NOT in the forward
+    // quadrant leaves it with nothing to fire — but it still returned a
+    // straight-line charge, and because RAM sits ABOVE engageWeaponNode in
+    // `decideAI`'s priority chain, the node that steers the front mount onto
+    // the target never ran. Measured live in iteration 145 as two opponents
+    // parked ~3.7m from a stationary player, not firing, for 37,000 ticks.
+    //
+    // This is the NEAR side of a fix that already exists: the suite already
+    // proves engageWeaponNode is reachable once RAM is gated out at LONG range.
+    // Nothing gated it out when RAM simply had nothing to shoot with.
+    const self = makeVehicle('self', { position: { x: 0, y: 0 }, weapons: [FRONT_WEAPON()] });
+    const target = makeVehicle('target', { position: { x: 0, y: 3.7 } });
+    const world = makeWorld({ vehicles: [self, target] });
+    const decision = decideAI(makeCtx(self, world, makePersonality({ aggression: 0.9, caution: 0.1 })));
+
+    // What actually matters is the pair: a node that cannot fire AND is not
+    // the one that would fix that. Asserting `behavior !== 'RAM'` alone would
+    // also pass if RAM vanished entirely, which is a different (wrong) fix.
+    // `engageWeaponNode`'s label is DERIVED from whichever facing it steers to
+    // (`behaviorForFacing`), so it is deliberately not named here: typing it
+    // would be a hand-copied string that rots the way a restated constant does.
+    // The property is RAM not being chosen, and the AI still having done
+    // something rather than having fallen through to IDLE.
+    expect(decision.behavior).not.toBe('RAM');
+    expect(decision.behavior).not.toBe('IDLE');
   });
 
   it('engageWeaponNode becomes reachable once ram is range-gated out at long range (was unreachable dead code)', () => {

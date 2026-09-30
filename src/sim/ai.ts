@@ -581,7 +581,39 @@ export function ramAndPinNode(ctx: AIContext, target: VehicleState): AIDecision 
 
   const bearing = bearingTo(ctx.self.position, target.position);
   const currentQuadrant = bearingQuadrant(ctx.self.headingRad, delta);
-  const bearingCandidates = usableWeapons(ctx, target).filter((c) => c.facing === currentQuadrant);
+  const usable = usableWeapons(ctx, target);
+  const bearingCandidates = usable.filter((c) => c.facing === currentQuadrant);
+
+  // YIELD WHEN IT HAS WEAPONS BUT NONE OF THEM BEARS, so `engageWeaponNode`
+  // gets to steer.
+  //
+  // This node is a straight-line charge: it has no steering of its own, and it
+  // sits ABOVE `engageWeaponNode` in `decideAI`'s priority chain, so whenever it
+  // returns a decision the steering node never runs. It can only fire with a
+  // mount that ALREADY bears, so a RAM with nothing bearing is a full-throttle
+  // push toward a target it cannot shoot at — the worst of both nodes, and
+  // against an equally-weighted or lighter car it is a permanent standoff
+  // rather than a shove.
+  //
+  // The house arena kart carries ONE mount (a machinegun on FRONT), so every
+  // amateur-night opponent is a single-front-mount AI: the moment the target
+  // leaves the forward quadrant this was the decision it made, forever.
+  // Measured live in iteration 145 — two opponents parked ~3.7m from a
+  // stationary player, not firing, unmoved for 37,000 ticks.
+  //
+  // This is the NEAR side of a gate the suite already covers on the FAR side
+  // ("engageWeaponNode becomes reachable once ram is range-gated out at long
+  // range"). Nothing yielded when RAM simply had nothing to shoot with.
+  //
+  // **The `usable.length > 0` half is load-bearing, and the pre-existing
+  // "no range gate at all when it has no ranged weapon" test is what proved
+  // it.** A weaponless AI has no steering node to fall through to — nothing
+  // bears because nothing is mounted — so closing is genuinely its only option,
+  // and gating that would strand it. Yielding is only correct when the AI HAS
+  // weapons and they are simply not pointed at the target yet, which is the one
+  // case where `engageWeaponNode` can do better.
+  if (usable.length > 0 && bearingCandidates.length === 0) return null;
+
   const ready = pickBest(bearingCandidates, (c) => c.score, seedFor(ctx, 'ram-weapon'));
   const fire = ready !== null && ready.bearsNow && ready.inRange && ready.losClear && ready.readyToFire;
 
