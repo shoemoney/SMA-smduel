@@ -6442,3 +6442,137 @@ against `AGENTS.md`'s rule that the same item is not deferred twice.
   103 gave the trip a save point), and the save path that 93 was about no longer
   fails (iteration 93's schema fix), so what is left is the quota path. A fresh
   Codex review is the next reviewer in the cycle.
+
+ITERATION 107 — Codex review of the live deployment; three fixes and a
+correction to iteration 105 that matters more than any of them
+- REVIEW `.opencode/reviews/codex-20260930-053359.md` (6498 bytes, 1 attempt).
+  Codex drove all three screens, FIRED WEAPONS, entered a Division 5 event
+  through the city, and exercised the trip menu, Journal and Fleet — the widest
+  surface any reviewer has covered. Five findings plus a content gap, and it
+  volunteered its own limits again: no full-route completion, no highway combat
+  balance, no arena victory handling, no save restoration.
+
+- **FIX 1 — THE OFF-ROAD ARROW POINTED AT A FIXED LEFT OR RIGHT, NOT AT THE
+  ROAD.** "I drove north of the horizontal carriageway and stopped. The road's
+  delineator posts were visible along the bottom of the frame, but the
+  indicator read '◀ Road — 14 m.' The road was below the car, not left of it."
+  `roadRecoveryArrow()` returned a glyph from the lateral offset's SIGN, under a
+  comment asserting the world-space `across` axis "cannot disagree with where the
+  road actually is". It could and did: nothing ever projected it to screen, so
+  the arrow was only ever right for an east-west road with the car beside it.
+  Now `roadRecoveryDirectionDeg()` returns the screen angle and `▲` is rotated
+  by it, with the derivation written out in three numbered steps so a reader can
+  check it rather than trust it.
+
+  **AND THIS IS THE SECOND HALF OF A FAILURE I HAD ALREADY DIAGNOSED AND
+  SHIPPED ANYWAY.** Iteration 105 recorded that the arrow's direction "is not
+  independently verifiable", because crossing the centreline ends the off-road
+  state — and then treated that as a reason to leave it alone rather than as a
+  reason to do the arithmetic. That same entry's own reasoning had already
+  concluded world +y is screen-up, which is PRECISELY the case the sign-only
+  arrow got wrong. An honest statement of what you could not check is not a
+  substitute for checking it, and "I can't verify this live" was doing the work
+  of "I have not verified this" while implying the doubt was structural rather
+  than a gap in my probe. Codex turned "I think this is wrong" into "here is the
+  frame where it is wrong" in one drive.
+
+  TWO TESTS, each proven by TWO mutations (restore the sign-only arrow; drop
+  the screen projection — both fail both tests). The second is the load-bearing
+  one: it computes where the road actually IS on screen from the vehicle's real
+  world position and asserts the arrow agrees, so it fails if the PROJECTION is
+  removed rather than merely if a character changes. Compared as a circular
+  difference, because the function normalises to [0,360) while `atan2` returns
+  (-180,180], and a plain subtraction reports a 360-degree disagreement for a
+  perfect match — a test failing on representation rather than meaning.
+
+- **THE CORRECTION, AND IT IS THE MOST USEFUL THING IN THIS ROUND.**
+  Iteration 105 asserted that the arrow "CANNOT flip during a straight drive:
+  crossing the centreline ends the off-road state". **That is false**, and
+  driving the fixed build settles it:
+      on road                          hidden
+      off-road, one side               rotate(0deg)    road above, arrow up
+      drove back across the centreline hidden
+      continued past to the OTHER side rotate(180deg)  road below, arrow down
+  The flip is trivially reachable. It was "impossible" because every probe in
+  iteration 105 held a key for five seconds and never travelled far enough to
+  come out the far side — so I mistook the WINDOW of my own test for a property
+  of the system and wrote it into the log as a structural fact. That is the
+  log's own "a flat signal is not a frozen signal" rule (iteration 100) applied
+  to a claim rather than to a value, and it is the most expensive form the
+  mistake has taken: it produced a comment explaining why nobody should check.
+
+- **FIX 2 — THE RADAR DREW OVER THE TRIP MENU AND SWALLOWED ITS CLICKS.**
+  "hit-testing the centre of each option number returned the radar face rather
+  than the menu option." Reproduced exactly: radar x 25-179 / y 783-937 against
+  the first menu row x 65-391 at the same y, and `elementFromPoint` returning
+  `DIV.hud-radar-face` for all four.
+  The cause is STRUCTURAL, not a tuning oversight, and that is why the fix is
+  one declaration rather than a nudge: the radar is pinned bottom-left in
+  WINDOW coordinates while `menuHost` is sized to the GAME VIEW (420-480px) and
+  bottom-anchored, so the lower menu rows land in the radar's corner BY
+  CONSTRUCTION. Moving either one fixes one screen and leaves the next collision
+  undiscovered. `.sm-menu-root` now stacks above `.hud-root`'s z-index 20.
+  This is the THIRD instance of one shape — iteration 71's exit button behind
+  CONDITION, iteration 89's WEAPONS panel over the Arcade link, and now the
+  radar over the menu — and the shared lesson is that a fixed-corner HUD panel
+  and a bottom-anchored menu will collide in every viewport narrow enough for
+  the game view to be wider than the corner chrome.
+
+  THE GUARD ASSERTS INTERCEPTION, NOT OVERLAP, because the panel and the radar
+  may share pixels harmlessly; what matters is what receives the click. Proven
+  to fire: removing the `z-index` fails it naming `DIV.hud-radar-face` for all
+  four rows — the reviewer's finding reproduced verbatim. Real browser, at the
+  reviewer's 1200x1010, not an arbitrary size.
+
+- **FIX 3 — THE ARENA TOLD THE PLAYER TO DRIVE OUT A GATE THAT DOES NOT EXIST.**
+  `ui.arena.eventEntered` said "drive out the gate to exit." The arena is an
+  unbounded field with no boundary and no gate check; the event ends through
+  Leave Arena or a terminal condition. Identical class to iteration 105's
+  Amateur Night message — a UI string contradicting the check beside it — and
+  the third time in three rounds, which is worth noting as a pattern rather
+  than an accident: the arena's own DESIGN DECISION (no fake boundary,
+  iteration 21) leaked into its COPY, which is what a declined feature always
+  looks like from the player's side.
+  The replacement names the real control and takes the button's label as a
+  `{leave}` parameter instead of retyping it, so a translated or renamed button
+  cannot leave the instruction stale — iteration 94's lesson applied forward.
+  `strings.test.ts` caught the new `▲` literal on the first run, which is it
+  working: the arrow is a SYMBOL with no translation, so it joined the allowlist
+  beside the `●` durability dot rather than becoming a `t()` lookup.
+
+- **AND THE FIX SHIPPED ITS OWN DEFECT, caught by a probe that found the wrong
+  element.** The first production check read the hint CONTAINER's
+  `textContent`, so it reported `transform: ""` and no glyph — a confident wrong
+  answer from the exact failure the log has recorded four times as "worse than
+  finding nothing". Re-probing by scanning every element for its OWN text node
+  found the real bug: the hint is created empty, so after `prepend(arrow)` the
+  arrow span was its only child, which made `lastChild` the ARROW, and the
+  per-frame label write was overwriting `▲` with "Road — 15 m" sixty times a
+  second. One deploy, then fixed with the label as its own element.
+  Recorded rather than papered over: no test covers this, and a test that
+  pinned "the hint has two child spans" would guard an implementation detail
+  while saying nothing about why it matters. The guard that WOULD have caught
+  it is the one the probe was supposed to be.
+
+- STILL QUEUED, unchanged and not actioned at the end of a round: **the arena
+  has no pause** (finding 1 — "the car accelerated from 5 to 25 mph over two
+  seconds" while opponents kept moving, and Leaving ends the match so it is
+  not a substitute). This is the same shape as iteration 100's road menu and is
+  a real feature rather than a defect, so it wants its own round.
+  **Journal [J] and Fleet [F] are working features with no visible control**
+  (finding 4) — a genuine gap and a small one, since both handlers exist and
+  only the affordance is missing. The on-foot survival phase is still the
+  unbuilt feature iteration 99 identified, now restated independently by the
+  reviewer from the abandoned-trip flow.
+
+- GATE: tsc clean, 69 files / 1506 tests, 2 failures — all `screens.test.ts`,
+  the measured cross-file flake, identical on stashed master. 6 browser tests
+  (1 new, proven to fire). Build `index-B83A4IeM.js`, then `index-C6LAJzTi.js`
+  for the glyph fix. `.shots/iter107` = 8 screens / 0 problems.
+
+- DEPLOY: release `20260930060000-1c81b5b` then `20260930060500-1c81b5b`, live
+  bundle matched, 0 console errors. LIVE VERIFIED by driving:
+    menu clicks  all four option numbers now deliver to `sm-menu__item`,
+                not `hud-radar-face`
+    off-road     glyph `▲`, `rotate(0deg)`, label "Road — 15 m"
+    flip         0deg -> (hidden on road) -> 180deg on the far side
