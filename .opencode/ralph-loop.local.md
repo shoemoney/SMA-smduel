@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 31
+iteration: 32
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -7974,3 +7974,89 @@ the itemised plan.
   budget should go to the two integration tests' PREMISES rather than to seeds
   — starting by reading what the passive player's actual death tick is under the
   rotated frame, which is one instrumented run and not a search.
+## ITERATION 123 — the art was nose-UP all along, and I spent three rounds doing algebra over a file I could have opened
+
+Four rounds on the 90-degree combat/driver disagreement. This round read the one
+input every prior round had inferred instead of measuring — the CAR ART ITSELF —
+and it inverts the framing of the bug and kills the last cheap fix.
+
+- **THE DECISIVE READ, AND IT TAKES ONE COMMAND.** Every round since 120 has
+  reasoned about the car's orientation from `rotationOffsetDeg: 270` and the
+  frame's 48x96 portrait shape. Both are consistent with either answer. So I
+  cropped the `car-subcompact` frame out of `assets/atlas-0.png` and looked at
+  it: **the bonnet and cabin taper at the TOP, the rear bumper slats at the
+  BOTTOM. The art is authored nose-UP.** Portrait, 48x96, nose along art +Y.
+  That is the input, read rather than derived.
+
+- **AND AN EXISTING DERIVED TEST ALREADY SAID SO, which is worth more than my
+  eyes.** `tests/unit/vehicle-sprite-orientation.test.ts` exists precisely to
+  stop this being a guess — its name is "every shipped car/cycle frame has a
+  rotationOffsetDeg matching its ACTUAL art (assets/raw/*.png), not a guess",
+  it reads the raw art, and it states in a comment: **"EVERY vehicle is nose-UP,
+  so every offset is 270."** So the previous round that wrote it had already
+  looked at the same art and reached the same answer, wrote it down, and built a
+  guard around it — and three subsequent rounds re-derived the orientation by
+  algebra anyway instead of reading that file. A derived guard in the repo beats
+  a fresh derivation every time, and the rule is iteration 106's ("grep for what
+  reads the number") applied to a convention instead of a number.
+
+- **WHICH REFRAMES THE DEFECT INTO ONE SENTENCE, AND IT IS NOT THE ONE I SPENT
+  THREE ROUNDS ON.** I had been treating the 270 as the thing that correctly
+  adapts art drawn one way into a world that is genuinely +X-forward. It is not.
+  The art is nose-UP, and nose-up is ALREADY the convention the facing table,
+  the collider, the constructor preview, the damage quadrants and the AI all
+  use. **The 270 is not an adaptation — it is a permanent 270-degree lie told
+  about the art on every frame of the game**, and it exists only to agree with
+  `driving.ts` and the `+X` idiom. The art was never the thing out of step.
+
+- **I TRIED THE CHEAP FIX AND MEASURED THAT "CHEAP" WAS AN ILLUSION.** Since
+  the art needs no correction, the fix should be: drop `rotationOffsetDeg` on the
+  car frames and rotate `driving.ts`'s forward vector onto +Y. That touches
+  **two** sites. I applied it, and the gate produced 12 failures — 8 of them the
+  orientation test re-asserting 270 (correct, given the old target axis) and 4
+  road/world-map failures because `road.ts:663` derives the progress axis as
+  `(cos h, sin h)`, so the car moved 90 degrees off the axis the odometer
+  measures.
+  **MY OWN ERROR, AND IT IS THE ROUND'S BEST LESSON.** I had grepped
+  `newForward` — a VARIABLE — found one consumer, and written "the ripple is two
+  sites, not six". I had not grepped the IDIOM. The idiom inventory:
+  ```
+    +X heading->direction  (cos h, sin h)        : 18 sites / 5 files
+        src/sim/ai.ts 7   src/app.ts 6   src/sim/driving.ts 2
+        src/ui/hud.ts 2  src/sim/road.ts 1
+    +Y the art's own axis  (facings, collider, preview, damage) : 7
+  ```
+  Eighteen, not two. And `ai.ts` holds SEVEN of the +X sites — so my claim in
+  iteration 122 that "the AI aims with the facings, so the opponents' aiming
+  rotates WITH the facing table" was read off a COMMENT (`ai.ts:19` says it uses
+  `facingWorldDirection`) while the module's actual heading math is +X seven
+  times over. **A comment about a file is not the file**, which is iteration 50's
+  sample-box rule arriving as a source-reading rule.
+
+- **SO NEITHER DIRECTION IS CHEAP, AND THE COST IS NOW MEASURED RATHER THAN
+  GUESSED** — which is the whole product of three rounds of deferral. Rotating
+  combat onto +X is 5 named sites plus the preview layout; dropping the offset
+  and rotating the driving idiom is 18 sites across 5 files. Either way the
+  preview still has to be checked, the seeds still have to be re-swept, and the
+  orientation test's target axis has to be re-derived rather than edited.
+  **AND THE SEED WORK IS INVARIANT TO THE DIRECTION**, which iteration 122
+  established and this round confirms from the other side: `WIN_SEED` was found
+  by sweeping for a roster that sat inside the 90-degree wedge between the nose
+  and the (buggy) front mount. Close that wedge from either side and every seed's
+  win disappears identically.
+
+- **THE HONEST STATE OF THE ITEM, after four rounds:** fully diagnosed, the
+  defect named correctly for the first time, the cost of each fix MEASURED, and
+  not landed. Nothing shipped this round; tree clean, tsc clean, build
+  `index-Hrr9Wz8r.js` identical to what is live.
+
+- **WHAT THE NEXT ROUND SHOULD DO, and it is not another derivation.** The
+  choice is a real design decision, not an implementation detail, and it belongs
+  to whoever is choosing this game's conventions: **either the art is
+  authoritative** (drop the 270, rotate 18 idiom sites, and the art stops
+  being lied about) **or the sim is** (rotate 5 combat sites plus the preview,
+  and the art keeps a permanent correction). The first is more honest and costs
+  more; the second is cheaper and keeps a lie in the renderer forever.
+  Whichever is taken, the three things that are true either way should go in
+  with it: the seed sweep, the re-derived orientation test, and the preview's
+  agreement with the car.
