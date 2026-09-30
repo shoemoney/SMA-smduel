@@ -6633,3 +6633,120 @@ ITERATION 108 — Codex finding 4: two working features with no visible control
   independently from the abandoned-trip flow). With the pacing decision taken in
   iteration 106 the largest open BALANCE item is closed, and what remains is
   feature work rather than tuning.
+ITERATION 109 — the arena can be paused. Codex finding 1, the item iteration 108
+named as "the next build rather than an open question"
+- **"Escape does not pause combat. In Division 5, after pressing Escape, the car
+  accelerated from 5 to 25 mph over two seconds, and all three opponents changed
+  position on the radar. P also opened no menu."** The remedy was Resume /
+  Controls / Withdraw, freezing "driving, AI, projectiles, damage, cooldowns,
+  and match resolution together". The road got a trip menu at iteration 100 and
+  the arena never got one — the only screen in the game where stopping matters
+  most, because leaving ends the match.
+
+- **THE FREEZE IS A RETURN BEFORE ANY SIMULATION IS READ, which is what makes
+  "together" true by construction rather than by enumeration.** `loop.advance`
+  is the only thing that steps driving, AI, projectiles and damage — all four
+  are registered systems inside it — and weapon cooldowns ride the same tick. So
+  returning before it stops every one of them, and returning before the
+  `matchPhase` block below is what freezes MATCH RESOLUTION: a paused match
+  cannot drift into its `ending` state and resolve out from under the menu.
+  This is iteration 100's gate reused verbatim, which is the point of having
+  written it down.
+
+  `lastTimeMs` is consumed BEFORE the freeze check, deliberately — it is this
+  screen's only record of when the last frame ran, so returning without
+  updating it would hand the frame the menu closes on one enormous clamped
+  delta. That is the same line, for the same reason, that iteration 100 wrote.
+
+- **CENTRED, AND THE REASON IS A BUG I FIXED TWO ROUNDS AGO.** The road's trip
+  menu sits bottom-left — the same corner the radar is pinned to — and
+  iteration 107 had just fixed that menu being swallowed by the radar, clicks
+  included. Copying the road's placement would have rebuilt the collision on the
+  screen where combat happens. The scrim sits at z-index 25, between
+  `.hud-root`'s 20 and `.sm-menu-root`'s 30, so the menu is above it and the
+  dimmed HUD cannot take a click meant for the menu. The three-rung ladder is
+  iteration 107's, with the new rung in the middle.
+
+- **ONE `withdraw()` FOR THE CORNER BUTTON AND THE MENU ROW**, because they are
+  the same decision and two copies are how they drift — `unmetRequirements`
+  (84), `roadLegalityMisses` (92), the operational-kind set (98). The menu row
+  reads its label from the SAME string the button renders, so it cannot name a
+  control that has been renamed: iteration 107's `{leave}` lesson applied to a
+  label rather than to a sentence.
+
+  The header is passed with REAL values and `showHeader: false`. The arena
+  genuinely has a driver, a clock and a city, so this is not the phantom readout
+  iteration 19 removed from the title — it is real status a mid-combat pause
+  does not need, and passing real fields makes the suppression a DECISION
+  rather than missing data.
+
+- **THE TEST, AND THE CONTROL IS THE PART THAT MATTERS.** The signal is the
+  reviewer's own measurement — the car accelerating 5 → 25 mph — read as the
+  speed dial's continuous `--hud-speed-frac`. Every assertion is a TRIPLE: the
+  dial climbs while driving, holds while paused WITH THE THROTTLE STILL HELD,
+  and climbs again after resuming. A frozen number is only evidence if the same
+  number is shown MOVING when the thing under test is not engaged — which is
+  why iteration 100's first LIVE verification was vacuous (its odometer read
+  flat because progress stops advancing off-axis) and why this one is not.
+
+  Two mutations, both failing with the symptom rather than a generic message:
+    remove the freeze gate      -> "the car moved from 0.164 to 0.298 while
+                                   paused"  (the reviewer's complaint, verbatim
+                                   as a test failure)
+    remove `menuHandledKey`     -> the menu immediately reopens and never
+                                   closes — iteration 100's double-toggle,
+                                   reproduced exactly
+  A third mutation (the "already-ended" guard in `openPauseMenu`) does NOT fire,
+  and that is recorded rather than papered over: the test never reaches `ended`,
+  because `stop()` tears the screen down first. A guard against an unreachable
+  state is untested here, and saying so is more useful than inventing a fixture
+  that could not exist.
+
+- **AND THE TEST REPRODUCED ITERATION 100'S BUG BEFORE IT FOUND THE FIX, which
+  is the fourth time that bug class has cost a round.** The first version
+  dispatched the closing Escape at `window` and the menu could not be closed at
+  all. That is not a test bug — it is the SHAPE of the defect: `mountMenu`
+  focuses its container and owns the keyboard while open, so an Escape
+  dispatched at `window` never reaches the menu's BACK, `menuHandledKey` stays
+  false, and the window handler finds `paused` still true and returns. The fix
+  in the test is the same fact the fix in the code encodes.
+
+- GATE: tsc clean, 69 files / 1507 tests, 1 failure — `screens.test.ts`, the
+  measured cross-file flake (1 isolated, 2 in-suite, identical on stashed
+  master). 6 browser tests pass. Build `index-BL02FNi0.js`. `.shots/iter109`
+  = 8 screens / 0 problems, every screen unchanged — correct, a pause menu adds
+  nothing to a t=0 capture.
+
+- DEPLOY: release `20260930064000-fe28810`, bundle `index-BL02FNi0.js`, live
+  hash matched, 0 console errors.
+
+  **WHAT I VERIFIED IN PRODUCTION, AND WHAT I DID NOT — the limit stated
+  plainly because I hit it twice before getting it right.**
+    CONFIRMED: the shipped bundle carries `ui.arena.menu`, `ui.arena.menuResume`
+    and `ui.arena.menuHint`, and the `withdraw` symbol; the served hash equals
+    the local build's; 0 console errors.
+    CONFIRMED BY TEST, NOT BY DRIVING: the freeze itself. The integration test
+    drives the REAL `showArenaEvent` — real boot, real city→arena navigation,
+    real DOM key events — and both mutations fail on the freeze assertion.
+    NOT ESTABLISHED: that the pause menu opens in a real browser against
+    production. There is no capture route to `showArenaEvent` —
+    `?screen=arena` mounts `showArena`, the PRACTICE screen, which is a
+    different function — so my first live probe reported an empty menu and a car
+    still accelerating, which read exactly like the fix failing and was really
+    the probe testing the wrong screen. That is the log's own rule (a probe that
+    finds the wrong thing is worse than one that finds nothing) arriving for
+    the fifth time, and it is why the first probe's numbers are recorded here
+    rather than quietly dropped.
+    The obvious workaround — walking the city to the arena door — hit the
+    documented limit: the blind key-walk dead-ended at "Federal Building —
+    closed" and never reached a labelled door, the same failure iteration 90
+    recorded. So this fix has source-level and bundle-level evidence and NOT a
+    driven frame, and the honest next step is a capture route to `showArenaEvent`
+    rather than another blind walk.
+
+- STILL QUEUED: moving J/F into the binding table (108, a real schema change
+  and the last thing standing between a working feature and a rebindable one),
+  and the on-foot survival phase (107's content gap, restated independently
+  from the abandoned-trip flow). With pacing closed at 106 and the arena pause
+  closed here, what remains is feature work plus one harness gap that has now
+  blocked live verification twice.
