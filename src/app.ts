@@ -5132,9 +5132,34 @@ function roadSurfaceQuad(
   visibleHalfExtentM: number,
 ): SpriteInstanceInput {
   const scale = GROUND_TILE_METRES['road']!;
+
+  // The surface is anchored to the ROUTE, not to the car — this is the whole
+  // fix, and the difference is one word.
+  //
+  // It used to be centred on the vehicle's full 2D position, while the lane
+  // paint and the roadside furniture were placed on the route axis. So the
+  // surface followed the car in BOTH axes: driving north off an east-west
+  // highway left the lane markings behind in the frame but kept an asphalt
+  // strip centred under the car, and the environment told the player they
+  // were on the road when they had left it. Found by Codex `gpt-6.1-sol`:
+  // "the lane markings and roadside furniture leave the view, but an asphalt
+  // strip remains centered beneath the car."
+  //
+  // Projecting the car onto the centreline (the line through the world origin
+  // in the route's direction) gives a centre that tracks along-route motion
+  // exactly as before and refuses to track lateral motion at all — which is
+  // what asphalt does. Once the car is genuinely off the carriageway, the
+  // verge quad underneath it is what shows, and the road stays where the road
+  // is. `roadLaneInstances` and `roadFurnitureInstances` already compute this
+  // same `along0` projection, so the three layers now share one origin
+  // instead of three derived from two different assumptions.
+  const forward = { x: Math.cos(routeHeadingRad), y: Math.sin(routeHeadingRad) };
+  const along = center.x * forward.x + center.y * forward.y;
+  const routeCentre: Vec2M = { x: forward.x * along, y: forward.y * along };
+
   return groundQuad(atlasIndex, {
     pool: 'road',
-    center,
+    center: routeCentre,
     // Along the route it must cover the whole view however far the camera is
     // pulled back; the diagonal bound is the safe half-extent for any rotation.
     halfExtent: {

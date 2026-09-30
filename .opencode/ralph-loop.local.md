@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 7
+iteration: 8
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -4611,3 +4611,47 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
    is the wrong one, and the way to tell them apart is to walk long enough
    for the thing to be in range and watch the value change, rather than
    deciding from one negative sample.
+91. Iteration 86's finding 3, EXECUTED: **the road surface followed the car when
+   it left the road.** Found by Codex `gpt-6.1-sol`: "Driving north away from
+   the initial east-west highway makes the lane markings and roadside furniture
+   leave the view, but an asphalt strip remains centered beneath the car. The
+   route's paint stays in the world while its surface follows the player."
+
+   - **THE FIX IS ONE WORD, AND IT IS WORTH NAMING PRECISELY.** The surface
+     quad was centred on the vehicle's full 2D position, while `roadLaneInstances`
+     and `roadFurnitureInstances` both place themselves on the route axis. So
+     two of the three road layers were anchored to the route and one was anchored
+     to the car, and the odd one out was the surface — the largest of the three,
+     and the one the player reads as "I am on the road".
+     It is now centred on the vehicle's PROJECTION onto the route centreline
+     (the line through the world origin in the route's direction). The same
+     `along0` projection the other two layers already compute, so all three now
+     share one origin instead of three derived from two different assumptions.
+     That is the iteration-59/82/84 shape one more time: two surfaces deriving
+     the same thing from two places is how they drift, and the fix is to make
+     one read the other.
+   - The behaviour that falls out is the correct one and needed no extra code:
+     driving ALONG the carriageway is unchanged (the projection equals the
+     position whenever the car is on the centreline), and driving LATERALLY off
+     it is refused entirely, so the verge quad underneath becomes what the
+     player sees. The road stays where the road is.
+
+   - MEASURED BEFORE AND AFTER, and the honest part is what did NOT move:
+       road luma/spread at rest  76.31 / 110.43  ->  76.31 / 110.43
+     Byte-identical, which is the point: the fix touches only the off-route case,
+     and a capture at t=0 with the car on the centreline cannot see it. Had I
+     measured only the standing capture I would have concluded nothing had
+     changed, and had I measured only "the number moved" I would not know it was
+     for the right reason. The standing frame is the control, not the test.
+
+   - LIVE VERIFIED BY DRIVING, which is the only way to see this one
+     (`index-7GtIyN7C.js`, 0 console errors). Two frames:
+       on the route      asphalt under the car, guardrails above and below, lane
+                         paint and the shoulder line all present
+       after 6s north    the car sits on the PALE VERGE, the guardrails and
+                         paint have receded to the top of the frame, and there
+                         is no dark strip tracking the car
+     The environment now tells the player the truth about where they are, which
+     is the whole finding. The reviewer's proposed remedy — "centre the asphalt
+     on the vehicle's PROJECTION onto the route centreline, preserving the
+     route's fixed lateral position" — is what this does.
