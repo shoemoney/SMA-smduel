@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 2
+iteration: 3
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -4197,3 +4197,57 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
    exists to gate). It is a design decision, not a defect, and it is the kind
    that belongs in the loop log as an open question rather than in a patch
    applied at the end of an unrelated iteration.
+85. Iteration 83's finding 4, EXECUTED: the constructor now shows what the
+   driver can spend. Found by Codex `gpt-6.1-sol` driving the live app with
+   computer use: "The initial design shows a cost of $940, but the constructor
+   does not show the driver's $2,000 budget or remaining cash ... the player
+   learns their spending limit by making an unaffordable selection."
+   The reviewer's diagnosis was right and the data was already there —
+   `validateDesign(design, context.cash)` takes the budget, and `metrics.
+   costTotal` is computed. The panel just was not rendering either number. So
+   `Cost: $940` was a figure with nothing to be good or bad against, and the
+   only place the limit was ever stated was the violation message a player had
+   to trigger first.
+   - THREE ADJACENT NUMBERS rather than one: `Cost`, `Budget`, `Remaining`. They
+     belong together because they are one comparison, and splitting the other two
+     across screens is what made the original problem.
+   - `overBudget` is carried on the derived view, but the Remaining row renders
+     with `invalid = false` EVEN WHEN OVER BUDGET, and that is deliberate. The
+     flag means "this number is unknown" and paints `?????`. An unaffordable
+     price is not unknown — it is known and wrong for your wallet — and Cost has
+     always worked that way, with its own comment saying so. Painting the
+     negative balance as `?????` would destroy the one number that EXPLAINS the
+     violation, which is iteration 21's mistake exactly: a faint dash threw away
+     the distinction between "no armour bought" and "armour undamaged", and this
+     would throw away the distinction between "too expensive" and "cannot be
+     computed". The explanation lives in the legality panel; the arithmetic lives
+     here.
+   - `formatMoney` puts the sign BEFORE the symbol. The naive `${-4000}` reads
+     as a typo; `-$4000` is a number a player can act on, which is the whole
+     reason the row exists. Verified on the real build: `COST $940 BUDGET $2000
+     REMAINING $1060` pristine, and `COST $6000 BUDGET $2000 REMAINING -$4000`
+     at max armour.
+   - The strings scanner caught the two new labels on the first full run, which
+     is it working: `tests/unit/strings.test.ts` fails on any DOM-position string
+     absent from `rulesets/classic/strings.json` and not explicitly exempted. The
+     exemptions are grouped by family and this file already has a
+     "stat-sheet row labels (statRow(list, label, value, invalid))" group
+     containing Cost, Weight, Spaces and the rest. Budget and Remaining are the
+     same `statRow(label)` family, so they went in beside Cost rather than into
+     strings.json — which would have meant a `t()` lookup for one-word labels
+     that the other eight siblings do not use, and two languages for one panel.
+   - A FIFTH FIXTURE THAT LIED, and the same one: `baseContext()` defaults to
+     `cash: 1_000_000`, so no design a test can build is ever over budget, and
+     the new over-budget test failed with `expected false to be true` for exactly
+     that reason. The real starting budget, measured off the live build, is
+     $2000. That is five fixtures in this log written from memory of the shape
+     rather than from the value: lowercase facing keys (25, 84), a function where
+     a `saveSeed: string` belongs (82), `w-machine-gun` instead of `machinegun`
+     (84), a `{position:{x,y}}` wrapper where a flat `{x,y}` belongs (81), and now
+     a million-dollar driver. Every one was caught by a guard doing its job on
+     input that was not real, which is the good outcome, and every one cost more
+     than reading the fixture would have.
+   - VERIFIED: tsc clean, 67 files / 1445 tests (3 new), 4 browser tests, build
+     clean (`index-BatjiGhX.js`), `.shots/iter85` = 8 screens / 0 problems.
+     Constructor luma 36.09 -> 35.94 (two more rows of text) with spread
+     unchanged at 43.23; every other screen byte-identical.

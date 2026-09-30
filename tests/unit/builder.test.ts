@@ -17,6 +17,7 @@ import {
   type BuilderContext,
   type BuilderState,
   unmetRequirements,
+  formatMoney,
 } from '@/ui/builder';
 
 function baseContext(overrides: Partial<BuilderContext> = {}): BuilderContext {
@@ -163,6 +164,50 @@ describe('builder — unmet requirements reach the legality panel', () => {
     // is not a failure the player caused. The two branches must not collapse.
     const fresh = createBuilderState();
     expect(unmetRequirements(fresh)).toHaveLength(3);
+  });
+});
+
+describe('builder — the driver can see what they can spend', () => {
+  /**
+   * Found by Codex `gpt-6.1-sol` driving the live app with computer use: the
+   * panel showed `Cost: $940` and nothing else. A single cost figure cannot be
+   * read as good or bad — against what? The player either had to remember the
+   * balance from the previous screen, or drive the total past the limit and
+   * read the violation message to learn the number exists.
+   */
+  it('shows cost, budget and remaining as three adjacent numbers', () => {
+    const ctx = baseContext();
+    const derived = computeDerived(createBuilderState(), ctx);
+    expect(derived.costDisplay).toBe('$940');
+    expect(derived.budgetDisplay).toBe(`$${ctx.cash}`);
+    expect(derived.remainingDisplay).toBe(formatMoney(ctx.cash - 940));
+  });
+
+  it('reports a NEGATIVE remaining balance rather than hiding it', () => {
+    // `baseContext()` defaults to a MILLION in cash, which no design can exceed
+    // — the first run of this test failed with `expected false to be true` for
+    // exactly that reason, and the fixture was lying rather than the code. The
+    // real driver's starting budget, measured off the live build, is $2000.
+    const ctx = baseContext({ cash: 2000 });
+    let state = createBuilderState();
+    // Pile on armour until the design is unaffordable.
+    for (let i = 0; i < 10; i += 1) state = handleKey(state, 'ArrowDown', ctx).state;
+    for (const digit of '9999') state = handleKey(state, digit, ctx).state;
+
+    const derived = computeDerived(state, ctx);
+    expect(derived.overBudget).toBe(true);
+    expect(derived.remainingDisplay.startsWith('-$')).toBe(true);
+    // The cost is still a real figure when unaffordable — iteration 84's note
+    // that `?????` means "unknown", and an unaffordable price is not unknown.
+    expect(derived.costDisplay).not.toBe('?????');
+  });
+
+  it('puts the sign before the symbol, not after it', () => {
+    // `${-4000}` reads as a typo; `-$4000` is a number a player can act on,
+    // which is the entire reason the row exists.
+    expect(formatMoney(-4000)).toBe('-$4000');
+    expect(formatMoney(0)).toBe('$0');
+    expect(formatMoney(1060)).toBe('$1060');
   });
 });
 

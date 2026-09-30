@@ -566,6 +566,12 @@ const EXISTING_VIOLATIONS: ReadonlySet<string> = new Set(
     ['src/ui/builder.ts', ')'],
     // src/ui/builder.ts - stat-sheet row labels (statRow(list, label, value, invalid))
     ['src/ui/builder.ts', 'Cost'],
+    // Budget and Remaining are the other two halves of the same comparison.
+    // Cost alone cannot be read as good or bad without them — a player had to
+    // remember the balance from another screen, or exceed the limit to discover
+    // it. Same statRow(label) family as the rest of the list, same exemption.
+    ['src/ui/builder.ts', 'Budget'],
+    ['src/ui/builder.ts', 'Remaining'],
     ['src/ui/builder.ts', 'Weight'],
     ['src/ui/builder.ts', 'Spaces'],
     ['src/ui/builder.ts', 'Top Speed'],

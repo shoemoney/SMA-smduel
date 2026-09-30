@@ -607,10 +607,26 @@ export function computeViolations(state: BuilderState, context: BuilderContext):
   return violations;
 }
 
+/**
+ * Money with the sign in FRONT of the symbol. `${-4000}` is the naive form and
+ * it reads as a typo rather than a debt; `-$4000` is a number the player can
+ * act on, which is the whole reason this row exists.
+ */
+export function formatMoney(amount: number): string {
+  return amount < 0 ? `-$${Math.abs(amount)}` : `$${amount}`;
+}
+
 export interface BuilderDerivedView {
   readonly metrics: BuildMetrics;
   readonly physicallyLegal: boolean;
   readonly costDisplay: string;
+  /** The driver's whole budget, and what is left after this design. */
+  readonly budgetDisplay: string;
+  readonly remainingDisplay: string;
+  /** True when the design costs more than the driver has. Carried so a caller
+   *  CAN distinguish "you cannot afford this" from "this number is unknown",
+   *  because `statRow`'s `invalid` flag means the latter and is wrong here. */
+  readonly overBudget: boolean;
   readonly weightDisplay: string;
   readonly spacesDisplay: string;
   readonly topSpeedDisplay: string;
@@ -642,6 +658,9 @@ export function computeDerived(state: BuilderState, context: BuilderContext): Bu
     metrics,
     physicallyLegal,
     costDisplay: `$${metrics.costTotal}`,
+    budgetDisplay: formatMoney(context.cash),
+    remainingDisplay: formatMoney(context.cash - metrics.costTotal),
+    overBudget: metrics.costTotal > context.cash,
     weightDisplay: physicallyLegal ? `${metrics.weightTotal} / ${metrics.maxLoadLb} lb` : INVALID_DISPLAY,
     spacesDisplay: physicallyLegal ? `${metrics.spacesUsed} / ${metrics.spacesTotal}` : INVALID_DISPLAY,
     topSpeedDisplay: fmt(metrics.topSpeedMph),
@@ -904,7 +923,22 @@ function buildRightPane(state: BuilderState, context: BuilderContext): HTMLEleme
   const derived = computeDerived(state, context);
   const stats = document.createElement('div');
   stats.className = 'sm-builder__stats';
+  // Budget and Remaining are the other two halves of the same comparison, and
+  // they were both missing: Cost alone cannot be read as good or bad, because
+  // "$940" against what? A player had to either remember the balance from the
+  // previous screen or drive the total past the limit and read the violation.
+  // Found by Codex `gpt-6.1-sol` driving the live app with computer use.
   statRow(stats, 'Cost', derived.costDisplay, false);
+  statRow(stats, 'Budget', derived.budgetDisplay, false);
+  // `invalid` is deliberately FALSE here even when over budget. That flag means
+  // "this number is unknown" and renders '?????' — and an unaffordable design's
+  // cost is not unknown, it is known and wrong for your wallet. Cost already
+  // works this way and its own comment says why ("that figure is correct, it's
+  // just unaffordable, which the legality panel says plainly"). Rendering the
+  // negative balance as '?????' would throw away the one number that explains
+  // the violation, in the same way iteration 21's faint dash threw away the
+  // distinction between "no armour bought" and "armour undamaged".
+  statRow(stats, 'Remaining', derived.remainingDisplay, false);
   statRow(stats, 'Weight', derived.weightDisplay, !derived.physicallyLegal);
   statRow(stats, 'Spaces', derived.spacesDisplay, !derived.physicallyLegal);
   statRow(stats, 'Top Speed', derived.topSpeedDisplay, !derived.physicallyLegal);
