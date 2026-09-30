@@ -4843,12 +4843,111 @@ function radarContactsFromVehicles(
  * instance count is bounded no matter how far the trip runs and the markings
  * never slide or shimmer as the car moves.
  */
+/** Guardrail segment art: flat 2D elevation, one instance per ROAD_RAIL_PERIOD_M. */
+const GUARDRAIL_FRAME = 'prop-guardrail';
+
 const ROAD_LANE_HALF_WIDTH_M = 4.2;
 /** Verge tone left visible either side of the edge lines, so the paint sits inside a shoulder. */
 const ROAD_SHOULDER_M = 2.4;
 /** Metres of painted line per dash, and the metres of gap before the next. */
 const ROAD_DASH_LENGTH_M = 3.2;
 const ROAD_DASH_PERIOD_M = 10;
+
+/**
+ * Metres between guardrail segments, and the metres of bare segment between
+ * them. A CONTINUOUS rail would be a static line and would carry no speed at
+ * all; the gap is what makes a rhythm the eye can read motion from. 5.5m of
+ * rail with a 1.5m gap is a repeat the player sees whipping past several times a
+ * second at highway speed.
+ */
+const ROAD_RAIL_PERIOD_M = 7;
+const ROAD_RAIL_SEGMENT_M = 5.5;
+/**
+ * Lateral offset of the rails, clear of the paint AND of the shoulder of verge
+ * beyond it. Sitting them on the shoulder would read as more road marking,
+ * which is the one thing the lane lattice already is.
+ */
+const ROAD_RAIL_LATERAL_M = ROAD_LANE_HALF_WIDTH_M + ROAD_SHOULDER_M + 0.8;
+
+/**
+ * Roadside furniture: guardrail segments down both verges.
+ *
+ * A review asked for exactly this and for the right reason: "there are no
+ * barriers, delineator posts, signs, traffic or debris anywhere between the top
+ * and bottom of the frame ... at driving speed the car feels stationary". (Its
+ * TRAFFIC half was wrong and is corrected in iteration 61 — passing opponents
+ * are spawned by `updateEngagement`; they are simply sparse, and a seeded t=0
+ * capture has none in frame. The furniture half is the real gap.)
+ *
+ * Why this and not a ground decal, which is the other ART item on the deferred
+ * list: a decal is PLACED CONTENT, and the whole reason it is deferred as
+ * artwork is that it is an authoring job. A guardrail is the same honesty for a
+ * different reason — it is repeated FURNITURE at a KNOWN INTERVAL, which is
+ * precisely what real highways use to make speed readable, and it cannot lie
+ * about the simulation because nothing about it is a gameplay affordance. It
+ * also adds no gameplay surface: no collision (nothing in the road sim collides
+ * against props), no interaction, nothing to drive through that pretends to be
+ * solid.
+ *
+ * World-anchored exactly like the dash lattice above, so the segments neither
+ * slide with the car nor shimmer as it moves, and bounded by the visible extent
+ * so the count cannot grow with trip length. They ride the GROUND buffer
+ * (2048 slots, ~20 used) rather than the sprite buffer (64 slots): a top-down
+ * guardrail lies on the ground, and `ROAD_GRADE` is a POST uniform applied to
+ * the whole composited frame, so a ground-buffer instance keeps full brightness
+ * exactly as a sprite-buffer one would. Putting them in the 64-slot sprite
+ * buffer for ~16 more instances would have been the iteration-19 mistake —
+ * treating a tight buffer as a policy instead of a contract to grow.
+ */
+export function roadFurnitureInstances(
+  atlasIndex: AtlasIndex,
+  vehicle: VehicleState,
+  routeHeadingRad: number,
+  visibleHalfExtentM: number,
+): SpriteInstanceInput[] {
+  const frame = atlasIndex.frame(GUARDRAIL_FRAME);
+  const forward = { x: Math.cos(routeHeadingRad), y: Math.sin(routeHeadingRad) };
+  const across = { x: -forward.y, y: forward.x };
+  const along0 = vehicle.position.x * forward.x + vehicle.position.y * forward.y;
+  const first = Math.ceil((along0 - visibleHalfExtentM) / ROAD_RAIL_PERIOD_M);
+  const last = Math.floor((along0 + visibleHalfExtentM) / ROAD_RAIL_PERIOD_M);
+
+  // The frame is 96x21, so its long axis is ~4.57:1. Sizing from the SEGMENT
+  // length keeps the art's proportions instead of stretching it to fit the
+  // period, which is what would happen if the two numbers were treated as equal.
+  const widthM = ROAD_RAIL_SEGMENT_M * (21 / 96);
+
+  const out: SpriteInstanceInput[] = [];
+  for (let i = first; i <= last; i++) {
+    const along = i * ROAD_RAIL_PERIOD_M;
+    for (const lateral of [-ROAD_RAIL_LATERAL_M, ROAD_RAIL_LATERAL_M]) {
+      out.push({
+        atlasId: String(frame.atlasIndex),
+        position: {
+          x: forward.x * along + across.x * lateral,
+          y: forward.y * along + across.y * lateral,
+        },
+        // The frame's long axis is local +Y (see roadLaneInstances), and the
+        // route heading alone points it ALONG the road — which is what a
+        // guardrail is, so no extra quarter turn here.
+        rotationRad: routeHeadingRad,
+        sizeM: { x: widthM, y: ROAD_RAIL_SEGMENT_M },
+        uvRect: frame.uv,
+        // Tinted DOWN, and measured rather than eyeballed. The generated art is
+        // near-white and at full strength the rails measured 126.5 mean luma
+        // against the player's own 100.5 — the furniture was out-shouting the
+        // car, which is iteration 60's "the oversized icons out-rank the
+        // player's car" reproduced on a brand new element. 0.68 puts the rails
+        // at ~90: still well clear of the asphalt's 64.7 and the brightest
+        // repeating thing in frame, but below the car. The cool cast keeps it
+        // reading as weathered steel rather than as more white paint.
+        tint: { r: 0.58, g: 0.60, b: 0.64, a: 1 },
+        layer: 0,
+      });
+    }
+  }
+  return out;
+}
 
 /**
  * The drivable surface itself, as a rotated strip laid over the verge.
@@ -5493,6 +5592,9 @@ function showRoad(root: HTMLElement, state: CityRunState, initialTrip: RoadTripS
     // they are part of the road surface, not things standing on it.
     groundInstances.push(roadSurfaceQuad(atlas, trip.vehicle.position, trip.routeHeadingRad, half));
     groundInstances.push(...roadLaneInstances(atlas, trip.vehicle, trip.routeHeadingRad, half));
+    // Roadside furniture, after the paint so the rails sit on top of the surface
+    // they line. Same buffer, same layer, same world-anchored lattice.
+    groundInstances.push(...roadFurnitureInstances(atlas, trip.vehicle, trip.routeHeadingRad, half));
     writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances), TILE_INSTANCE_CAPACITY);
     writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
 

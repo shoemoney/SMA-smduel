@@ -1160,6 +1160,19 @@
       "srcH": 110,
       "kind": "prop",
       "rotationOffsetDeg": 0
+    },
+    "prop-guardrail": {
+      "atlas": 0,
+      "x": 980,
+      "y": 1260,
+      "w": 96,
+      "h": 21,
+      "trimX": 7,
+      "trimY": 43,
+      "srcW": 109,
+      "srcH": 109,
+      "kind": "prop",
+      "rotationOffsetDeg": 0
     }
   }
 }

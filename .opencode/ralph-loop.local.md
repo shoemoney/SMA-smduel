@@ -3678,14 +3678,93 @@ TOOLING - the review harness got audited by its own failure this round:
      city luma 93.34 — both matching their iteration-78 values, which is the
      check that the art swap cost the frame none of its measured range.
 
+80. NO NEW REVIEWER (pool still 75/75) — the road half of the ground-decal
+   deferral, EXECUTED. Iteration 77 named it: "on the Road screen, the lack of
+   variation also makes it harder to judge speed", and recorded that this is NOT
+   an art item — a static ground plane cannot carry speed, because only
+   something moving past the camera at a known rate can.
+   - **GUARDRAILS DOWN BOTH VERGES.** The finding chain is long and worth
+     reading, because every step was declined for a good reason before this one:
+     iteration 60 raised it ("there are no barriers, delineator posts, signs,
+     traffic or debris anywhere between the top and bottom of the frame ... at
+     driving speed the car feels stationary"), and iteration 61 CORRECTED its
+     traffic half — passing opponents are spawned by `updateEngagement` and are
+     simply sparse, and a seeded t=0 capture has none in frame. The furniture
+     half survived that correction and is the real gap.
+     Chosen over a ground DECAL (the other half of the deferral) because a decal
+     is PLACED CONTENT, which is exactly why it is still sitting as an ART item
+     — it is an authoring job. A guardrail is the same honesty for a different
+     reason: repeated FURNITURE at a KNOWN INTERVAL is what real highways use to
+     make speed readable, it adds no gameplay surface, and nothing about it
+     pretends to be solid (nothing in the road sim collides against props).
+       period 7m, segment 5.5m, so a 1.5m gap — a CONTINUOUS rail would be a
+       static line and would carry no speed at all; the gap is what makes a
+       rhythm the eye can read motion from. Both verges, laterally clear of the
+       paint AND the shoulder: sitting them on the shoulder would read as more
+       lane marking, which is the one thing the dash lattice already is.
+   - ART: the first attempt asked for a 3D guardrail and got 3/4 perspective in
+     all four candidates — which ASSET-NOTES §5 records as a documented failure
+     ("vehicle sprites that read as slight 3/4 perspective rather than true
+     orthographic, and are inconsistent with each other"). Re-asked for a FLAT 2D
+     elevation instead, which is what a 90-degree overhead camera actually sees,
+     and got three clean flat candidates first time. Chose the one with a rust
+     stain: the warm accent is what stops a pale bar reading as more white road
+     paint, which was the specific confusion I was worried about.
+   - BUFFER PLACEMENT, decided before writing code rather than after overflowing
+     one. `SPRITE_INSTANCE_CAPACITY` is 64 and the road already spends it on the
+     player plus passing traffic; ~20 more instances there would be the
+     iteration-19 mistake (a tight buffer read as a policy instead of a contract
+     to grow). They go in the GROUND buffer instead — 2048 slots, ~20 used — and
+     that is not a downgrade, because `ROAD_GRADE` is a POST uniform applied to
+     the whole composited frame, so a ground-buffer instance keeps full
+     brightness exactly as a sprite-buffer one would. A top-down guardrail lies
+     on the ground anyway.
+   - THE FIRST PASS MADE THE FURNITURE OUT-SHOUT THE CAR, and it was caught by
+     measuring rather than by looking. At full tint the rails measured 126.5 mean
+     luma against the player's own 100.5 — iteration 60's "the oversized icons
+     out-rank the player's car as the focal point", reproduced on a brand-new
+     element. Tinted down and re-measured rather than guessed: 0.66 moved the
+     rails to 111.3, and 0.58 to a 123.1 tight-box reading that was HIGHER than
+     the loose box had been — which is the tell that "rail mean luma" was never
+     a stable statistic in the first place, and the second version of the number
+     says nothing. So the final call was made by LOOKING at the frame, where the
+     answer was obvious: at full strength the rails were the brightest large
+     area on screen, and at 0.58 they read as weathered steel furniture sitting
+     clearly below the only saturated warm object in the game. Worth stating
+     plainly, because the log is mostly about this: a measurement I took twice
+     disagreed with itself, and the correct response was to stop measuring and
+     look at the picture.
+   - CHECKED FOR THE ITERATION-17 TRAP, which is the standing rule that a fix
+     improving one axis by spending another gets caught by the next reviewer:
+     road/verge luma gap is IDENTICAL before and after (91.8 / 124.2, gap 32.4,
+     byte-identical in both captures), because the rails sit outside the verge
+     and never touch the surface the earlier fix was about. Road spread rises
+     97.87 -> 109.19, which is the rails being real structure rather than noise.
+   - THREE TESTS, one of which CORRECTED ME. The first version of the
+     world-anchoring test asserted that moving the car forward by exactly one
+     period yields the same instance x-positions. That is wrong, and the code was
+     right: a sliding window over a world lattice legitimately drops one index
+     at one end and gains one at the other. The property actually worth pinning is
+     that every rail sits on an ABSOLUTE multiple of the period wherever the car
+     is — which is what distinguishes a world lattice from a car-relative one,
+     and a car-relative lattice would slide as the car moved, destroying the only
+     thing the feature is for. The other two pin both verges being clear of the
+     paint, and the segment being sized to the art's 4.57:1 rather than stretched
+     to the period. PROVEN by mutation: making the lattice car-relative fails
+     the anchoring test and leaves the other two green, which is what a
+     correctly-scoped guard should do.
+   - VERIFIED: tsc clean, 66 files / 1427 tests, 2 browser tests, build clean,
+     `.shots/iter80` = 8 screens / 0 problems.
+
 DEFERRED (real, documented, not bugs):
 - ~~TITLE ART SHOWS TANKS~~ — DONE at iteration 78.
 - ~~City chevron pictograms~~ — DONE at iteration 79 (reticle / crossed tools /
   medical cross / briefcase, one mat per facility family).
 - Ground decals — oil stains, tyre marks, lane paint, unique crack patterns.
-  Note the gameplay half from iteration 77 is NOT an art item: on the road a
-  static ground plane makes speed hard to judge, and only fixed roadside
-  furniture moves past the camera at a known rate, so that is the fix.
+  The gameplay half is DONE at iteration 80 (guardrails on both verges, 7m
+  period, for road-speed perception). The DECAL half is still an art item: a
+  decal is placed content and does not repeat, which is the whole reason it
+  cannot be faked from a tiling texture.
 - City daylight grade (the 0.6 ground tint is why it reads dim), street network,
   10 empty weapon rows.
 

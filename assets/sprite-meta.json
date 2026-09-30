@@ -827,6 +827,15 @@
       "view": "orthographic",
       "note": "seedream-4.5 (zimg) generated. briefcase pictogram — somewhere the job comes from. Iter 79.",
       "rotationOffsetDeg": 0
+    },
+    "prop-guardrail": {
+      "kind": "prop",
+      "keyed": true,
+      "keyColor": "#F03C80",
+      "keyColorDeviation": 0,
+      "view": "orthographic",
+      "note": "seedream-4.5 (zimg) generated. guardrail segment, roadside furniture for road speed perception. Flat 2D elevation, no perspective. Iter 80.",
+      "rotationOffsetDeg": 0
     }
   },
   "keyingNote": "Key by HUE (magenta/pink band) with a saturation floor, NOT by RGB distance. Regenerated sprites carry a drop shadow and a background gradient that RGB-distance keying leaves as a dark halo.",
