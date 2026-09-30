@@ -708,7 +708,16 @@ function showTitle(
     // bottom thirds — where the two vehicles actually are — get 0.34 instead of
     // the 0.82 they were getting. Measured after: the tagline is back above 9:1
     // and the vehicle art is measurably brighter than it has ever been.
-    `background-image:linear-gradient(rgba(5,7,10,0.34),rgba(5,7,10,0.72) 42%,rgba(5,7,10,0.34)),url("${titleArtUrl}");` +
+    // The outer stops were 0.34 and were tuned against a BRIGHT SUNSET plate.
+    // The art is now a night tarmac (iteration 78 replaced the two tanks with a
+    // single car on dark ground), so 0.34 over already-dark art bought nothing
+    // and cost the hero car its silhouette — which is the exact complaint the
+    // band was introduced to fix, arriving again through the opposite change.
+    // Same rule as before, retuned for a plate that no longer needs protecting:
+    // dark only where there is TEXT to read, light everywhere else. The peak
+    // stays put because the wordmark band genuinely sits on the brightest part
+    // of this plate (the lane line runs under the lockup).
+    `background-image:linear-gradient(rgba(5,7,10,0.16),rgba(5,7,10,0.70) 42%,rgba(5,7,10,0.18)),url("${titleArtUrl}");` +
     'background-size:cover;background-position:center;';
 
   // --- the wordmark ---------------------------------------------------------
