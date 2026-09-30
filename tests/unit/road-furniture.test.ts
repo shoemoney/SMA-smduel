@@ -12,7 +12,7 @@
  * iteration 19 is what that failure costs).
  */
 import { describe, expect, it } from 'vitest';
-import { roadFurnitureInstances, roadLaneInstances } from '@/app';
+import { roadFurnitureInstances, roadLaneInstances, roadLateralOffsetM, roadRecoveryArrow } from '@/app';
 
 /**
  * The real `prop-delineator` frame's packed dimensions, 42x67 (the post plus its
@@ -141,5 +141,43 @@ describe('roadside furniture is laid ALONG the carriageway, like the lane paint'
     for (const rail of rails) {
       expect(rail.sizeM.y).toBeGreaterThan(rail.sizeM.x);
     }
+  });
+});
+
+describe('off-road recovery indicator geometry', () => {
+  const SHOULDER_EDGE_M = 4.2 + 2.4; // ROAD_LANE_HALF_WIDTH_M + ROAD_SHOULDER_M
+
+  it('measures the lateral offset on the trip axis, positive on one fixed side', () => {
+    // heading 0: forward is +x, so `across` is +y and a car at +y is positive.
+    expect(roadLateralOffsetM(0, { x: 0, y: 12 })).toBeCloseTo(12, 6);
+    expect(roadLateralOffsetM(0, { x: 0, y: -12 })).toBeCloseTo(-12, 6);
+    // heading pi/2: forward is +y, so `across` is -x and the sign flips.
+    expect(roadLateralOffsetM(Math.PI / 2, { x: 12, y: 0 })).toBeCloseTo(-12, 6);
+  });
+
+  it('ignores distance ALONG the road — that is what progress measures', () => {
+    // 500m up the carriageway is not off-road; only the perpendicular
+    // component may trigger the indicator. Confusing the two would light it up
+    // on every straight drive.
+    expect(roadLateralOffsetM(0, { x: 500, y: 0 })).toBeCloseTo(0, 6);
+  });
+
+  it('points the arrow BACK TOWARD the centreline, not further out', () => {
+    // The inversion this whole describe block exists for. A car on the POSITIVE
+    // side has the road behind it in the negative direction, so the arrow must
+    // be the negative one. Shipping the same sign would produce a confident
+    // arrow pointing deeper into the field.
+    expect(roadRecoveryArrow(+8)).toBe('◀');
+    expect(roadRecoveryArrow(-8)).toBe('▶');
+    // ...and it must never depend on the exact offset beyond its sign.
+    expect(roadRecoveryArrow(+0.001)).toBe('◀');
+    expect(roadRecoveryArrow(-0.001)).toBe('▶');
+  });
+
+  it('has a threshold a driver on the carriageway never crosses', () => {
+    // Tracking the centreline crosses the painted edge constantly, so the
+    // indicator must wait until the SHOULDER is behind the player.
+    expect(SHOULDER_EDGE_M).toBeGreaterThan(4.2);
+    expect(Math.abs(roadLateralOffsetM(0, { x: 0, y: SHOULDER_EDGE_M * 0.5 }))).toBeLessThan(SHOULDER_EDGE_M);
   });
 });

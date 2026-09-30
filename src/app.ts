@@ -5281,6 +5281,34 @@ const ROAD_POST_LATERAL_M = ROAD_LANE_HALF_WIDTH_M + ROAD_SHOULDER_M + 0.8;
  * buffer for ~16 more instances would have been the iteration-19 mistake —
  * treating a tight buffer as a policy instead of a contract to grow.
  */
+/**
+ * Signed metres from the carriageway CENTRELINE, measured on the trip's frozen
+ * route axis — the same axis `progressMiles` uses and the same one the surface,
+ * lane paint and roadside posts are all placed on (iteration 91).
+ *
+ * Exported so the off-road indicator's geometry is pinnable from a test against
+ * the REAL function. An inline copy in the test would be a second derivation of
+ * the one thing the indicator must not get wrong, which is the failure mode this
+ * log has now hit seven times.
+ */
+export function roadLateralOffsetM(
+  routeHeadingRad: number,
+  position: { readonly x: number; readonly y: number },
+): number {
+  const forward = { x: Math.cos(routeHeadingRad), y: Math.sin(routeHeadingRad) };
+  const across = { x: -forward.y, y: forward.x };
+  return position.x * across.x + position.y * across.y;
+}
+
+/**
+ * Which way the recovery arrow points: TOWARD the centreline, so the opposite
+ * sign to the car's own offset. A car on the positive side of the perpendicular
+ * has the road behind it.
+ */
+export function roadRecoveryArrow(lateralM: number): '◀' | '▶' {
+  return lateralM > 0 ? '◀' : '▶';
+}
+
 export function roadFurnitureInstances(
   atlasIndex: AtlasIndex,
   vehicle: VehicleState,
@@ -5626,6 +5654,32 @@ function showRoad(
     'position:absolute;top:88px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:3px 9px;border-radius:4px;pointer-events:none;';
   menuHint.textContent = t('ui.road.menuHint');
 
+  /**
+   * The off-road recovery indicator.
+   *
+   * Iteration 101 made leaving the carriageway the ONLY way out of a bad line,
+   * which made the absence of any way BACK a real cost rather than a missing
+   * nicety. Codex `gpt-6.1-sol` drove the live road, steered off, and reached a
+   * view where the carriageway and its posts had left the frame entirely while
+   * the banner still read "En route to Albany · 150mi remaining" — no arrow, no
+   * distance, nothing locating the road. The radar reports contacts and the
+   * progress bar reports progress; neither reports the roadway.
+   *
+   * It is deliberately the cheapest thing that answers the question, and it
+   * reuses the axis the road is ALREADY drawn on rather than adding a fourth
+   * derivation of it (the projection is computed in three places already, which
+   * is drift waiting to happen — `trip.routeHeadingRad` is the same frozen
+   * origin every other road layer uses, per iteration 91).
+   *
+   * Shown only while the car is genuinely beyond the shoulder. It must not
+   * appear on the carriageway, where it would be the "UI overlay" objection
+   * iterations 11 and 53 were both about.
+   */
+  const offRoadHint = el('div');
+  offRoadHint.style.cssText =
+    'position:absolute;top:120px;left:50%;transform:translateX(-50%);color:#ffd166;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.82);border:1px solid rgba(255,209,102,0.4);padding:5px 11px;border-radius:4px;pointer-events:none;white-space:nowrap;';
+  offRoadHint.style.display = 'none';
+
   // --- route progress -------------------------------------------------------
   // A vision review asked for "a thicker, high-contrast progress bar with a
   // filled portion and a vehicle marker". It is a real ask: the objective line
@@ -5649,6 +5703,7 @@ function showRoad(
   container.appendChild(status);
   container.appendChild(driveHint);
   container.appendChild(menuHint);
+  container.appendChild(offRoadHint);
   container.appendChild(progress);
   container.appendChild(notice);
   container.appendChild(retryBtn);
@@ -6511,6 +6566,38 @@ function showRoad(
     }
 
     if (destroyed) { finishDestroyed(); return; }
+
+    /**
+     * Off-road recovery, from the SAME frozen axis the road is drawn on.
+     *
+     * `routeHeadingRad` is fixed for the trip (it is the axis `progressMiles`
+     * is measured along), so `across` is a fixed perpendicular and the car's
+     * signed offset from the carriageway is a dot product — no new geometry and
+     * no second definition of "where the road is".
+     *
+     * The arrow points TOWARD the centreline, so its sign is the OPPOSITE of the
+     * car's offset: a car sitting on the positive side of `across` has the road
+     * behind it in the negative direction. Getting that backwards would produce
+     * a confident arrow pointing further out into the field, so it is pinned by
+     * a test rather than reasoned about once.
+     *
+     * Only shown beyond the SHOULDER, not merely beyond the painted edge: a
+     * driver tracking the centreline crosses those lines constantly, and an
+     * indicator that flickers on every steering correction is noise.
+     */
+    const lateralOffsetM = roadLateralOffsetM(trip.routeHeadingRad, trip.vehicle.position);
+    const offRoadThresholdM = ROAD_LANE_HALF_WIDTH_M + ROAD_SHOULDER_M;
+    if (Math.abs(lateralOffsetM) > offRoadThresholdM) {
+      const metres = Math.round(Math.abs(lateralOffsetM) - offRoadThresholdM);
+      // Negative arrow = toward the centreline. `◀`/`▶` in screen terms is
+      // resolved by the same `across` axis the geometry uses, so it cannot
+      // disagree with where the road actually is.
+      const arrow = roadRecoveryArrow(lateralOffsetM);
+      offRoadHint.textContent = t('ui.road.offRoad', { arrow, metres: String(metres) });
+      if (offRoadHint.style.display !== 'flex') offRoadHint.style.display = 'flex';
+    } else if (offRoadHint.style.display !== 'none') {
+      offRoadHint.style.display = 'none';
+    }
 
     const remainingMiles = Math.max(0, Math.round(trip.resolved.route.lengthMiles - trip.progressMiles));
     status.textContent = t(isCoarsePointer() ? 'ui.road.statusTouch' : 'ui.road.status', {

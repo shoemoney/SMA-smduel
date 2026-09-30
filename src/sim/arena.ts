@@ -396,7 +396,24 @@ export function eligibilityFor(
       return null;
     }
     case 'on-foot-under-threshold': {
-      if (vehicle !== null) return `${event.name} is entered on foot`;
+      // Every other branch in this function states the REQUIREMENT the player
+      // must satisfy ("requires an active vehicle", "costs $X, you have $Y").
+      // This one used to state a FACT about how the event is entered —
+      // "Amateur Night is entered on foot" — which reads as an INSTRUCTION to
+      // the one player it most confuses: someone already walking in, refused
+      // with an instruction they had already followed. Codex `gpt-6.1-sol`
+      // found it by walking into the Arena as the pedestrian with the Duster
+      // parked elsewhere. The city strip teaches "G to enter/exit car", so
+      // "entered on foot" actively implies that getting out should have been
+      // enough.
+      //
+      // The rule is correct and unchanged: the SPEC's on-ramp is a driver with
+      // no active car (SPEC "Arena": "amateur night (entered on foot,
+      // house-supplied kart, for drivers under the cash or prestige bar)"). Only
+      // the wording was wrong. Deliberately names no KEY: bindings are
+      // remappable at runtime (iteration 94), so a literal "press G" here is the
+      // stale-instruction bug that finding was about.
+      if (vehicle !== null) return `${event.name} requires no active car — leave your car behind`;
       const eligible = driver.cash < elig.cashBelow || driver.prestige < elig.prestigeBelow;
       if (!eligible) {
         return `${event.name} requires cash under $${elig.cashBelow} or prestige under ${elig.prestigeBelow}`;
