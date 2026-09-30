@@ -4680,6 +4680,23 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     if (ev.key === 'g' || ev.key === 'G') doToggleVehicle();
     if (ev.key === 'f' || ev.key === 'F') openFleetScreen();
     if (ev.key === 'j' || ev.key === 'J') openJournalScreen();
+    // J and F are now named in `ui.city.status`, because Codex drove the city
+    // and reported: "J opens Journal and F opens Fleet, but neither shortcut
+    // appears in the city's visible instructions or as a desktop action
+    // button. I opened both successfully; the features exist." A working
+    // feature whose only affordance is an undocumented key is undiscoverable,
+    // which is iteration 100's "a pause control nobody knows about is not one"
+    // in a different screen.
+    //
+    // NOT generated from `controls.json`, and that is a KNOWN GAP rather than an
+    // oversight: J and F are hardcoded screen shortcuts with no entry in the
+    // binding table, so there is no `keyLabel` to read and no rebind to honour.
+    // Writing them into the status string makes them at least VISIBLE, but they
+    // remain un-rebindable — the same stale-instruction risk iteration 94 fixed
+    // for `fire`. Moving them into the binding system is the correct follow-up
+    // and is recorded as queued rather than smuggled in here at the end of a
+    // round, because `controls.json` is validated at module load and a new
+    // action is a schema change, not a copy edit.
   }
   function onKeyUp(ev: KeyboardEvent): void {
     codesDown.delete(ev.code);
