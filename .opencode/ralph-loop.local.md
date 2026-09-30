@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 22
+iteration: 23
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -6840,3 +6840,98 @@ expression that had already made it unreachable
   verification of the arena pause's *controls* path (the `showControls` row,
   which no probe has exercised end to end). The other open items are unchanged:
   moving J/F into the binding table, and the on-foot survival phase.
+ITERATION 111 — the AI freeze, and a real defect found by reading the return
+path rather than by looking at it
+- **THE REVIEWER MEASURED TWO SIGNALS AND I HAD ONLY EVER PROVED ONE.** Codex's
+  finding was "the car accelerated from 5 to 25 mph over two seconds, AND ALL
+  THREE OPPONENTS CHANGED POSITION ON THE RADAR". Every freeze check since —
+  iterations 109 and 110 both included — read only the SPEED DIAL, which is the
+  `driving` system. Nobody had ever looked at the AI.
+  The radar blips carry their screen position in inline custom properties
+  (`--hud-radar-x` / `--hud-radar-y`, `hud.ts:470`), which makes the reviewer's
+  own measurement machine-readable. Against the live deployment:
+      CONTROL (unpaused)  three blips moved: -0.016,-0.008 -> -0.016,-0.006
+      PAUSED              the same three strings, byte-identical, across five
+                          seconds with the throttle STILL HELD
+  So driving, AI, and the match-resolution gate are all verified frozen, with a
+  control showing the AI genuinely moves when it is not paused — which is the
+  whole finding, closed on the reviewer's own terms.
+  Worth recording that this check did NOT depend on the dial: the dial read 0.000
+  on this run (the flakiness iteration 110 documented), and the AI signal
+  carried the test. Two independent signals mean neither one's flakiness is
+  load-bearing, which is a better test design than one that happened to pass.
+
+- **AND READING THE CONTROLS RETURN PATH TURNED UP A REAL DEFECT I MYSELF
+  INTRODUCED.** `showArenaEvent`'s pause menu sent the player to the controls
+  screen with a callback that re-mounted itself using the function's OWN
+  PARAMETERS — `chargedDriver` and `matchState`. Both are stale the moment the
+  match starts:
+    - `matchStateRef.current` is REPLACED, not mutated: `recordOpponentDefeated`
+      returns `{ ...state }` (`arena.ts:509`), so the `matchState` parameter is
+      permanently behind by one update per kill;
+    - `chargedDriver` is the driver as of the first tick, and the damage
+      system replaces `driverRef.current` the same way.
+  So pause -> Controls -> back silently RESTARTED the match: kills back to zero,
+  the player's damage undone, the arena `world` rebuilt from the seed. No error,
+  no warning, and the green suite this log has learned to distrust.
+  This is iteration 93's bug class one layer up (a path that discards exactly
+  what it was built to preserve) and iteration 104's road-resume bug in the
+  same shape. It now re-mounts from the LIVE refs — `driverRef.current`,
+  `findPlayer(world) ?? playerVehicle`, `matchStateRef.current`, `world.clock`.
+  The road's own Controls row already had this right: it passes the live `trip`,
+  and its comment says so. The arena simply did not.
+
+- **AND I COULD NOT PROVE IT, IN EITHER DIRECTION, AND THAT IS THE PART WORTH
+  KEEPING.** A test asserting the odometer survives the round trip cannot pass
+  here: the re-mounted arena never renders its HUD under happy-dom, because
+  `initRenderer()` does not settle, so the `requestAnimationFrame` inside its
+  `.finally` is never registered — and `advanceTicks` silently does NOTHING when
+  `rafCallback` is null instead of failing. I spent several passes on that test
+  and then deleted it, because:
+    - a first attempt asserted only that the arena screen was mounted again,
+      which a RESTARTED arena also satisfies. Both mutations — reverting to the
+      stale parameters, and dropping the round-trip entirely — PASSED it. A test
+      that cannot fail is worse than no test, and this log has now shipped three
+      that could not.
+    - a second attempt used the armour rows as its witness, which never moved
+      because nothing reliably shoots the player in a scripted key sequence. The
+      failure was for want of damage, not for want of a defect — which is
+      iteration 25's "the guard worked and the FIXTURE was wrong" arriving in a
+      fourth costume.
+    - the live probe produced a WORSE result than no probe: it printed
+      "PRESERVED" from `null === null`. A verdict computed from two missing reads
+      is not a verdict, and reporting it would have been the most confident wrong
+      claim in this log.
+  What the fix actually rests on is a REDUCTION, not an observation:
+  `recordOpponentDefeated` returns a new object (read in source), so the
+  parameter the callback closes over provably cannot be the live match state.
+  That is enough to know the old code was wrong; it is not enough to say the new
+  code is right in play, and this entry does not claim it is.
+
+- **THE LIVE PROBE ALSO EXPLAINED AN ANOMALY I HAD ALREADY LOGGED AS FLAKINESS.**
+  The final probe found the arena screen absent and a two-row menu — that is the
+  TITLE. Driving for eight seconds in a Division 5 fight is long enough for the
+  opponents to destroy the player, the match auto-resolves, and the screen hands
+  back to the title; the probe then pressed Escape on the title menu, opened
+  Controls, and came back to the title, reporting success about a round trip it
+  never made. That is iteration 110's "the sim's advancement in this headless
+  context is flaky" with the mechanism finally identified: it is not flakiness in
+  the render loop, it is the arena legitimately ENDING. A harness that wants to
+  observe mid-match state has to keep the player alive, and the practical fix is
+  a rig that spawns an opponent set the player can survive, not a longer timeout.
+
+- GATE: tsc clean, 1508 tests, 2 failures — `screens.test.ts` (the measured
+  cross-file flake) and one `road-trip-menu` failure that PASSES 3/3 in
+  isolation, i.e. the same pollution rather than this change. 6 browser tests
+  pass. No new test added, deliberately, and the reason is above rather than
+  "no time".
+
+- DEPLOY: release `20260930063000-369a285`, bundle `index-DSgJYdia.js`, live
+  hash matched, 0 console errors. The AI freeze is live-verified; the Controls
+  state-preservation fix is live-DEPLOYED but NOT live-verified.
+
+- NEXT. The honest next move for the Controls fix is a rig that keeps the player
+  alive long enough to observe mid-match state, which would then make the
+  odometer round trip assertable in BOTH the unit and live harnesses. Until
+  that exists, the fix stands on the reduction above and nothing should be
+  claimed for it beyond that.

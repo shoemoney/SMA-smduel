@@ -3806,8 +3806,30 @@ function showArenaEvent(
         }
         if (id === 'controls') {
           closePauseMenu();
+          // Re-mount from the LIVE refs, not from the parameters this function
+          // was handed. `matchStateRef.current` is REPLACED on every kill —
+          // `recordOpponentDefeated` returns `{...state}` — so the `matchState`
+          // parameter is permanently stale, and `chargedDriver` is the driver as
+          // it was before the first shot. Passing them would silently RESTART
+          // the match: kills back to zero, the player's damage undone, the arena
+          // world rebuilt from the seed.
+          //
+          // That is iteration 93's bug class one layer up — a path that
+          // discards exactly what it was built to preserve — and it is the same
+          // mistake iteration 104 caught on the road's own resume, where
+          // `progressMiles` is re-derived every tick and a hand-set value does
+          // not survive contact with the simulation. Here `world` is not
+          // re-derivable at all, so the live refs are the only honest source.
           showControls(root, () =>
-            showArenaEvent(root, chargedDriver, playerVehicle, matchState, clock, cityState, onComplete),
+            showArenaEvent(
+              root,
+              driverRef.current,
+              findPlayer(world) ?? playerVehicle,
+              matchStateRef.current,
+              world.clock,
+              cityState,
+              onComplete,
+            ),
           );
           return;
         }
