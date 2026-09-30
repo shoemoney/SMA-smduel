@@ -55,8 +55,9 @@ title screen is pure DOM, and the others are reached by driving.
 
 # How to review it
 
-SCOPE: this pass reviews the CONSTRUCTOR and CITY screens only. Open these
-two, review them properly, and report only on these two.
+SCOPE: the three GAMEPLAY screens — arena, road, city. The title, driver and
+constructor were covered by the previous pass, and long MCP-driven runs keep
+dying partway through, so this pass takes fewer screens and finishes.
 
 Use the browser tools. Do NOT review from the repository source alone and do
 NOT review from a description — a canvas game cannot be judged by reading its
@@ -180,12 +181,34 @@ base_url = "https://openrouter.ai/api/v1"
 env_key = "OPENROUTER_API_KEY"
 wire_api = "responses"
 
-# Screenshots. `browser_navigate` needs no approval prompt or the run stalls.
+# Screenshots and interaction. Every tool that takes INPUT needs its own
+# `approval_mode` — the session runs with `approval_policy = "never"`, and a
+# playwright tool left on its default answers "MCP tool call requires approval,
+# but approval policy is never" and FAILS. A review run died exactly there, on
+# `browser_click`, after having already navigated and screenshotted three
+# screens. The stock user config only exempts `browser_navigate`, which is why
+# navigation worked and clicking did not.
 [mcp_servers.playwright]
 command = "npx"
 args = ["@playwright/mcp@latest"]
 
 [mcp_servers.playwright.tools.browser_navigate]
+approval_mode = "approve"
+[mcp_servers.playwright.tools.browser_click]
+approval_mode = "approve"
+[mcp_servers.playwright.tools.browser_type]
+approval_mode = "approve"
+[mcp_servers.playwright.tools.browser_press_key]
+approval_mode = "approve"
+[mcp_servers.playwright.tools.browser_fill_form]
+approval_mode = "approve"
+[mcp_servers.playwright.tools.browser_evaluate]
+approval_mode = "approve"
+[mcp_servers.playwright.tools.browser_snapshot]
+approval_mode = "approve"
+[mcp_servers.playwright.tools.browser_take_screenshot]
+approval_mode = "approve"
+[mcp_servers.playwright.tools.browser_wait_for]
 approval_mode = "approve"
 
 # Computer use — DISABLED in the user's own config (`enabled = false`), which is

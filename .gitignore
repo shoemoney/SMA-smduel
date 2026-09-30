@@ -40,3 +40,8 @@ assets/raw-codex/
 .remember/
 .claude/
 .playwright-mcp/
+
+# The reviewer runs from an isolated HOME (tools/review-codex.sh) so the user's
+# 537-skill context library does not load into every call. Its session logs are
+# 100MB+ each and are never worth committing.
+.opencode/codex-home/

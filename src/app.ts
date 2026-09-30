@@ -4991,10 +4991,19 @@ export function roadFurnitureInstances(
           x: forward.x * along + across.x * lateral,
           y: forward.y * along + across.y * lateral,
         },
-        // The frame's long axis is local +Y (see roadLaneInstances), and the
-        // route heading alone points it ALONG the road — which is what a
-        // guardrail is, so no extra quarter turn here.
-        rotationRad: routeHeadingRad,
+        // The frame's long axis is local +Y, so rotating by the bare route
+        // heading points it ACROSS the carriageway. A guardrail runs ALONG the
+        // road, so it takes the same quarter turn `roadLaneInstances` takes and
+        // therefore the SAME rotation value.
+        //
+        // This was a quarter turn out for two iterations (80 and 81) — a row of
+        // vertical combs on a horizontal highway — and it was visible in this
+        // repo's own road capture the whole time. The comment above this line
+        // used to argue FOR the bug ("the route heading alone points it ALONG
+        // the road, so no extra quarter turn here"); both halves of that were
+        // wrong, which is how reading the code confirmed it. Found by Codex
+        // `gpt-6.1-sol` driving the live road.
+        rotationRad: routeHeadingRad + Math.PI / 2,
         sizeM: { x: widthM, y: ROAD_RAIL_SEGMENT_M },
         uvRect: frame.uv,
         // Tinted DOWN, and measured rather than eyeballed. The generated art is
@@ -5082,7 +5091,7 @@ function roadSurfaceQuad(
   });
 }
 
-function roadLaneInstances(
+export function roadLaneInstances(
   atlasIndex: AtlasIndex,
   vehicle: VehicleState,
   routeHeadingRad: number,

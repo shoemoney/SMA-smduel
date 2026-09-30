@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 3
+iteration: 4
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -4251,3 +4251,123 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
      clean (`index-BatjiGhX.js`), `.shots/iter85` = 8 screens / 0 problems.
      Constructor luma 36.09 -> 35.94 (two more rows of text) with spread
      unchanged at 43.23; every other screen byte-identical.
+86. Codex `gpt-6.1-sol` review of the three GAMEPLAY screens, driving the live
+   deployment with computer use. SIX findings, and the first one is a regression
+   I shipped two iterations ago and never looked at.
+
+   - **1. THE GUARDRAILS WERE LAID ACROSS THE ROAD INSTEAD OF ALONG IT, FOR TWO
+     ITERATIONS.** The reviewer's description: "repeated pale objects above and
+     below the highway ... each occupies roughly 190 CSS pixels vertically and
+     40 horizontally, producing repeated comb-like objects perpendicular to the
+     carriageway." Exactly right. The frame is 96x21, its long axis is local
+     +Y, and `rotationRad: routeHeadingRad` therefore laid it along world +y —
+     across an east-west road. `roadLaneInstances` gets this right because it
+     takes `routeHeadingRad + Math.PI / 2`, and I copied the SHAPE of that call
+     while assuming the furniture needed no quarter turn.
+     And it was visible in this repo's own captures the entire time. I have a
+     road screenshot in every one of iterations 80-85 showing a row of vertical
+     combs, and I did not open one. That is iteration 39's rule arriving
+     somewhere new: a claim that recurs is evidence about my check, and here the
+     evidence was a file I generated and never looked at. Eighty-two vision
+     reviews missed it because they were reading downscaled stills of other
+     screens; one computer-using review of the road caught it in a minute.
+     Fixed to `routeHeadingRad + Math.PI / 2`, and the comment that used to
+     ARGUE FOR THE BUG ("the route heading alone points it ALONG the road — which
+     is what a guardrail is, so no extra quarter turn here", both halves wrong) is
+     replaced with the actual reason.
+     THE GUARD IS A RELATIONSHIP, NOT A NUMBER: the new test asserts the rails
+     take the SAME rotation as the lane markings, and that the long axis is in
+     `sizeM.y`. Both are laid lengthwise down the carriageway, so tying them
+     together means a future change to the shared orientation moves both and a
+     change to only one still fails. Proven by mutation — reverting the rotation
+     fails it and leaves the other three furniture tests green.
+     `roadLaneInstances` is now exported for that assertion, which is the only
+     other change this round.
+
+   - **2. CITY VERTICAL CONTROLS ARE INVERTED — CONFIRMED, NOT FIXED THIS ROUND.**
+     The reviewer drove it: "W/Up moves downward; S/Down moves upward. Arena and
+     road use the opposite, expected mapping." Correct, and I verified the
+     convention by tracing rather than by eye, which is the only reason I am
+     confident in it at all:
+         `resolveInput` is documented world-up-positive  -> W is (0, +1)
+         `cityDirectionFromVector` negates y             -> (0, -1) -> 'N'
+         `DIRECTION_UNIT_VECTORS.N`                     -> (0, -1)
+         `buildOrthoMatrix` sets `m[5] = sy` (positive) and WebGPU puts clip +y
+           at the TOP of the frame                          -> world +y is UP
+     Three independent agreements with each other, and the code contradicts all
+     three. Flipping the table's y components fixes it, and the table is read by
+     exactly one function (`stepWalk`), so the blast radius is walking and
+     nothing else — not the doorway ring, not the radar, not the layout.
+     I implemented it, and it turned the suite red: **16 failures across three
+     integration files**, because those tests WALK the player into facilities
+     using the direction mapping. And the reason they walked the wrong way is
+     the finding's second half:
+         tests/integration/arena-auto-end.test.ts:166
+           "('w' is north (-Y), 's' is ...)" — as an explicit comment stating the
+           convention the test drives with.
+     The same wrong assumption is written into a test that then pins it, exactly
+     as it was written into `tests/unit/city.test.ts`'s table fixture, which
+     agreed with the code for the entire time the code was wrong. I re-derived
+     that fixture too.
+     **REVERTED, DELIBERATELY.** A control-scheme change is not a one-line fix
+     once real flows depend on it, and I was not going to ship 16 red tests or
+     patch three integration fixtures at the end of a long round. The finding is
+     fully diagnosed and the next iteration has everything it needs: flip the
+     y components of `DIRECTION_UNIT_VECTORS`, re-derive the `city.test.ts`
+     table fixture, and update the walk-direction helper in
+     `arena-auto-end.test.ts` whose comment is the other half of the bug.
+
+   - **3. THE ROAD SURFACE FOLLOWS THE CAR WHEN YOU DRIVE OFF THE ROUTE.**
+     "Driving north away from the initial east-west highway makes the lane
+     markings and roadside furniture leave the view, but an asphalt strip remains
+     centered beneath the car." TRUE, and the code says so plainly — the road
+     comment reads "The road is an unbounded world, so the ground quad is sized
+     to the visible area and re-centred on the player each frame." Correct for
+     the verge, wrong for the carriageway: the drivable strip is a separate
+     rotated quad built around the PLAYER, not around a route origin. Real, and
+     not fixed this round for the same reason as above — it is a structural
+     change to how the road quad is anchored, and it deserves its own iteration
+     rather than a rushed one. Queued with the fix sketched: anchor the surface
+     and its paint to one route origin and extend it along that axis.
+
+   - **4. "NOT ROAD-LEGAL" DOES NOT PREVENT DEPARTURE.** The reviewer drove it:
+     entered the gate, selected Albany, and drove onto the highway with the
+     starter Duster's 0 armour and 0 mounted. This is the open design question
+     iteration 84 deliberately deferred, and it is now a second independent
+     voice on the same point — the reviewer's framing is the sharpest version of
+     it yet: "The warning promises a restriction that the gate does not
+     enforce." A label that names a rule the game does not apply is a defect,
+     not a preference, so this moves from "design question" to "queued fix".
+     Either the gate refuses with reasons, or the strip stops calling it illegal.
+
+   - **5. NORTH-UP RADAR TRIANGLE DOES NOT ROTATE WITH HEADING.** "After turning
+     and driving east, the car points east while the radar triangle still points
+     straight up." Believable and specific, and not yet checked — queued.
+
+   - **6. CITY ENTRANCE SIGNS DO NOT NAME THE INDIVIDUAL FACILITY.** Two
+     "Jobs"-category entrances behave completely differently — one opens a
+     Federal Building that is a future-phase placeholder, the other a working
+     menu with travel, recharge, lodging and armour. The category legend
+     (iteration 39) is correct about the four families and says nothing about
+     which door is which. Real gap, and the remedy the reviewer proposes — text
+     overlays beside the signs, no new building art — is the right shape.
+     Queued.
+
+   HARNESS NOTES, because the reviewer is the tool now and its failures are part
+   of the log:
+     - **TWO MORE APPROVAL FAILS.** The playright MCP exempts only
+       `browser_navigate` in the stock config, so `browser_click` answered "MCP
+       tool call requires approval, but approval policy is never" and FAILED. A
+       run died on exactly that call having already navigated and screenshotted
+       three screens. Every interactive tool now carries its own
+       `approval_mode`.
+     - **BACKGROUNDING A LONG MCP RUN IS UNRELIABLE.** Three separate runs were
+       backgrounded and all three were killed partway, writing a 0-byte answer
+       and no retry. The same run in the FOREGROUND completed on the first
+       attempt. The retry-and-backoff wrapper was still worth having for the
+       rate limit; the foreground habit is what actually fixed it.
+     - Scope is now three screens per run rather than eight, for the same reason.
+
+   GATE: tsc clean, 66 files / 1446 tests, 4 browser tests, build clean. The three
+   remaining failures are the pre-existing `tests/integration/screens.test.ts`
+   flake — identical count to a clean-master run, verified by stashing.

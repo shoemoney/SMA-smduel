@@ -12,7 +12,7 @@
  * iteration 19 is what that failure costs).
  */
 import { describe, expect, it } from 'vitest';
-import { roadFurnitureInstances } from '@/app';
+import { roadFurnitureInstances, roadLaneInstances } from '@/app';
 
 const atlasIndex = {
   frame: (name: string) => ({ atlasIndex: 0, uv: { u0: 0, v0: 0, u1: 1, v1: 1 }, name }),
@@ -71,5 +71,50 @@ describe('roadside guardrail furniture', () => {
     const ratio = rails[0]!.sizeM.y / rails[0]!.sizeM.x;
     expect(ratio).toBeGreaterThan(4);
     expect(ratio).toBeLessThan(5);
+  });
+});
+
+/**
+ * The orientation guard, added two iterations after the feature shipped
+ * quarter-turned.
+ *
+ * The rails were laid ACROSS the carriageway instead of along it for
+ * iterations 80 and 81 — a row of vertical combs on a horizontal highway, in
+ * this repo's own road captures (`.shots/iter85/road.png`) the whole
+ * time — a `*` followed by `/` inside a block comment closes the comment,
+ * which is its own small lesson and cost one rebuild. The code carried a comment
+ * arguing FOR the bug ("the route heading alone points it ALONG the road, so no
+ * extra quarter turn here"), which is why reading the code confirmed it.
+ *
+ * The invariant worth pinning is not a number, it is a RELATIONSHIP: the guardrail
+ * and the lane paint are both laid lengthwise down the road, so they must take
+ * the same rotation. Asserting against the lanes rather than against a literal
+ * quarter turn is what makes this a real guard — a future change to the shared
+ * orientation moves both together, and a change to only one still fails.
+ *
+ * Found by Codex `gpt-6.1-sol` driving the live road with computer use.
+ */
+describe('roadside furniture is laid ALONG the carriageway, like the lane paint', () => {
+  it('shares its rotation with the lane markings, and carries the long axis in sizeM.y', () => {
+    const heading = 0.7; // deliberately not axis-aligned, so a hard-coded
+                          // "0" or "PI/2" cannot satisfy this
+    const rails = roadFurnitureInstances(atlasIndex, at(0), heading, HALF);
+    const dashes = roadLaneInstances(atlasIndex, at(0), heading, HALF);
+
+    expect(rails.length).toBeGreaterThan(0);
+    expect(dashes.length).toBeGreaterThan(0);
+    for (const rail of rails) {
+      const matchingDash = dashes.find((d: { rotationRad: number }) => d.rotationRad === rail.rotationRad);
+      expect(
+        matchingDash,
+        `rail rotated to ${rail.rotationRad} but no lane marking shares that angle`,
+      ).toBeDefined();
+    }
+
+    // And the shape follows the rotation: the world size is long in y, which is
+    // the local axis a quarter turn maps onto the route's forward vector.
+    for (const rail of rails) {
+      expect(rail.sizeM.y).toBeGreaterThan(rail.sizeM.x);
+    }
   });
 });
