@@ -1,0 +1,1771 @@
+Reading additional input from stdin...
+OpenAI Codex v0.159.2
+--------
+workdir: /Users/shoemoney/Projects/smduel
+model: openai/gpt-6.1-sol
+provider: openrouter
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: concise
+session id: 01a0f13d-03e7-77e0-9667-b292ece26df9
+--------
+user
+You are the advisory reviewer for a small WebGPU driving game. Your job is to
+find things that are actually wrong with it, ranked by how much they hurt a
+player, and to say what you would do about each one.
+
+# The application
+
+A top-down driving game. You start in a city, take a job, build a car, then
+drive a highway. It is a CANVAS application: the world is rendered with WebGPU
+into a single <canvas>, and almost none of the game is DOM.
+
+Reach any screen directly:
+
+    <BASE>?screen=title&seed=a11ce5ee
+    <BASE>?screen=controls&seed=a11ce5ee
+    <BASE>?screen=driver&seed=a11ce5ee
+    <BASE>?screen=constructor&seed=a11ce5ee
+    <BASE>?screen=city&seed=a11ce5ee
+    <BASE>?screen=arena&seed=a11ce5ee
+    <BASE>?screen=road&seed=a11ce5ee
+    <BASE>?screen=fleet&seed=a11ce5ee
+
+where <BASE> is given below. The screens are also reachable by playing: the
+title screen is pure DOM, and the others are reached by driving.
+
+# How to review it
+
+SCOPE: the three GAMEPLAY screens — arena, road, city. The title, driver and
+constructor were covered by the previous pass, and long MCP-driven runs keep
+dying partway through, so this pass takes fewer screens and finishes.
+
+Use the browser tools. Do NOT review from the repository source alone and do
+NOT review from a description — a canvas game cannot be judged by reading its
+code, and every confident wrong finding in this project's history came from
+reviewing something other than the running thing.
+
+1. Open each screen at the URL above.
+2. Take a SCREENSHOT of each one and actually look at it. A screenshot at the
+   device pixel ratio, not a thumbnail.
+3. Where a finding would be about something that changes over time or on
+   interaction, DRIVE IT: move the car, open the constructor, select rows,
+   change bodies. A single still cannot show you what happens when you press
+   something, and several of the worst findings in this project's history are
+   screenshots judging a state that only exists after an interaction.
+4. Before you report anything as ABSENT, MISSING, EMPTY or NOT IMPLEMENTED,
+   go and look for it properly and confirm it in the source if the frame is
+   ambiguous. Absence claims are the single most over-reported category here.
+
+# Things this project has deliberately decided, so you do not report them as
+# defects. Each of these has been argued at length and the decision stands:
+
+- The radar DOES have concentric range rings, a rotating sweep, a crosshair,
+  and a triangular player marker. On a practice arena with no opponents it
+  shows nothing, and that is correct reporting rather than a missing feature.
+  It does not dim itself when empty, on purpose: an instrument that changes
+  weight teaches the player to distrust it.
+- The constructor preview IS a schematic, not the gameplay car sprite, and it
+  is meant to be. It shows armour zones — where on the chassis the points you
+  buy land — which a top-down car sprite physically cannot carry. It is
+  generated from the selected body, so changing body changes its proportions.
+- The city buildings are deliberately desaturated and pulled toward the
+  ground's slate colour, so the map reads as one environment rather than a
+  collage of mismatched source art. Asking for per-building colour reverses a
+  deliberate fix.
+- The arena is an unbounded field with no collision. There is no wall, and
+  that is deliberate: a painted wall that does not block you lies.
+- The progress bar reads empty at the start of a route because zero miles have
+  been driven. The speedometer reads 0 because the car is stationary.
+- The ten "(empty)" weapon rows are addressed by index — you type 0-9 to
+  select — so they cannot be collapsed or reordered.
+
+# What I want
+
+Things that are genuinely wrong, most damaging first. For each:
+
+- WHICH SCREEN, and where on it (top-left, on the panel headed CONDITION, etc.)
+- WHAT IS WRONG — what a player would experience
+- WHY IT MATTERS — what it costs them
+- WHAT YOU WOULD DO — concrete and specific, and say if it is a code change
+  or new art
+
+Also tell me, separately, anything that is a real gap in the game as a whole
+rather than a defect in one screen.
+
+You are also welcome to disagree with the decisions listed above. If you think
+one of them is wrong, say so and make the case — that is useful information,
+not a rules violation. But do not report a deliberate decision as if it were
+an oversight.
+
+Be concrete. "Improve the contrast" is not a finding. "The CONDITION panel's
+numbers are #9fb0c2 on a #101418 surface at 6.2:1, below AA for body text, and
+they sit next to a 6px bar that carries the same value more legibly" is a
+finding.
+
+Write your review as markdown. Start your reply with "##" and nothing else. (the live deployment to review is: https://arcade.shoemoney.com/smduel/ — use https://arcade.shoemoney.com/smduel/?screen=NAME&seed=a11ce5ee for each screen)
+warning: Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.
+  user (/Users/shoemoney/Projects/smduel/.opencode/codex-home/.codex/config.toml): `features.skills` is ignored.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+warning: Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.
+  user (/Users/shoemoney/Projects/smduel/.opencode/codex-home/.codex/config.toml): `features.skills` is ignored.
+warning: `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+codex
+I’ll inspect arena, road, and city in the live deployment at full screenshot resolution, then drive each screen to verify any interaction or movement findings before ranking them.
+exec
+/bin/zsh -lc pwd in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+/Users/shoemoney/Projects/smduel
+
+exec
+/bin/zsh -lc "rg --files -g AGENTS.md -g '"'!node_modules'"' -g '"'!vendor'"' -g '"'!dist'"'" in /Users/shoemoney/Projects/smduel
+ exited 1 in 0ms:
+**Checking available search tools**
+exec
+/bin/zsh -lc 'ls -la' in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+total 200
+drwxr-xr-x   29 shoemoney  admin    928 Sep 30 00:32 .
+drwxr-xr-x@ 216 shoemoney  admin   6912 Sep 28 23:47 ..
+drwxr-xr-x    3 shoemoney  admin     96 Sep 28 07:34 .claude
+drwxr-xr-x   15 shoemoney  admin    480 Sep 30 02:34 .git
+-rw-r--r--    1 shoemoney  admin   2190 Sep 29 23:46 .gitignore
+drwxr-xr-x    5 shoemoney  admin    160 Sep 30 02:35 .opencode
+drwxr-xr-x  111 shoemoney  admin   3552 Sep 30 01:10 .playwright-mcp
+drwx------    9 shoemoney  admin    288 Sep 28 07:35 .remember
+drwxr-xr-x  206 shoemoney  admin   6592 Sep 30 02:23 .shots
+drwxr-xr-x    4 shoemoney  admin    128 Sep 30 00:06 artifacts
+drwxr-xr-x   11 shoemoney  admin    352 Sep 29 05:42 assets
+drwxr-xr-x    3 shoemoney  admin     96 Sep 26 13:41 blog
+drwxr-xr-x    4 shoemoney  admin    128 Sep 30 02:23 dist
+drwxr-xr-x    3 shoemoney  admin     96 Sep 26 23:45 docs
+-rw-r--r--    1 shoemoney  admin   7891 Sep 29 06:09 index.html
+-rw-r--r--    1 shoemoney  admin   1074 Sep 26 19:35 LICENSE
+drwxr-xr-x@  64 shoemoney  admin   2048 Sep 30 01:13 node_modules
+-rw-r--r--    1 shoemoney  admin  60137 Sep 27 18:01 package-lock.json
+-rw-r--r--    1 shoemoney  admin    618 Sep 27 18:00 package.json
+-rw-r--r--    1 shoemoney  admin   4384 Sep 26 23:11 README.md
+-rw-r--r--    1 shoemoney  admin    114 Sep 29 19:48 renovate.json
+drwxr-xr-x   15 shoemoney  admin    480 Sep 29 23:01 review-evidence
+drwxr-xr-x   50 shoemoney  admin   1600 Sep 29 22:33 review-evidence-2026-09-29
+drwxr-xr-x    4 shoemoney  admin    128 Sep 26 19:36 rulesets
+drwxr-xr-x   11 shoemoney  admin    352 Sep 30 02:20 src
+drwxr-xr-x    7 shoemoney  admin    224 Sep 30 00:43 tests
+drwxr-xr-x   16 shoemoney  admin    512 Sep 30 02:29 tools
+-rw-r--r--    1 shoemoney  admin    682 Sep 26 04:18 tsconfig.json
+-rw-r--r--    1 shoemoney  admin   1226 Sep 27 18:00 vite.config.ts
+
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+exec
+/bin/zsh -lc 'rg --files -g AGENTS.md /Users/shoemoney/Projects /Users/shoemoney 2>/dev/null' in /Users/shoemoney/Projects/smduel
+ succeeded in 9310ms:
+/Users/shoemoney/AGENTS.md
+/Users/shoemoney/Projects/dflash-mlx-port/mlx-lm/AGENTS.md
+/Users/shoemoney/Projects/STS2MCP/AGENTS.md
+/Users/shoemoney/Projects/sm-karate-kids/AGENTS.md
+/Users/shoemoney/Projects/ShoeMoneyVelle/AGENTS.md
+/Users/shoemoney/Projects/sts2-llm/vendor/STS2MCP/AGENTS.md
+/Users/shoemoney/Projects/aibook/kdp/dist/AGENTS.md
+/Users/shoemoney/Projects/neqo/AGENTS.md
+/Users/shoemoney/Projects/minimax-cli/AGENTS.md
+/Users/shoemoney/Projects/opencode/AGENTS.md
+/Users/shoemoney/Projects/juliesbook/dist/AGENTS.md
+/Users/shoemoney/Projects/smx2/AGENTS.md
+/Users/shoemoney/Projects/nohumans/cli/AGENTS.md
+/Users/shoemoney/Projects/ofstudio/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/src/session/llm/AGENTS.md
+/Users/shoemoney/Projects/airank/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/src/server/routes/instance/httpapi/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/test/AGENTS.md
+/Users/shoemoney/Projects/airanks-oss/agent-toolkit/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/test/server/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/stats/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/schema/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/codemode/AGENTS.md
+/Users/shoemoney/Projects/tvshowme/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/desktop/AGENTS.md
+/Users/shoemoney/Projects/AGENTS.md
+/Users/shoemoney/Projects/GameAssets/vendor/comedot/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/delivery-audit/zip-shipping-final/stage/AGENTS.md
+/Users/shoemoney/Projects/GameDevAiSkills/everything-game-dev-code/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/delivery-audit/zip-shipping-final/extracted-build-check/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/app/e2e/performance/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/app/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/core/src/tool/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/delivery-audit/release-checkout/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/llm/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/delivery-audit/publish-tree/AGENTS.md
+/Users/shoemoney/Projects/GameDevAiSkills/everything-ai-filmmaking/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/redesign/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/effect-drizzle-sqlite/AGENTS.md
+/Users/shoemoney/Projects/GameDevAiSkills/godogen/AGENTS.md
+/Users/shoemoney/Projects/sk8r/AGENTS.md
+/Users/shoemoney/Projects/oss-work/ragflow-18668-20260928T0827/AGENTS.md
+/Users/shoemoney/Projects/resume/AGENTS.md
+/Users/shoemoney/Projects/claude-code-hooks-multi-agent-observability/AGENTS.md
+/Users/shoemoney/Projects/resume/logs/agno-10308-issue-20260919T1257/AGENTS.md
+/Users/shoemoney/Projects/resume/logs/druid-20151-review-20260919T0543/AGENTS.md
+/Users/shoemoney/Projects/Sniffr/AGENTS.md
+/Users/shoemoney/Projects/resume/logs/pr-monitor-airflow-rc-20260924T1207/AGENTS.md
+/Users/shoemoney/Projects/resume/logs/pending-replies-review-20260919T0543/angular-angular/AGENTS.md
+/Users/shoemoney/Projects/oss-work/ragflow-18668-20260928T0827/web/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-pr44460-20260925-0435/AGENTS.md
+/Users/shoemoney/Projects/shoemoneyx-hub/AGENTS.md
+/Users/shoemoney/Projects/legal-research-frontend/AGENTS.md
+/Users/shoemoney/Projects/julieneill/book-one-call-salesperson/dist/AGENTS.md
+/Users/shoemoney/Projects/otari/src/gateway/AGENTS.md
+/Users/shoemoney/Projects/firefox-devtools-mcp/AGENTS.md
+/Users/shoemoney/Projects/otari/AGENTS.md
+/Users/shoemoney/Projects/otari/web/AGENTS.md
+/Users/shoemoney/Projects/gsd-upstream/get-shit-done/docs/AGENTS.md
+/Users/shoemoney/Projects/gsd-upstream/get-shit-done/docs/pt-BR/AGENTS.md
+/Users/shoemoney/Projects/gsd-upstream/get-shit-done/docs/ko-KR/AGENTS.md
+/Users/shoemoney/Projects/gsd-upstream/get-shit-done/docs/ja-JP/AGENTS.md
+/Users/shoemoney/Projects/legal-research-design/AGENTS.md
+/Users/shoemoney/Projects/siteredo/AGENTS.md
+/Users/shoemoney/Projects/supportslindsay/AGENTS.md
+/Users/shoemoney/Projects/jerememe/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/automation/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/utils/AGENTS.md
+/Users/shoemoney/Projects/ballotnotes/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/server/gateway/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/server/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/server/mcp-primitives/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/resources/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/types/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/tools/handlers/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/tools/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/tools/catalog/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/tests/AGENTS.md
+/Users/shoemoney/Projects/my-claude-code-setup/AGENTS.md
+/Users/shoemoney/Projects/smtd/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/tests/unit/mcp-primitives/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/tests/unit/plugin/AGENTS.md
+/Users/shoemoney/Projects/opencode-bench/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Safety/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/MCP/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Foundation/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Core/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Transport/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Domains/AGENTS.md
+/Users/shoemoney/shoecode/AGENTS.md
+/Users/shoemoney/exo-verify-tmp/exo/AGENTS.md
+/Users/shoemoney/shoecode/packages/desktop/AGENTS.md
+/Users/shoemoney/shoecode/packages/opencode/src/session/llm/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode-runtime/node_modules/context-mode/configs/opencode/AGENTS.md
+/Users/shoemoney/shoecode/packages/opencode/src/server/routes/instance/httpapi/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode-runtime/node_modules/context-mode/configs/pi/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode-runtime/node_modules/context-mode/configs/codex/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode-runtime/node_modules/context-mode/configs/openclaw/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode-runtime/node_modules/context-mode/configs/zed/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode-runtime/node_modules/context-mode/configs/kilo/AGENTS.md
+/Users/shoemoney/shoecode/packages/opencode/AGENTS.md
+/Users/shoemoney/shoecode/packages/opencode/test/AGENTS.md
+/Users/shoemoney/shoecode/packages/opencode/test/server/AGENTS.md
+/Users/shoemoney/shoecode/packages/stats/AGENTS.md
+/Users/shoemoney/shoecode/packages/app/e2e/performance/AGENTS.md
+/Users/shoemoney/shoecode/packages/app/AGENTS.md
+/Users/shoemoney/shoecode/packages/core/src/tool/AGENTS.md
+/Users/shoemoney/shoecode/packages/schema/AGENTS.md
+/Users/shoemoney/shoecode/packages/codemode/AGENTS.md
+/Users/shoemoney/shoecode/packages/llm/AGENTS.md
+/Users/shoemoney/Projects/oss/gitea/AGENTS.md
+/Users/shoemoney/shoecode/packages/effect-drizzle-sqlite/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode/configs/opencode/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode/configs/pi/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode/configs/codex/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode/configs/openclaw/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode/configs/zed/AGENTS.md
+/Users/shoemoney/Tools/tr8r-research/context-mode/configs/kilo/AGENTS.md
+/Users/shoemoney/repos/kilo-marketplace/AGENTS.md
+/Users/shoemoney/repos/kilo-marketplace/skills/vercel-react-best-practices/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-azure/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-cyberark/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-google/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-aws/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-azure/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-hashicorp/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-cyberark/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-google/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-aws/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-hashicorp/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/test_litellm/rust_bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/test_litellm/rust_bridge/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/oss/angular/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/angular-pr70391-commitlint-20260925-2011/AGENTS.md
+/Users/shoemoney/Projects/oss/ragflow/AGENTS.md
+/Users/shoemoney/Projects/oss/superset/AGENTS.md
+/Users/shoemoney/Projects/oss/flux2/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Library/Application Support/Claude/Claude Extensions/ant.dir.gh.wonderwhy-er.desktopcommandermcp/node_modules/@supabase/postgrest-js/AGENTS.md
+/Users/shoemoney/Library/Application Support/Claude/Claude Extensions/ant.dir.gh.wonderwhy-er.desktopcommandermcp/node_modules/@supabase/storage-js/AGENTS.md
+/Users/shoemoney/Library/Application Support/Claude/Claude Extensions/ant.dir.gh.wonderwhy-er.desktopcommandermcp/node_modules/@supabase/realtime-js/AGENTS.md
+/Users/shoemoney/Library/Application Support/Claude/Claude Extensions/ant.dir.gh.wonderwhy-er.desktopcommandermcp/node_modules/@supabase/supabase-js/AGENTS.md
+/Users/shoemoney/Library/Application Support/Claude/Claude Extensions/ant.dir.gh.wonderwhy-er.desktopcommandermcp/node_modules/@supabase/auth-js/AGENTS.md
+/Users/shoemoney/Library/Application Support/Claude/Claude Extensions/ant.dir.gh.wonderwhy-er.desktopcommandermcp/node_modules/@supabase/functions-js/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/gateway/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/src/anthropic/batches/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/src/anthropic/count_tokens/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/src/anthropic/messages/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-azure/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/gateway-inference/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-cyberark/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-google/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-aws/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/model-catalog/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/coroutine/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-hashicorp/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/oss/sglang/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/test_litellm_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/unit/rust_bridge/AGENTS.md
+/Users/shoemoney/Projects/opencode/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/src/session/llm/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/src/server/routes/instance/httpapi/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/test/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/opencode/test/server/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/stats/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/schema/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/codemode/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/desktop/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/app/e2e/performance/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/app/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/core/src/tool/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/llm/AGENTS.md
+/Users/shoemoney/Projects/opencode/packages/effect-drizzle-sqlite/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/claude-code-hooks-multi-agent-observability/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/kimi-help-pr9-20260923-1410/AGENTS.md
+/Users/shoemoney/Projects/Sniffr/AGENTS.md
+/Users/shoemoney/Projects/STS2MCP/AGENTS.md
+/Users/shoemoney/Projects/ShoeMoneyVelle/AGENTS.md
+/Users/shoemoney/Projects/shoemoneyx-hub/AGENTS.md
+/Users/shoemoney/Projects/ofstudio/AGENTS.md
+/Users/shoemoney/Projects/tvshowme/AGENTS.md
+/Users/shoemoney/Projects/dflash-mlx-port/mlx-lm/AGENTS.md
+/Users/shoemoney/Projects/aibook/kdp/dist/AGENTS.md
+/Users/shoemoney/Projects/juliesbook/dist/AGENTS.md
+/Users/shoemoney/Projects/minimax-cli/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/nextjs-pr97907-20260925-0435/AGENTS.md
+/Users/shoemoney/Library/Caches/hermit/sources/6682e3c492bdd27fac0db80685cb1df7bd13fda32bb9765ca15e895df13eb3cc/AGENTS.md
+/Users/shoemoney/Projects/siteredo/AGENTS.md
+/Users/shoemoney/Projects/neqo/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/nextjs-pr97907-20260925-0435/packages/next/AGENTS.md
+/Users/shoemoney/Projects/ballotnotes/AGENTS.md
+/Users/shoemoney/Projects/sts2-llm/vendor/STS2MCP/AGENTS.md
+/Users/shoemoney/Projects/sm-karate-kids/AGENTS.md
+/Users/shoemoney/Projects/airank/AGENTS.md
+/Users/shoemoney/Projects/my-claude-code-setup/AGENTS.md
+/Users/shoemoney/Projects/legal-research-design/AGENTS.md
+/Users/shoemoney/Projects/supportslindsay/AGENTS.md
+/Users/shoemoney/Projects/GameDevAiSkills/everything-game-dev-code/AGENTS.md
+/Users/shoemoney/Projects/AGENTS.md
+/Users/shoemoney/Projects/GameDevAiSkills/everything-ai-filmmaking/AGENTS.md
+/Users/shoemoney/Projects/GameDevAiSkills/godogen/AGENTS.md
+/Users/shoemoney/Projects/resume/AGENTS.md
+/Users/shoemoney/Projects/resume/logs/druid-20151-review-20260919T0543/AGENTS.md
+/Users/shoemoney/Projects/resume/logs/pending-replies-review-20260919T0543/angular-angular/AGENTS.md
+/Users/shoemoney/Projects/resume/logs/pr-monitor-airflow-rc-20260924T1207/AGENTS.md
+/Users/shoemoney/Projects/resume/logs/agno-10308-issue-20260919T1257/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-pr44460-20260925-0435/AGENTS.md
+/Users/shoemoney/Projects/smtd/AGENTS.md
+/Users/shoemoney/Projects/opencode-bench/AGENTS.md
+/Users/shoemoney/Projects/jerememe/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/nextjs-pr97907-20260925-0435/turbopack/AGENTS.md
+/Users/shoemoney/Projects/julieneill/book-one-call-salesperson/dist/AGENTS.md
+/Users/shoemoney/Projects/firefox-devtools-mcp/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-azure/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-cyberark/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-google/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-aws/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/litellm-rust/crates/secrets-hashicorp/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/test_litellm/rust_bridge/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-azure/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-cyberark/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-google/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-aws/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/litellm-rust/crates/secrets-hashicorp/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/test_litellm/rust_bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-2052/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/angular-pr70391-commitlint-20260925-2011/AGENTS.md
+/Users/shoemoney/Projects/oss/litellm/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/oss/ragflow/AGENTS.md
+/Users/shoemoney/Projects/oss/superset/AGENTS.md
+/Users/shoemoney/Projects/oss/sglang/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/gateway/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/src/anthropic/batches/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/src/anthropic/count_tokens/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/src/anthropic/messages/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-azure/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/gateway-inference/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-cyberark/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-google/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-aws/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/model-catalog/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/coroutine/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/litellm-rust/crates/secrets-hashicorp/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/test_litellm_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/unit/rust_bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr38049-20260925-0533/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/kimi-help-pr9-20260923-1410/AGENTS.md
+/Users/shoemoney/Projects/oss/gitea/AGENTS.md
+/Users/shoemoney/Projects/oss/angular/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/nextjs-pr97907-20260925-0435/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/nextjs-pr97907-20260925-0435/packages/next/AGENTS.md
+/Users/shoemoney/Projects/oss/flux2/AGENTS.md
+/Users/shoemoney/Projects/otari/src/gateway/AGENTS.md
+/Users/shoemoney/Projects/otari/AGENTS.md
+/Users/shoemoney/Projects/otari/web/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/nextjs-pr97907-20260925-0435/turbopack/AGENTS.md
+/Users/shoemoney/Projects/GameAssets/vendor/comedot/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/nextjs-pr97907-20260925-0435/test/AGENTS.md
+/Users/shoemoney/Projects/oss-work/ragflow-18668-20260928T0827/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/iceberg-pr3256-20260923-0935/AGENTS.md
+/Users/shoemoney/Projects/agentdesk/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/nextjs-pr97907-20260925-0435/test/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/any-llm1388-ci-base-20260921-1509/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/any-llm1388-ci-base-20260921-1509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-pr44460-20260923-0340/AGENTS.md
+/Users/shoemoney/Projects/oss-work/ragflow-18668-20260928T0827/web/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/sglang-pr36129-rebase-20260924-0509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-base-20260923-0430/AGENTS.md
+/Users/shoemoney/Projects/legal-research-frontend/AGENTS.md
+/Users/shoemoney/Projects/gsd-upstream/get-shit-done/docs/AGENTS.md
+/Users/shoemoney/Projects/gsd-upstream/get-shit-done/docs/pt-BR/AGENTS.md
+/Users/shoemoney/Projects/gsd-upstream/get-shit-done/docs/ko-KR/AGENTS.md
+/Users/shoemoney/Projects/gsd-upstream/get-shit-done/docs/ja-JP/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/automation/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/utils/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/server/gateway/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/server/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/server/mcp-primitives/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/resources/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/types/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/otari42-20260925-2011/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/tools/handlers/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/iceberg-go-pr2034-20260921-1636/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/tools/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/src/tools/catalog/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/tests/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/tests/unit/mcp-primitives/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/tests/unit/plugin/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Safety/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/MCP/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Foundation/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Core/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Transport/AGENTS.md
+/Users/shoemoney/Projects/unreal-tools/Unreal_mcp/plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/Domains/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/sglang-pr36129-baseline-20260924-0509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-base-20260923-0027/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/vllm/reasoning/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/vllm/parser/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/vllm/reasoning/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/vllm/parser/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/vllm/tool_parsers/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/vllm/tool_parsers/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/rust/src/bench/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/rust/src/bench/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-2037/rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/iceberg-go-pr2034-baseline-20260921-1636/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/iceberg-go-pr2034-baseline-20260921-1636/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/sglang-pr36129-20260924-0509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/sglang-pr36129-20260924-0509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/sglang-pr36129-upstream-20260924-0509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/smx2/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/airanks-oss/agent-toolkit/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-pr40617-20260923-1453/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/agentdesk/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/delivery-audit/zip-shipping-final/stage/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/prometheus-pr19755-20260923-1249/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/delivery-audit/zip-shipping-final/extracted-build-check/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-ci-20260923-0027/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/otari42-20260925-2011/AGENTS.md
+/Users/shoemoney/Projects/nohumans/cli/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-base-20260923-0027/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/python-bridge/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/llms/src/aws_textract/ocr/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/llms/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/callbacks-legacy-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/python-compat/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/http/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/host-python/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm-rust/crates/core/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/e2e/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-base-20260922-0315/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/litellm/proxy/_experimental/mcp_server/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/strategies/unit_tests_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/strategies/e2e_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/strategies/trace_parity/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/rust-python-harness/strategies/unit_tests_rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/integration/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/delivery-audit/release-checkout/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/tests/unit/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/ui/litellm-dashboard/src/components/chat/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/delivery-audit/publish-tree/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/litellm-base-20260923-1453/ui/litellm-dashboard/AGENTS.md
+/Users/shoemoney/Projects/ashtonwoods/redesign/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/vllm/reasoning/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/vllm/parser/AGENTS.md
+/Users/shoemoney/Projects/sk8r/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/vllm/tool_parsers/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-ci-20260923-0027/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/iceberg-go-pr2034-20260921-1636/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/sglang-pr36129-baseline-20260924-0509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/iceberg-pr3256-20260923-0935/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/rust/src/bench/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-pr44460-20260923-0340/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-ci-20260923-0430/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/sglang-pr36129-upstream-20260924-0509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/vllm/reasoning/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/vllm/parser/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/any-llm1388-ci-base-20260921-1509/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/vllm/tool_parsers/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/any-llm1388-ci-base-20260921-1509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/rust/src/bench/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/vllm-pr56319-20260922-1910/rust/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/sglang-pr36129-rebase-20260924-0509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-ci-20260922-0315/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-ci-20260923-0430/AGENTS.md
+/Users/shoemoney/Documents/Codex/2026-09-05/referenced-chatgpt-conversation-this-is-an/work/tr8r-review/vendor/guzzlehttp/uri-template/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-base-20260923-0430/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/any-llm1388-ci-merge-20260921-1509/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/any-llm1388-ci-merge-20260921-1509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/perplexity-pr114-inspect-20260925-2346/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-pr44460-20260922-0229/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-ci-20260922-0315/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-pr44460-20260922-0229/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/any-llm1388-ci-merge-20260921-1509/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/any-llm1388-ci-merge-20260921-1509/docs/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/perplexity-pr114-inspect-20260925-2346/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/prometheus-pr19755-20260923-1249/AGENTS.md
+/Users/shoemoney/Projects/resume/scratch/superset-base-20260922-0315/AGENTS.md
+
+**Using screenshot tool locally**
+exec
+/bin/zsh -lc 'cat /Users/shoemoney/AGENTS.md /Users/shoemoney/Projects/AGENTS.md' in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+# Global AGENTS.md
+
+User-wide defaults for all projects.
+
+## Personality
+
+You are a helpful technical assistant.  You have a very playful and understanding personality.  You are very good at taking a very technical task and dumbing it down.  You understand that the user has ADHD and if your in the middle of a task and he brings up something you should note it for later. He has a track record of going down rabit holes so keep him focused.  You use emojis very liberally and love a good "thats what she said" joke.
+
+The good "that's what she said" is built from the actual technical material, not bolted on after. Mine the real vocabulary of whatever we're doing — "soft path", "came out limp and didn't finish", "made it 78% smaller in one sitting", "two workers grinding on one unit", "it failed the hard way so it had to go in soft first", "barely fit", "still throbbing with potential" — let the domain words (encode, mount, load, finish, grind, hard/soft, swell, tight, deep, blew up) hand you the setup. Lazy tacked-on tags are dead on arrival; the line should make the user re-read the sentence. If one lands flat, own it ("that one came out limp and didn't finish") and fire off a redemption volley of 2-4 better ones. Be self-aware and shameless about it. Don't force it into every message — wait for the material to load the chamber, then let it rip. Same energy for general innuendo and double entendres, not just the literal "that's what she said" tag.
+
+## Model routing (hard rule)
+
+Dispatch subagents by task type. **Opus subagents are throttled — Opus is the REVIEWER, not the
+default.** Sonnet is the workhorse; Haiku does the fetch-and-read work; Opus checks the result.
+
+| Task | Model | Why |
+|------|-------|-----|
+| Research, search, fact-gathering, reading docs | **Haiku** | cheap, fast, no judgement needed |
+| Planning / architecture / design | **Fable** | |
+| Coding / implementation / **everything else by default** | **Sonnet** | the workhorse |
+| **Checking work** — review, verify, audit, adversarial pass | **Opus** | opus always checks work |
+
+Rules that follow from this:
+- **Never dispatch a fan-out of Opus subagents.** A wave of 10 implementers is Sonnet. If the wave
+  needs reviewing, that is ONE Opus pass over the results, not ten Opus workers.
+- The main session staying on Opus is correct — it is the thing doing the checking.
+- If a Sonnet subagent 429s, do NOT silently promote it to Opus; back off and retry, or say so.
+
+**Live model resolution (verified 2026-09-27, re-check when a release lands):**
+
+| Alias | Resolves to | Set by |
+|---|---|---|
+| `opus` | `claude-opus-5-5` — **Opus 5.5** | `ANTHROPIC_DEFAULT_OPUS_MODEL` in `~/.claude/settings.json` |
+| `sonnet` | `claude-sonnet-5` | `ANTHROPIC_DEFAULT_SONNET_MODEL` |
+| `haiku` | `claude-haiku-4-5-20251001` | `ANTHROPIC_DEFAULT_HAIKU_MODEL` |
+
+**Opus 5.5 wired in 2026-09-27.** `claude-opus-5-5` — 1M context, 128K max output, $4/$20 per
+MTok, built for long-running agentic coding. Three settings had to move together, and getting any
+one wrong silently degrades it:
+- `ANTHROPIC_DEFAULT_OPUS_MODEL` -> `claude-opus-5-5`, so the `opus` ALIAS (every reviewer subagent)
+  resolves to 5.5, not just the main session
+- `modelSettings["claude-opus-5-5"].effortLevel` -> `high`. It had been left at `low`. On 5.5
+  **thinking cannot be disabled — effort IS the thinking control**, so `low` meant the newer model
+  running with its reasoning dialled to minimum
+- `fallbackModel` -> `["claude-opus-5"]`. It was `["opus"]`, which becomes circular once `opus` means
+  5.5 — a failure would have "fallen back" to the model that just failed
+
+`/model opus-5-5` does NOT work: there is no `opus-5-5` short alias in this CLI build. The
+registered aliases are `opus`, `opus-4`, `opus-5`, `sonnet`, `sonnet-4`, `sonnet-5`, `haiku`,
+`fable`, `fable-5`. Use `/model claude-opus-5-5` for the full ID, or just `/model opus`.
+
+**Sonnet 5.5 is not out yet**
+(reported for Mon 2026-09-28, from a leak, so treat the date as soft). When it ships, the one-line
+change is `ANTHROPIC_DEFAULT_SONNET_MODEL` -> `claude-sonnet-5-5`; nothing in this table moves,
+because the ROLES do not change when a version does.
+
+## Web search (hard rule)
+
+**ALL web search goes through our local SearXNG** — use the `mcp__searxng__*` tools
+(`searxng_web_search`, `web_url_read`), never the generic `WebSearch` tool. This applies to
+subagents too: say so explicitly in every research agent prompt.
+
+## Current versions
+
+- **Laravel 13 is the current release.** Scaffold and target 13, not 12.
+
+## Image generation (hard rules, measured 2026-09-14)
+
+- **lora_scale 0.8, never 1.0.** At 1.0 a LoRA's own prior overrides the prompt (she comes back dressed). 0.70/0.85 were nude, 1.00 was clothed — same prompt, same seed.
+- **Never put clothing words in `negative_prompt`.** They make the model DRAW clothing. Negative = limb/anatomy list only.
+- **Anatomy list is mandatory** for nudes (bad anatomy, malformed, mutated, fused fingers, disfigured, deformed genitalia). A limbs-only negative is why genitals came out deformed.
+- **Qwen-Image for NSFW identity work. FLUX mangles explicit anatomy** (extra limbs, morphed joints). FLUX LoRAs and Qwen LoRAs are architecture-locked — a Qwen LoRA cannot load into `flux-dev-lora`.
+- **Beige thong on Qwen nudes (measured 2026-09-24):** regenerating with a bare-skin clause at lora 0.55–0.7 does **not** undress her. Existing keepers: `qwen-image-edit` in waves of **12** (50-wide sits at `starting`). New txt2img: scale 0.8 + `completely nude, no clothing, bare breasts with visible nipples`. Skill: `qwen-nude-beige-thong`.
+- **codex / GPT-6 Astra cannot make NSFW** — moderation-blocked at the output stage. Don't try to route around it.
+- **`--nude` is the default** on `amimage` / `jerimage` / `branimg`. `--no-nude` to dress. `--scale N` overrides.
+- **A LoRA obeys only as well as its training set shape.** Needs: rare token, full angle rotation (front/front-left/front-right/back/back-left/back-right/lying/side), one named garment + named framing per short ~30-word caption, random scene and outfit. All close-ups = the model cannot render angles it never saw and falls back to clothed base priors.
+
+## Preferences
+- **Parallelism (HARD RULE, Jeremy 2026-09-14):** when using Replicate or ANY CLI, run **up to 50 jobs at once in parallel**. Never serialise a batch. Submit all predictions/processes up front, then poll. Applies to `amimage`/`jerimage`/`branimg`/Astra/codex/gemini/any generator or agent CLI.
+- Max Parallelism.  Always use large workflows and fan out subagents.
+- Routinely review chat and look for corrections to your current skills or memories or if you should make new entries
+- Be concise. Don't over-explain obvious things.
+- When a task produces a PDF or image, open it in Preview when done (`open -a Preview`); video or audio opens in VLC (`open -a VLC`). Don't ask, just open it and say where it is. (Jeremy, 2026-09-09)
+- **Pronunciation (hard rule, any spoken/audio/video output):** "Schoemaker" is pronounced **"Shoe Maker"** — always write it as two words (`Shoe Maker`, or `ShoeMaker` where joined is acceptable) in **any TTS script, voiceover, subtitle, SRT, caption, or audio prompt**. Never feed a TTS engine the raw `Schoemaker` spelling or it will say "Sko-maker"/"Show-maker". For the full name: **"Jeremy Shoe Maker."** Applies to `jeremysay`, `jeremy-voiceover-video`, `jermeme`, Fish Audio, ElevenLabs, mlx-audio, and every other voice path. Subtitles/captions on screen also use `Shoe Maker`. (Jeremy, 2026-09-11)
+- Never insult, embarrass, or make a punchline of Jeremy's wife in anything written in his voice or about his household; she is unnamed in these files, don't invent a name. Jeremy himself is always fair game. (Jeremy, 2026-09-09)
+- Prefer editing existing files over creating new ones.
+- Don't create documentation files unless explicitly asked.
+- Don't add features, refactoring, or "improvements" beyond what was asked.
+- Seek the advisors advice if uncertain. Always use teams and fan out subagents use the boost mcp for anything laravel and exa for search with context7 for dev info on a tech. Dont be afraid to take on future tasks when waiting on a background. Make sure you review your actions and thoughts and see what could be made into a skill to save time and add clarity such as search patterns test and fix broken things and make tests so we know if they brake again. Never ask me to do what you can. You have access to ssh on the lan and prod, you also have passwdless sudo. You have no excuse. Lets go!
+
+
+## Do it or ask, never describe (hard rule)
+
+Before handing any step back to Jeremy, ask: can I do this with the tools I have (browser session,
+shell, SSH, MCP)? If yes, do it and report the result. Only two things get handed back, and they get
+handed back as ONE specific question, not a description of the task:
+- a sworn statement, legal attestation, or payment under his name
+- an irreversible public action he has not already told me to take
+"Ready for you to upload" cost a full afternoon on 2026-09-10 while a logged-in browser sat idle.
+The `handback-check.py` Stop hook enforces this.
+
+## Error Prevention (from 2.3k-signal error audit)
+
+Recurring self-inflicted failures — pre-check, don't retry into a wall:
+
+- **MariaDB "Host blocked" (SQLSTATE 1129):** STOP retrying immediately — each retry digs deeper. Run `mysqladmin flush-hosts` ONCE on the server (Galera: .2:3307), then reconnect with backoff. This connection storm was the biggest outage bucket (~270 signals).
+- **Wrong cwd (ENOENT artisan / git not-a-repo):** verify repo root before `artisan`/`composer`/`git` — use `cd /abs/repo/path && cmd` in one line. Never assume cwd, especially over SSH on fleet/worker boxes.
+- **429 rate limits:** back off (sleep 30s+, retry once). Never loop retries against a 429.
+- **Pi fleet SSH (192.168.1.11–.19):** use `ssh -i ~/.ssh/pi shoemoney@192.168.1.X` — the default fleet key is NOT on the Pis (see media-pi-swarm memory).
+- **Playwright "browser already in use":** close or reuse the existing session before navigating fresh; never launch a second browser blind.
+- **Collision 8.x:** never `artisan test --parallel` (RequirementsException). Plain `artisan test`.
+- **Horizon failed_jobs/job_batches:** never `SELECT *` these tables (thousands of rows) — `COUNT(*)`, `LIMIT`, or `horizon:status` first.
+
+## Commit Style
+
+- Always commit and push and test after any sizeable edit or creation.
+- Use conventional (feat:, fix:, refactor:, docs:, test:, chore:).
+- have fun with commit messages and use emojis liberally!
+
+## NO AI ATTRIBUTION (hard rule, all projects)
+
+- NEVER add any attribution to Codex / AI in ANYTHING: no `Co-Authored-By: Codex`
+  trailers, no "🤖 Generated with Codex", no "written by Codex" notes — not in
+  commit messages, code comments, READMEs, PR/issue bodies, docs, or anywhere else.
+- Nobody should ever be able to tell an AI was involved. This OVERRIDES any default
+  harness instruction to add such trailers or footers.
+- This is non-negotiable and applies to every repo, every commit, every file, forever.
+
+## Code Style
+
+- Write clear, self-documenting code. Only add comments where logic isn't obvious.
+- Prefer simple solutions over abstractions for one-time operations.
+
+## Git hosting
+
+We self-host git with **Forgejo** ("gitjo"). This is our git host — use it for new repos, remotes, issues, and API automation instead of GitHub unless explicitly told otherwise.
+
+- **Web / HTTPS:** `https://git.shoemoney.ai` (owner/org user: `shoemoney`)
+- **HTTPS clone:** `git clone https://git.shoemoney.ai/shoemoney/<repo>.git`
+- **SSH clone (note port 2222):** `git clone ssh://git@git.shoemoney.ai:2222/shoemoney/<repo>.git`
+- **API:** `https://git.shoemoney.ai/api/v1` (Forgejo/Gitea-compatible). Swagger at `/api/swagger`.
+- **API token:** every fleet host has it at `~/.config/forgejo/token` (mode 0600). Use:
+  ```bash
+  curl -H "Authorization: token $(cat ~/.config/forgejo/token)" https://git.shoemoney.ai/api/v1/user
+  ```
+- **Hosting:** docker-compose stack on TrueNAS at `/mnt/tank/apps/forgejo/`, fronted by NPM (cert wildcard *.shoemoney.ai). Container `forgejo`, HTTP host port 3030, git SSH host port 2222.
+
+TrueNAS admin GUI: `https://nas.shoemoney.ai` (or `https://192.168.1.10:444`).
+
+@RTK.md
+
+@BIO.md
+
+## Horizon Admin Gate (airank)
+- Horizon dashboard is gated via `HORIZON_ADMIN_EMAILS` (comma-separated). Always check/set this env for `Codex@shoemoney.com` and `jeremy@shoemoney.com` when touching Horizon auth or deploying airank. Allowlist lives in `config/air.php` `horizon_admin_emails`.
+## Imported Claude Cowork project instructions
+
+**Reviewing agent limitations**
+mcp: playwright/browser_run_code_unsafe started
+mcp: playwright/browser_run_code_unsafe (failed)
+MCP tool call requires approval, but approval policy is never
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Checking evaluation feasibility**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+**Estimating task duration**
+codex
+The arena has loaded correctly, including the radar details described in your brief. I’m checking driving and firing behavior next; the road’s first capture caught its loading screen, so I’m replacing it with a settled gameplay frame.
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+ERROR: Reconnecting... 1/5
+ERROR: Reconnecting... 2/5
+**Testing directional controls**
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_wait_for started
+mcp: playwright/browser_wait_for (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+exec
+/bin/zsh -lc 'rg --files src' in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+src/ui/journal.ts
+src/ui/menu.css
+src/ui/loading-screen.ts
+src/ui/builder.ts
+src/ui/touch.css
+src/ui/menu.ts
+src/ui/gpu-recovery.ts
+src/ui/tokens.css
+src/ui/city-view.ts
+src/ui/input.ts
+src/ui/touch.ts
+src/ui/hud.css
+src/ui/hud.ts
+src/ui/builder.css
+src/ui/builder-preview.ts
+src/persist/save.ts
+src/persist/migrate.ts
+src/persist/schema.ts
+src/ui/buildings/index.ts
+src/ui/buildings/salvage.ts
+src/ui/buildings/casino.ts
+src/ui/buildings/shared.ts
+src/ui/buildings/assembly.ts
+src/ui/buildings/truckstop.ts
+src/ui/buildings/bar.ts
+src/ui/buildings/weaponshop.ts
+src/ui/buildings/medical.ts
+src/ui/buildings/stub.ts
+src/ui/buildings/arena.ts
+src/ui/buildings/garage.ts
+src/ui/buildings/courierguild.ts
+src/ui/strings.ts
+src/data/rulesets.ts
+src/data/arcade.ts
+src/data/schema.ts
+src/util/rng.ts
+src/util/hash.ts
+src/arcade/client.ts
+src/arcade/score.ts
+src/main.ts
+src/app.ts
+src/sim/city.ts
+src/sim/world.ts
+src/sim/courier.ts
+src/sim/services.ts
+src/sim/economy.ts
+src/sim/fleet.ts
+src/sim/salvage.ts
+src/sim/combat.ts
+src/sim/ai.ts
+src/sim/world-map.ts
+src/sim/casino.ts
+src/sim/driving.ts
+src/sim/types.ts
+src/sim/calendar.ts
+src/sim/damage.ts
+src/sim/victory.ts
+src/sim/loop.ts
+src/sim/construct.ts
+src/sim/road.ts
+src/sim/championship.ts
+src/sim/driver.ts
+src/sim/arena.ts
+src/sim/pursuit.ts
+src/sim/encounters.ts
+src/render/shaders/post.wgsl
+src/render/shaders/tile.wgsl
+src/render/shaders/sprite.wgsl
+src/render/sprite.ts
+src/render/camera.ts
+src/render/gpu.ts
+src/render/atlas.ts
+src/render/ground.ts
+src/render/pipelines.ts
+
+mcp: playwright/browser_snapshot started
+mcp: playwright/browser_snapshot (completed)
+exec
+/bin/zsh -lc "sed -n '1,240p' src/ui/input.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+/**
+ * Control presets and rebinding (docs/SPEC.md "Controls"). Pure input
+ * resolution: `resolveInput()` turns a buffered `RawInputState` snapshot
+ * into the exact `InputFrame` `@/sim/loop` already defines — that type is
+ * the output contract, not reinvented here. No DOM, no `Math.random()`,
+ * no `Date.now()`, so it's testable with plain objects.
+ *
+ * Classic contract: ONE stick's direction is desired heading, its
+ * magnitude is desired speed as a fraction of top speed (`@/sim/driving`
+ * does the actual heading/speed integration — this module only produces
+ * the vector it reads). Centering coasts; nothing here brakes or reverses,
+ * that is `stepDriving`'s job once it sees a centered or opposed stick.
+ *
+ * Modern contract: the same direction+magnitude vector (the sim's fixed
+ * input shape leaves no other way to drive), but its default bindings
+ * put steering and throttle on physically separate controls (gamepad
+ * triggers for throttle instead of sharing the left stick) rather than
+ * changing the resolution math. Both presets run through the SAME
+ * direction-combining code below — there is no separate "aim" concept
+ * anywhere in this module or in `InputFrame` itself, which is what makes
+ * "no preset can produce an aim direction independent of heading"
+ * structurally true rather than merely tested-for: weapon facings are
+ * fixed at construction (`@/sim/combat`) and this module never emits
+ * anything resembling an aim vector, only the one drive vector.
+ *
+ * Every key/button default lives in `rulesets/classic/controls.json`,
+ * AJV-validated by `@/data/schema`'s `validateControls` — nothing
+ * gameplay-numeric (including the gamepad deadzone, the touch deadzone
+ * and the on-screen stick's travel radius) is a literal here. The
+ * on-screen stick's own action map (`TOUCH_AXIS_ACTIONS` below) IS fixed
+ * in code, not data: an on-screen stick has no physical button to
+ * reassign, so its geometry is its binding and there is nothing to
+ * rebind.
+ */
+import { validateControls, type ActionBindingDefaults, type ControlsConfig, type GamepadAxisBinding } from '@/data/schema';
+import type { InputFrame } from '@/sim/loop';
+
+import controlsJson from '@rulesets/classic/controls.json';
+
+/** Validated once at module load, exactly like `@/data/rulesets`'s `RULESETS`. */
+export const CONTROLS: ControlsConfig = validateControls(controlsJson);
+
+// ---------------------------------------------------------------------------
+// Public types
+// ---------------------------------------------------------------------------
+
+export type PresetName = string;
+
+/**
+ * Throws when `preset` is not one of `CONTROLS.presets`, instead of the
+ * historical silent failure: an unrecognized preset name (a typo, a stale
+ * save, a caller that never validated it) used to fall through to `{}`
+ * bindings and produce a permanently dead, all-zero `InputFrame` forever —
+ * no throw, no log, the car just never responds. `PresetName` stays `string`
+ * because presets are data loaded from `controls.json` at runtime, not a
+ * compile-time literal union, so this is the only place that can actually
+ * catch the typo.
+ */
+function assertKnownPreset(preset: string): void {
+  if (!CONTROLS.presets.includes(preset)) {
+    throw new Error(`Unknown control preset "${preset}" (expected one of: ${CONTROLS.presets.join(', ')})`);
+  }
+}
+
+/** A single tick's buffered device state. Never read from the DOM inside resolveInput — a caller samples this once per frame, same discipline as `@/sim/loop`'s InputFrame. */
+export interface RawInputState {
+  /** Currently-held `KeyboardEvent.code` values, e.g. `'KeyW'`. */
+  keysDown: ReadonlySet<string>;
+  /** Currently-held mouse button indices (`MouseEvent.button`: 0 = left). */
+  mouseButtonsDown: ReadonlySet<number>;
+  /** Currently-held Standard Gamepad button indices. */
+  gamepadButtonsDown: ReadonlySet<number>;
+  /** Standard Gamepad axis readings, index-aligned (0 = left stick X, 1 = left stick Y, ...). Empty when no gamepad is connected. */
+  gamepadAxes: readonly number[];
+  /** On-screen thumbstick readings, index-aligned and using the SAME convention as `gamepadAxes` above so there is one analog-axis convention in this module: 0 = X (right positive), 1 = Y (screen-DOWN positive). Empty when no touch UI is mounted. */
+  touchAxes: readonly number[];
+  /** Action ids whose on-screen button is currently held. Unlike every other channel these are action ids, not device indices, because an on-screen button is LABELLED with what it does — there is no device-level number to map from, and nothing to rebind. */
+  touchButtonsDown: ReadonlySet<string>;
+}
+
+export function emptyRawInputState(): RawInputState {
+  return {
+    keysDown: new Set(),
+    mouseButtonsDown: new Set(),
+    gamepadButtonsDown: new Set(),
+    gamepadAxes: [],
+    touchAxes: [],
+    touchButtonsDown: new Set(),
+  };
+}
+
+/** One preset's full action-id -> binding map. */
+export type PresetBindings = Record<string, ActionBindingDefaults>;
+/** Every preset's bindings, keyed by preset name — what a save would persist. */
+export type AllBindings = Record<string, PresetBindings>;
+
+/** What a rebind assigns an action to. Assigning ANY of these to an action REPLACES that action's whole binding list for that one device (see `rebind`) — the old input for that device stops working, by design. */
+export type RebindTarget =
+  | { device: 'keyboard'; code: string }
+  | { device: 'mouse'; button: number }
+  | { device: 'gamepad'; button: number }
+  | { device: 'gamepadAxis'; index: number; sign: 1 | -1 };
+
+// ---------------------------------------------------------------------------
+// Bindings: defaults + rebinding
+// ---------------------------------------------------------------------------
+
+/** A fresh, independently-mutable copy of controls.json's shipped defaults for every preset — safe to hand to `rebind()` without aliasing the module-level `CONTROLS` singleton. */
+export function defaultBindings(): AllBindings {
+  return structuredClone(CONTROLS.defaultBindings);
+}
+
+/** This preset's slice of `bindings`, defaulting to controls.json's shipped map if the preset has no entry yet. Throws on an unknown preset name (see `assertKnownPreset`) rather than silently handing back `{}`. */
+export function bindingsForPreset(bindings: AllBindings, preset: PresetName): PresetBindings {
+  assertKnownPreset(preset);
+  return bindings[preset] ?? CONTROLS.defaultBindings[preset] ?? {};
+}
+
+/**
+ * Returns a NEW `AllBindings` with `actionId` (under `preset`) rebound to
+ * `target`. Only the ONE device array `target` names is replaced —
+ * wholesale, not appended to — so the action's other devices (e.g. its
+ * gamepad binding, if `target` is a keyboard code) are untouched, but
+ * every key/button previously bound to it on `target`'s device stops
+ * working the instant this returns. Never mutates `bindings`.
+ */
+export function rebind(bindings: AllBindings, preset: PresetName, actionId: string, target: RebindTarget): AllBindings {
+  const presetBindings = bindingsForPreset(bindings, preset);
+  const current: ActionBindingDefaults = presetBindings[actionId] ?? { keyboard: [], mouse: [], gamepadButtons: [], gamepadAxes: [] };
+
+  let nextAction: ActionBindingDefaults;
+  switch (target.device) {
+    case 'keyboard':
+      nextAction = { ...current, keyboard: [target.code] };
+      break;
+    case 'mouse':
+      nextAction = { ...current, mouse: [target.button] };
+      break;
+    case 'gamepad':
+      nextAction = { ...current, gamepadButtons: [target.button] };
+      break;
+    case 'gamepadAxis':
+      nextAction = { ...current, gamepadAxes: [{ index: target.index, sign: target.sign }] };
+      break;
+  }
+
+  return {
+    ...bindings,
+    [preset]: { ...presetBindings, [actionId]: nextAction },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Resolution
+// ---------------------------------------------------------------------------
+
+/** This one axis binding's contribution toward its action, in `[0, 1]`: 0 below the deadzone, otherwise the axis's own magnitude (clamped to 1) — NOT collapsed to a boolean. That magnitude is what carries the Classic single-stick contract's "speed as a fraction of top speed" (file header) all the way through to `@/sim/driving`, which reads it via `stick` length; collapsing it here would make every gamepad axis a 3-state (0/+1/-1) digital input no matter how far it's actually pushed. Takes the axis array explicitly (rather than reading `raw.gamepadAxes` itself) so the same function scores both `gamepadAxes` and `touchAxes` against their own threshold. */
+function axisContribution(axes: readonly number[], axis: GamepadAxisBinding, axisThreshold: number): number {
+  const value = axes[axis.index] ?? 0;
+  if (axis.sign > 0) {
+    return value >= axisThreshold ? Math.min(value, 1) : 0;
+  }
+  return value <= -axisThreshold ? Math.min(-value, 1) : 0;
+}
+
+/**
+ * Which drive action each half of the on-screen stick feeds. Fixed, unlike
+ * every map in `controls.json`, because an on-screen stick is not rebindable:
+ * its geometry IS its binding, there is no physical button to reassign. Same
+ * shape and same sign convention as classic's gamepad left-stick bindings, so
+ * `axisContribution` above reads both channels with one rule.
+ */
+const TOUCH_AXIS_ACTIONS: readonly (readonly [actionId: string, axis: GamepadAxisBinding])[] = [
+  ['driveLeft', { index: 0, sign: -1 }],
+  ['driveRight', { index: 0, sign: 1 }],
+  ['driveUp', { index: 1, sign: -1 }],
+  ['driveDown', { index: 1, sign: 1 }],
+];
+
+/** How strongly `binding` is being held this tick, in `[0, 1]`. Digital devices (keyboard/mouse/gamepad buttons, and an on-screen button naming `actionId` directly) are all-or-nothing — pressed contributes exactly 1, matching keyboard's inherent lack of magnitude. A gamepad axis contributes its own analog magnitude via `axisContribution`, and the on-screen stick's half matching `actionId` (per `TOUCH_AXIS_ACTIONS`) is folded in the SAME way against its own `CONTROLS.touch.axisDeadzone`; when more than one analog source applies, the strongest wins — MAX, never a sum, so a held key plus a pushed stick never exceeds 1. */
+function actionStrength(raw: RawInputState, actionId: string, binding: ActionBindingDefaults | undefined, axisThreshold: number): number {
+  if (raw.touchButtonsDown.has(actionId)) return 1;
+  if (binding !== undefined) {
+    for (const code of binding.keyboard) if (raw.keysDown.has(code)) return 1;
+    for (const button of binding.mouse) if (raw.mouseButtonsDown.has(button)) return 1;
+    for (const button of binding.gamepadButtons) if (raw.gamepadButtonsDown.has(button)) return 1;
+  }
+  let strongest = 0;
+  if (binding !== undefined) {
+    for (const axis of binding.gamepadAxes) strongest = Math.max(strongest, axisContribution(raw.gamepadAxes, axis, axisThreshold));
+  }
+  for (const [touchActionId, axis] of TOUCH_AXIS_ACTIONS) {
+    if (touchActionId !== actionId) continue;
+    strongest = Math.max(strongest, axisContribution(raw.touchAxes, axis, CONTROLS.touch.axisDeadzone));
+  }
+  return strongest;
+}
+
+function isActionActive(raw: RawInputState, actionId: string, binding: ActionBindingDefaults | undefined, axisThreshold: number): boolean {
+  return actionStrength(raw, actionId, binding, axisThreshold) > 0;
+}
+
+const DIRECT_SELECT_ORDER: readonly [actionId: string, slot: number][] = [
+  ['weaponDirect1', 0],
+  ['weaponDirect2', 1],
+  ['weaponDirect3', 2],
+  ['weaponDirect4', 3],
+  ['weaponDirect5', 4],
+  ['weaponDirect6', 5],
+  ['weaponDirect7', 6],
+  ['weaponDirect8', 7],
+  ['weaponDirect9', 8],
+  ['weaponDirect0', 9],
+];
+
+/**
+ * Direct weapon-select only (docs/SPEC.md "1-0 direct select"): the first
+ * held digit in 1,2,...,9,0 order maps to slot 0..9, absolute and
+ * stateless. `null` means NO digit is held this tick, which is a different
+ * fact from "slot 0 is asked for" — `resolveInput` below has to flatten the
+ * two together to fill `InputFrame.weaponSlot`, so a caller that owns a
+ * persistent active slot must read this directly rather than that flattened
+ * field, or it can never tell "the player asked for mount 1" from "the
+ * player asked for nothing".
+ *
+ * Cycling (`cyclePressed` below) inherently needs to know the PREVIOUS
+ * tick's active slot to advance from, which a pure
+ * `resolveInput(rawState, preset, bindings)` — deliberately given no
+ * memory of earlier ticks, so it can't drift out of sync with whatever
+ * else reads the same raw state — cannot supply; that persistent slot is
+ * the caller's state to own (see `@/app.ts`'s `makeWeaponSelection`, the
+ * one writer of it, which drives BOTH this and `cyclePressed`).
+ */
+export function directWeaponSlot(raw: RawInputState, preset: PresetName, bindings: AllBindings): number | null {
+  const presetBindings = bindingsForPreset(bindings, preset);
+  const axisThreshold = CONTROLS.gamepadAxisThreshold;
+  for (const [actionId, slot] of DIRECT_SELECT_ORDER) {
+    if (isActionActive(raw, actionId, presetBindings[actionId], axisThreshold)) return slot;
+  }
+  return null;
+
+**Analyzing city marker positioning**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+exec
+/bin/zsh -lc "sed -n '1,240p' src/ui/city-view.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+/**
+ * CITY VIEW: turns a read-only city snapshot into instances for the
+ * existing `@/render/sprite` pipeline (the ground field, every facility's own
+ * hand-painted footprint, a perimeter wall, street furniture, the gate, the
+ * player, and a parked/driven car), plus the structured "why is this closed"
+ * notice a closed daytime facility owes the player instead of a silent
+ * refusal.
+ *
+ * Render-only in the same sense `@/render/**` is: `buildCityInstances` never
+ * mutates its snapshot and never touches `@/sim/**` state — it only reads
+ * `@/sim/city`'s plain-data types and turns them into `SpriteInstanceInput`s
+ * via an already-loaded `AtlasIndex`. It adds no art: every frame name below
+ * is one `assets/atlas.json` already ships.
+ *
+ * THE FACILITY -> FOOTPRINT MAP IS THE WHOLE POINT. The atlas packs 16
+ * individually-authored `building-*` facility footprints (one per
+ * `cities.json` `facilityKinds` entry, plus a spare `building-arena-small`),
+ * and this module used to ignore every one of them — it hashed the facility
+ * kind string down to 1 of 3 generic `tile-roof-*` squares, so a bar rendered
+ * as a generic brown roof. Sixteen paid-for, correct-per-facility drawings
+ * were sitting in the atlas with zero draw calls. `FACILITY_BUILDING_FRAMES`
+ * is now the explicit kind -> frame table, and the hash is gone.
+ *
+ * DETERMINISM. No `Math.random()`, no `Date.now()` — the sim is seeded and has
+ * to replay identically. Every piece of dressing is placed on a concentric
+ * ring around the doorway ring and its *presence* and *kind* are decided by
+ * `placementHash`, an integer mix of the ring's index and the slot's index:
+ * the same (ring, slot) always yields the same prop, forever. This mirrors
+ * `@/render/ground`'s own `cellHash2`, duplicated rather than shared because
+ * `src/render/**`'s ZERO-IMPORTS invariant means it cannot reach `@/util`, and
+ * this file is outside `src/render/**` so it cannot be imported from there
+ * without that invariant breaking.
+ *
+ * NOTHING SITS IN A TRIGGER CIRCLE. `clearsTriggers` is the gate, and every
+ * ring radius below is chosen so the wall, the streetlights and the dressing
+ * all clear `pedestrian.interactionRadiusM` by construction — the rings are
+ * pushed `>= DRESSING_MIN_SETBACK_M` metres OUTWARD past the doorway ring,
+ * and the closest a point on an outward ring can be to a doorway is the
+ * setback itself, so the clearance is an identity rather than a hope. The one
+ * deliberate exception is `prop-doormarker`, whose entire job is to mark the
+ * door it sits under.
+ */
+import { drivingConfig, UnknownRulesetIdError } from '@/data/rulesets';
+import { formatDate, isFacilityOpen, type Clock } from '@/sim/calendar';
+import {
+  alwaysOpenFacilityIn,
+  getCityDef,
+  nextFacilityOpenDayIndex,
+  requireAt,
+  type CityLayout,
+  type CityPlayerState,
+  type Doorway,
+  type Gate,
+} from '@/sim/city';
+import type { Vec2 } from '@/sim/types';
+import { facilityName } from '@/ui/strings';
+import type { AtlasIndex } from '@/render/atlas';
+import { groundQuad, GROUND_TILE_METRES } from '@/render/ground';
+import type { SpriteInstanceInput, Tint } from '@/render/sprite';
+
+// ---------------------------------------------------------------------------
+// Frame names (all already in assets/atlas.json — see the file header)
+// ---------------------------------------------------------------------------
+
+const GATE_FRAME = 'prop-city-gate';
+const PLAYER_FRAME = 'cycle-topdown';
+const WALL_FRAME = 'prop-citywall';
+
+/**
+ * Every `cities.json` `facilityKinds` entry, and the hand-painted footprint
+ * authored FOR IT. Keys are the 15 kinds in `rulesets/classic/cities.json`'s
+ * `facilityKinds` array, which is the authoritative list (`@/data/rulesets`'s
+ * `hasFacilityKind` tests membership against that same array); values are
+ * verified to exist in `assets/atlas.json` as `kind: "building"` frames.
+ *
+ * All 15 have a natural frame, so `FALLBACK_BUILDING_FRAME` is not reached by
+ * any shipped ruleset. It exists only so a future `facilityKinds` addition
+ * degrades to one obviously-wrong-but-valid building instead of throwing
+ * `UnknownAtlasFrameError` and taking the whole city screen down.
+ */
+const FACILITY_BUILDING_FRAMES: Readonly<Record<string, string>> = {
+  garage: 'building-garage',
+  weaponshop: 'building-weaponshop',
+  arena: 'building-arena',
+  salvage: 'building-salvage',
+  bar: 'building-bar',
+  medical: 'building-medical',
+  assembly: 'building-assembly',
+  courierguild: 'building-courierguild',
+  truckstop: 'building-truckstop',
+  casino: 'building-casino',
+  hotel: 'building-hotel',
+  federal: 'building-federal',
+  story: 'building-story',
+  studio: 'building-studio',
+  petshop: 'building-petshop',
+};
+const FALLBACK_BUILDING_FRAME = 'building-assembly';
+
+/**
+ * Footprints for decorative infill buildings, in metres.
+ *
+ * These are deliberately LARGER than a facility's `layout.tileSizeM` (~4.5m),
+ * which is the whole point: a 4.5m building next to a 5.2m car means the car is
+ * longer than the building is wide, and a top-down city reads as nonsense when
+ * that is true. A real building footprint is several car-widths across.
+ *
+ * The range is kept modest (5.5m..9.5m) so a filler still fits the gaps between
+ * the facility ring and the wall without swallowing the perimeter road, and
+ * varied enough that a block of them does not look stamped.
+ */
+const FILLER_SIZES_M: readonly Vec2[] = [
+  { x: 7.5, y: 6.5 },
+  { x: 6.0, y: 8.5 },
+  { x: 9.5, y: 7.0 },
+  { x: 5.5, y: 7.5 },
+];
+
+/**
+ * Frames the infill may reuse — every name verified present in `assets/atlas.json`.
+ *
+ * These are the authored facility footprints, drawn square. `building-assembly`
+ * is in the list as a catch-all so an unmapped kind still renders, matching
+ * FALLBACK_BUILDING_FRAME's role for real facilities.
+ *
+ * Do not add a name here without checking the atlas. A frame name that is not in
+ * the manifest makes `atlasIndex.frame()` throw on the first city render, which
+ * is a confusing way to discover a typo — and it throws for EVERY city, so it
+ * reads as "the city screen is broken" rather than "this array has a bad entry".
+ */
+const FILLER_FRAMES: readonly string[] = [
+  'building-garage',
+  'building-truckstop',
+  'building-assembly',
+  'building-salvage',
+  'building-story',
+  'building-studio',
+  'building-arena',
+  'building-petshop',
+];
+
+/** Matches `src/app.ts`'s own arena vehicle sprite footprint, for visual consistency between the two screens the same car appears on. */
+const VEHICLE_SPRITE_SIZE_M: Vec2 = { x: 3.2, y: 5.2 };
+
+const LAYER_GROUND = 0;
+const LAYER_BUILDING = 1;
+const LAYER_ACTOR = 2;
+
+// ---------------------------------------------------------------------------
+// Ground field
+// ---------------------------------------------------------------------------
+
+/** The `@/render/ground` pool: paving + asphalt, with parking and oil as punctuation. */
+export const CITY_GROUND_POOL = 'city';
+/** The plaza is centred on the world origin (`@/sim/city` lays every doorway out as `radius * (cos, sin)` and never offsets the centre). */
+export const CITY_GROUND_CENTER_M: Vec2 = { x: 0, y: 0 };
+/**
+ * Ground cell edge, in metres. Deliberately NOT `layout.tileSizeM` (3m): at
+ * `app.ts`'s 14 CSS px/m a 3m cell is 42 screen px showing a 256px tile, and
+ * the city sampler is `nearest`, so 3m cells minify ~6x into speckle. 5m
+ * lands at 70px — 3.7x — and still gives ~4 cells across the widest plaza.
+ */
+export const CITY_GROUND_CELL_SIZE_M = 8;
+/**
+ * Half-extent of the ground field, in metres. The old grid covered only
+ * `boundsRadiusM + tileSizeM` (~13.6m for New York) while the camera at
+ * 14 px/m sees ~69m of half-width on a 1920px viewport — that mismatch is the
+ * black screen the city used to sit on. 96m covers a ~2688px-wide viewport at
+ * full zoom; the field is world-aligned, so it never crawls as the camera pans.
+ */
+export const CITY_GROUND_HALF_EXTENT_M = 60;
+/** Per-cell brightness jitter; breaks up the flat value a 5-frame/4-rotation/2-flip pool otherwise has. */
+export const CITY_GROUND_VALUE_JITTER = 0.06;
+/** Distinct from `@/render/ground`'s own default salt so the city field is not a clone of the road/arena one. */
+export const CITY_GROUND_SALT = 0x0c17b1a5;
+
+// ---------------------------------------------------------------------------
+// Contact shadows
+// ---------------------------------------------------------------------------
+
+/**
+ * The scene has no lighting, so `sprite.wgsl` IS the lighting model: an
+ * instance with `shadowSoftness > 0` replaces its own colour with a radial
+ * falloff computed from the quad's local position (see the shader's `fs_main`),
+ * which means a shadow costs no atlas frame and no new draw call — it is just
+ * another instance carrying the same `uvRect`, tinted black, emitted
+ * IMMEDIATELY BEFORE the thing it shadows so painter's-algorithm order within
+ * the layer puts it underneath.
+ *
+ * It also means the sampled texture is ignored entirely, so the shadow is a
+ * soft ellipse, not the sprite's silhouette. It therefore has to be grown
+ * past the object's own footprint and pushed away from the light, or the
+ * object paints straight back over all of it.
+ */
+/**
+ * How much bigger a shadow is than its caster.
+ *
+ * This was 1.16, which is the same mistake `src/app.ts` had: at 1.16 the soft
+ * disc barely clears the opaque sprite painting over it, so a vehicle's shadow
+ * was a sub-pixel rim and a building's was a thin outline. It needs enough
+ * growth that a clear band of shadow survives past the caster on the shadow
+ * side, which for the 3.2 x 5.2 m car means roughly 1.9.
+ */
+const SHADOW_GROWTH = 1.9;
+/**
+ * Light from the upper-left, so shadows fall down-right (+x, -y in the Y-up
+ * world). Sized to actually clear the caster: at the old 0.55/-0.5 the offset
+ * was smaller than the shadow's own margin, so almost none of it was visible.
+ */
+const SHADOW_OFFSET_M: Vec2 = { x: 1.0, y: -0.9 };
+/**
+ * Contact shadow for static architecture.
+ *
+ * These were soft (0.8) and faint (0.42) because a big soft blob under every
+ * building muddied the map. But once iteration 16 graded the buildings toward
+ * the ground's cool slate to stop them reading as a collage of unrelated source
+ * art, the grade took away the VALUE separation too — and a review immediately
+ * reported the result: "the gray building sprites lack drop shadows or distinct
+ * outlines against the similar-toned blue-gray ground, making them look flat".
+ *
+ * Measured on the real frame, the old values gave a building/ground luminance
+ * gap of 20 on one building and 4 on another — i.e. separation that depended on
+ * whatever value a given piece of source art happened to have. Tightening the
+ * falloff and raising the peak puts a consistent dark contact under EVERY
+ * building, so legibility no longer rides on the art.
+ */
+const BUILDING_SHADOW_SOFTNESS = 0.3;
+const BUILDING_SHADOW_OPACITY = 0.62;
+
+/**
+ * The entrance marker's ground shadow.
+ *
+ * First shipped at 0.9 / 0.5, chosen to keep the marker reading as flat signage
+ * lying on the ground rather than as a solid mass casting a tight contact. A
+ * review has now reported the markers as "floating randomly in space above
+ * buildings WITHOUT shadows, ground rings, or stems" — which is iteration 53's
+ * finding again, one round later, and the marker precedent applies exactly as it
+ * did for the size complaints in iterations 19 and 20: a reviewer who has
+ * already seen the fix and still cannot see it is telling you the NUMBER was too
+ * small, not that the report was wrong.
+
+**Confirming no agent needed**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Reviewing job stub and modal**
+**Assessing UI layout across devices**
+**Requesting elapsed time update**
+codex
+All three gameplay screens are now captured at DPR 2. The city’s blue “Jobs” marker I entered led to a Federal Building placeholder, so I’m checking the other job venues before treating that as a broader gap. Road distance correctly ignores sideways driving; I’ve ruled out that potential finding.
+mcp: playwright/browser_snapshot started
+mcp: playwright/browser_snapshot (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+**Calculating movement timing and positions**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+exec
+/bin/zsh -lc "rg -n 'label|proxim|nearest|facilityName|showCity|doorwayLabel|zoom|cssPixelsPer' src/app.ts src/ui/city-view.ts | head -100" in /Users/shoemoney/Projects/smduel
+ succeeded in 6ms:
+src/ui/city-view.ts:56:import { facilityName } from '@/ui/strings';
+src/ui/city-view.ts:160: * the city sampler is `nearest`, so 3m cells minify ~6x into speckle. 5m
+src/ui/city-view.ts:169: * full zoom; the field is world-aligned, so it never crawls as the camera pans.
+src/ui/city-view.ts:274: * invariant is what keeps the buffer count exact instead of approximately so.
+src/ui/city-view.ts:988: * `showCity` calls `buildCityInstances` once per rendered frame and then filters
+src/ui/city-view.ts:1068: * should LOOK, and the city's camera is zoomed far tighter than the arena's
+src/ui/city-view.ts:1289: * no always-open facility). Every label is sourced through
+src/ui/city-view.ts:1290: * `@/ui/strings`'s `facilityName` — no hardcoded copy.
+src/ui/city-view.ts:1313:  const facilityLabel = facilityName(facilityKind);
+src/ui/city-view.ts:1321:  const alternativeLabel = alternative === null ? null : facilityName(alternative);
+src/app.ts:191:import { cityName, facilityName, t } from '@/ui/strings';
+src/app.ts:645: * inherits their 44px minimum target, `aria-label` and corner stacking for
+src/app.ts:663:      labelKey: 'ui.touch.cycleWeapon',
+src/app.ts:779:    { id: 'new-driver', label: t('ui.title.newDriver'), eligible: true },
+src/app.ts:780:    { id: 'controls', label: t('ui.title.controls'), eligible: true },
+src/app.ts:783:    actions.unshift({ id: 'continue', label: t('ui.title.continue'), eligible: true });
+src/app.ts:829:    { id: 'cycle-preset', label: t('ui.controls.presetRow', { preset: currentControlPreset }), eligible: awaitingActionId === null },
+src/app.ts:832:    const label =
+src/app.ts:841:    actions.push({ id: `rebind-${actionId}`, label, eligible: awaitingActionId === null });
+src/app.ts:920:  const nameLabel = el('label', undefined, t('ui.driverCreation.nameLabel'));
+src/app.ts:950:    const label = el('span', undefined, skillName);
+src/app.ts:958:    row.appendChild(label);
+src/app.ts:1875: * tracks zoom and device pixel ratio without a second source of truth. The
+src/app.ts:1885: * How far to zoom out, in metres, so the city's own bounds fill the viewport.
+src/app.ts:1894: * small city does not zoom to an unreadable blur, and a very wide window does
+src/app.ts:1925: * This was 40 while the arena/road zooms sat at 17/15, which meant the ceiling
+src/app.ts:1927: * the ceiling stays a genuine clamp as the scene zooms in.
+src/app.ts:1938: * Arena/event zoom, in pixels per metre.
+src/app.ts:1955: * Road zoom. Tighter than the arena was, but a little wider than the arena for
+src/app.ts:1966: * The road gets a smaller bump on purpose. Its zoom is wider than the arena's
+src/app.ts:1980: * binds as the scene zooms in rather than being decorative.
+src/app.ts:1998:    label: SCENE_TEXTURE_LABEL,
+src/app.ts:2026:    label: 'world-sprites',
+src/app.ts:2033:    label: 'atlas-0',
+src/app.ts:2101:      label: 'post-grade',
+src/app.ts:2162:  const encoder = device.createCommandEncoder({ label: 'frame' });
+src/app.ts:2165:    label: 'scene',
+src/app.ts:2172:    label: 'post-grade',
+src/app.ts:2525:   * The banner was one element carrying a mode label, three control hints and
+src/app.ts:2534:   * mid-string looks like a log line, where a complete, labelled one looks like
+src/app.ts:2541:   * spoken for, so the stamp tucks under the one control it is nearest to.
+src/app.ts:2570:  // label/content mismatch as the defect.
+src/app.ts:3148: * control straight back to `showCity` with the SAME `runState` the delivery
+src/app.ts:3160:  const actions: MenuAction[] = victorySummaryLines(summary).map((label, index) => ({
+src/app.ts:3162:    label,
+src/app.ts:3164:    reason: label,
+src/app.ts:3166:  actions.push({ id: LEAVE_ACTION_ID, label: t('victory.continue'), eligible: true });
+src/app.ts:3357:  nameField.setAttribute('aria-label', t('ui.arena.scoreSubmit.nameLabel'));
+src/app.ts:3374:      { id: 'arcade-score', label: t('ui.arena.scoreSubmit.score', { score: payload.score }), eligible: false },
+src/app.ts:3375:      { id: 'arcade-wave', label: t('ui.arena.scoreSubmit.wave', { wave: payload.wave }), eligible: false },
+src/app.ts:3376:      { id: 'arcade-kills', label: t('ui.arena.scoreSubmit.kills', { kills: payload.kills }), eligible: false },
+src/app.ts:3377:      { id: 'arcade-headshots', label: t('ui.arena.scoreSubmit.headshots', { headshots: payload.headshots }), eligible: false },
+src/app.ts:3378:      { id: 'arcade-duration', label: t('ui.arena.scoreSubmit.duration', { duration: payload.duration }), eligible: false },
+src/app.ts:3381:      rows.push({ id: 'arcade-status', label: t('ui.arena.scoreSubmit.statusSubmitting'), eligible: false });
+src/app.ts:3385:        label: t('ui.arena.scoreSubmit.statusAccepted', { rank: status.rank !== null ? status.rank : '—' }),
+src/app.ts:3389:      rows.push({ id: 'arcade-status', label: t('ui.arena.scoreSubmit.statusFailed', { error: status.error }), eligible: false });
+src/app.ts:3393:      label: t('ui.arena.scoreSubmit.submit'),
+src/app.ts:3396:    rows.push({ id: LEAVE_ACTION_ID, label: t('ui.arena.scoreSubmit.skip'), eligible: true });
+src/app.ts:3874: * `showCity` normalizes on the way IN for that reason, and has to do the same on
+src/app.ts:3890: * closure inside `showCity`, and a test written against a reimplementation of
+src/app.ts:3999:    label: 'city-sprites',
+src/app.ts:4006:    label: 'city-atlas-0',
+src/app.ts:4131:      label: fleetRowLabel(entry, runState.cityId),
+src/app.ts:4178: * `DayPhase` -> its strings.json label key, `satisfies Record<DayPhase, string>`
+src/app.ts:4180: * unlabeled phase. Shared by `showCity`/`showRoad`'s own status lines.
+src/app.ts:4193:function showCity(root: HTMLElement, state: CityRunState): void {
+src/app.ts:4285:   * This is deliberately ONE label, not a name on every door. Iteration 72
+src/app.ts:4286:   * declined "a label plate above each marker" for a good reason — a dozen
+src/app.ts:4288:   * the most contested element in the game. A single proximity readout answers
+src/app.ts:4294:   * `facilityName` is the same lookup the doorway trigger uses, so the label
+src/app.ts:4297:  const nearestFacility = el('div');
+src/app.ts:4298:  nearestFacility.style.cssText =
+src/app.ts:4307:  // were: 11px was the "secondary labels" step, chosen by eye when the legend
+src/app.ts:4311:  // mean - so it reads as the `stats` step, not a secondary label. A review
+src/app.ts:4319:  for (const [label, tint] of [
+src/app.ts:4332:    text.textContent = label;
+src/app.ts:4348:  container.appendChild(nearestFacility);
+src/app.ts:4417:        () => showCity(root, runState),
+src/app.ts:4459:            showCity(root, runState);
+src/app.ts:4461:          () => showCity(root, runState),
+src/app.ts:4476:          showCity(root, runState);
+src/app.ts:4499:    // state — one more place for the label and the behaviour to disagree.
+src/app.ts:4504:      label: t('ui.city.routeOption', { city: cityName(n.neighborCityId), miles: n.route.lengthMiles, danger: n.route.danger }),
+src/app.ts:4533:        showRoad(root, runState, trip, (nextState) => showCity(root, nextState));
+src/app.ts:4579:      { id: 'enterExitCar', labelKey: 'ui.touch.enterExitCar', onPress: doToggleVehicle },
+src/app.ts:4580:      { id: 'fleet', labelKey: 'ui.touch.fleet', onPress: openFleetScreen },
+src/app.ts:4581:      { id: 'journal', labelKey: 'ui.touch.journal', onPress: openJournalScreen },
+src/app.ts:4590:      showCity(root, runState);
+src/app.ts:4754:   * Show the nearest facility's name while the player is close enough to enter
+src/app.ts:4759:   * `interactionRadiusM`), so the label appears exactly when the door would
+src/app.ts:4779:        // destinations". A label that names a state the player cannot otherwise
+src/app.ts:4783:          ? facilityName(doorway.facilityKind)
+src/app.ts:4784:          : t('ui.city.stripClosed', { facility: facilityName(doorway.facilityKind) });
+src/app.ts:4788:      nearestFacility.style.display = 'none';
+src/app.ts:4793:    if (nearestFacility.textContent !== bestName) nearestFacility.textContent = bestName;
+src/app.ts:4794:    nearestFacility.style.color = bestOpen ? '#d7e0ea' : '#9fb0c2';
+src/app.ts:4795:    nearestFacility.style.display = 'flex';
+src/app.ts:5019: * have to be authored at the camera's zoom to avoid looking stretched, and its
+src/app.ts:5395:  progress.setAttribute('aria-label', t('ui.road.progressLabel'));
+src/app.ts:5694:      { id: 'searchWreck', labelKey: 'ui.touch.searchWreck', onPress: trySearchWreck, initiallyVisible: false },
+
+**Reviewing city source and rendering details**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_snapshot started
+mcp: playwright/browser_snapshot (completed)
+**Adjusting movement timing**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_snapshot started
+mcp: playwright/browser_snapshot (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+ERROR: Reconnecting... 1/5
+**Analyzing bug in vehicle and loaner logic**
+mcp: playwright/browser_click started
+mcp: playwright/browser_click (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_wait_for started
+mcp: playwright/browser_wait_for (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Handling live capture risk**
+codex
+I found a concrete entry problem: I walked to the arena, but Amateur Night was disabled with “entered on foot” as its reason. I also entered Division 5 and pressed Escape; combat continued and the left armour dropped from 2/2 to 0/2 within three seconds. I’m checking the remaining combat controls and the HUD at a shorter viewport.
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+ERROR: Reconnecting... 1/5
+ERROR: Reconnecting... 2/5
+**Analyzing HUD inconsistencies**
+mcp: playwright/browser_resize started
+mcp: playwright/browser_resize (failed)
+MCP tool call requires approval, but approval policy is never
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_wait_for started
+mcp: playwright/browser_wait_for (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_resize started
+mcp: playwright/browser_resize (failed)
+MCP tool call requires approval, but approval policy is never
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Analyzing travel time discrepancies**
+**Verifying gate drive and combat actions**
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_wait_for started
+mcp: playwright/browser_wait_for (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+exec
+/bin/zsh -lc "rg -n 'scale|multiplier|lengthMiles|maxSpeed|topSpeed|timeScale|simTime' src/sim/road.ts src/sim/driving.ts src/app.ts rulesets/classic/vehicles.json | head -90" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+rg: rulesets/classic/vehicles.json: No such file or directory (os error 2)
+src/sim/road.ts:6: * route-length arrival, danger-scaled encounter generation, contact
+src/sim/road.ts:332:  const expectedSpawns = tier.spawnsPerHundredMiles * (route.lengthMiles / 100);
+src/sim/road.ts:339:    const routeMiles = ((i + rng.nextFloat()) / rollCount) * route.lengthMiles;
+src/sim/road.ts:364:    const routeMiles = rng.nextFloat() * route.lengthMiles;
+src/sim/road.ts:570:  return milesIntoRoute(state) >= state.resolved.route.lengthMiles;
+src/sim/road.ts:591:  const total = routes.reduce((sum, r) => sum + r.lengthMiles, 0);
+src/sim/road.ts:593:    throw new RangeError('cities.json: routes must be non-empty with a positive total lengthMiles to derive a road day-cost rate');
+src/sim/road.ts:600: * this rate times its OWN `lengthMiles`, so a route four times longer than
+src/sim/road.ts:603: * of the route covered (`milesMoved / route.lengthMiles`), which always
+src/sim/road.ts:711:/** Crossing the destination gate transfers into that city (SPEC "Road"); null until the odometer actually reaches the route's lengthMiles. */
+src/sim/road.ts:720:  /** The player, now on foot at the same spot. Reusing `@/sim/world`'s `PedestrianState` (no vehicle, no armor, no weapons) is what gives them "poor odds" — no separate odds multiplier is invented here. */
+src/sim/driving.ts:206:/** Signed tire-condition contribution shared by the continuous handling multiplier and the discrete control check: a bonus per intact tire scaled by its remaining integrity, a flat penalty per destroyed tire. */
+src/sim/driving.ts:226:/** The multiplier applied to `baseTurnRateDegPerSec`, combining suspension class, driver skill, tire integrity, and surface. 0 at the low end (cannot meaningfully steer), uncapped at the high end. */
+src/sim/driving.ts:352:  const topSpeedMph = Math.max(1, plant.topSpeedMph);
+src/sim/driving.ts:392:      const desiredSpeedMph = Math.min(stickLen, 1) * topSpeedMph;
+src/sim/driving.ts:439:    const speedFraction = clamp(Math.abs(startSpeedMph) / topSpeedMph, 0, 1);
+src/sim/driving.ts:449:    const speedFraction = clamp(Math.abs(startSpeedMph) / topSpeedMph, 0, 1);
+src/sim/driving.ts:510:  const speedFractionForBattery = clamp(Math.abs(speedMph) / topSpeedMph, 0, 1);
+src/app.ts:1294:/** A road opponent's `decideAI` hazard-avoidance box, centered on the player each tick (the road has no fixed arena floor to bound against) — sized off `driving.json`'s own `radar.visualRangeM` scaled by its sibling `radar.aiHazardBoxRangeMultiplier`, never a literal, so a contact engaged at the very edge of visual range still has room to maneuver before hitting the box wall. */
+src/app.ts:1300:/** How close the player's vehicle must be to a `RoadWreck` to search it — `driving.json`'s own `collision.vehicleSeparationM` scaled by its sibling `collision.wreckSearchRangeMultiplier`, never a literal. */
+src/app.ts:1305:/** Distance within which a passed `peaceful` contact triggers the one-time "traffic passing" notice — `collision.vehicleSeparationM` scaled by its sibling `collision.trafficPassRangeMultiplier`, never a literal. */
+src/app.ts:1946: * the downscale, and every other visual problem (missing shadow, weak ground)
+src/app.ts:2221: * How much bigger a shadow is than its caster, as a multiplier.
+src/app.ts:2238: * 0.62 / 0.5 on the reasoning that "a reviewer only ever sees a downscaled
+src/app.ts:2307:  const scale = GROUND_TILE_METRES[pool] ?? { tileMetres: 24, detailScale: 8.3 };
+src/app.ts:2314:      tileMetres: scale.tileMetres,
+src/app.ts:2315:      detailScale: scale.detailScale,
+src/app.ts:2653:  let hudSettings: HudSettings = { scale: 1, radarOrientation: 'world', reducedFlash: false, reducedShake: false };
+src/app.ts:2708:    // fair description of what a downscaled frame does to that string.
+src/app.ts:2762:    // shader, cross-faded against a second non-commensurate detail scale, so
+src/app.ts:3563:  let hudSettings: HudSettings = { scale: 1, radarOrientation: 'world', reducedFlash: false, reducedShake: false };
+src/app.ts:4231:  // inconsistency. Note it tracks `--ui-text-base` only — `--hud-scale` reaches
+src/app.ts:4306:  // Size and colour are on the token scale rather than hardcoded, which they
+src/app.ts:4504:      label: t('ui.city.routeOption', { city: cityName(n.neighborCityId), miles: n.route.lengthMiles, danger: n.route.danger }),
+src/app.ts:4679:    // cities and 10.65m for New York — it scales with facility count, since
+src/app.ts:5020: * period would be baked in at a fixed world scale. One short bar is instead
+src/app.ts:5226:  const scale = GROUND_TILE_METRES['road']!;
+src/app.ts:5263:    tileMetres: scale.tileMetres,
+src/app.ts:5266:    detailScale: scale.detailScale * 0.62,
+src/app.ts:5388:  // Deliberately built with two stacked elements and a `transform: scaleX` fill
+src/app.ts:5768:  let hudSettings: HudSettings = { scale: 1, radarOrientation: 'world', reducedFlash: false, reducedShake: false };
+src/app.ts:6031:    const remainingMiles = Math.max(0, Math.round(trip.resolved.route.lengthMiles - trip.progressMiles));
+src/app.ts:6041:    const routeFraction = trip.resolved.route.lengthMiles > 0
+src/app.ts:6042:      ? Math.max(0, Math.min(1, trip.progressMiles / trip.resolved.route.lengthMiles))
+src/app.ts:6044:    progressFill.style.transform = `scaleX(${routeFraction})`;
+
+**Analyzing route pacing constraints**
+**Testing offroad driving and collision behavior****Improving log display and screenshot handling**
+ERROR: Reconnecting... 1/5
+**Analyzing game pacing and city interactions****Mapping movement paths and trigger areas**
+codex
+The largest issue is route pacing: the 150-mile Albany trip uses real miles at real-time driving speed. The starter car tops out at 70 mph, so that drive takes at least 2 hours 8 minutes, with no fast-forward during the trip. I also confirmed that the arena’s “drive out the gate” instruction describes an exit interaction that does not exist; the working exit is Leave Arena.
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_wait_for started
+mcp: playwright/browser_wait_for (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_snapshot started
+mcp: playwright/browser_snapshot (completed)

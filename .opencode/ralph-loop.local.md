@@ -5533,13 +5533,18 @@ RESEARCH 2026-09-30 — iteration 99: two of my own findings refuted by measurem
          spawns-per-100mi and real-minutes-per-mile BOTH scale with route
          length, so their quotient barely moves. The two lowest-density
          routes per minute are 80 mi and 150 mi, not 40.
-       - the real, much smaller defect is in the OPPOSITE direction: on the
-         LONGEST routes, `spawnsPerHundredMiles * length` wants more contacts
-         than `spawnBudget` allows, so the budget truncates the roll (e.g.
-         washington-pittsburgh 240 mi wants 10.08, budget 8 -> 2 dropped;
-         buffalo-pittsburgh 220 mi -> 1 dropped). That is a real
-         budget-vs-density disagreement, but it is the opposite claim from the
-         one I published, and it is a tuning question, not an inversion.
+       - the real, much smaller disagreement is in the OPPOSITE direction: on
+         the LONGEST routes, `spawnsPerHundredMiles * length` wants more
+         contacts than `spawnBudget` allows, so the cap truncates the roll
+         (e.g. washington-pittsburgh 240 mi wants 10.08, budget 8). **I then
+         half-retracted this within the same round**: `spawnBudget` is a
+         documented per-trip CAP, `encounters.json` carries the `_note` "the
+         source never published spawn budgets", SPEC lists spawn budgets among
+         the explicitly non-exact tunables, and BOTH knobs are registered in
+         `fidelity-notes.yaml` at confidence 0.3. So the truncation is the cap
+         working exactly as designed, and it is NOT a finding. Recorded here
+         rather than quietly dropped, because "I found a second thing and then
+         disproved it too" is the honest state of this round.
 
 - WHY THIS ROUND IS WORTH THE ENTRY despite shipping nothing: iteration 97
   told the next iteration to "fix" short-route emptiness, and the obvious fix
@@ -5556,7 +5561,8 @@ RESEARCH 2026-09-30 — iteration 99: two of my own findings refuted by measurem
   `index-AJyF_mpX.js`, `.shots/iter98` 8 screens / 0 problems). Not re-run
   because nothing was edited; recorded as inherited, and re-run next code
   round.
-- STILL QUEUED (relabelled, both corrections applied): the structural pacing
-  decision (97, real), the LONG-route budget-vs-density truncation (99, real
-  and small), the UNBUILT on-foot mode (99, relabelled from "unwired"), and a
-  persistent "surface a failed save" message (93, real).
+- STILL QUEUED (relabelled, all three encounter/abandon claims resolved): the
+  structural pacing decision (97, real), the UNBUILT on-foot mode (99,
+  relabelled from "unwired"), and a persistent "surface a failed save" message
+  (93, real). The short-route inversion and the long-route budget truncation
+  are BOTH refuted — do not "fix" either.
