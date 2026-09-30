@@ -4824,3 +4824,114 @@ DEPLOY 2026-09-30 — iteration 92 to arcade.shoemoney.com
   "mi, danger". A plausible-looking refusal from the wrong menu is a new
   flavour of the crop-that-disagrees-with-the-code trap, and the check that
   separates them is one regex on the labels.
+
+93. NEW REVIEWER (Codex `gpt-6.1-sol`, gameplay screens, driving the live
+   deployment at 2400x2020 DPR 2) -> 5 findings + 1 content gap. **Finding 1 is
+   the most serious defect in this log: driving the car silently destroyed the
+   player's save.** Executed this iteration; the other four are queued below.
+
+   - **"The live browser logged `autosave failed SaveMigrationError` ... The
+     city continued normally without displaying a save failure."**
+     CONFIRMED and reproduced before changing anything.
+     `@/sim/driving` adds `batteryDebt` to the vehicle on the first tick and
+     `controlLossSpinSign` when a control-loss lockout begins.
+     `vehicleStateSchema` is built by `obj()`, which sets
+     `additionalProperties: false` (schema.ts:50), and declared NEITHER field.
+     So driving for one tick made every autosave throw, and
+     `persistArenaSession` caught it into a `console.warn` (app.ts:2433).
+     Reproduced with the real `migrateSave` and the real `SaveGame` shape:
+       "save blob does not match schema v2: /vehicles/v1 must NOT have
+        additional properties" — for BOTH fields.
+     The player-visible consequence: a player who drove, then reloaded, lost
+     everything since their last successful save, with nothing on screen and
+     nothing but a console line to suggest why.
+   - **THE TYPE'S OWN COMMENT PROMISED THE EXACT THING THE SCHEMA PREVENTED.**
+     `VehicleState.batteryDebt` is documented as living on the vehicle "so it
+     survives a save/load round-trip" (types.ts:681). Documented intent in one
+     file, enforced behaviour contradicting it in another, green suite
+     throughout. Same shape as iteration 32's `--ui-surface-2` — a rule that
+     reads correctly in the file that declares it — except the blast radius was
+     a player's progress rather than a panel's fill.
+   - FIXED: both fields added to `vehicleStateSchema`, and BOTH OPTIONAL via an
+     explicit `required` list, because `obj()` defaults `required` to every
+     declared property and a save written before either field existed must
+     still load. Ranges are what the sim actually produces: `batteryDebt` is
+     asserted `minimum: 0` with the top left open, because `stepDriving` floors
+     the accumulated debt and carries the remainder so a saved value is in
+     [0, 1) — a hard `maximum: 1` would reject a legitimate 0.99999999 from a
+     subtract that was not exact. `controlLossSpinSign` is `enum: [-1, 1]`,
+     because it is documented as a direction and only ever holds those two.
+
+   - **THE TEST IS A CLASS GUARD, NOT A REGRESSION TEST.** It drives a car with
+     the REAL `stepDriving` and validates with the REAL `migrateSave`, so the
+     next field the sim grows fails here rather than in a player's browser. A
+     test asserting only "batteryDebt is accepted" would have passed while the
+     same hole reopened one field over.
+     It also asserts the sim really did add the field, so a future change that
+     stopped adding it cannot leave the test vacuously green.
+     FIVE tests, THREE mutations, each firing on exactly the right ones:
+       remove the fields (the shipped bug) -> the 2 driving tests fail, the
+         pristine and corruption tests stay green
+       make the fields REQUIRED           -> SIX PRE-EXISTING tests fail, so
+         that trap was already covered by the file's own round-trip suite
+       drop the validation to plain NUM    -> exactly the 2 corruption tests
+         fail, because a permissive schema is not a fix
+   - The corruption tests are the other half of the guard: a negative debt
+     would make battery drain stop accumulating forever, which
+     `driving.ts:317` has an explicit comment about, and a spin sign of 0 is
+     not a direction.
+   - **THREE MORE FIXTURE ERRORS IN ONE BLOCK, the ninth, tenth and eleventh in
+     this log.** `makeGame` in `save.test.ts` takes `Partial<SaveGame>` and
+     builds its own vehicle, so passing a VehicleState spread that vehicle's
+     sixteen keys into the save ROOT and produced a wall of `/ must NOT have
+     additional properties` pointing at the wrong object entirely. Then that
+     file's `makeVehicle` uses placeholder design ids like `body-standard`,
+     which are fine for shape-only schema tests and threw
+     `UnknownRulesetIdError` the moment `stepDriving` called `getBody` for
+     real. And before both, a first attempt guessed the save format outright
+     (`location: {kind:'city'}`, `driver: {}`) and failed on the PRISTINE case
+     too. Every one of the three was caught by a guard doing its job on input
+     that was not real, which is the good outcome, and every one cost more than
+     reading the neighbouring test file would have.
+
+   - STILL OPEN FROM THIS FINDING, deliberately not built at the end of a long
+     round: the reviewer's other half — "Surface a failed save with a
+     persistent, actionable message". `PersistSessionInput` has no notification
+     hook and both call sites are `void persistArenaSession(...)`, fire and
+     forget, so surfacing this means adding a channel with real design
+     questions (where it appears, whether it persists across the reload that
+     loses the progress, whether it blocks). Worth doing properly; not worth
+     half-doing now. The schema fix removes the failure that was actually
+     occurring, so what remains is the quota/private-browsing path.
+
+   GATE: tsc clean, 67 files / 1465 tests (5 new, mutation-proven), 5 browser
+   tests, build clean (`index-hYG6SXgS.js`), `.shots/iter93` = 8 screens /
+   0 problems, every screen BYTE-IDENTICAL to iteration 92 — correct, a save
+   schema renders nothing. The 4 failures are the measured `screens.test.ts`
+   flake (master full runs: 4 and 2; branch: 4; same file, same test).
+
+   QUEUED FROM THE SAME REVIEW, not yet actioned:
+   - **#2 BALANCE, and it is the biggest open design item in the log:** an
+     ordinary 150-mile leg takes ~129 minutes of continuous driving at the
+     car's 70 mph ceiling, measured by the reviewer from 1.6 miles in ~80
+     seconds. Target 2-5 minutes per leg, compressing travel BETWEEN encounters
+     and leaving real speed for the encounter itself. This touches route
+     length, resource costs and calendar time together, so it needs its own
+     iteration with those three measured — not a constant nudged blind.
+   - **#3 "Space/J fire" is a lie:** the hint advertises Space, the shipped
+     binding is KeyJ only. Either bind Space or generate the hint from the
+     active bindings so a rebind cannot make the instructions stale.
+   - **#4 facility names arrive too late:** iteration 90 deliberately tied the
+     proximity label's radius to the doorway trigger's radius. The reviewer's
+     counter-argument is strong — at a larger radius you would see "Federal
+     Building — Closed" on approach instead of discovering it by entering.
+   - **#5 the weapons panel still truncates at 1200px** ("Machine Gun" ->
+     "Machin…") and the active-row triangle wraps to a second line. My
+     iteration-92 fix was verified at 1440px only; the reviewer tested 1200 and
+     found the narrower case. The browser test I added pins 1440 and needs a
+     narrow-viewport case, exactly the phone-width precedent already in the repo.
+   - **CONTENT GAP: the Federal Building is a placeholder presented as a working
+     service**, with the same bright blue Jobs marker as real destinations, so
+     a player spends navigation effort to be told "coming in a future phase".
+     Pairs with #4: a "Closed" state on approach fixes both the wasted
+     navigation and the misleading availability signal.

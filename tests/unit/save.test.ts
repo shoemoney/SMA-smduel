@@ -20,6 +20,8 @@ import { CURRENT_SCHEMA_VERSION, SaveMigrationError, migrateSave, type SaveGameV
 import { makeArmorRecord, type DriverState, type VehicleState } from '@/sim/types';
 import { createWorld, type World } from '@/sim/world';
 import { createRng } from '@/util/rng';
+import { stepDriving } from '@/sim/driving';
+import type { DriveInput, Rng } from '@/sim/driving';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -512,5 +514,129 @@ describe('schema migration', () => {
     const loaded = await load(db);
     expect(loaded.generation).toBe(0);
     expect(loaded.game.driver.name).toBe('Duke');
+  });
+});
+
+/**
+ * The save schema must accept whatever the SIMULATION produces.
+ *
+ * Found by Codex `gpt-6.1-sol` driving the live build and reading the console:
+ * `autosave failed SaveMigrationError`. `@/sim/driving` adds `batteryDebt` to
+ * the vehicle on the first tick, `vehicleStateSchema` is built with
+ * `additionalProperties: false`, and neither field was declared — so driving
+ * the car for a single tick made every autosave throw, and
+ * `persistArenaSession` caught it into a `console.warn`. The city carried on
+ * normally, so a player who reloaded lost everything since their last
+ * successful save and was never told.
+ *
+ * `batteryDebt`'s own type comment claims it lives on the vehicle "so it
+ * survives a save/load round-trip", which is precisely what the schema
+ * prevented. Documented intent and enforced behaviour, contradicting each other
+ * across two files, with a green suite throughout — the same shape as
+ * iteration 32's `--ui-surface-2`, except the blast radius was a player's save.
+ *
+ * THIS TEST IS DELIBERATELY A CLASS GUARD, not a regression test for the two
+ * fields. It drives a car with the REAL `stepDriving` and validates the result
+ * with the REAL `migrateSave`, so the next field the sim grows gets caught here
+ * rather than in a player's browser. A test that asserted `batteryDebt` is
+ * accepted would have passed while the same hole reopened one field over.
+ */
+describe('a driven vehicle round-trips through save validation', () => {
+  /**
+   * A vehicle with REAL ruleset ids, unlike this file's `makeVehicle` above,
+   * whose design uses placeholder ids like `body-standard`. That never mattered
+   * for schema tests, which only check shape and resolve nothing — and it
+   * mattered immediately here, because `stepDriving` calls `getBody`/`getPlant`
+   * for real and threw `UnknownRulesetIdError`. Another reminder that a fixture
+   * borrowed from a neighbouring concern can be quietly wrong for yours: this
+   * one was correct for the file it lives in and invalid the moment it was used
+   * for anything that reads the ruleset.
+   */
+  function makeDrivableVehicle(overrides: Partial<VehicleState> = {}): VehicleState {
+    return makeVehicle({
+      design: {
+        name: 'Drivable', bodyId: 'subcompact', chassisId: 'standard', suspensionId: 'light',
+        plantId: 'medium', tireId: 'standard', armor: makeArmorRecord(0), weapons: [],
+      },
+      ...overrides,
+    } as Partial<VehicleState>);
+  }
+
+  /** Renders exactly 0.0 for every `next()`, so a control-loss roll is deterministic. */
+  function zeroRng(): Rng {
+    return { next: () => 0, state: { draws: 0, seedKey: 0 } } as unknown as Rng;
+  }
+
+  function drive(vehicle: VehicleState, input: DriveInput, ticks: number): VehicleState {
+    let v = vehicle;
+    for (let i = 0; i < ticks; i++) {
+      v = stepDriving({ vehicle: v, input, dtSeconds: 1 / 60, rng: zeroRng(), drivingSkill: 50, surface: 'normal' }).vehicle;
+    }
+    return v;
+  }
+
+  /**
+   * A save carrying `vehicle`, built through the file's own `makeGame`.
+   *
+   * `makeGame` takes `Partial<SaveGame>` overrides and builds its own vehicle
+   * internally, so passing a VehicleState to it spreads that vehicle's sixteen
+   * keys into the save ROOT — which fails validation for a reason that has
+   * nothing to do with the fields under test. That was the ninth fixture-shape
+   * error in this log and the second in this one file alone; the symptom was a
+   * wall of `/ must NOT have additional properties` pointing at the root, and
+   * the fix is to override the two keys that actually hold vehicles.
+   */
+  function gameWith(vehicle: VehicleState): SaveGame {
+    const base = makeGame();
+    const snapshot = { ...base.lastSafeCitySnapshot, vehicles: { [vehicle.id]: vehicle }, activeVehicleId: vehicle.id };
+    return { ...base, vehicles: { [vehicle.id]: vehicle }, activeVehicleId: vehicle.id, lastSafeCitySnapshot: snapshot };
+  }
+
+  function expectSaves(vehicle: VehicleState): void {
+    expect(() => migrateSave(structuredClone(gameWith(vehicle)))).not.toThrow();
+  }
+
+  it('saves a vehicle the sim has actually driven', () => {
+    const driven = drive(makeDrivableVehicle(), { stick: { x: 0, y: 1 } }, 30);
+    // Prove the sim really did grow the fields this test is about — otherwise a
+    // future change that stopped adding them would leave this test vacuous and
+    // still green.
+    expect(driven.batteryDebt).toBeDefined();
+    expectSaves(driven);
+  });
+
+  it('saves a vehicle mid control-loss lockout, which carries the spin sign', () => {
+    // `controlLossSpinSign` is only ever set when a lockout begins, so it is
+    // unreachable by ordinary driving and was never exercised by a capture or
+    // a save. `zeroRng` makes the roll deterministic: below 0.5 takes the -1
+    // branch.
+    const stressed = makeDrivableVehicle({ controlStress: 999 });
+    const spun = drive(stressed, { stick: { x: 0, y: 1 } }, 30);
+    expect(spun.controlLossSpinSign).toBeDefined();
+    expectSaves(spun);
+  });
+
+  it('saves a pristine vehicle, so the two new optional fields really are optional', () => {
+    // An older save has neither key. If the schema's `required` list had picked
+    // them up, every pre-existing save would fail to load — a strictly worse
+    // bug than the one being fixed, and invisible to every test above because
+    // they all save a vehicle the sim has already touched.
+    const pristine = makeVehicle();
+    expect('batteryDebt' in pristine).toBe(false);
+    expect('controlLossSpinSign' in pristine).toBe(false);
+    expectSaves(pristine);
+  });
+
+  it('rejects a corrupted debt rather than silently loading it', () => {
+    // The other half of the guard: a permissive schema is not the fix. A NaN or
+    // negative debt would make battery drain stop accumulating forever, which
+    // `driving.ts` has an explicit comment about.
+    const corrupt = makeVehicle({ batteryDebt: -1 } as Partial<VehicleState>);
+    expect(() => migrateSave(structuredClone(gameWith(corrupt)))).toThrow(SaveMigrationError);
+  });
+
+  it('rejects a spin sign that is not a direction', () => {
+    const corrupt = makeVehicle({ controlLossSpinSign: 0 } as Partial<VehicleState>);
+    expect(() => migrateSave(structuredClone(gameWith(corrupt)))).toThrow(SaveMigrationError);
   });
 });

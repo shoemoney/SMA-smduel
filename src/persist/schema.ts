@@ -142,7 +142,36 @@ const vehicleStateSchema = obj({
   controlLossTicks: NUM,
   statusEffects: arrayOf(statusEffectSchema),
   destroyed: BOOL,
-});
+  /**
+   * Both added by `@/sim/driving` and BOTH OPTIONAL, because `obj()` below
+   * makes `required` default to every declared property and a save written
+   * before either field existed must still validate.
+   *
+   * `batteryDebt` is the fractional battery point carried between ticks so the
+   * public `battery` stays a true integer. Its own type comment says it lives
+   * on the vehicle "so it survives a save/load round-trip" — and until this
+   * entry it could not: the schema rejected the property, `migrateSave` threw
+   * `SaveMigrationError`, and `persistArenaSession` swallowed that into a
+   * `console.warn`. So driving the car at all made every autosave fail, and a
+   * player who reloaded lost everything since their last successful save with
+   * no message on screen. Found by Codex `gpt-6.1-sol` driving the live build
+   * and reading the console.
+   *
+   * The ranges are what the sim actually produces: `stepDriving` floors the
+   * accumulated debt and carries the remainder, so a SAVED value is in [0, 1).
+   * Only the lower bound is asserted — the upper end is a floating-point
+   * remainder and a hard `maximum: 1` would reject a legitimate 0.99999999 from
+   * a subtract that was not exact. The corruption worth catching here is a
+   * negative or NaN debt, which would make drain never accumulate again.
+   */
+  batteryDebt: { type: 'number', minimum: 0 },
+  /** Sustained spin-out direction, +1 or -1, chosen when a lockout begins. */
+  controlLossSpinSign: { type: 'number', enum: [-1, 1] },
+}, [
+  'id', 'ownerId', 'design', 'position', 'headingRad', 'speedMps', 'battery',
+  'odometerMiles', 'armorDP', 'tireDP', 'plantDP', 'weapons', 'cargo',
+  'controlStress', 'controlLossTicks', 'statusEffects', 'destroyed',
+]);
 
 const vehicleRecordSchema: SchemaObject = {
   type: 'object',
