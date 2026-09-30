@@ -5446,9 +5446,32 @@ function radarContactsFromVehicles(
   const out: HudRadarContact[] = [];
   for (const vehicle of world.entities.vehicles) {
     if (vehicle.id === playerId) continue;
-    // `opponents` is the authoritative hostile set: a wreck or a neutral car in
-    // the same world is not a radar contact, and guessing from the world alone
-    // would light up every civilian.
+    // A DEFEATED opponent is not a contact, and the `opponents` map alone cannot
+    // say so — that check is the next line down, and on this screen the map is
+    // DELIBERATELY not pruned. `makeArenaDamageSystem` marks a kill
+    // `destroyed`, bumps `opponentsDefeated` and logs, and keeps the entry,
+    // because the arena's roster is the win condition and `resolveArenaExit`
+    // needs it intact. The ROAD's sibling system (`makeRoadDamageSystem`) does
+    // the opposite and deletes the entry, which is what made this look correct
+    // by inspection: the guarantee below holds on one screen and not the other.
+    //
+    // Found by Codex `gpt-6.1-sol` driving the live arena: after "Opponent
+    // destroyed — 2 left" the radar still showed three orange hostile markers
+    // and reported three hostile contacts, while the battlefield correctly
+    // stopped drawing them. An instrument pointing the player at a threat that
+    // no longer exists is worse than a quiet one, because it teaches them to
+    // distrust the panel exactly when it is the thing that would have helped.
+    //
+    // The invariant this restores is simply that THE RADAR SHOWS EXACTLY WHAT
+    // THE WORLD DRAWS. The renderer excludes destroyed vehicles, so the radar
+    // does too. Adding them back as non-hostile `wreck` contacts was considered
+    // and rejected: `buildVehicleInstances` drops destroyed vehicles
+    // entirely, so a wreck contact would point at a thing that is not rendered
+    // — trading one dishonest contact for a quieter dishonest one.
+    if (vehicle.destroyed) continue;
+    // `opponents` is otherwise the authoritative hostile set: a neutral car in
+    // the same world is not a contact, and guessing from the world alone would
+    // light up every civilian.
     if (!opponents.has(vehicle.id)) continue;
     out.push({
       id: vehicle.id,

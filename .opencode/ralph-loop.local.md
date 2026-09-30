@@ -7206,3 +7206,94 @@ models"; this is that ratio arriving.
 - STILL OPEN: the reviewer is mid-run. When it lands, its findings are the next
   queue. The remaining known gaps are the persistent "surface a failed save"
   message (93) and the arena/road items the log records.
+
+## ITERATION 115 — Codex review (4 findings); the radar was reporting dead cars as live threats
+
+Review `.opencode/reviews/codex-20260930-082411.md`, 4951 bytes, attempt 1,
+`REVIEW-VERDICT: 4`, and the harness fix from iteration 114 doing exactly its
+job: it navigated all eight screens at 2400x2020 DPR 2 and this time produced
+findings instead of a refusal.
+
+| # | finding | verdict |
+|---|---------|---------|
+| 1 | arena combat has no visible shot path, muzzle flash or impact | REAL, not started |
+| 2 | the 30-mile intro route takes ~26 real minutes | the pacing decision (106/102), unchanged |
+| 3 | destroyed opponents stay on the radar as hostile contacts | REAL, FIXED below |
+| 4 | the Federal Building has no core service yet | acknowledged content gap (98) |
+
+- **FIXING #3 FOUND A DUPLICATION THAT WAS NOT THERE, and the near-miss is the
+  useful half.** `makeArenaDamageSystem` marks a kill `destroyed`, bumps
+  `opponentsDefeated` and logs — and does NOT prune the `opponents` map, because
+  the roster IS the win condition and `resolveArenaExit` needs it intact. Its
+  ROAD sibling `makeRoadDamageSystem` does the opposite and deletes the entry.
+  Two near-identical `defeated` blocks, so for a moment this looked like a
+  duplicated code path disagreeing with itself, and I was one edit away from
+  "fixing" a path that was correct.
+  What settled it: the comment above the road system (which begins at line
+  1748, AFTER the block I was reading at 1770) explicitly describes the split.
+  So they are deliberate siblings sharing `applyResolvedShot`, and the only real
+  defect is the one the reviewer named. Recorded because this is the log's
+  "a claim that recurs is evidence about MY CHECK" arriving as a comment whose
+  SCOPE I misread — a comment that disagrees with the code is evidence about the
+  comment until proven otherwise, same as iteration 50's sample box.
+  And it is why the radar looked correct by inspection: the guarantee is true on
+  the road and false on the arena, and the road is where it was written down.
+
+- **THE FIX, AND WHAT IT DELIBERATELY DOES NOT ADD.** `radarContactsFromVehicles`
+  now skips `vehicle.destroyed`. The invariant restored is simply that THE RADAR
+  SHOWS EXACTLY WHAT THE WORLD DRAWS: `buildVehicleInstances` already drops
+  destroyed vehicles, so the radar does too.
+  Adding them back as non-hostile `wreck` contacts was considered and REFUSED.
+  `HudRadarContact` does have a `wreck` kind, and the reviewer proposed it, but
+  there is no wreck SPRITE in the arena to point at — the renderer drops
+  destroyed vehicles entirely — so a wreck contact would aim the player at
+  something not drawn. That trades one dishonest contact for a quieter
+  dishonest one, which is the exact trade refused in iterations 21, 28 and 54.
+  An instrument pointing at a threat that no longer exists is the bug; pointing
+  at a threat that is not there either is the same bug in a better coat.
+
+- **THE TEST, AND THREE WRONG VERSIONS OF IT FIRST — all my own error, all
+  caught by the run rather than by reasoning.**
+    1. I cross-checked the radar against the `.hud-message` feed's
+       "Opponent destroyed — N left" line and scanned for the FIRST match. The
+       feed is append-ordered, so that returned the OLDEST kill's count and
+       reported a correct radar as wrong at tick 400.
+    2. Fixed to the LAST match — and it then read "0 left", because the feed
+       COALESCES repeated lines ("Machine Gun fired x7") and ROTATES: by the
+       second sample the kill line had scrolled out of the window entirely. So
+       the feed is not a ledger and cannot serve as an oracle at all.
+    3. Replaced with an exact-count assertion against a hardcoded roster of 5,
+       which failed immediately for the same reason.
+  What is left asserts only what is actually OBSERVABLE, and it asserts the
+  RELATIONSHIP rather than a number: the contact count is monotonically
+  non-increasing (a kill can only remove one, and nothing in this match can add
+  one), and the final count is strictly below the initial. The second half is
+  what makes the first mean anything — without it a run where the seed resolved
+  early, or where nothing died, would satisfy monotonicity perfectly while
+  proving nothing.
+  And a fourth error, of the kind this file has now produced three times in two
+  rounds: the baseline was captured at mount, where the HUD does not exist yet
+  because it is painted inside `frame()`. It read 0 contacts, and the first
+  sample then looked like four contacts had APPEARED. The baseline is now taken
+  after five ticks. Iterations 111 and 112 both hit this in this same file.
+
+- MUTATION-PROVEN. Removing the `vehicle.destroyed` guard fails the test with
+  `radar contacts never fell below 5 ... expected 5 to be less than 5` — the
+  shipped defect exactly: five contacts held through a fight that destroys the
+  whole roster.
+
+- GATE: tsc clean, 1526 tests, 1 failure — `screens.test.ts`, the measured
+  cross-file flake, still fewer than the 4 of iterations 111-113. 7 browser
+  tests pass. Build `index-Bi6hkndk.js`.
+
+- STILL QUEUED FROM THIS REVIEW, deliberately not started at the end of a round
+  because #1 is a real feature and #4 is authored content, not a defect:
+  **#1 the arena has no visible combat effects.** The reviewer verified it in
+  source rather than only in a still — the render list submits vehicles and
+  shadows and no projectiles — and ammo/amourage/counter changes all happen
+  with nothing on screen connecting them. The log's own rule applies in reverse
+  here: a combat screen where shots have no visible path forces the player to
+  read HUD counters instead of the world. The atlas already holds muzzle-flash
+  and impact-spark frames, so the first pass is a code change and no new art;
+  whether those frames are currently unreferenced is exactly the iteration-81
+  question to CHECK rather than assume.

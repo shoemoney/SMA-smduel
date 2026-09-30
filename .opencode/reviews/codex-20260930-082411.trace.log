@@ -1490,3 +1490,1233 @@ exec
 mcp: playwright/browser_snapshot started
 mcp: playwright/browser_snapshot (completed)
 **Analyzing pacing and visual issues****Investigating city navigation and combat testing**
+mcp: playwright/browser_click started
+mcp: playwright/browser_click (completed)
+mcp: playwright/browser_wait_for started
+mcp: playwright/browser_wait_for (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_snapshot started
+mcp: playwright/browser_snapshot (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Optimizing user interaction flow**
+mcp: playwright/browser_navigate started
+mcp: playwright/browser_navigate (completed)
+mcp: playwright/browser_wait_for started
+mcp: playwright/browser_wait_for (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+exec
+/bin/zsh -lc "rg -n 'GENERIC_KINDS|operational|FACILITY|stub' src/ui/buildings/index.ts src/app.ts src/sim/city.ts src/ui/buildings/stub.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+src/ui/buildings/stub.ts:8: * A stub facility can still be a mission's clue-chain hop (quests.json's
+src/ui/buildings/stub.ts:11: * `state.kind`, exactly like every other facility, so ANY stub kind a
+src/ui/buildings/stub.ts:28:export function stubActions(state: StubState): MenuAction[] {
+src/ui/buildings/stub.ts:30:  const notice = t('building.stub.notReady', { facility: facilityName(state.kind) });
+src/ui/buildings/stub.ts:32:  actions.push(...questInvestigateRows(state.context, state.kind, 'building.stub.quest.investigate'));
+src/ui/buildings/stub.ts:37:export const stubEngine: BuildingEngine<StubState> = {
+src/ui/buildings/stub.ts:38:  actions: stubActions,
+src/ui/buildings/index.ts:6: * no gameplay yet (hotel/federal/story/studio/petshop) get `@/ui/buildings/stub`
+src/ui/buildings/index.ts:19:import { createStubState, stubEngine } from '@/ui/buildings/stub';
+src/ui/buildings/index.ts:26:/** Every cities.json facilityKind that already has a real (non-stub) gameplay panel. */
+src/ui/buildings/index.ts:28: *  `OPERATIONAL_FACILITY_KINDS` and its test both read THIS list rather than each
+src/ui/buildings/index.ts:31:export const GENERIC_KINDS = new Set([
+src/ui/buildings/index.ts:45: * This exists because the stub decision was a `default:` FALLTHROUGH, so the
+src/ui/buildings/index.ts:46: * set of unfinished kinds existed only in a comment on `stub.ts` ("hotel,
+src/ui/buildings/index.ts:59:export const OPERATIONAL_FACILITY_KINDS: ReadonlySet<string> = new Set([
+src/ui/buildings/index.ts:60:  ...GENERIC_KINDS,
+src/ui/buildings/index.ts:65:/** True when `kind` opens a real interior. False means the stub panel — an unfinished destination. */
+src/ui/buildings/index.ts:67:  return OPERATIONAL_FACILITY_KINDS.has(kind);
+src/ui/buildings/index.ts:116:  if (GENERIC_KINDS.has(kind)) {
+src/ui/buildings/index.ts:140:  // gets the stub panel — never an unhandled kind.
+src/ui/buildings/index.ts:141:  return wrap(mountBuildingPanel({ container, initialState: createStubState(context, kind), engine: stubEngine, onExit: (s) => onExit(s.context) }));
+src/app.ts:3861:   * `roadLegalityMisses`, iteration 98's operational-kind set. The menu is
+src/app.ts:5193:const FACILITY_LABEL_RADIUS_MULTIPLE = 2;
+src/app.ts:5197:   * `FACILITY_LABEL_RADIUS_MULTIPLE` interaction radii of it.
+src/app.ts:5216:        // the player walk in and be told by the stub panel. The Federal Building
+src/app.ts:5247:    const labelRadiusM = layout.tileSizeM * FACILITY_LABEL_RADIUS_MULTIPLE;
+
+**Analyzing key hold timing**
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Reviewing screenshot**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Navigating toward arena location**
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+**Preparing quick arena capture**
+codex
+The measured highway rate is 0.234 miles in 12.01 seconds at 70 mph, implying about 26 minutes for the 30-mile route before stops or fights. Pause holds that progress steady. “Abandon trip” returns to the city and retains the car, so I won’t report vehicle loss. I’ve also reached the city’s Arena entrance and will check a match with opponents.
+
+mcp: playwright/browser_snapshot started
+mcp: playwright/browser_snapshot (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_wait_for started
+mcp: playwright/browser_wait_for (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+ERROR: Reconnecting... 1/5
+**Considering screenshot visibility**
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_console_messages started
+mcp: playwright/browser_console_messages (completed)
+exec
+/bin/zsh -lc "sed -n '1,155p' src/ui/buildings/index.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+/**
+ * Building-interior dispatcher: one numbered-menu panel per
+ * cities.json `facilityKinds` entry (`mountFacility`), backed by the pure
+ * `BuildingEngine<S>` cores in this directory's per-kind modules. Every
+ * kind cities.json defines gets SOME real panel here — the five kinds with
+ * no gameplay yet (hotel/federal/story/studio/petshop) get `@/ui/buildings/stub`
+ * rather than being silently unhandled.
+ */
+import { hasFacilityKind } from '@/data/rulesets';
+import { mountBuildingPanel, type BuildingContext, type MountedBuilding } from '@/ui/buildings/shared';
+import { ARENA_KIND, mountArenaBuilding, type ArenaEntryResult } from '@/ui/buildings/arena';
+import { ASSEMBLY_KIND, mountAssembly } from '@/ui/buildings/assembly';
+import { BAR_KIND, barEngine, createBarState } from '@/ui/buildings/bar';
+import { CASINO_KIND, casinoEngine, createCasinoState } from '@/ui/buildings/casino';
+import { COURIERGUILD_KIND, courierGuildEngine, createCourierGuildState } from '@/ui/buildings/courierguild';
+import { GARAGE_KIND, createGarageState, garageEngine } from '@/ui/buildings/garage';
+import { MEDICAL_KIND, createMedicalState, medicalEngine } from '@/ui/buildings/medical';
+import { SALVAGE_KIND, createSalvageState, salvageEngine } from '@/ui/buildings/salvage';
+import { createStubState, stubEngine } from '@/ui/buildings/stub';
+import { TRUCKSTOP_KIND, createTruckstopState, truckstopEngine } from '@/ui/buildings/truckstop';
+import { WEAPONSHOP_KIND, createWeaponshopState, weaponshopEngine } from '@/ui/buildings/weaponshop';
+
+export type { BuildingContext } from '@/ui/buildings/shared';
+export type { ArenaEntryResult } from '@/ui/buildings/arena';
+
+/** Every cities.json facilityKind that already has a real (non-stub) gameplay panel. */
+/** The facility kinds `mountFacility` serves from a per-kind engine below. Exported so
+ *  `OPERATIONAL_FACILITY_KINDS` and its test both read THIS list rather than each
+ *  keeping a copy — a test that restates the router's cases is the same drift in a
+ *  different file, and would fail for the wrong reason when the two diverge. */
+export const GENERIC_KINDS = new Set([
+  GARAGE_KIND,
+  WEAPONSHOP_KIND,
+  SALVAGE_KIND,
+  COURIERGUILD_KIND,
+  MEDICAL_KIND,
+  BAR_KIND,
+  TRUCKSTOP_KIND,
+  CASINO_KIND,
+]);
+
+/**
+ * Every facility kind that opens a panel with real gameplay behind it.
+ *
+ * This exists because the stub decision was a `default:` FALLTHROUGH, so the
+ * set of unfinished kinds existed only in a comment on `stub.ts` ("hotel,
+ * federal, story, studio, petshop — task brief"). That is a comment, not a
+ * contract: nothing could read it, so the city's proximity label could not know
+ * which doors lead anywhere, and adding a facility to the switch above would
+ * have silently promoted it out of "unfinished" with no edit to any list.
+ *
+ * Exported so the city can mark an unfinished destination ON APPROACH rather
+ * than letting the player walk in and be told. Same lesson as iteration 84's
+ * `unmetRequirements` and iteration 92's `roadLegalityMisses`: one rule, one
+ * owner, and every surface that needs it reads that owner instead of keeping a
+ * copy. Derived from the same constants the switch cases, so the two cannot
+ * drift.
+ */
+export const OPERATIONAL_FACILITY_KINDS: ReadonlySet<string> = new Set([
+  ...GENERIC_KINDS,
+  ASSEMBLY_KIND,
+  ARENA_KIND,
+]);
+
+/** True when `kind` opens a real interior. False means the stub panel — an unfinished destination. */
+export function isOperationalFacilityKind(kind: string): boolean {
+  return OPERATIONAL_FACILITY_KINDS.has(kind);
+}
+
+export class UnknownFacilityKindError extends Error {
+  override readonly name = 'UnknownFacilityKindError';
+  constructor(readonly kind: string) {
+    super(`"${kind}" is not one of cities.json's facilityKinds`);
+  }
+}
+
+export interface MountFacilityOptions {
+  readonly container: HTMLElement;
+  readonly kind: string;
+  readonly context: BuildingContext;
+  /** Called once the panel hands control back to whatever screen owns the city (Leave, Escape, or a `busToAdjacentCity` that changes `cityId`). */
+  readonly onExit: (context: BuildingContext) => void;
+  /** Required when `kind === 'assembly'` — opens `@/ui/builder`'s existing constructor UI; this module never re-implements it. */
+  readonly onOpenConstructor?: () => void;
+  /** Required when `kind === 'arena'` — hands the started match to the host's existing arena screen (`@/app.ts`'s `showArena`); this module never simulates a match itself. */
+  readonly onEnterArena?: (result: ArenaEntryResult) => void;
+}
+
+export interface MountedFacility {
+  destroy(): void;
+}
+
+function wrap(mounted: MountedBuilding<unknown>): MountedFacility {
+  return { destroy: () => mounted.destroy() };
+}
+
+/** Opens the numbered-menu panel for `options.kind` into `options.container` — the one entry point every screen that lets a driver walk into a building should call. Throws `UnknownFacilityKindError` for a kind cities.json doesn't define, same fail-fast contract `@/data/rulesets`'s own lookups already use. */
+export function mountFacility(options: MountFacilityOptions): MountedFacility {
+  const { kind, container, context, onExit } = options;
+  if (!hasFacilityKind(kind)) throw new UnknownFacilityKindError(kind);
+
+  if (kind === ASSEMBLY_KIND) {
+    if (options.onOpenConstructor === undefined) {
+      throw new Error('mountFacility: assembly requires onOpenConstructor');
+    }
+    return mountAssembly({ container, context, onOpenConstructor: options.onOpenConstructor, onExit: () => onExit(context) });
+  }
+
+  if (kind === ARENA_KIND) {
+    if (options.onEnterArena === undefined) {
+      throw new Error('mountFacility: arena requires onEnterArena');
+    }
+    return mountArenaBuilding({ container, context, onEnterArena: options.onEnterArena, onExit: () => onExit(context) });
+  }
+
+  if (GENERIC_KINDS.has(kind)) {
+    switch (kind) {
+      case GARAGE_KIND:
+        return wrap(mountBuildingPanel({ container, initialState: createGarageState(context), engine: garageEngine, onExit: (s) => onExit(s.context) }));
+      case WEAPONSHOP_KIND:
+        return wrap(mountBuildingPanel({ container, initialState: createWeaponshopState(context), engine: weaponshopEngine, onExit: (s) => onExit(s.context) }));
+      case SALVAGE_KIND:
+        return wrap(mountBuildingPanel({ container, initialState: createSalvageState(context), engine: salvageEngine, onExit: (s) => onExit(s.context) }));
+      case COURIERGUILD_KIND:
+        return wrap(mountBuildingPanel({ container, initialState: createCourierGuildState(context), engine: courierGuildEngine, onExit: (s) => onExit(s.context) }));
+      case MEDICAL_KIND:
+        return wrap(mountBuildingPanel({ container, initialState: createMedicalState(context), engine: medicalEngine, onExit: (s) => onExit(s.context) }));
+      case BAR_KIND:
+        return wrap(mountBuildingPanel({ container, initialState: createBarState(context), engine: barEngine, onExit: (s) => onExit(s.context) }));
+      case TRUCKSTOP_KIND:
+        return wrap(mountBuildingPanel({ container, initialState: createTruckstopState(context), engine: truckstopEngine, onExit: (s) => onExit(s.context) }));
+      case CASINO_KIND:
+        return wrap(mountBuildingPanel({ container, initialState: createCasinoState(context), engine: casinoEngine, onExit: (s) => onExit(s.context) }));
+      default:
+        break;
+    }
+  }
+
+  // Every remaining real facilityKind (hotel/federal/story/studio/petshop)
+  // gets the stub panel — never an unhandled kind.
+  return wrap(mountBuildingPanel({ container, initialState: createStubState(context, kind), engine: stubEngine, onExit: (s) => onExit(s.context) }));
+}
+
+ERROR: Reconnecting... 1/5
+**Analyzing screenshot overlay hiding vehicles**
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_wait_for started
+mcp: playwright/browser_wait_for (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+exec
+/bin/zsh -lc "sed -n '3930,4110p' src/app.ts" in /Users/shoemoney/Projects/smduel
+exec
+/bin/zsh -lc "sed -n '3624,3725p' src/app.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+function showArenaEvent(
+  root: HTMLElement,
+  chargedDriver: DriverState,
+  playerVehicle: VehicleState,
+  matchState: ArenaMatchState,
+  clock: Clock,
+  cityState: CityRunState,
+  onComplete: (nextState: CityRunState) => void,
+): void {
+  const event = getArenaEvent(matchState.eventId);
+  const container = el('div', 'sm-screen sm-screen--arena');
+  container.style.cssText = 'position:absolute;inset:0;background:#05070a;';
+  const canvas = el('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
+  const hudHost = el('div');
+  hudHost.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  const status = el('div');
+  status.style.cssText =
+    'position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:min(700px, calc(100vw - 260px));color:#d7e0ea;font-family:system-ui,sans-serif;font-size:13px;background:rgba(10,14,20,0.7);padding:4px 10px;border-radius:4px;text-align:center;';
+  const exitBtn = el('button', undefined, t('ui.arena.leaveArena'));
+  exitBtn.style.cssText =
+    'position:absolute;top:8px;right:8px;pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
+  const retryBtn = el('button');
+  retryBtn.style.cssText =
+    'position:absolute;top:36px;left:50%;transform:translateX(-50%);pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
+  container.appendChild(canvas);
+  container.appendChild(hudHost);
+  container.appendChild(status);
+  container.appendChild(retryBtn);
+  container.appendChild(exitBtn);
+
+  /**
+   * The pause overlay's host and scrim.
+   *
+   * CENTRED, and that is a decision rather than a default. Codex's remedy for
+   * this finding was "a centred overlay above the entire HUD, with a backdrop
+   * that receives input" — and iteration 107 had just fixed the road's trip
+   * menu being SWALLOWED by the radar precisely because that menu sits
+   * bottom-left, in the same corner the radar is pinned to. Copying the road's
+   * placement here would have rebuilt that collision on the screen where combat
+   * happens. Centring also keeps the car visible behind the scrim, which is the
+   * one thing a player checks before resuming a fight.
+   *
+   * The scrim sits at 25, between `.hud-root`'s 20 and `.sm-menu-root`'s 30, so
+   * the menu is above it and the HUD is below it — the same ladder iteration
+   * 107 established, with the new rung in the middle so the dimmed HUD cannot
+   * take a click meant for the menu.
+   */
+  const pauseScrim = el('div');
+  pauseScrim.style.cssText =
+    'position:absolute;inset:0;background:rgba(5,7,10,0.55);z-index:25;display:none;';
+  const menuHost = el('div');
+  menuHost.style.cssText =
+    'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,90vw);max-height:80vh;overflow:auto;display:none;';
+  // The persistent hint. A pause control nobody knows about is not one —
+  // iteration 100's rule, and the reason the road's trip menu ships a hint at
+  // all. It sits top-centre at 88px, the same band the road uses: below the
+  // status pill and clear of every HUD corner, so it adds no new collision.
+  const menuHint = el('div');
+  menuHint.style.cssText =
+    'position:absolute;top:88px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:3px 9px;border-radius:4px;pointer-events:none;';
+  menuHint.textContent = t('ui.arena.menuHint');
+  container.appendChild(pauseScrim);
+  container.appendChild(menuHost);
+  container.appendChild(menuHint);
+  clearAndAppend(root, container);
+
+  lastSessionSeed = cityState.sessionSeed;
+  const dtSeconds = dtSecondsFromTickRate(drivingConfig().tickRateHz);
+
+  const world = createArenaWorld(cityState.sessionSeed, playerVehicle);
+  world.clock = clock;
+  const playerVehicleId = playerVehicle.id;
+  const opponents = spawnArenaOpponents(world, event);
+
+  const driverRef = { current: chargedDriver };
+  const matchStateRef = { current: matchState };
+  const spawnCounter = { current: 0 };
+  const aiInputs = new Map<string, InputFrame>();
+  const projectileTargets = new Map<string, string>();
+  const messages: HudMessage[] = [];
+  let messageCounter = 0;
+  function logMessage(kind: HudMessageKind, text: string): void {
+    messages.push({ id: `msg-${messageCounter}`, kind, text, tick: world.tick });
+    messageCounter += 1;
+    if (messages.length > 20) messages.shift();
+  }
+  // The `{leave}` placeholder is filled from the SAME string the button renders,
+  // so the message cannot tell a player to press a control whose label has been
+  // translated or renamed. That was iteration 94's lesson applied forward: the
+  // previous version hardcoded "drive out the gate to exit" and there IS no gate
+  // exit — the arena has no bounds and the event ends through this button or a
+  // terminal match condition, so the sentence instructed an action that cannot
+  // accomplish the thing it promised.
+  logMessage(
+    'info',
+    t('ui.arena.eventEntered', { event: event.name, count: matchState.opponentsTotal, leave: t('ui.arena.leaveArena') }),
+  );
+
+  const systems = createSystemsRegistry();
+  systems.register('driving', makeArenaDrivingSystem(driverRef, playerVehicleId, opponents, aiInputs));
+  systems.register('weapons', makeArenaWeaponsSystem(driverRef, playerVehicleId, opponents, aiInputs, projectileTargets, spawnCounter, logMessage));
+
+ succeeded in 0ms:
+    const player = findPlayer(world);
+    if (player === undefined) return;
+    const plant = getPlant(player.design.plantId);
+    const accelMphPerSec = computeBuildCached(player.design).accelMphPerSec;
+    const snapshot: HudSnapshot = {
+      vehicle: player,
+      activeWeaponIndex: weaponSelection.active(),
+      accelMphPerSec,
+      radar: {
+        enabled: !isRadarDisabled(player.plantDP, plant.radarFailureThreshold),
+        contacts: radarContactsFromVehicles(world, playerVehicleId, opponents),
+      },
+      driver: { naturalHealth: driverRef.current.naturalHealth, bodyArmor: driverRef.current.bodyArmor },
+      messages,
+      settings: hudSettings,
+    };
+    renderHud(hudDoc, hudRoot, snapshot, {
+      onToggleRadarOrientation: () => {
+        hudSettings = { ...hudSettings, radarOrientation: hudSettings.radarOrientation === 'world' ? 'heading' : 'world' };
+        renderHudFrame();
+      },
+      onToggleReducedFlash: () => {
+        hudSettings = { ...hudSettings, reducedFlash: !hudSettings.reducedFlash };
+        renderHudFrame();
+      },
+      onToggleReducedShake: () => {
+        hudSettings = { ...hudSettings, reducedShake: !hudSettings.reducedShake };
+        renderHudFrame();
+      },
+    });
+  }
+
+  let gpuCtx: GpuContext | undefined;
+  let resources: RenderResources | undefined;
+  let atlasIndex: AtlasIndex | undefined;
+  const camera: Camera = createCamera();
+  camera.setZoom(PIXELS_PER_METER_CSS);
+
+  async function initRenderer(): Promise<void> {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+    const init = await initGpu(canvas);
+    if (!init.ok) {
+      status.textContent = t('ui.arena.webgpuUnavailable', { reason: init.reason.kind });
+      return;
+    }
+    gpuCtx = init.context;
+    status.textContent = t('ui.arena.eventHint', {
+      event: event.name,
+      fire: describeAction(currentControlBindings, currentControlPreset, 'fire'),
+      cycle: describeCyclePair(currentControlBindings, currentControlPreset, 'cycleWeaponPrev', 'cycleWeaponNext'),
+    });
+
+    atlasIndex = loadAtlasIndex(atlasManifestRaw);
+
+    const atlasImageUrl = new URL('../assets/atlas-0.png', import.meta.url).href;
+    const spriteShaderUrl = new URL('./render/shaders/sprite.wgsl', import.meta.url);
+    const postShaderUrl = new URL('./render/shaders/post.wgsl', import.meta.url);
+    const [atlasBlob, spriteShaderSource, postShaderSource] = await Promise.all([
+      fetch(atlasImageUrl).then((response) => response.blob()),
+      fetch(spriteShaderUrl).then((response) => response.text()),
+      fetch(postShaderUrl).then((response) => response.text()),
+    ]);
+    const atlasBitmap = await createImageBitmap(atlasBlob);
+    resources = await buildRenderResources(gpuCtx, atlasBitmap, spriteShaderSource, postShaderSource);
+
+    gpuCtx.onRecovered(() => {
+      void buildRenderResources(gpuCtx as GpuContext, atlasBitmap, spriteShaderSource, postShaderSource).then((rebuilt) => {
+        // Destroy the set being replaced BEFORE dropping it. Assigning over the
+        // reference releases the old atlas texture and buffers to the garbage
+        // collector, but GC does not free GPU memory — only `.destroy()` does.
+        // Without this, every device-loss recovery leaked a full 2048x2048
+        // atlas texture plus four buffers, and a laptop that cycles GPUs a few
+        // times would eventually fail to allocate.
+        resources?.destroy();
+        resources = rebuilt;
+      });
+    });
+    gpuCtx.onRecoveryFailed(() => {
+      resources = undefined;
+    });
+    wireRecoveryUi(gpuCtx, retryBtn, (text) => {
+      status.textContent = text;
+    });
+  }
+
+  function renderFrame(nowSeconds: number): void {
+    if (gpuCtx === undefined || resources === undefined || atlasIndex === undefined || gpuCtx.isPaused()) return;
+    const player = findPlayer(world);
+    if (player === undefined) return;
+
+    const size = gpuCtx.getSize();
+    camera.setViewportPx(size.width, size.height);
+    camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    camera.setZoom(ARENA_ZOOM_PX_PER_M);
+    camera.setCenter(player.position);
+    writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
+
+    const atlas = atlasIndex;
+    const opponents = world.entities.vehicles.filter((vehicle) => vehicle.id !== player.id && !vehicle.destroyed);
+    // A shadow per vehicle, emitted immediately before the vehicle it belongs
+    // to, so the painter's algorithm keeps each shadow under its own caster.
+    // Culled to the camera's visible bounds before packing: a shadow and its
+    // caster share a position and size, so culling keeps or drops both together
+    // and a vehicle can never keep its shadow after losing itself. This is what
+    // keeps `SPRITE_INSTANCE_CAPACITY` from being a silent cliff edge.
+    const spriteInstances = cullInstances(
+      [
+        vehicleShadowInstance(player, atlas),
+        vehicleSpriteInstance(player, atlas),
+        ...opponents.flatMap((vehicle) => [vehicleShadowInstance(vehicle, atlas), vehicleSpriteInstance(vehicle, atlas, OPPONENT_TINT)]),
+      ],
+      camera.getVisibleBounds(),
+    ).visible;
+
+    const visible = cameraVisibleHalfExtentM(camera);
+    const groundInstances = buildGroundQuad(
+      atlas,
+      { x: player.position.x, y: player.position.y },
+      Math.max(visible.x, visible.y) + GROUND_MARGIN_M,
+      'arena',
+    );
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances), TILE_INSTANCE_CAPACITY);
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
+
+    const { sceneView, post } = writePostFrame(gpuCtx, resources, ARENA_GRADE, nowSeconds);
+    encodeGradedFrame(
+      gpuCtx.getDevice(),
+      resources.pipeline,
+      post,
+      sceneView,
+      gpuCtx.getContext().getCurrentTexture().createView(),
+      resources.cameraBindGroup,
+      [
+        { bindGroup: resources.tileBindGroup, instanceCount: groundInstances.length },
+        { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
+      ],
+    );
+  }
+
+  let rafHandle = 0;
+  let lastTimeMs = performance.now();
+  let stopped = false;
+
+  /**
+   * The match's own lifecycle, as a state machine rather than a boolean:
+   * `'running'` while the fight is live, `'ending'` for the brief beat after
+   * a terminal condition first fires (see `terminalExitMode` below) so the
+   * player sees the last kill or their own death before the outcome screen
+   * cuts in, then `'ended'` for good once `endMatch` has actually run. Only
+   * the `'running'` branch below is allowed to start that beat, and only the
+   * `'ending'` branch is allowed to call `endMatch` — once `matchPhase` is
+   * `'ended'` no branch in `frame()` ever reads or acts on it again, so a
+   * terminal condition that keeps being true on every following frame (the
+   * common case: the player stays dead, the roster stays cleared) cannot
+   * retrigger `endMatch` a second time. This is what makes "exactly once"
+   * structural rather than a flag this code has to remember to check.
+   */
+  type ArenaMatchPhase = { kind: 'running' } | { kind: 'ending'; exitMode: ArenaExitMode; resolveAtMs: number } | { kind: 'ended' };
+  let matchPhase: ArenaMatchPhase = { kind: 'running' };
+
+  /** The player's own vehicle destroyed, or their driver's natural health run out — either one means there is nobody left in this fight who can still drive out under their own power. */
+  function playerDefeated(): boolean {
+    const player = findPlayer(world);
+    return player?.destroyed === true || isDead(driverRef.current);
+  }
+
+  /**
+   * The match's own terminal condition, or `null` while it's still live.
+   * A defeated player always wins the race against a cleared roster (mirrors
+   * `resolveArenaExit`'s own ON_FOOT-checked-first order, so this never
+   * disagrees with what resolving the match would decide). Victory requires
+   * `opponentsTotal > 0`: `allOpponentsDefeated` reads 0 >= 0 as vacuously
+   * true for the zero-opponent `practice` event (see that function's own
+   * doc comment), and practice is a free-roam range with nobody to defeat,
+   * not a match with a roster to clear — without this guard a practice
+   * session would auto-end itself the instant it started.
+   */
+
+**Confirming invisible combat projectiles**
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+exec
+/bin/zsh -lc "rg -n 'renderFrame|spriteInstances|projectiles' src/app.ts | tail -n 55" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+329: * no-op pair: every screen's own `renderFrame()` already gates on
+1220:      world.entities.projectiles.push(result.spawn.projectile);
+1226:export const projectilesSystem: SystemFn = (world, _input, dtSeconds) => {
+1227:  world.entities.projectiles = world.entities.projectiles.map((projectile) => advanceProjectile(projectile, dtSeconds));
+1231:  world.entities.projectiles = world.entities.projectiles.filter((projectile) => !projectileExpired(projectile));
+1516: * (`driving -> weapons -> projectiles -> deployables -> damage -> ai ->
+1653:        world.entities.projectiles.push(result.spawn.projectile);
+1692:    for (const projectile of world.entities.projectiles) {
+1732:    world.entities.projectiles = remaining;
+1758:    for (const projectile of world.entities.projectiles) {
+1793:    world.entities.projectiles = remaining;
+1808: * of four times — the duplication the four near-identical `renderFrame`s already
+2031: * to put the scene: every `renderFrame` drew straight into the swapchain, so
+2771:  systems.register('projectiles', projectilesSystem);
+2890:  function renderFrame(nowSeconds: number): void {
+2930:    const spriteInstances = cullInstances(
+2935:    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
+2947:        { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
+2966:    renderFrame(nowMs / 1000);
+3426:// real weapon fire, real projectiles, real HUD. `mountArenaBuilding`
+3726:  systems.register('projectiles', projectilesSystem);
+3756:   *     not AI, not projectiles, not damage, not cooldowns, and not the match
+4019:  function renderFrame(nowSeconds: number): void {
+4039:    const spriteInstances = cullInstances(
+4056:    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
+4068:        { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
+4199:     * "Resume, Controls, and Withdraw" and for "driving, AI, projectiles,
+4203:     * the only thing that steps driving, AI, projectiles and damage — they are
+4220:    renderFrame(nowMs / 1000);
+5112:  function renderFrame(nowSeconds: number): void {
+5189:    renderFrame(nowMs / 1000);
+6287:    projectiles: projectilesSystem,
+6307:    roadSystems.projectiles(combatWorld, playerInput, dtSeconds);
+6688:  function renderFrame(nowSeconds: number): void {
+6703:    const spriteInstances = cullInstances(
+6729:    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
+6741:        { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
+6928:      renderFrame(nowMs / 1000);
+6980:      renderFrame(nowMs / 1000);
+7048:    renderFrame(nowMs / 1000);
+
+exec
+/bin/zsh -lc "rg -n 'projectile|muzzle|tracer|flash|hitEffect|effect|explosion' src/render src/ui src/app.ts | head -n 100" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+src/app.ts:65:  projectileExpired,
+src/app.ts:1220:      world.entities.projectiles.push(result.spawn.projectile);
+src/app.ts:1226:export const projectilesSystem: SystemFn = (world, _input, dtSeconds) => {
+src/app.ts:1227:  world.entities.projectiles = world.entities.projectiles.map((projectile) => advanceProjectile(projectile, dtSeconds));
+src/app.ts:1231:  world.entities.projectiles = world.entities.projectiles.filter((projectile) => !projectileExpired(projectile));
+src/app.ts:1246:  // deployables, whose effects run through `driving`'s `SurfaceEffect` model and
+src/app.ts:1249:  // spawned and retained, but still have no effect; wiring them is a feature,
+src/app.ts:1516: * (`driving -> weapons -> projectiles -> deployables -> damage -> ai ->
+src/app.ts:1595:  projectileTargets: Map<string, string>,
+src/app.ts:1653:        world.entities.projectiles.push(result.spawn.projectile);
+src/app.ts:1654:        if (bearingTarget !== null) projectileTargets.set(spawnedEntityId, bearingTarget.id);
+src/app.ts:1670: * Releases every projectile's pre-rolled outcome (see `@/sim/combat`'s file
+src/app.ts:1684:  projectileTargets: Map<string, string>,
+src/app.ts:1692:    for (const projectile of world.entities.projectiles) {
+src/app.ts:1693:      const targetId = projectileTargets.get(projectile.id);
+src/app.ts:1698:        target !== undefined && circleIntersectsOrientedRect(projectile.position, collisionCfg.projectileRadiusM, vehicleOrientedRect(target));
+src/app.ts:1699:      const expired = projectileExpired(projectile);
+src/app.ts:1702:        remaining.push(projectile);
+src/app.ts:1705:      projectileTargets.delete(projectile.id);
+src/app.ts:1707:      const { hit, damage, facing } = projectile.outcome;
+src/app.ts:1732:    world.entities.projectiles = remaining;
+src/app.ts:1752:  projectileTargets: Map<string, string>,
+src/app.ts:1758:    for (const projectile of world.entities.projectiles) {
+src/app.ts:1759:      const targetId = projectileTargets.get(projectile.id);
+src/app.ts:1764:        target !== undefined && circleIntersectsOrientedRect(projectile.position, collisionCfg.projectileRadiusM, vehicleOrientedRect(target));
+src/app.ts:1765:      const expired = projectileExpired(projectile);
+src/app.ts:1768:        remaining.push(projectile);
+src/app.ts:1771:      projectileTargets.delete(projectile.id);
+src/app.ts:1773:      const { hit, damage, facing } = projectile.outcome;
+src/app.ts:1793:    world.entities.projectiles = remaining;
+src/app.ts:2771:  systems.register('projectiles', projectilesSystem);
+src/app.ts:3179: * The `driver`/`vehicle` side effects of a quest's own `onAccept` data,
+src/app.ts:3190: * chain completes) — this function only adds the two side effects that
+src/app.ts:3426:// real weapon fire, real projectiles, real HUD. `mountArenaBuilding`
+src/app.ts:3703:  const projectileTargets = new Map<string, string>();
+src/app.ts:3725:  systems.register('weapons', makeArenaWeaponsSystem(driverRef, playerVehicleId, opponents, aiInputs, projectileTargets, spawnCounter, logMessage));
+src/app.ts:3726:  systems.register('projectiles', projectilesSystem);
+src/app.ts:3727:  systems.register('damage', makeArenaDamageSystem(playerVehicleId, driverRef, opponents, projectileTargets, matchStateRef, logMessage));
+src/app.ts:3756:   *     not AI, not projectiles, not damage, not cooldowns, and not the match
+src/app.ts:4199:     * "Resume, Controls, and Withdraw" and for "driving, AI, projectiles,
+src/app.ts:4203:     * the only thing that steps driving, AI, projectiles and damage — they are
+src/app.ts:5372: * effect.
+src/app.ts:5376: * `weapons.json`'s `effects` array is schema-REQUIRED on every weapon, and its
+src/app.ts:5387: * A weapon with no `IGNITE_WRECK` effect, or whose kill came from a source with
+src/app.ts:5392:  for (const effect of weapon.effects) {
+src/app.ts:5393:    if (effect.type !== 'IGNITE_WRECK') continue;
+src/app.ts:5394:    if (rng.chance(effect.chance)) return true;
+src/app.ts:6133:   * of, keeping only armor/tire/plant/weapons. AI targeting, projectile
+src/app.ts:6173:  const projectileTargets = new Map<string, string>();
+src/app.ts:6286:    weapons: makeArenaWeaponsSystem(roadDriverRef, playerVehicleId, opponents, aiInputs, projectileTargets, spawnCounter, () => {}),
+src/app.ts:6287:    projectiles: projectilesSystem,
+src/app.ts:6288:    damage: makeRoadDamageSystem(playerVehicleId, roadDriverRef, opponents, projectileTargets),
+src/app.ts:6307:    roadSystems.projectiles(combatWorld, playerInput, dtSeconds);
+src/app.ts:6361:        // The killing weapon's `IGNITE_WERCK` effect, if it has one, burns the
+src/app.ts:6372:          // own weapon's effect would be nonsense.
+src/ui/loading-screen.ts:77: * has downloaded but not decoded still pops in late, and the classic "flash of
+src/ui/loading-screen.ts:210:      // flashes past faster than a logo can be read is worse than no splash at
+src/render/shaders/post.wgsl:12://   1. cheap bright-pass bloom (8 wide taps, thresholded) so muzzle flashes,
+src/render/shaders/post.wgsl:13://      explosions and lit metal bleed light into their surroundings
+src/render/shaders/post.wgsl:105: * matter here (muzzle flashes and explosions are small and bright against dark
+src/render/shaders/post.wgsl:128:    // genuinely bright things (flashes, fire, highlights on metal) bloom.
+src/ui/hud.ts:835:  const flashBtn = el(
+src/ui/hud.ts:841:  if (handlers.onToggleReducedFlash) flashBtn.addEventListener('click', handlers.onToggleReducedFlash);
+src/ui/hud.ts:851:  if (settings.reducedFlash) panel.appendChild(flashBtn);
+src/ui/hud.ts:872:  root.setAttribute('data-reduced-flash', String(snapshot.settings.reducedFlash));
+src/ui/tokens.css:7: *      (no white flash before `boot()`).
+src/ui/builder.css:665: * something that flashes on every arrow-key press would be exhausting. */
+src/ui/menu.ts:144:   * It read as a debug readout because that is effectively what it was — a
+src/render/shaders/sprite.wgsl:2:// projectiles, and alpha-decal hazards all share this shader; only the
+src/render/shaders/sprite.wgsl:244:      // screen, the cross-fade weight was effectively constant, and the
+src/render/shaders/sprite.wgsl:259:    // salt-and-pepper effect) ... lacking a solid mid-tone base, creating visual
+src/render/shaders/sprite.wgsl:301:    // effect" until someone debugs the shader.
+src/ui/city-view.ts:429: * This restores the value without touching the texture. It only has any effect
+src/render/sprite.ts:71:/** One renderable instance: a vehicle, wreck, prop, projectile, terrain tile, or hazard decal. */
+src/render/sprite.ts:764:/** Draws the world-sprite layer (vehicles, wrecks, props, projectiles): one instanced draw call per atlas. */
+src/ui/buildings/bar.ts:84: * check as a side effect); the actual sale in `activate` calls the real
+src/ui/hud.css:26: * - `data-reduced-flash`/`data-reduced-shake` on the root disable the
+src/ui/hud.css:593:/* Reduced-flash: the empty-battery pulse is opt-out, never the only cue (the
+src/ui/hud.css:595:.hud-root:not([data-reduced-flash='true']) .hud-battery--empty {
+src/ui/hud.css:876:.hud-root[data-reduced-flash='true'] * {
+
+**Analyzing combat feedback absence**
+exec
+/bin/zsh -lc "sed -n '6688,6746p' src/app.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+  function renderFrame(nowSeconds: number): void {
+    if (gpuCtx === undefined || resources === undefined || atlasIndex === undefined || gpuCtx.isPaused()) return;
+    const size = gpuCtx.getSize();
+    camera.setViewportPx(size.width, size.height);
+    camera.setDevicePixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    camera.setZoom(ROAD_ZOOM_PX_PER_M);
+    camera.setCenter(trip.vehicle.position);
+    writeCameraUniform(gpuCtx.getDevice(), resources.cameraBuffer, camera.worldToClipMatrix());
+
+    const atlas = atlasIndex;
+    const opponents = [...opponentVehicles.values()].filter((v) => !v.destroyed);
+    // Cull to the camera's visible bounds before packing. The road's opponent
+    // list is grown by `updateEngagement` from live route contacts, so its size
+    // is a property of the data rather than of the renderer — culling is what
+    // keeps `SPRITE_INSTANCE_CAPACITY` from being a silent cliff edge.
+    const spriteInstances = cullInstances(
+      [
+        vehicleShadowInstance(trip.vehicle, atlas),
+        vehicleSpriteInstance(trip.vehicle, atlas),
+        ...opponents.flatMap((v) => [vehicleShadowInstance(v, atlas), vehicleSpriteInstance(v, atlas, OPPONENT_TINT)]),
+      ],
+      camera.getVisibleBounds(),
+    ).visible;
+
+    // The road is an unbounded world, so the ground quad is sized to the
+    // visible area and re-centred on the player each frame. There is no cell
+    // grid and nothing is hashed from world coordinates any more — the tiling
+    // is a world-space `fract()` in the fragment shader, so panning cannot make
+    // the ground crawl or re-randomise under the car.
+    const visible = cameraVisibleHalfExtentM(camera);
+    const half = Math.max(visible.x, visible.y) + GROUND_MARGIN_M;
+    const groundInstances = buildGroundQuad(atlas, trip.vehicle.position, half, 'road');
+    // Lane markings, on the same layer as the ground so they paint onto it. They
+    // are appended to the ground buffer rather than the sprite buffer because
+    // they are part of the road surface, not things standing on it.
+    groundInstances.push(roadSurfaceQuad(atlas, trip.vehicle.position, trip.routeHeadingRad, half));
+    groundInstances.push(...roadLaneInstances(atlas, trip.vehicle, trip.routeHeadingRad, half));
+    // Roadside furniture, after the paint so the rails sit on top of the surface
+    // they line. Same buffer, same layer, same world-anchored lattice.
+    groundInstances.push(...roadFurnitureInstances(atlas, trip.vehicle, trip.routeHeadingRad, half));
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances), TILE_INSTANCE_CAPACITY);
+    writeInstanceBuffer(gpuCtx.getDevice(), resources.spriteInstanceBuffer, packInstances(spriteInstances), SPRITE_INSTANCE_CAPACITY);
+
+    const { sceneView, post } = writePostFrame(gpuCtx, resources, ROAD_GRADE, nowSeconds);
+    encodeGradedFrame(
+      gpuCtx.getDevice(),
+      resources.pipeline,
+      post,
+      sceneView,
+      gpuCtx.getContext().getCurrentTexture().createView(),
+      resources.cameraBindGroup,
+      [
+        { bindGroup: resources.tileBindGroup, instanceCount: groundInstances.length },
+        { bindGroup: resources.spriteBindGroup, instanceCount: spriteInstances.length },
+      ],
+    );
+  }
+
+  let rafHandle = 0;
+
+exec
+/bin/zsh -lc "rg -n 'projectile|tracer|bullet|muzzle|spark|explosion' assets/*.json assets/**/*.json src/render/sprite.ts src/sim/combat.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+assets/raw-codex/_codex-manifest.json:44:    "fx-explosion": {
+assets/raw-codex/_codex-manifest.json:48:    "fx-impact-spark": {
+assets/raw-codex/_codex-manifest.json:52:    "fx-muzzle-flash": {
+assets/sprite-meta.json:141:    "fx-explosion-sheet": {
+assets/sprite-meta.json:149:      "note": "SUPERSEDED by fx-explosion-1..5 - diffusion grid cells do not align reliably enough to slice. Do not pack.",
+assets/sprite-meta.json:152:    "fx-impact-spark": {
+assets/sprite-meta.json:161:    "fx-muzzle-flash": {
+assets/sprite-meta.json:399:    "fx-explosion-1": {
+assets/sprite-meta.json:409:    "fx-explosion-2": {
+assets/sprite-meta.json:419:    "fx-explosion-3": {
+assets/sprite-meta.json:429:    "fx-explosion-4": {
+assets/sprite-meta.json:439:    "fx-explosion-5": {
+assets/sprite-meta.json:696:    "fx-explosion": {
+assets/sprite-meta.json:851:  "explosionFrames": [
+assets/sprite-meta.json:852:    "fx-explosion-1",
+assets/sprite-meta.json:853:    "fx-explosion-2",
+assets/sprite-meta.json:854:    "fx-explosion-3",
+assets/sprite-meta.json:855:    "fx-explosion-4",
+assets/sprite-meta.json:856:    "fx-explosion-5"
+assets/sprite-meta.json:141:    "fx-explosion-sheet": {
+assets/sprite-meta.json:149:      "note": "SUPERSEDED by fx-explosion-1..5 - diffusion grid cells do not align reliably enough to slice. Do not pack.",
+assets/sprite-meta.json:152:    "fx-impact-spark": {
+assets/sprite-meta.json:161:    "fx-muzzle-flash": {
+assets/sprite-meta.json:399:    "fx-explosion-1": {
+assets/sprite-meta.json:409:    "fx-explosion-2": {
+assets/sprite-meta.json:419:    "fx-explosion-3": {
+assets/sprite-meta.json:429:    "fx-explosion-4": {
+assets/sprite-meta.json:439:    "fx-explosion-5": {
+assets/sprite-meta.json:696:    "fx-explosion": {
+assets/sprite-meta.json:851:  "explosionFrames": [
+assets/sprite-meta.json:852:    "fx-explosion-1",
+assets/sprite-meta.json:853:    "fx-explosion-2",
+assets/sprite-meta.json:854:    "fx-explosion-3",
+assets/sprite-meta.json:855:    "fx-explosion-4",
+assets/sprite-meta.json:856:    "fx-explosion-5"
+assets/atlas.json:553:    "fx-explosion": {
+assets/atlas.json:566:    "fx-muzzle-flash": {
+assets/atlas.json:579:    "fx-impact-spark": {
+assets/atlas.json:592:    "fx-explosion-3": {
+assets/atlas.json:605:    "fx-explosion-1": {
+assets/atlas.json:618:    "fx-explosion-2": {
+assets/atlas.json:631:    "fx-explosion-4": {
+assets/atlas.json:1112:    "fx-explosion-5": {
+assets/atlas.json:553:    "fx-explosion": {
+assets/atlas.json:566:    "fx-muzzle-flash": {
+assets/atlas.json:579:    "fx-impact-spark": {
+assets/atlas.json:592:    "fx-explosion-3": {
+assets/atlas.json:605:    "fx-explosion-1": {
+assets/atlas.json:618:    "fx-explosion-2": {
+assets/atlas.json:631:    "fx-explosion-4": {
+assets/atlas.json:1112:    "fx-explosion-5": {
+src/render/sprite.ts:71:/** One renderable instance: a vehicle, wreck, prop, projectile, terrain tile, or hazard decal. */
+src/render/sprite.ts:764:/** Draws the world-sprite layer (vehicles, wrecks, props, projectiles): one instanced draw call per atlas. */
+src/sim/combat.ts:8: * mode including PROJECTILE. "Resolves on intersection" (for a travelling projectile)
+src/sim/combat.ts:9: * means the pre-rolled outcome is *released* to the target when the projectile's
+src/sim/combat.ts:66: * miss too, for every mode (HITSCAN and CONE have no travelling projectile entity to
+src/sim/combat.ts:265:  if (weaponDef.projectileSpeedMps === undefined) {
+src/sim/combat.ts:266:    // A speed-0 projectile would never travel (`advanceProjectile` adds nothing to
+src/sim/combat.ts:267:    // position/traveledM) and never expire (`projectileExpired` tests
+src/sim/combat.ts:271:    throw new RangeError(`weapon ${weaponDef.id} has no projectileSpeedMps for PROJECTILE mode`);
+src/sim/combat.ts:273:  const speed = weaponDef.projectileSpeedMps;
+src/sim/combat.ts:289:export function advanceProjectile(projectile: ProjectileState, dtSeconds: number): ProjectileState {
+src/sim/combat.ts:290:  const dx = projectile.velocity.x * dtSeconds;
+src/sim/combat.ts:291:  const dy = projectile.velocity.y * dtSeconds;
+src/sim/combat.ts:293:    ...projectile,
+src/sim/combat.ts:294:    position: { x: projectile.position.x + dx, y: projectile.position.y + dy },
+src/sim/combat.ts:295:    traveledM: projectile.traveledM + vecLength({ x: dx, y: dy }),
+src/sim/combat.ts:299:export function projectileExpired(projectile: ProjectileState): boolean {
+src/sim/combat.ts:300:  return projectile.traveledM >= projectile.maxRangeM;
+src/sim/combat.ts:303:export function projectileReachedPoint(projectile: ProjectileState, point: Vec2, hitRadiusM: number): boolean {
+src/sim/combat.ts:304:  return vecLength(subtractVec(point, projectile.position)) <= hitRadiusM;
+src/sim/combat.ts:375:  | { readonly kind: 'PROJECTILE'; readonly projectile: ProjectileState }
+src/sim/combat.ts:395:  /** Id for the spawned projectile/deployable entity (PROJECTILE/DEPLOYABLE modes only). */
+src/sim/combat.ts:431:      projectile: spawnProjectile(
+
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+**Clarifying radar contact logic**
+codex
+The opponent match establishes a combat feedback problem: firing consumes ammunition and damages vehicles, but the battlefield shows no shot or impact effect. I checked the render path because a screenshot could miss a brief effect; it submits vehicles and shadows without combat effects. I’m making one final check on the radar after a kill, since the feed says “2 left” while the radar still reports three contacts.
+
+exec
+/bin/zsh -lc "sed -n '1670,1740p' src/app.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+ * Releases every projectile's pre-rolled outcome (see `@/sim/combat`'s file
+ * header) onto the REAL target it was fired at, the moment it reaches that
+ * target's oriented-rectangle collider or expires — whichever comes first —
+ * via the real `applyResolvedShot` penetration chain. An opponent whose hit
+ * report comes back `opponentDefeatedByReport` is marked `destroyed` and its
+ * defeat is recorded through the real `recordOpponentDefeated` (never a
+ * direct `matchState.opponentsDefeated` write). The player's own hits update
+ * `driverRef` the same way, and a defeated PLAYER is marked `destroyed` too
+ * (the exit handler below reads that to force an ON_FOOT exit).
+ */
+export function makeArenaDamageSystem(
+  playerVehicleId: string,
+  driverRef: { current: DriverState },
+  opponents: Map<string, ArenaOpponentState>,
+  projectileTargets: Map<string, string>,
+  matchStateRef: { current: ArenaMatchState },
+  log: (kind: HudMessageKind, text: string) => void,
+): SystemFn {
+  return (world) => {
+    const collisionCfg = drivingConfig().collision;
+    const remaining: ProjectileState[] = [];
+
+    for (const projectile of world.entities.projectiles) {
+      const targetId = projectileTargets.get(projectile.id);
+      const targetIndex = targetId === undefined ? -1 : world.entities.vehicles.findIndex((v) => v.id === targetId);
+      const target = targetIndex >= 0 ? world.entities.vehicles[targetIndex] : undefined;
+
+      const reached =
+        target !== undefined && circleIntersectsOrientedRect(projectile.position, collisionCfg.projectileRadiusM, vehicleOrientedRect(target));
+      const expired = projectileExpired(projectile);
+
+      if (!reached && !expired) {
+        remaining.push(projectile);
+        continue;
+      }
+      projectileTargets.delete(projectile.id);
+
+      const { hit, damage, facing } = projectile.outcome;
+      if (target === undefined || target.destroyed || !hit || facing === null) continue;
+
+      const isTargetPlayer = target.id === playerVehicleId;
+      const targetDriver = isTargetPlayer ? driverRef.current : requireOpponent(opponents, target.id).driver;
+      const resolved = withWorldRng(world, (rng) =>
+        applyResolvedShot({ vehicle: target, driver: targetDriver }, facing, damage, rng),
+      );
+
+      const defeated = opponentDefeatedByReport(resolved.report);
+      const nextVehicle = defeated ? { ...resolved.target.vehicle, destroyed: true } : resolved.target.vehicle;
+      world.entities.vehicles[targetIndex] = nextVehicle;
+
+      if (isTargetPlayer) {
+        driverRef.current = resolved.target.driver;
+      } else {
+        const entry = requireOpponent(opponents, target.id);
+        opponents.set(target.id, { ...entry, driver: resolved.target.driver });
+        if (defeated) {
+          matchStateRef.current = recordOpponentDefeated(matchStateRef.current, resolved.report.driverDefeated);
+          const remainingCount = matchStateRef.current.opponentsTotal - matchStateRef.current.opponentsDefeated;
+          log('info', t('ui.arena.opponentDefeated', { remaining: String(remainingCount) }));
+        }
+      }
+    }
+    world.entities.projectiles = remaining;
+  };
+}
+
+/**
+ * The road's own damage system — same `applyResolvedShot` penetration chain
+ * as `makeArenaDamageSystem` above (never a second physics/roll
+ * implementation), but with no `ArenaMatchState` to record into: a road
+ * encounter has no "match", just contacts that live or die. A defeated
+
+exec
+/bin/zsh -lc "rg -n 'function radarContactsFromVehicles' src/app.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+5439:function radarContactsFromVehicles(
+
+exec
+/bin/zsh -lc "rg -n 'radarContactsFromVehicles|destroyed' src/app.ts | head -n 50" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+628: * a destroyed or spent mount stays in the array, see `WeaponState.spent`).
+699: * never shrinks — a destroyed mount stays in the array.
+1115:        destroyed: false,
+1122:    destroyed: false,
+1156:    if (player === undefined || player.destroyed) return;
+1176:    if (player === undefined || player.destroyed) return;
+1265:      if (vehicle === undefined || vehicle.destroyed) continue;
+1450: * Vehicle-vs-vehicle contact: any two non-destroyed vehicles whose
+1471:      if (a === undefined || a.destroyed) break;
+1473:      if (b === undefined || b.destroyed) continue;
+1513: * Every non-player, non-destroyed vehicle's REAL `decideAI` decision for
+1546:      if (vehicle.id === playerVehicleId || vehicle.destroyed) continue;
+1568:      if (vehicle.destroyed) return vehicle;
+1601:      if (vehicle.destroyed) return;
+1674: * report comes back `opponentDefeatedByReport` is marked `destroyed` and its
+1677: * `driverRef` the same way, and a defeated PLAYER is marked `destroyed` too
+1708:      if (target === undefined || target.destroyed || !hit || facing === null) continue;
+1717:      const nextVehicle = defeated ? { ...resolved.target.vehicle, destroyed: true } : resolved.target.vehicle;
+1741: * opponent is marked `destroyed` and dropped from `opponents` here; turning
+1744: * `destroyed` non-player vehicle each tick — see `showRoad`), not this
+1774:      if (target === undefined || target.destroyed || !hit || facing === null) continue;
+1782:      const nextVehicle = defeated ? { ...resolved.target.vehicle, destroyed: true } : resolved.target.vehicle;
+1827:   * be destroyed explicitly. Without this, every device-loss recovery cycle
+2643:  const matchResult = beginArenaMatch(driver, { design: playerVehicle.design, destroyed: false }, ARENA_EVENT_ID);
+3340:  // A destroyed vehicle is gone for good — `@/sim/fleet`'s own `removeVehicle`
+3348:  if (vehicle.destroyed) {
+3367: * destroyed active car (`reconcileFleetWithVehicle`'s own `vehicle.destroyed`
+3573:// destroyed or driver defeated is marked `destroyed` and recorded through
+3613: * `destroyed` branch is what drops it from the roster).
+3940:        contacts: radarContactsFromVehicles(world, playerVehicleId, opponents),
+4032:    const opponents = world.entities.vehicles.filter((vehicle) => vehicle.id !== player.id && !vehicle.destroyed);
+4094:  /** The player's own vehicle destroyed, or their driver's natural health run out — either one means there is nobody left in this fight who can still drive out under their own power. */
+4097:    return player?.destroyed === true || isDead(driverRef.current);
+5371: * Rolls a destroyed vehicle's wreck against the killing weapon's `IGNITE_WRECK`
+5439:function radarContactsFromVehicles(
+5970:   * reassigned on every frame of the trip — the hint would be destroyed and
+6340:          destroyed: playerAfter.destroyed,
+6653:    const liveOpponents = [...opponentVehicles.values()].filter((v) => !v.destroyed);
+6698:    const opponents = [...opponentVehicles.values()].filter((v) => !v.destroyed);
+6810:  /** Player vehicle destroyed mid-route: abandon it where it died and return on foot to the ORIGIN city (SPEC "Road": abandoning leaves the car behind) rather than silently teleporting to the destination. */
+6954:    let destroyed = false;
+6971:      if (trip.vehicle.destroyed) { destroyed = true; break; }
+6986:    if (destroyed) { finishDestroyed(); return; }
+
+exec
+/bin/zsh -lc "rg -n 'radar|destroyed|wreck' src/sim/radar.ts src/ui/hud.ts | head -n 70" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+rg: src/sim/radar.ts: No such file or directory (os error 2)
+src/ui/hud.ts:10: * speed, acceleration tiers, natural-health/body-armor caps, radar range) is
+src/ui/hud.ts:82:  readonly kind: 'vehicle' | 'pedestrian' | 'hazard' | 'wreck';
+src/ui/hud.ts:90:  /** False when plant damage has knocked radar out; renders an offline state, not an empty one. */
+src/ui/hud.ts:95:export type HudMessageKind = 'hit' | 'destroyed' | 'controlLoss' | 'salvage' | 'deadline' | 'victory' | 'info';
+src/ui/hud.ts:113:  readonly radarOrientation: RadarOrientation;
+src/ui/hud.ts:131:  readonly radar: HudRadarSnapshot;
+src/ui/hud.ts:168:export type DamageState = 'ok' | 'damaged' | 'critical' | 'destroyed';
+src/ui/hud.ts:175:  destroyed: '✕', // ✕ cross
+src/ui/hud.ts:182:  // "destroyed" even though nothing has ever been hit.
+src/ui/hud.ts:184:  if (current <= 0) return 'destroyed';
+src/ui/hud.ts:301:  // same answer the radar got 44 times over — the symbol is explained, in text,
+src/ui/hud.ts:364:    if (state.destroyed) return; // destroyed weapons vanish from the list entirely
+src/ui/hud.ts:385:  // always handled its own nothing-to-show case explicitly (`hud-radar-offline`),
+src/ui/hud.ts:399:  const panel = el(doc, 'section', { class: 'hud-panel hud-panel--radar', 'aria-label': t('ui.hud.ariaRadarPanel') });
+src/ui/hud.ts:400:  panel.appendChild(el(doc, 'h2', { class: 'hud-panel-title' }, t('ui.panel.radar')));
+src/ui/hud.ts:402:  if (!snapshot.radar.enabled) {
+src/ui/hud.ts:404:    panel.appendChild(el(doc, 'p', { class: 'hud-radar-offline', role: 'status' }, t('ui.radar.offline')));
+src/ui/hud.ts:409:  const visualRangeM = drivingConfig().radar.visualRangeM;
+src/ui/hud.ts:410:  const orientation = snapshot.settings.radarOrientation;
+src/ui/hud.ts:428:  // "the car points east while the radar triangle still points straight up."
+src/ui/hud.ts:443:  // hud.css .hud-radar-face, sized off this same range) or be misreported.
+src/ui/hud.ts:444:  const visibleContacts = snapshot.radar.contacts.filter(
+src/ui/hud.ts:449:  // AT can't perceive anyway (see the `hud-radar-contact-list` below for the
+src/ui/hud.ts:451:  const face = el(doc, 'div', { class: 'hud-radar-face', 'aria-hidden': 'true' });
+src/ui/hud.ts:454:      class: 'hud-radar-player',
+src/ui/hud.ts:455:      style: `--hud-radar-player-rot:${playerMarkerDeg.toFixed(2)}deg`,
+src/ui/hud.ts:467:      class: `hud-radar-contact hud-radar-contact--${contact.kind}${contact.hostile ? ' hud-radar-contact--hostile' : ''}`,
+src/ui/hud.ts:470:      style: `--hud-radar-x:${fracX.toFixed(3)};--hud-radar-y:${fracY.toFixed(3)}`,
+src/ui/hud.ts:479:    { class: 'hud-radar-summary hud-visually-hidden' },
+src/ui/hud.ts:487:  const contactList = el(doc, 'ul', { class: 'hud-radar-contact-list hud-visually-hidden' });
+src/ui/hud.ts:498:    { type: 'button', class: 'hud-radar-orientation-toggle', 'aria-pressed': String(orientation === 'heading') },
+src/ui/hud.ts:499:    orientation === 'heading' ? t('ui.radar.orientationHeading') : t('ui.radar.orientationNorth'),
+src/ui/hud.ts:527:  const batteryState: DamageState = batteryEmpty ? 'destroyed' : damageState(vehicle.battery, batteryFull);
+src/ui/hud.ts:537:      batteryEmpty ? `${DAMAGE_GLYPH.destroyed} 0%` : `${DAMAGE_GLYPH[batteryState]} ${batteryPct}%`,
+src/ui/hud.ts:718:      const state: DamageState = failed ? 'destroyed' : 'ok';
+src/ui/hud.ts:762:  // a "destroyed" line, still render as separate rows — a merge that spanned
+src/ui/hud.ts:823:  // anything — it is occupying a corner that otherwise carries radar, telemetry
+src/ui/hud.ts:866: * state from a previous render (e.g. a destroyed weapon's row).
+
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+mcp: playwright/browser_evaluate started
+mcp: playwright/browser_evaluate (completed)
+mcp: playwright/browser_take_screenshot started
+mcp: playwright/browser_take_screenshot (completed)
+mcp: playwright/browser_press_key started
+mcp: playwright/browser_press_key (completed)
+**Reading radar source**
+exec
+/bin/zsh -lc "sed -n '5432,5485p' src/app.ts" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+ * Offsets are world-frame metres relative to the player, which is what
+ * `HudRadarContact` documents and what `buildRadar` rotates into screen space.
+ * Contacts are deliberately NOT pre-filtered to visual range here:
+ * `buildRadar` already filters on `drivingConfig().radar.visualRangeM` and
+ * reports the count it actually drew, so filtering twice would let the two
+ * disagree and make the accessibility summary a lie.
+ */
+function radarContactsFromVehicles(
+  world: World,
+  playerId: string,
+  opponents: ReadonlyMap<string, ArenaOpponentState>,
+): HudRadarContact[] {
+  const player = findPlayer(world);
+  if (player === undefined) return [];
+  const out: HudRadarContact[] = [];
+  for (const vehicle of world.entities.vehicles) {
+    if (vehicle.id === playerId) continue;
+    // `opponents` is the authoritative hostile set: a wreck or a neutral car in
+    // the same world is not a radar contact, and guessing from the world alone
+    // would light up every civilian.
+    if (!opponents.has(vehicle.id)) continue;
+    out.push({
+      id: vehicle.id,
+      kind: 'vehicle',
+      worldDx: vehicle.position.x - player.position.x,
+      worldDy: vehicle.position.y - player.position.y,
+      hostile: true,
+    });
+  }
+  return out;
+}
+
+/**
+ * Road lane markings, placed along the route's frozen forward axis.
+ *
+ * ## Why the road needed this at all
+ *
+ * The road surface is a tiled asphalt texture, which reads as motionless. Two
+ * separate vision reviews of the real frame said the same thing in different
+ * words — "the player loses all spatial reference and directionality; driving
+ * feels like sliding across a static pixelated grey sheet" and "difficult to
+ * perceive vehicle speed, drift, or surface changes". Texture alone cannot carry
+ * speed: it is identical at every point on the road, so nothing in the frame
+ * changes as you move and the eye has no cue to track.
+ *
+ * ## Why placement, not art
+ *
+ * The dash PATTERN is geometry, not pixels. A dash image with painted gaps would
+ * have to be authored at the camera's zoom to avoid looking stretched, and its
+ * period would be baked in at a fixed world scale. One short bar is instead
+ * placed repeatedly, so the dash period is a world-space distance the code owns
+ * and can change.
+ *
+ * `trip.routeHeadingRad` is the route's frozen forward axis, so the markings sit
+
+exec
+/bin/zsh -lc 'git status --short' in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+ M .opencode/reviews/codex-20260930-082411.trace.log
+?? review-arena-firing-live.png
+?? review-arena-match-live.png
+?? review-arena-match.png
+?? review-arena-post-kill.png
+?? review-city-arena-approach.png
+?? review-city-arena-entry.png
+?? review-city-east.png
+?? review-city-northeast.png
+?? review-fleet-after-abandon.png
+
+**Organizing screenshot artifacts****Preparing screenshot move and review**
+exec
+/bin/zsh -lc "rg -n -A 24 '\"id\": \"machine-gun\"' rulesets/classic/weapons.json" in /Users/shoemoney/Projects/smduel
+ exited 1 in 0ms:
+exec
+/bin/zsh -lc "rg -n 'fx-muzzle-flash|fx-impact-spark|fx-explosion' src scripts | head -n 35" in /Users/shoemoney/Projects/smduel
+ succeeded in 222ms:
+rg: scripts: No such file or directory (os error 2)
+
+exec
+/bin/zsh -lc "python3 - <<'PY'
+from pathlib import Path
+folder = Path('.shots/review-20260930-1324')
+folder.mkdir(parents=True, exist_ok=True)
+names = ['review-arena-initial.png','review-arena-driven.png','review-road-initial.png','review-road-ready.png','review-road-driven.png','review-city-ready.png','review-city-settled.png','review-city-moved.png','review-city-journal.png','review-city-facility.png','review-road-laptop.png','review-road-east-drive.png','review-road-trip-menu.png','review-fleet-after-abandon.png','review-city-east.png','review-city-northeast.png','review-city-arena-approach.png','review-city-arena-entry.png','review-arena-match.png','review-arena-match-live.png','review-arena-firing-live.png','review-arena-post-kill.png']
+for name in names:
+    p = Path(name)
+    if p.exists():
+        p.rename(folder / name)
+print('\\n'.join(str(p) for p in sorted(folder.iterdir())))
+PY" in /Users/shoemoney/Projects/smduel
+ succeeded in 0ms:
+.shots/review-20260930-1324/review-arena-driven.png
+.shots/review-20260930-1324/review-arena-firing-live.png
+.shots/review-20260930-1324/review-arena-initial.png
+.shots/review-20260930-1324/review-arena-match-live.png
+.shots/review-20260930-1324/review-arena-match.png
+.shots/review-20260930-1324/review-arena-post-kill.png
+.shots/review-20260930-1324/review-city-arena-approach.png
+.shots/review-20260930-1324/review-city-arena-entry.png
+.shots/review-20260930-1324/review-city-east.png
+.shots/review-20260930-1324/review-city-facility.png
+.shots/review-20260930-1324/review-city-journal.png
+.shots/review-20260930-1324/review-city-moved.png
+.shots/review-20260930-1324/review-city-northeast.png
+.shots/review-20260930-1324/review-city-ready.png
+.shots/review-20260930-1324/review-city-settled.png
+.shots/review-20260930-1324/review-fleet-after-abandon.png
+.shots/review-20260930-1324/review-road-driven.png
+.shots/review-20260930-1324/review-road-east-drive.png
+.shots/review-20260930-1324/review-road-initial.png
+.shots/review-20260930-1324/review-road-laptop.png
+.shots/review-20260930-1324/review-road-ready.png
+.shots/review-20260930-1324/review-road-trip-menu.png
+
+**Reviewing game effects and issues****Clarifying gameplay gaps and verification**
+codex
+## Gameplay review
+
+I inspected the live arena, road, and city at seed `a11ce5ee`, using **2400 × 2020 screenshots at DPR 2**. I drove and fired in practice and Division 5, exercised the highway’s pause and Controls flow, and entered city facilities. There are **three screen findings and one game-wide gap**, counted below.
+
+### 1. Arena — combat happens without visible firing or impact effects
+
+**Where:** The battlefield around the player’s car.
+
+**What is wrong:** Holding fire consumes ammunition and damages opponents, but the world provides no visible shot path, muzzle flash, or impact effect. In Division 5, ammunition fell from **20/20 to 7/20**, front armour fell from **2/2 to 1/2**, and the feed announced **“Opponent destroyed — 2 left.”** The battlefield showed cars moving and overlapping without showing the exchanges causing those changes.
+
+I checked the source after playing: the arena’s render list submits vehicle sprites and shadows, without projectiles or combat effects. This confirms the absence beyond a still that might miss a brief flash. [Screenshot during firing](/Users/shoemoney/Projects/smduel/.shots/review-20260930-1324/review-arena-firing-live.png)
+
+**Why it matters:** Players cannot readily connect firing, incoming damage, and successful hits to positions in the world. Learning weapon direction and deciding how to evade requires watching HUD counters during combat.
+
+**What I would do:** **Code change.** Render travelling projectiles from their simulation positions, emit a short muzzle effect on each shot, and show an impact effect where a hit resolves. Use the existing atlas muzzle-flash and impact-spark assets; new art is not required for the first fix. Effects should follow actual combat outcomes.
+
+### 2. Road — even the 30-mile introductory route takes about 26 minutes
+
+**Where:** The highway itself, reflected in the top-centre route progress and bottom-centre odometer.
+
+**What is wrong:** At a steady displayed **70 mph**, route progress advanced **0.234 miles in 12.01 seconds**. That implies approximately **25.7 real minutes for 30 miles**, before acceleration, stops, or fights.
+
+This is a pacing judgment supported by measured behavior. The empty starting bar is correct; the issue is how long completing it demands.
+
+**Why it matters:** One journey consumes a substantial play session and delays returning to jobs, repairs, and building cars. Save and quit makes travel interruptible, but does not reduce that commitment.
+
+**What I would do:** **Code and tuning change.** Compress uneventful travel so this route takes roughly **3–5 minutes**, returning to normal simulation speed around encounters, hazards, and player interventions. Advance route progress, calendar time, and resource consumption consistently during compression. Keep encounters at their defined route positions rather than stepping past them.
+
+### 3. Arena — destroyed opponents remain hostile radar contacts
+
+**Where:** The bottom-left RADAR panel, after a kill.
+
+**What is wrong:** After **“Opponent destroyed — 2 left,”** the radar continued showing **three orange hostile markers** and reporting **three hostile vehicle contacts**. I resumed and moved again; the discrepancy persisted beyond the kill frame. [Post-kill screenshot](/Users/shoemoney/Projects/smduel/.shots/review-20260930-1324/review-arena-post-kill.png)
+
+The source explains it: defeated vehicles remain in the opponents map, and radar contact generation does not exclude vehicles marked `destroyed`. The battlefield renderer does exclude them.
+
+**Why it matters:** The radar directs attention toward a threat that no longer exists. Players may turn toward an invisible opponent or distrust the instrument precisely when it should help them find the remaining enemies.
+
+**What I would do:** **Code change.** Exclude destroyed vehicles from hostile radar contacts. If wrecks should remain detectable, represent them explicitly as non-hostile wreck contacts and render the corresponding wreck in the world.
+
+## Game-wide gap
+
+### 4. The Federal Building has no core gameplay service yet
+
+Entering the Federal Building opens **“Federal Building isn’t open for business yet — coming in a future phase,”** with Leave as the available action. Its approach label correctly says **closed**. This is an acknowledged content gap, rather than broken navigation. [Facility panel](/Users/shoemoney/Projects/smduel/.shots/review-20260930-1324/review-city-east.png)
+
+It limits the city’s useful destinations. I would address it through **code and authored content**: give the facility one complete service or mission loop with a clear objective, consequence, and reward before expanding its menu. Additional building art would not address this gap.
+
+The review did not complete an entire highway journey or test other viewport sizes. I found no additional city-specific defect in the interactions inspected.
+
+REVIEW-VERDICT: 4
+tokens used
+198,226
+## Gameplay review
+
+I inspected the live arena, road, and city at seed `a11ce5ee`, using **2400 × 2020 screenshots at DPR 2**. I drove and fired in practice and Division 5, exercised the highway’s pause and Controls flow, and entered city facilities. There are **three screen findings and one game-wide gap**, counted below.
+
+### 1. Arena — combat happens without visible firing or impact effects
+
+**Where:** The battlefield around the player’s car.
+
+**What is wrong:** Holding fire consumes ammunition and damages opponents, but the world provides no visible shot path, muzzle flash, or impact effect. In Division 5, ammunition fell from **20/20 to 7/20**, front armour fell from **2/2 to 1/2**, and the feed announced **“Opponent destroyed — 2 left.”** The battlefield showed cars moving and overlapping without showing the exchanges causing those changes.
+
+I checked the source after playing: the arena’s render list submits vehicle sprites and shadows, without projectiles or combat effects. This confirms the absence beyond a still that might miss a brief flash. [Screenshot during firing](/Users/shoemoney/Projects/smduel/.shots/review-20260930-1324/review-arena-firing-live.png)
+
+**Why it matters:** Players cannot readily connect firing, incoming damage, and successful hits to positions in the world. Learning weapon direction and deciding how to evade requires watching HUD counters during combat.
+
+**What I would do:** **Code change.** Render travelling projectiles from their simulation positions, emit a short muzzle effect on each shot, and show an impact effect where a hit resolves. Use the existing atlas muzzle-flash and impact-spark assets; new art is not required for the first fix. Effects should follow actual combat outcomes.
+
+### 2. Road — even the 30-mile introductory route takes about 26 minutes
+
+**Where:** The highway itself, reflected in the top-centre route progress and bottom-centre odometer.
+
+**What is wrong:** At a steady displayed **70 mph**, route progress advanced **0.234 miles in 12.01 seconds**. That implies approximately **25.7 real minutes for 30 miles**, before acceleration, stops, or fights.
+
+This is a pacing judgment supported by measured behavior. The empty starting bar is correct; the issue is how long completing it demands.
+
+**Why it matters:** One journey consumes a substantial play session and delays returning to jobs, repairs, and building cars. Save and quit makes travel interruptible, but does not reduce that commitment.
+
+**What I would do:** **Code and tuning change.** Compress uneventful travel so this route takes roughly **3–5 minutes**, returning to normal simulation speed around encounters, hazards, and player interventions. Advance route progress, calendar time, and resource consumption consistently during compression. Keep encounters at their defined route positions rather than stepping past them.
+
+### 3. Arena — destroyed opponents remain hostile radar contacts
+
+**Where:** The bottom-left RADAR panel, after a kill.
+
+**What is wrong:** After **“Opponent destroyed — 2 left,”** the radar continued showing **three orange hostile markers** and reporting **three hostile vehicle contacts**. I resumed and moved again; the discrepancy persisted beyond the kill frame. [Post-kill screenshot](/Users/shoemoney/Projects/smduel/.shots/review-20260930-1324/review-arena-post-kill.png)
+
+The source explains it: defeated vehicles remain in the opponents map, and radar contact generation does not exclude vehicles marked `destroyed`. The battlefield renderer does exclude them.
+
+**Why it matters:** The radar directs attention toward a threat that no longer exists. Players may turn toward an invisible opponent or distrust the instrument precisely when it should help them find the remaining enemies.
+
+**What I would do:** **Code change.** Exclude destroyed vehicles from hostile radar contacts. If wrecks should remain detectable, represent them explicitly as non-hostile wreck contacts and render the corresponding wreck in the world.
+
+## Game-wide gap
+
+### 4. The Federal Building has no core gameplay service yet
+
+Entering the Federal Building opens **“Federal Building isn’t open for business yet — coming in a future phase,”** with Leave as the available action. Its approach label correctly says **closed**. This is an acknowledged content gap, rather than broken navigation. [Facility panel](/Users/shoemoney/Projects/smduel/.shots/review-20260930-1324/review-city-east.png)
+
+It limits the city’s useful destinations. I would address it through **code and authored content**: give the facility one complete service or mission loop with a clear objective, consequence, and reward before expanding its menu. Additional building art would not address this gap.
+
+The review did not complete an entire highway journey or test other viewport sizes. I found no additional city-specific defect in the interactions inspected.
+
+REVIEW-VERDICT: 4

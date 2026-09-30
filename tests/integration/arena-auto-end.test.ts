@@ -467,6 +467,67 @@ describe('showArenaEvent: the match ends itself', () => {
     expect(document.querySelector('.sm-screen--arcade-submit')).toBeNull();
   });
 
+  it('clears destroyed opponents off the radar, and the contact count only ever falls', async () => {
+    // Found by Codex `gpt-6.1-sol` driving the live arena: after "Opponent
+    // destroyed — 2 left" the radar still showed three orange hostile markers.
+    //
+    // The mechanism is that `makeArenaDamageSystem` deliberately does NOT prune
+    // the `opponents` map — the roster IS the win condition and
+    // `resolveArenaExit` needs it intact — so "is this id an opponent" is not
+    // the same question as "is this vehicle still a threat". The ROAD's
+    // sibling system deletes the entry, which is what made the radar look
+    // correct by inspection on exactly one of the two screens sharing it.
+    await bootToCity(root, WIN_SEED, 'arcade=1');
+    await becomeCarlessThenEnterAmateurNight(WIN_SEED);
+
+    const hostileContacts = (): number => document.querySelectorAll('.hud-radar-contact--hostile').length;
+
+    const driver = makeCombatDriver(winScheduleAt);
+    // The baseline is read AFTER a few ticks, because the HUD is painted from
+    // inside `frame()` and there is no radar at all on the frame the screen
+    // mounts. Capturing at mount read 0 contacts and made the first sample look
+    // like four contacts had APPEARED — the third time in two rounds that a
+    // reading taken before the first frame produced a confident wrong answer
+    // about this HUD (iterations 111 and 112 both hit it in this file).
+    driver.advanceTo(5);
+    const initial = hostileContacts();
+    // Staged, because the match resolving unmounts the arena and takes the radar
+    // with it — the invariant is only observable mid-fight. Stage boundaries are
+    // deliberately NOT this seed's kill ticks, which are a property of its RNG.
+    const counts: number[] = [initial];
+    for (const stage of [200, 400, 600, 800, 1000]) {
+      driver.advanceTo(stage);
+      counts.push(hostileContacts());
+    }
+
+    // A dead opponent leaving the radar is a DECREASE, and nothing else in this
+    // match can add a contact, so the count is monotonically non-increasing.
+    // Asserting the exact number each stage would need the roster as an oracle,
+    // and the two obvious oracles are both unsound: the `.hud-message` feed
+    // COALESCES repeated lines into "Machine Gun fired x7" and ROTATES, so the
+    // "Opponent destroyed - N left" line had already scrolled away by the second
+    // sample; and a hardcoded roster size is a second derivation of the event's
+    // own data. Two versions of this test failed on exactly those, reporting a
+    // correct radar as wrong — the log's own "a probe that finds the wrong thing
+    // is worse than one that finds nothing", reached from the other direction.
+    for (let i = 1; i < counts.length; i++) {
+      expect(
+        counts[i],
+        `radar contacts rose from ${counts[i - 1]} to ${counts[i]} at sample ${i}; a kill must only ever remove one`,
+      ).toBeLessThanOrEqual(counts[i - 1] ?? 0);
+    }
+
+    // AND THE SIGNAL MUST HAVE MOVED. Without this the monotonicity above is
+    // satisfied by a radar that never cleared anything — e.g. if the seed
+    // resolved early, or the schedule killed nothing, every assertion would pass
+    // while proving nothing. This is what makes the rest mean something.
+    const last = counts[counts.length - 1] ?? initial;
+    expect(
+      last,
+      `radar contacts never fell below ${initial}, so no destroyed opponent was ever observed and the run proved nothing`,
+    ).toBeLessThan(initial);
+  });
+
   it('clearing amateur-night\'s real roster ends the match automatically and shows the score submit screen, with no click — and a stale click afterward cannot resolve it twice', async () => {
     await bootToCity(root, WIN_SEED, 'arcade=1');
     await becomeCarlessThenEnterAmateurNight(WIN_SEED);
