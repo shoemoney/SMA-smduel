@@ -5647,3 +5647,98 @@ ITERATION 99 — Codex review of the live deployment; two findings fixed and shi
   unblocks the SPEC's on-foot escape. Then #4's rail-vs-collision decision,
   which is a real design call: either give the rails collision or replace them
   with delineator posts that do not promise a barrier.
+ITERATION 100 — the road trip menu (Codex finding #2), shipped and live verified
+- The finding, from the review at iteration 99: "The player cannot deliberately
+  pause or leave the trip. I tried Escape and P. Neither opened a menu or
+  paused the simulation; the car continued coasting." It greps clean —
+  `showRoad` mounted no menu and no actions of any kind, so the road was the
+  ONLY screen in the game with no way to stop, and a player who wanted to
+  check the controls had to use browser navigation. The reviewer's note that
+  this is needed "even after travel is shortened" is the right call: a leg is a
+  genuine ~129 minutes of driving, so stopping is the NORMAL impulse here.
+
+- WHAT SHIPS. Esc and P both open it (the reviewer tried both, and only one
+  working would be a coin flip). Neither key is bound to any action in
+  `controls.json` — checked rather than assumed, since the bindings are
+  runtime-rebindable and a future binding to either key would be a real
+  collision. Opening FREEZES the trip: the gate returns before any simulation
+  is read, so nothing slips past — not `stepRoadTrip`, not `stepCombat`, not
+  weapon cooldown, not the route clock, not contact engagement. Resume /
+  Controls / Abandon trip, and a persistent "Esc — trip menu" hint, because a
+  pause control nobody knows about is not one.
+  `finishAbandoned` deliberately reuses the ORIGIN city, stored vehicle and
+  fleet reconciliation of `finishDestroyed`, so a player who abandons
+  deliberately and one whose car dies land in ONE world state via ONE
+  implementation of what abandonment means.
+
+- **THE BUG THE TEST CAUGHT IN MY OWN FIRST ATTEMPT, in exactly the way the
+  comment beside the code predicted.** `mountMenu` listens on `menuHost`; the
+  screen's pause handler is on `window`. A keypress therefore reaches
+  `menuHost` FIRST: `handleMenuKey` returns BACK, `closeTripMenu()` sets
+  `paused = false`, and THEN the window handler runs, sees `paused === false`
+  and re-opens the menu. Escape did nothing — the shipped bug, re-created by
+  its own fix. `if (paused) return` cannot catch it, because by the time the
+  window handler runs the menu has already cleared the flag it was guarding.
+  Replaced with a read-and-clear `menuHandledKey` set by `onBack`. This is the
+  same lesson as iteration 89's two aborts that "looked like they worked": a
+  guard placed on the wrong side of a two-handler keypress is not a guard.
+
+- SIX TESTS, ALL THREE MUTATIONS PROVEN TO FIRE ON EXACTLY THE RIGHT ONE:
+    remove the freeze gate      -> only the FREEZE test fails
+    restore the broken guard    -> only the RESUME test fails
+    remove the `stop()` teardown-> 3 tests fail (the leaked listener)
+  The freeze test asserts on the status LINE, not the screen's whole
+  `textContent`: the first version compared the screen and failed while the
+  freeze was working correctly, because the only difference was the menu the
+  change itself adds. A test that fails for the feature it is testing is
+  worse than no test, and this log has the receipts for both halves of that.
+
+- **A FIXTURE THAT LIED, the tenth instance.** The abandon test asserted
+  `cityText` contains `skillsConfig().startingLocation` — the ruleset id,
+  `'newyork'` — while the screen renders `cityName(id)`, `'New York'`. It
+  failed on a feature that worked. Same class as the lowercase `FACINGS` keys
+  (25, 84), the function-where-a-string-belongs (82), `w-machine-gun` (84), the
+  `{position:{x,y}}` wrapper (81), the million-dollar driver (85) and the rest.
+
+- **THE LIVE FREEZE CHECK WAS VACUOUS ON THE FIRST TWO ATTEMPTS, and finding
+  out why is the most useful thing in this round.** My first production probe
+  held W for 3s, opened the menu, held W for 5.5s, and read the odometer both
+  times: identical, which I nearly reported as "the freeze is verified live."
+  It proved nothing, because the odometer was SATURATED — `progressMiles` is
+  the projection of the car's displacement onto the route's INITIAL heading
+  axis (`src/sim/road.ts:665`), so a car driven with W and no steering walks
+  off that axis within about two seconds and its progress correctly stops
+  advancing, paused or not. Measured the shape before trusting any of it:
+      frac 2.5e-6 -> 9.4e-6 -> 1.7e-5 -> 1.998e-5 -> 1.998e-5 -> (flat, 16 samples)
+  while the speedometer climbed 9 -> 70 mph and the odometer reached 0.1 mi.
+  A flat signal is not a frozen signal. Counter-steering to hold the axis made
+  it oscillate and keep climbing, which identified the cause.
+  Redone against a signal that genuinely moves, the check is real:
+      after 3s driving    frac 3.8600e-5
+      menu open           1  ["1Resume driving","2Controls","3Abandon trip"]
+      paused +1s          3.8600e-5   (throttle AND steering held through it)
+      paused +2s          3.8600e-5
+      FROZEN: true
+      after resume +3s    5.0578e-5   RESUMED: true, delta 1.198e-5
+  0 console errors throughout. This is iteration 65's rule paying out again in
+  a new place: a value that does not change is evidence about the PROBE until
+  proven otherwise, and the proof is to show the same value moving when the
+  thing under test is not engaged.
+
+- GATE: tsc clean. 68 files / 1487 tests, 4 failures, all in
+  `tests/integration/screens.test.ts` and reproduced on CLEAN MASTER (1 in
+  isolation) — the known order-dependent flake, in a file this change does not
+  touch. 5 browser tests pass. Build `index-CTDS8HVj.js`. `.shots/iter100` =
+  8 screens / 0 problems.
+
+- DEPLOY: release `20260930040000-5791423`, bundle `index-CTDS8HVj.js`.
+  Whole-site snapshot, atomic swap, root + smduel + last-engineer all 200, live
+  bundle hash equals the local build's, 0 console errors.
+
+- NEXT: finding #4 — the guardrails imply a barrier the road sim has no
+  collision for. That is a real design call rather than a defect, and the two
+  honest answers are (a) give the rails collision, or (b) replace them with
+  delineator posts that do not promise a barrier. Also still open: the
+  structural pacing decision (97), the persistent "surface a failed save"
+  message (93), and the unbuilt on-foot mode, which this menu now at least
+  gives a reachable place to trigger from.
