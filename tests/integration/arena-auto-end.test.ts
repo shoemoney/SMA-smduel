@@ -534,3 +534,120 @@ describe('showArenaEvent: the match ends itself', () => {
     expect(document.querySelectorAll('.sm-screen--arcade-submit').length).toBe(0);
   });
 });
+
+/**
+ * The pause menu, and the freeze it promises.
+ *
+ * Found by Codex `gpt-6.1-sol` driving the live arena: "Escape does not pause
+ * combat. In Division 5, after pressing Escape, the car accelerated from 5 to
+ * 25 mph over two seconds, and all three opponents changed position on the
+ * radar. P also opened no menu." Its remedy was "an Escape/P pause menu with
+ * Resume, Controls, and Withdraw" that freezes "driving, AI, projectiles,
+ * damage, cooldowns, and match resolution together".
+ *
+ * THE SIGNAL IS THE REVIEWER'S OWN MEASUREMENT, and that matters more than it
+ * sounds. The car accelerating from 5 to 25 mph is a claim about a CONTINUOUS
+ * value, so the guard reads a continuous value: the speed dial's inline
+ * `--hud-speed-frac`, which `renderHudFrame` rewrites every frame from
+ * `mph / maxTopSpeedMph`.
+ *
+ * **THE CONTROL IS THE POINT, AND IT IS WHAT ITERATION 100'S PAUSE TEST
+ * LACKED.** A frozen number is only evidence if the same number is shown
+ * MOVING when the thing under test is not engaged — otherwise "unchanged" is
+ * indistinguishable from "saturated", which is exactly the trap that made
+ * iteration 100's first live verification vacuous (the odometer read flat
+ * because progress stops advancing off-axis). So every assertion here is a
+ * triple: it climbs while driving, it holds while paused, and it climbs again
+ * after resuming. Removing any one of those three would let a broken freeze
+ * pass for a working one.
+ */
+describe('showArenaEvent: the match can be paused', () => {
+  let root: HTMLElement;
+  let originalRaf: typeof window.requestAnimationFrame;
+  let originalCancelRaf: typeof window.cancelAnimationFrame;
+
+  beforeEach(() => {
+    originalRaf = window.requestAnimationFrame;
+    originalCancelRaf = window.cancelAnimationFrame;
+    root = document.createElement('div');
+    document.body.appendChild(root);
+  });
+
+  afterEach(() => {
+    root.remove();
+    window.requestAnimationFrame = originalRaf;
+    window.cancelAnimationFrame = originalCancelRaf;
+  });
+
+  /** The dial's continuous speed fraction, read off the inline custom property. */
+  function speedFrac(): number {
+    const dial = requireOne('.hud-speed-dial') as HTMLElement;
+    const raw = dial.style.getPropertyValue('--hud-speed-frac');
+    const n = Number.parseFloat(raw);
+    if (Number.isNaN(n)) throw new Error(`speed dial has no readable --hud-speed-frac (got "${raw}")`);
+    return n;
+  }
+
+  function holdThrottleFor(milliseconds: number): void {
+    dispatchKeyDown(window, { key: 'w', code: 'KeyW' });
+    advanceTicks(Math.round(milliseconds / TICK_MS));
+    dispatchKeyUp(window, { key: 'w', code: 'KeyW' });
+    advanceTicks(2);
+  }
+
+  it('freezes driving while paused, and resumes it afterwards', async () => {
+    await bootToCity(root, 'practice-guard-seed', '');
+    await enterPracticeFromGate('practice-guard-seed');
+
+    advanceTicks(20);
+    // --- CONTROL: the signal must MOVE, or "frozen" proves nothing. ---
+    const atRest = speedFrac();
+    holdThrottleFor(1500);
+    const whileDriving = speedFrac();
+    expect(
+      whileDriving,
+      `the speed dial never left ${atRest.toFixed(3)} while holding throttle, so a later "frozen" reading would be meaningless`,
+    ).toBeGreaterThan(atRest + 0.01);
+
+    dispatchKeyDown(window, { key: 'Escape' });
+    await flushMicrotasks();
+
+    // --- PAUSED: the menu is up and the dial is held. ---
+    const labels = [...document.querySelectorAll('.sm-menu__item')].map((i) => (i.textContent ?? '').trim());
+    expect(labels.join('|'), 'the pause menu should offer Resume, Controls and Leave Arena').toMatch(/Resume/i);
+    expect(labels.join('|')).toMatch(/Controls/i);
+    expect(labels.join('|')).toMatch(/Leave Arena/i);
+
+    // Throttle HELD THROUGH the pause: the codes were cleared when the menu
+    // opened, so nothing should accelerate, and nothing should coast either.
+    dispatchKeyDown(window, { key: 'w', code: 'KeyW' });
+    advanceTicks(90); // ~1.5s of simulated time the player must not get
+    dispatchKeyUp(window, { key: 'w', code: 'KeyW' });
+    advanceTicks(30);
+    const whilePaused = speedFrac();
+    expect(
+      Math.abs(whilePaused - whileDriving),
+      `the car moved from ${whileDriving.toFixed(3)} to ${whilePaused.toFixed(3)} while paused`,
+    ).toBeLessThan(0.005);
+
+    // --- RESUME: the same signal must move again. ---
+    //
+    // Dispatched to the MENU, not to `window`, and that asymmetry is the whole
+    // shape of iteration 100's bug. `mountMenu` focuses its container and
+    // therefore owns the keyboard while it is open, so a real Escape is handled
+    // by the menu's own BACK — which is what sets `menuHandledKey` and closes it.
+    // Dispatching at `window` bypasses the container entirely, so the menu never
+    // sees it, `menuHandledKey` stays false, the window handler finds `paused`
+    // still true and returns — and the menu cannot be closed at all. That is
+    // exactly the failure `menuHandledKey` exists to make impossible, and the
+    // first version of this test reproduced it precisely.
+    dispatchKeyDown(requireOne('.sm-menu-root'), { key: 'Escape' });
+    await flushMicrotasks();
+    holdThrottleFor(1500);
+    const afterResume = speedFrac();
+    expect(
+      afterResume,
+      `the dial stayed at ${afterResume.toFixed(3)} after resuming; the freeze gate never released`,
+    ).toBeGreaterThan(whilePaused + 0.01);
+  });
+});

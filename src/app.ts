@@ -3612,6 +3612,41 @@ function showArenaEvent(
   container.appendChild(status);
   container.appendChild(retryBtn);
   container.appendChild(exitBtn);
+
+  /**
+   * The pause overlay's host and scrim.
+   *
+   * CENTRED, and that is a decision rather than a default. Codex's remedy for
+   * this finding was "a centred overlay above the entire HUD, with a backdrop
+   * that receives input" — and iteration 107 had just fixed the road's trip
+   * menu being SWALLOWED by the radar precisely because that menu sits
+   * bottom-left, in the same corner the radar is pinned to. Copying the road's
+   * placement here would have rebuilt that collision on the screen where combat
+   * happens. Centring also keeps the car visible behind the scrim, which is the
+   * one thing a player checks before resuming a fight.
+   *
+   * The scrim sits at 25, between `.hud-root`'s 20 and `.sm-menu-root`'s 30, so
+   * the menu is above it and the HUD is below it — the same ladder iteration
+   * 107 established, with the new rung in the middle so the dimmed HUD cannot
+   * take a click meant for the menu.
+   */
+  const pauseScrim = el('div');
+  pauseScrim.style.cssText =
+    'position:absolute;inset:0;background:rgba(5,7,10,0.55);z-index:25;display:none;';
+  const menuHost = el('div');
+  menuHost.style.cssText =
+    'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,90vw);max-height:80vh;overflow:auto;display:none;';
+  // The persistent hint. A pause control nobody knows about is not one —
+  // iteration 100's rule, and the reason the road's trip menu ships a hint at
+  // all. It sits top-centre at 88px, the same band the road uses: below the
+  // status pill and clear of every HUD corner, so it adds no new collision.
+  const menuHint = el('div');
+  menuHint.style.cssText =
+    'position:absolute;top:88px;left:50%;transform:translateX(-50%);color:#9fb0c2;font-family:system-ui,sans-serif;font-size:12px;background:rgba(10,14,20,0.7);padding:3px 9px;border-radius:4px;pointer-events:none;';
+  menuHint.textContent = t('ui.arena.menuHint');
+  container.appendChild(pauseScrim);
+  container.appendChild(menuHost);
+  container.appendChild(menuHint);
   clearAndAppend(root, container);
 
   lastSessionSeed = cityState.sessionSeed;
@@ -3666,6 +3701,131 @@ function showArenaEvent(
     return { moveX: resolved.moveX, moveY: resolved.moveY, fire: resolved.fire, weaponSlot: weaponSelection.active() ?? NO_WEAPON_SLOT };
   }
 
+  /**
+   * Pause state, and the freeze that goes with it.
+   *
+   * Iteration 100's two lessons apply here unchanged, and both are load-bearing:
+   *   - `menuHandledKey` exists because `mountMenu` focuses its container and
+   *     therefore listens FIRST, so a keypress reaches the menu, the menu runs
+   *     its own BACK, and only THEN does this window handler run. `if (paused)
+   *     return` cannot catch that, because the menu has already cleared the flag
+   *     the guard was watching. One Escape would toggle twice and appear to do
+   *     nothing — which is exactly how iteration 100's first attempt shipped a
+   *     pause menu that did not pause.
+   *   - the freeze is a RETURN BEFORE ANY SIMULATION IS READ, not a flag
+   *     checked inside the stepping loop, so nothing can slip past: not driving,
+   *     not AI, not projectiles, not damage, not cooldowns, and not the match
+   *     resolution below it in `frame`.
+   */
+  let paused = false;
+  let mountedMenu: MountedMenu | null = null;
+  let menuHandledKey = false;
+
+  function openPauseMenu(): void {
+    if (mountedMenu !== null) return;
+    if (matchPhase.kind === 'ended') return;
+    paused = true;
+    // Clear held codes so a player who pauses while holding W does not find the
+    // car accelerating again the instant they resume, and so a held fire key
+    // does not discharge a magazine across a pause. `attachCodeTracking` only
+    // ever ADDS codes, so a cleared set is what actually stops the input.
+    codesDown.clear();
+    pauseScrim.style.display = 'block';
+    menuHost.style.display = 'block';
+    menuHost.innerHTML = '';
+    const menuTitle = el('div');
+    menuHost.appendChild(menuTitle);
+    menuTitle.textContent = t('ui.arena.menu');
+    const actions: MenuAction[] = [
+      { id: 'resume', label: t('ui.arena.menuResume'), eligible: true },
+      { id: 'controls', label: t('ui.arena.menuControls'), eligible: true },
+      // The label is read from the SAME string the corner button renders, so the
+      // menu cannot tell a player to press a control that has been renamed or
+      // translated — iteration 107's `{leave}` lesson, applied to a label
+      // rather than to a sentence.
+      { id: 'withdraw', label: t('ui.arena.leaveArena'), eligible: true },
+    ];
+    mountedMenu = mountMenu({
+      container: menuHost,
+      // Real values, deliberately NOT rendered (`showHeader: false`). The arena
+      // genuinely has a driver, a clock and a city, so this is not the phantom
+      // readout iteration 19 removed from the title screen — it is real status
+      // that a mid-combat pause does not need, and the live HUD already carries
+      // the condition that matters. Passing the real fields rather than
+      // placeholders means the suppression is a DECISION about the overlay
+      // rather than missing data.
+      header: {
+        cash: chargedDriver.cash,
+        dayIndex: clock.dayIndex,
+        phase: clock.phase,
+        cityName: cityName(cityState.cityId),
+      },
+      showHeader: false,
+      actions,
+      onActivate: (id) => {
+        if (id === 'resume') {
+          closePauseMenu();
+          return;
+        }
+        if (id === 'controls') {
+          closePauseMenu();
+          showControls(root, () =>
+            showArenaEvent(root, chargedDriver, playerVehicle, matchState, clock, cityState, onComplete),
+          );
+          return;
+        }
+        withdraw();
+      },
+      onBack: () => {
+        menuHandledKey = true;
+        closePauseMenu();
+      },
+    });
+  }
+
+  function closePauseMenu(): void {
+    mountedMenu?.destroy();
+    mountedMenu = null;
+    menuHost.innerHTML = '';
+    menuHost.style.display = 'none';
+    pauseScrim.style.display = 'none';
+    paused = false;
+  }
+
+  /**
+   * Leaving the match, from the corner button AND from the pause menu.
+   *
+   * ONE function for both, because they are the same decision and two copies
+   * are how they drift — iteration 84's `unmetRequirements`, iteration 92's
+   * `roadLegalityMisses`, iteration 98's operational-kind set. The menu is
+   * pointless if the two ways out can disagree about what leaving means.
+   */
+  function withdraw(): void {
+    if (matchPhase.kind === 'ended') return;
+    closePauseMenu();
+    matchPhase = { kind: 'ended' };
+    endMatch(playerDefeated() ? 'ON_FOOT' : 'UNDER_POWER');
+  }
+
+  /**
+   * `Escape` and `P`, which are NOT bound to any action: `controls.json`
+   * contains no `KeyP` and no `Escape` entry, verified by reading the shipped
+   * ruleset rather than assumed from the road's copy of this comment — the same
+   * input map drives both screens, and `controls.json` is rebindable at runtime,
+   * so a future binding to either key would be a real collision.
+   */
+  function onPauseKey(ev: KeyboardEvent): void {
+    if (menuHandledKey) {
+      menuHandledKey = false;
+      return;
+    }
+    if (ev.key !== 'Escape' && ev.key.toLowerCase() !== 'p') return;
+    // Only open. Closing is the menu's own job, for the reason above.
+    if (paused) return;
+    ev.preventDefault();
+    openPauseMenu();
+  }
+  window.addEventListener('keydown', onPauseKey);
   const loop = createGameLoop({ world, dtSeconds, systems, sampleInput });
 
   const hudContainer = document.createElement('div');
@@ -3930,7 +4090,41 @@ function showArenaEvent(
   function frame(nowMs: number): void {
     if (stopped) return;
     const deltaSeconds = Math.max(0, Math.min((nowMs - lastTimeMs) / 1000, 0.25));
+    // Consumed BEFORE the freeze check below, deliberately. `lastTimeMs` is this
+    // screen's only record of when the last frame ran, so returning without
+    // updating it would hand the frame the menu closes on one enormous clamped
+    // delta — the whole paused duration in a single 0.25s step. The road has the
+    // same line for the same reason (iteration 100), and it is the sort of thing
+    // that only shows up as a jolt after unpausing.
     lastTimeMs = nowMs;
+
+    /**
+     * WHILE PAUSED, NOTHING ADVANCES — and the freeze is this RETURN, before any
+     * simulation is read, rather than a flag checked inside the stepping loop.
+     *
+     * Codex measured what the absence of this cost: "after pressing Escape, the
+     * car accelerated from 5 to 25 mph over two seconds, and all three opponents
+     * changed position on the radar. P also opened no menu." The review asked for
+     * "Resume, Controls, and Withdraw" and for "driving, AI, projectiles,
+     * damage, cooldowns, and match resolution" to freeze "together".
+     *
+     * A return is what makes "together" true by construction. `loop.advance` is
+     * the only thing that steps driving, AI, projectiles and damage — they are
+     * all registered systems inside it — and weapon cooldowns ride along in the
+     * same tick. Returning before it stops every one of them, and stopping
+     * BEFORE the `matchPhase` block below is what freezes MATCH RESOLUTION too:
+     * a paused match cannot drift into its `ending` state and then resolve out
+     * from under the menu.
+     *
+     * It still redraws nothing, so the canvas holds the last simulated frame
+     * behind the scrim — which is what a player wants to look at while deciding
+     * whether to resume.
+     */
+    if (paused) {
+      rafHandle = window.requestAnimationFrame(frame);
+      return;
+    }
+
     loop.advance(deltaSeconds);
     renderFrame(nowMs / 1000);
     renderHudFrame();
@@ -3952,6 +4146,14 @@ function showArenaEvent(
     stopped = true;
     window.cancelAnimationFrame(rafHandle);
     inputTracking.detach();
+    // The pause listener is on `window`, not on the container, so it survives
+    // every screen change — exactly the leak iteration 100 hit when its trip
+    // menu's teardown forgot the `removeEventListener`. Leaving this one attached
+    // means an Escape on the CITY screen opens a menu over a screen that has no
+    // pause, and a second one stacks another.
+    window.removeEventListener('keydown', onPauseKey);
+    mountedMenu?.destroy();
+    mountedMenu = null;
     touch?.destroy();
     // Release the per-screen GPU set before the context goes. `destroy()` on
     // the context tears down the managed scene texture only; the atlas texture,
@@ -3962,10 +4164,11 @@ function showArenaEvent(
     gpuCtx?.destroy();
   }
 
+  // Routes through the SAME `withdraw()` the pause menu uses. Two copies of
+  // "leave the match" is how a corner button and a menu row start disagree about
+  // what leaving means — the shape iteration 84, 92 and 98 each paid for.
   exitBtn.addEventListener('click', () => {
-    if (matchPhase.kind === 'ended') return;
-    matchPhase = { kind: 'ended' };
-    endMatch(playerDefeated() ? 'ON_FOOT' : 'UNDER_POWER');
+    withdraw();
   });
 
   void initRenderer().finally(() => {
