@@ -3915,3 +3915,39 @@ DEPLOY 2026-09-30 — release `20260930013105-be03afb` (be03afb) to arcade.shoem
      clean (`index-DyS72v05.js`), `.shots/iter81` = 8 screens / 0 problems. Every
      other screen byte-identical (title 39.07, city 93.34, constructor 36.09),
      which is the correct blast radius: the decals are arena-only.
+
+DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
+- Release `20260930021500-ddb6c17`, build `index-DyS72v05.js`. Whole-site
+  snapshot first, atomic swap, root + all games 200, all three decal frames
+  present in the SHIPPED bundle, and a live `?screen=arena&seed=a11ce5ee`
+  WebGPU capture is pixel-identical to the local one with 0 console errors.
+- **A STALE-BUILD DEPLOY THAT EVERY CHECK PASSED.** The first attempt shipped
+  iteration 80's bundle while every gate reported success — routes 200, staged
+  snapshot OK, swap done, and a "dist confirmed on box" line I had written
+  specifically to catch it. That check tested whether `/tmp/smduel-dist`
+  EXISTED on the remote. I had rsynced `dist/` to a LOCAL /tmp and never
+  uploaded it, so the remote directory was left over from iteration 80's
+  deploy, where it existed and was perfectly valid. The check passed because it
+  answered a different question than the one I cared about.
+  It surfaced only because the live bundle hash (`index-DheRzFIq.js`) did not
+  match the hash my own build had just printed ten minutes earlier
+  (`index-DyS72v05.js`) — a comparison I made for an unrelated reason while
+  checking whether the concurrent deployer had clobbered the release. It had
+  not; I had clobbered it myself.
+  This is the THIRD time in this log that a healthy-looking signal stood in for
+  a fact (iteration 16's phantom "0 models asked", iteration 71's sips-on-a-
+  missing-file, and this), and the fix is the same each time: assert on the
+  VALUE, not on the presence. The deploy script now compares the bundle hash
+  on the box against the hash the local build printed, and refuses to swap on
+  a mismatch. It also now greps the STAGED index.html for that hash before the
+  swap, so a bad overlay cannot be published even if the copy step is wrong.
+  Worth noting the shape: the previous iteration's log had already recorded
+  "confirm /tmp/smduel-dist is uploaded BEFORE the staging script runs" as a
+  reminder, and the reminder was followed with a check that did not enforce it.
+  A remembered lesson is not a control.
+- `scores.sqlite` no longer exists under `<release>/api/`, so the DB snapshot
+  step reported its own absence rather than silently passing (iteration 131's
+  `set -e`/`&&` lesson holding: the step prints what it did and did not do). The
+  arcade's score store is evidently not in this subtree any more — worth
+  confirming with the arcade owner alongside the already-recorded point that a
+  concurrent deployer builds smduel from a different repo.
