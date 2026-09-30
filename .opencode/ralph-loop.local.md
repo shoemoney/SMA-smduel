@@ -5951,3 +5951,118 @@ ITERATION 102 — the pacing decision, measured properly (iteration 97's blocker
   measured costs on both, and it belongs in the log as a decision rather than
   in a patch applied at the end of an unrelated round. Option B's schema and
   resume work is the next code round.
+
+ITERATION 103 — Save and quit: a road trip is interruptible at last
+- THIS IS THE FIX ITERATION 97 COULD NOT FIND, and it is worth saying why it
+  took three more rounds rather than one. Iteration 97 established that both
+  pacing levers cost a 26-64x lie and concluded the honest answer was
+  structural. It was right that no CONSTANT fixes it, and wrong that the
+  problem was the distance. **A ~107-minute leg is only a barrier because it is
+  ATOMIC** — `SaveGame` had no road-trip slot, so a player could not stop at
+  mile 40 and come back. The distance was never the defect; the absence of a
+  save point was. This also finishes iteration 99's finding #2, whose reviewer
+  asked for Resume / Controls / **Save and quit**, and iteration 100 could not
+  build the third because mid-trip restore did not exist.
+
+- **THE SAVE IS AWAITED BEFORE THE PLAYER LEAVES, and the test is why.** First
+  written `void persistArenaSession(...)` then navigate, copying the arena
+  exit's fire-and-forget. The integration test caught it on the first run:
+  reading the database immediately after the menu action found NOTHING, because
+  the write had not landed. "Save and quit" whose save can be lost by quitting
+  is the exact class this log has spent a hundred iterations removing, so the
+  write is awaited and the screen changes after it. `persistArenaSession`
+  swallows its own failures, so awaiting cannot hang the screen.
+
+- **THE TEST I WROTE FIRST PROVED NOTHING, AND THE MUTATION SAID SO.** The
+  initial assertion was that the screen changed from road to city. A mutation
+  making Save-and-quit take the ABANDON path PASSED it — both leave the road
+  for the city, so the transition cannot tell them apart, and the strip that
+  might have (`state.vehicle !== null`) is true on both. Rewritten to read the
+  blob back out of a real database and require the saved `progressMiles` to
+  match a distance the test itself drove. That mutation now fails.
+
+- **AND THEN THAT TEST MADE ITSELF FLAKY, which is the more useful half.**
+  Reading the save back needed a real database, and the real database means the
+  real `DB_NAME` — shared, via `fake-indexeddb`, with five other test files. The
+  `deleteDatabase` in `beforeEach` was therefore wiping a store other files were
+  using, and the file failed 1 run in 2. Fixed by deleting NOTHING and letting
+  the assertion discriminate on CONTENT instead: a stale or foreign blob cannot
+  match a distance this test drove. Two consecutive full runs are green.
+
+- **FOUR MORE PLACES I GUESSED A SHAPE INSTEAD OF READING IT**, which is now
+  the running tally in this log and is getting embarrassing enough to name as a
+  habit rather than a coincidence:
+    1. a hand-built `saves` object store, which the real `load()` rejected with
+       "No object store named pointer" — the game's own `openSaveDatabase`
+       already knew the layout (`STORE_GENERATIONS` + `STORE_POINTER`, v1);
+    2. a hand-written `VehicleState` missing a dozen required fields and naming
+       ruleset ids that do not exist (`body-standard`, `suspension-standard`),
+       fixed by copying `save.test.ts` and then the capture rig's own design;
+    3. the `RoadTripSave` TYPE ITSELF, written before I read `RoadWreck` and
+       `RoadHazard` — wrong about every wreck and hazard field, and it is a type
+       rather than a fixture, which is the more expensive direction to be wrong
+       in. The CONCLUSION survived (everything is persistable) but only because
+       `deployable` turned out to re-derive from `weaponId`;
+    4. and a test helper reading a global that nothing ever set, which is the
+       "declared but never invoked" shape inside my own new test.
+  Every one was caught by a guard doing its job, which is the good outcome and
+  also the reason this log keeps the receipts.
+
+- **THE BLOB STORES IDS, NEVER RULESET FACTS.** `resolved` re-derives from the
+  two city ids via `resolveRoute`; each hazard's `deployable` re-derives from
+  its weaponId via `placeRoadHazard`; the vehicle and clock are not copied at
+  all. A save therefore cannot disagree with `cities.json` or `weapons.json`
+  about a rule — the seventh instance of this log's "one owner, every surface
+  reads it" shape, and the first where BOTH derivations are load-bearing rather
+  than tidying.
+
+- **RESUME IS PLACED BEFORE THE CITY REBUILD, not inside it**, because the
+  alternative is a save that silently discards what it was taken to preserve —
+  iteration 93's bug class. A trip save with no active vehicle falls through to
+  the city rather than losing the run.
+
+- **LIVE VERIFIED END TO END, AND THE FIRST ATTEMPT WAS VACUOUS — again.**
+  Round one drove with W held for 4s, saved, reloaded, hit Continue, and
+  reported "resumed at 0.0 miles". That proved the resume PATH and nothing
+  about the DATA, because `progressMiles` is the projection onto the route's
+  initial heading axis: holding W alone walks the car off-axis in about two
+  seconds and progress correctly stops. This is iteration 100's finding arriving
+  unchanged in a new harness, and the counter is that it has now been the cause
+  of a wrong conclusion TWICE. Redone with counter-steering so the value
+  genuinely moves:
+      progress fraction driven   2.9886e-5
+      RESUMED ON ROAD            true
+      progress fraction resumed  2.9886e-5
+      PRESERVED                  true   (equal to the last digit)
+      console                    "smduel: resumed road trip ny-albany at 0.0 mi"
+      errors                     0
+  The log line reports 0.0 mi because it rounds to one decimal — the underlying
+  float is preserved exactly, which is the assertion that matters and the reason
+  the diagnostic is worth improving separately.
+  Menu in production reads ["1Resume driving","2Controls","3Save and quit",
+  "4Abandon trip"], with Save and quit ABOVE abandon on purpose: both leave the
+  trip, but one is resumable and one forfeits the car.
+
+- **`resumeSession` IS A CLOSURE INSIDE `boot()` AND REMAINS UNTESTED BY
+  MUTATION.** Neuter its `roadTrip` branch and every test in the suite still
+  passes, because nothing drives a save-then-reload through the real boot path.
+  Stated rather than implied; the live run above is the evidence that covers it,
+  and a boot-level integration test is the honest next step for that branch.
+
+- GATE: tsc clean, 69 files / 1493 tests, 4 failures all `screens.test.ts` (2 in
+  isolation) — the known order-dependent flake, reproduced on clean master. This
+  file is green across two consecutive FULL runs, which is the check that
+  matters after having made it flaky once. 5 browser tests pass. Build
+  `index-DYtBmWcD.js`. `.shots/iter103` = 8 screens / 0 problems, every screen
+  unchanged, which is correct: a save field renders nothing.
+
+- DEPLOY: release `20260930050000-8dfc797`, bundle `index-DYtBmWcD.js`. Whole-
+  site snapshot, atomic swap, root + smduel 200, live bundle hash equals the
+  local build's, 0 console errors.
+
+- WHAT THIS DOES NOT SETTLE. Option A of iteration 102 — rescaling the world so
+  a leg is ~20 real minutes — is untouched and still a real decision, because
+  an interruptible 107-minute leg is playable in a way an atomic one is not,
+  but it is longer than most people want to sit through. The pacing item stays
+  open at a lower priority than it was, and the honest framing is now "the leg
+  can be paused", not "the leg is short".
