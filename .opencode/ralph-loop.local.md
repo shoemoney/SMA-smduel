@@ -4786,3 +4786,41 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
    GATE: tsc clean, 67 files / 1460 tests (7 new; the 1-4 failures are the
    measured `screens.test.ts` flake), 5 browser tests (1 new, proven to fire),
    build clean, `.shots/iter92` = 8 screens / 0 problems.
+
+DEPLOY 2026-09-30 — iteration 92 to arcade.shoemoney.com
+- Release `20260930090000-1bad376`, build `index-OC-tIWJm.js`, commit `1bad376`.
+  Whole-site snapshot first, atomic swap, root + smduel + last-engineer +
+  shoplifter all 200, and the live bundle hash equals the local build's (the
+  check that exists because iteration 81 shipped the previous build while every
+  gate was green).
+- LIVE VERIFIED BY DRIVING, in real Chrome against production, and both halves
+  matter because a fix that over-blocks is a different defect:
+   1. THE REFUSAL IS REAL. A genuine session — title -> driver -> constructor,
+      naming the car "Smuggler" and fitting NOTHING — reaches the city showing
+      "0 armour · 0 mounted · Not road-legal", walks to the gate, and finds all
+      FIVE route rows ineligible reading:
+        "not road-legal — fit it at the assembly plant first: armour · a weapon"
+      Pressing route row 1 anyway leaves `onRoad: false` — the player stays in
+      the city. This is the exact drive Codex performed in iteration 86, and it
+      now ends where it should. 0 console errors.
+   2. THE GATE IS NOT OVER-BLOCKED. The capture rig's car is road-legal, so
+      walking the same city with it finds 6 rows, 0 ineligible, no reasons, and
+      pressing row 1 actually departs (`onRoad: true`). A gate that refuses
+      everyone would have passed half the check above.
+   3. THE WEAPONS ROW IS FIXED IN PRODUCTION: 0 cells painting over a
+      neighbour. The facing is "↑" at 12px/12px with `overflow-x: hidden` (the
+      class guard), and the name carries 81px of content in a 58px box while
+      CLIPPING — which is the name ellipsising correctly, and is exactly the
+      distinction the browser test asserts.
+   The strip in the illegal session reads "Smuggler0 armour · 0 mountedNot
+   road-legal" as raw textContent, i.e. the three lines are separate elements
+   with no whitespace between them; the rendered lines are what the frame shows
+   and they read cleanly. Noted rather than "fixed", since it is an artefact of
+   reading textContent rather than of the layout.
+- The first live walk entered the ARENA rather than the gate, and its three
+  ineligible rows ("Amateur Night is entered on foot", two Championship rows)
+  looked at first like the gate refusing. Reading the row labels is what told
+  them apart — the gate's rows come from `ui.city.routeOption` and all contain
+  "mi, danger". A plausible-looking refusal from the wrong menu is a new
+  flavour of the crop-that-disagrees-with-the-code trap, and the check that
+  separates them is one regex on the labels.
