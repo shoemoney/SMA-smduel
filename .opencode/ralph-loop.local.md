@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 18
+iteration: 19
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -6128,6 +6128,14 @@ ITERATION 104 — the resume gap iteration 103 recorded against itself, closed
   `@/persist/save` for `persistArenaSession`, `@/sim/types` for `QuestState` —
   all three are exported from `@/app` or `@/persist/save`, and
   `screens.test.ts` already had the correct import block sitting in the repo.
+  The fourth is the one worth remembering, because it is not a module path at
+  all: I hardcoded `{ driving: 12, marksmanship: 8, mechanic: 6 }` and every
+  test failed with **"skills must sum to exactly 50 (got 26)"** — the RULESET
+  told me the right answer and I typed a plausible-looking one anyway.
+  `screens.test.ts` had `evenSkillSplit()` derived from
+  `skillsConfig().startingSkillPool` for exactly this reason. A guard caught it,
+  which is the good outcome, and it cost a full round anyway because the
+  failure text had to be read as a fixture error rather than as a real one.
   The rule has not changed since iteration 25 and it has now cost more than any
   other lesson here: **read the neighbouring test file before writing a fixture.**
   Combined with iteration 102's four, the last two rounds have produced eleven
