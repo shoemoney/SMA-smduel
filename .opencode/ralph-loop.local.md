@@ -7345,3 +7345,43 @@ findings instead of a refusal.
   defects and a retired queue item. Iterations 84, 96 and 102 all deferred their
   structural items on the same reasoning, and the thing that makes this cheap is
   that it does not need designing first — it needs building.
+## ITERATION 116 — a correction to ITERATION 115 THAT MATTERS MORE THAN THE FIX
+
+Iteration 115 recorded, from the reviewer's own words, that "the atlas holds no
+such frames" for combat effects, and built a scoping paragraph on top of it.
+**That was false, and my own probe is the reason.** The reviewer's remedy —
+"use the existing atlas muzzle-flash and impact-spark assets; new art is not
+required for the first fix" — was correct and I talked myself out of it.
+
+- **THE PROBE WAS BROKEN, NOT THE DATA.** I walked `assets/atlas.json` looking
+  for dict entries with a `name` field. `frames` is a **DICT KEYED BY NAME** (90
+  entries), so the walker matched nothing and I reported the absence of the
+  frames as a fact about the repo. They are all there:
+      fx-muzzle-flash   fx-impact-spark   fx-smoke-puff
+      fx-explosion      fx-explosion-1 .. fx-explosion-5
+  This is iteration 50's rule ("a probe that finds nothing is not a
+  measurement") and iteration 98's ("a probe that finds the wrong thing is worse
+  than one that finds nothing") arriving in the purest form yet: **a probe that
+  found nothing, reported as a measurement, and then used to override a correct
+  reviewer.** I even had the corroborating greps lined up — `muzzle` matched
+  only a post.wgsl comment and `impact` only collision arithmetic — and treated
+  "no source references" as "no assets", when "no source references" was exactly
+  iteration 81's finding about unused frames.
+- **THE SECOND HALF OF ITERATION 115 WAS ALSO RIGHT FOR THE WRONG REASON.** It
+  said a tracer from `ProjectileState.position`/`velocity` "needs no authored
+  art" because the sim already produces the data. That is true, but it was
+  framed as a consolation prize after the art was declared missing. The art is
+  not missing: it is authored, packed and SHIPPING, and unwired — which is
+  strictly better, because it means the whole of finding #1 is a code change
+  with the art already paid for.
+- **`grep -rn "fx-" src/` returns ZERO.** Six effect frames, in the atlas, in
+  the download, drawn by nothing. That is iteration 81's finding verbatim
+  (`decal-*`), and it is why the arena's combat has no visible shot path: not
+  because the art is absent, but because no line of source ever emits one.
+- Recorded before the fix rather than after, because iteration 99's lesson is
+  that a wrong finding left in the queue will be trusted by the next round over
+  the data — and that round would have built a procedural tracer from scratch
+  while three purpose-made frames sat in the shipping atlas.
+
+- GATE for this correction: unchanged, no code changed yet. tsc clean, 1526
+  tests with the measured `screens.test.ts` flake, 7 browser tests.
