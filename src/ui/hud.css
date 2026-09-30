@@ -387,7 +387,10 @@
   /* A dark halo so the player marker stays legible on top of a contact blip
      that happens to land in the same place. */
   text-shadow: 0 0 4px var(--ui-void), 0 0 4px var(--ui-void);
-  transform: translate(-50%, -50%);
+  /* Centre first, then turn. `--hud-radar-player-rot` is the VEHICLE's
+     heading in north-up mode and 0 in heading-up mode, where the face is
+     already rotated and a second rotation would double-count it. See hud.ts. */
+  transform: translate(-50%, -50%) rotate(var(--hud-radar-player-rot, 0deg));
 }
 
 .hud-radar-contact {

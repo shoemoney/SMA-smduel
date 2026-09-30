@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 5
+iteration: 6
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -4450,3 +4450,30 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
    unverified rather than as a second pass, because the S direction is the same
    single flipped sign as the W one and is already covered by the end-to-end
    unit guard and by the traced convention.
+88. Iteration 86's finding 5, EXECUTED: **the north-up radar triangle pointed
+   north no matter which way the car faced.** Found by Codex `gpt-6.1-sol`
+   driving the live arena — "After turning and driving east, the car points
+   east while the radar triangle still points straight up."
+
+   - The marker is a literal `'▲'` glyph with no rotation, so it pointed
+     screen-up unconditionally. That is CORRECT in `heading` mode, where the
+     whole face is rotated to put the car dead ahead — and a LIE in `world`
+     (north-up) mode, where the face is drawn in world coordinates and the car
+     can face any direction. A triangular marker is a direction cue; a fixed one
+     tells the player their car faces north when it faces east.
+     The existing comment above the contact rotation actually said the heading
+     maths matched "the ▲ player marker" — i.e. it took the marker's fixed
+     orientation as a premise rather than noticing it was a second, independent
+     bug. Contacts are placed by `rotate(...)`; the marker never was.
+   - FIXED with the vehicle's heading, and 0 in heading-up mode, because the
+     face is already rotated there and rotating the marker too would
+     double-count. The angle is `(PI/2 - headingRad)` in degrees, checked at
+     three headings: h=0 (facing +x, screen right) -> +90deg; h=PI/2 (facing
+     +y, screen up) -> 0deg; h=PI (facing -x, screen left) -> -90deg. The
+     `PI/2` is not arbitrary: `'▲'` already points screen-up and CSS `rotate()`
+     is clockwise, so up has to be turned a quarter-turn clockwise to become
+     right.
+   - Rendered as a custom property rather than a second transform declaration,
+     so the existing centring `translate(-50%, -50%)` is preserved and the two
+     cannot fight — the same class of fix as iteration 32's `--ui-surface-2`
+     work, where one declaration quietly replaced another.

@@ -383,6 +383,27 @@ function buildRadar(doc: HudDocument, snapshot: HudSnapshot, handlers: HudHandle
   // renders as screen-up with no rotation needed.
   const heading = orientation === 'heading' ? snapshot.vehicle.headingRad - Math.PI / 2 : 0;
 
+  // The PLAYER MARKER needs its own angle, and this is the whole fix. The
+  // marker is a literal '▲' glyph with no rotation, so it pointed screen-up
+  // unconditionally — correct in 'heading' mode, where the entire face is
+  // rotated to put the car dead ahead, and a LIE in 'world' mode, where the
+  // face is drawn in world coordinates and the car can point any direction.
+  // A triangular marker is a direction cue; a fixed one tells the player their
+  // car faces north when it faces east.
+  // Found by Codex `gpt-6.1-sol` driving the live arena with computer use:
+  // "the car points east while the radar triangle still points straight up."
+  //
+  // The angle: '▲' already points screen-up, and CSS rotate() is clockwise, so
+  // the marker must be turned by (north-up baseline) MINUS the vehicle heading.
+  // Checked at three headings:
+  //   h = 0      (facing +x, screen right)  ->  +90deg, up rotated to right
+  //   h = PI/2   (facing +y, screen up)     ->    0deg, unchanged
+  //   h = PI     (facing -x, screen left)   ->  -90deg, up rotated to left
+  // In 'heading' mode the face already carries the heading, so the marker stays
+  // at 0 — rotating it as well would double-count.
+  const playerMarkerDeg =
+    orientation === 'heading' ? 0 : ((Math.PI / 2 - snapshot.vehicle.headingRad) * 180) / Math.PI;
+
   // Only contacts the face can actually place stay on it — anything beyond
   // the ruleset's visual range would render outside the circular dial (see
   // hud.css .hud-radar-face, sized off this same range) or be misreported.
@@ -394,7 +415,12 @@ function buildRadar(doc: HudDocument, snapshot: HudSnapshot, handlers: HudHandle
   // AT can't perceive anyway (see the `hud-radar-contact-list` below for the
   // real, individually-announceable text alternative).
   const face = el(doc, 'div', { class: 'hud-radar-face', 'aria-hidden': 'true' });
-  face.appendChild(el(doc, 'div', { class: 'hud-radar-player' }, '▲'));
+  face.appendChild(
+    el(doc, 'div', {
+      class: 'hud-radar-player',
+      style: `--hud-radar-player-rot:${playerMarkerDeg.toFixed(2)}deg`,
+    }, '▲'),
+  );
 
   visibleContacts.forEach((contact) => {
     const { x, y } = rotate(contact.worldDx, contact.worldDy, heading);
