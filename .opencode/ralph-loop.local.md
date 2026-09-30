@@ -5742,3 +5742,115 @@ ITERATION 100 — the road trip menu (Codex finding #2), shipped and live verifi
   structural pacing decision (97), the persistent "surface a failed save"
   message (93), and the unbuilt on-foot mode, which this menu now at least
   gives a reachable place to trigger from.
+ITERATION 101 — the guardrails are now delineator posts (Codex finding #4)
+- THE FINDING. Codex `gpt-6.1-sol` drove the deployed road: "from a fresh road
+  start, I held W for 2.2 seconds. The car crossed the upper roadside rail and
+  continued onto the surrounding field with unchanged condition ... a steel
+  guardrail communicates a physical barrier." The source agrees: the rails were
+  decorative and nothing in the road sim collides against props.
+
+- **WHY ART CHANGED RATHER THAN THE SIM, because this is a judgement and not a
+  fix.** The reviewer offered both: implement collision, or replace the rails
+  with furniture that does not promise a barrier. Collision was rejected on the
+  game's own terms, not on cost:
+    - `docs/SPEC.md` "Road" describes no off-road state and no barrier at all;
+    - iteration 91 deliberately made the carriageway STAY PUT when the car
+      drives off it, so leaving the road is currently the ONLY way out of a bad
+      line — a collision wall takes that away;
+    - and it would be a new mechanic invented to satisfy a screenshot, which is
+      the trade this log has declined in iterations 21, 28 and 54.
+  A post is spindly, discrete and obviously not a wall, and it carries the same
+  speed cue — because the cue is the RHYTHM, not the object. The 7m period is
+  deliberately unchanged, and that is the part doing the work.
+
+- **THE ART HAS VOLUME, ON PURPOSE, AGAINST THE FLAT-ELEVATION RULE.** Every
+  candidate zimg produced was 3/4, which is the failure ASSET-NOTES §5 records
+  and which iteration 80 rejected for the guardrail. It is kept here, and the
+  reason is that the rule is about VEHICLE sprites: the car is the focal object
+  of every frame and inconsistent perspective between bodies is most of what
+  makes them read as blobs. A post seen from DIRECTLY OVERHEAD is a ~3px blob,
+  and this log's own iteration-53/64 finding is that a cue tuned below the
+  threshold of the frame is a cue that does not exist. There is exactly ONE post
+  frame repeated, so the cross-sprite inconsistency the rule protects against
+  cannot arise. Applying a rule to a different subject without asking why it
+  existed is the mistake, not breaking it.
+  Chose candidate 5 of 8: tall, spindly, strong shadow. Candidate 2 was rejected
+  on a white background (unkeyable). Backgrounds normalised to the exact key
+  before integrating — 7 of 8 corners sampled ~(172,56,95), not the key
+  (240,60,128), and all edge samples now measure deviation 0, which is
+  iteration 79's step.
+
+- **ONE MORE COPY OF THE TRUTH REMOVED.** The guardrail sized itself as
+  `ROAD_RAIL_SEGMENT_M * (21/96)` — a hand-typed second copy of the frame's
+  dimensions, sitting beside the atlas entry that already holds them, correct
+  only by coincidence. The along-road extent is now read from the atlas
+  (`frame.pixelHeight / frame.pixelWidth`), so regenerating the art updates the
+  size with it. That is the `roadLegalityMisses` / `unmetRequirements` shape
+  again, and it is the fifth instance in this log.
+
+- **THE ROTATION GUARD IS KEPT, NOT DROPPED.** A post is near-radially
+  symmetric, so its own orientation barely matters — which makes it tempting to
+  stop rotating it and delete iteration 86's relationship test along with the
+  rotation. Kept both: the SHADOW in the art has a direction, and letting two
+  road layers disagree about which way is down is precisely how the comb bug
+  happened. Two mutations confirm both guards still bite: hardcoding a
+  21/96-style aspect fails 2 tests, reverting the quarter turn fails the
+  iteration-86 test.
+
+- **TWO BAD MEASUREMENTS BEFORE A GOOD ONE, and the first is the useful part.**
+  My first two box sets returned values IDENTICAL to one decimal across two
+  genuinely different images — which is impossible for a real result, and that
+  impossibility was the tell. The boxes were in regions the change does not
+  touch. My first "car" detector was worse: it keyed on r > b + 40 and returned
+  a bbox 1433px wide, because cream lane dashes satisfy that too. Located the
+  furniture by DIFFING the two captures instead of guessing, which put it at
+  y160-200 / y680-720, and took the car's y-range from an independent scan that
+  agreed with the range read off the crop by eye. Iteration 50's rule, paid
+  again: a measurement is evidence only once you have confirmed what you are
+  measuring.
+
+  WHAT THE GOOD NUMBERS SAY, with the control stated:
+    car                p95 157.2   in BOTH captures, byte-identical — the car
+                                   is untouched, which is what makes the
+                                   furniture numbers mean anything
+    furniture  top     p95 147.2 -> 124.1
+    furniture  bottom  p95 147.9 -> 128.8
+  So the posts are QUIETER than the rails were — the intended direction, since
+  the rails were competing with the car — and they stay below it. And the
+  rhythm, which is the actual speed cue, is verified rather than assumed:
+  diffing located clusters at x = 0, 192, 389, 626, 865, 1102, 1341, i.e. 237px
+  apart, and 237/34 px-per-m = 6.97m against the 7m constant. World-anchored,
+  correct cadence.
+
+- LIVE VERIFIED IN PRODUCTION (`index-CCSxLXvL.js`, 0 console errors): both
+  verges carry the posts — white with an orange band and a dark shadow, evenly
+  spaced, unmistakably discrete — and the car is still the most saturated warm
+  object in frame. Opened the capture rather than trusting the numbers, which is
+  the check iteration 86 exists to force after two iterations of combs sat in
+  this repo's own screenshots unread.
+
+- **A NEW INSTANCE OF ITERATION 81'S FINDING, created by this very change.**
+  `grep -rn "prop-guardrail" src/` returns nothing: the frame is packed into
+  the shipping atlas and drawn by nothing, which is the same class as the five
+  `decal-*` frames iteration 81 found. It is 96x21 of a 2048² sheet, so about
+  2KB, and it is being KEPT DELIBERATELY rather than quietly left: the
+  collision question above is a live design option, and if the answer ever
+  changes to "rails with collision" this art is the one to reach for. Recorded
+  here so it is a decision rather than the accident iteration 81 had to
+  reverse-engineer.
+
+- GATE: tsc clean, 68 files / 1487 tests. 4 failures, all `screens.test.ts`,
+  and branch and clean master are IDENTICAL over 2 full runs each. One
+  `road-trip-menu` failure appeared in a single run and did not reproduce in two
+  subsequent full runs — recorded rather than dismissed, since iteration 87
+  established that a single run is not a baseline. 5 browser tests pass. Build
+  `index-CCSxLXvL.js`. `.shots/iter101` = 8 screens / 0 problems.
+- A FIXTURE GAP, the twelfth of its class: the road-furniture atlas double had
+  no `pixelWidth`/`pixelHeight`, so the new aspect derivation returned NaN. The
+  art-aspect test was also pinned to the guardrail's literal 4-5 range and now
+  pins the PROPERTY (ratio equals the frame's aspect, and is not the period), so
+  the next art regeneration updates it without anyone widening a range.
+
+- NEXT: the structural pacing decision (97) is still the largest open item, and
+  the "surface a failed save" message (93). The unbuilt on-foot mode now has a
+  reachable trigger (iteration 100's trip menu) but still no movement.
