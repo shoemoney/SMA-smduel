@@ -7542,3 +7542,96 @@ conclusion was wrong, and finding out why is the whole round.
   instrument. The technique that finally worked every time was the boring one —
   make the thing under test the ONLY variable, take the reading in the same
   instant, and show the signal moving when the thing is not engaged.
+## ITERATION 119 — the impact spark, which closed review finding #1 in full
+
+Iteration 118 shipped the tracer and deferred the second half of the same
+finding with a stated reason: a resolving projectile is dropped from
+`world.entities.projectiles` on the tick it connects, so by render time there is
+nothing left to draw.
+
+- **THAT REASON WAS CHECKED BEFORE BUILDING ON IT, not after.** The last two
+  "the code does not work" conclusions in this log (115's missing frames, 117's
+  missing render) both came from trusting a stated reason, so this one was read in
+  the source first. It holds: a projectile that reaches a collider or expires is
+  not pushed to `remaining`, and a third guard then skips anything that did not
+  resolve a hit. So an impact genuinely cannot be drawn from the projectile list,
+  and the state addition iteration 118 named is unavoidable rather than optional.
+
+- **THE HIT/MISS DISTINCTION IS THE WHOLE POINT, AND IT IS WHY THE CALLBACK
+  SITS WHERE IT DOES.** `onImpact` fires after the in-flight skip AND after
+  `if (target === undefined || target.destroyed || !hit || facing === null)
+  continue;` — so a shot that runs out of range draws nothing at all. An effect
+  drawn for both would lie about half of them, and "half the impacts are
+  actually misses" is precisely the kind of decoration this log has declined in
+  iterations 21, 28 and 54.
+  Measured in a real browser, which is the check that matters: firing
+  continuously at a three-opponent roster produced **at most ONE spark alive at a
+  time, not one per trigger pull**. That is the distinction behaving correctly,
+  not the effect being too rare — and it is the same shape as iteration 118's
+  "the contact count only ever falls" test: assert the RELATIONSHIP, because a
+  count on its own cannot tell a rare effect from a broken one.
+
+- **`fx-impact-spark` IS THE RIGHT ART HERE AND WAS THE WRONG ART FOR THE BOLT.**
+  A soft 21%-opaque burst is what a hit looks like; a dart in flight needs the
+  sharp flash. The two states now use different frames, which is the whole
+  reason the original choice looked wrong only after the size was fixed.
+  The test asserts which frame is requested by RECORDING it in the atlas
+  double — the first version asserted on the double's own `name` field, which
+  only proves the double names itself correctly. That was circular, it was
+  caught by reading the assertion rather than the result, and it is the same
+  shape as iteration 115's probe that matched a dict wrongly.
+
+- **BOUNDED ON BOTH AXES, AND PRUNED AT DRAW TIME.** By age (14 ticks, derived
+  from the sim's own 60Hz rather than a wall-clock guess — a longer life is not
+  a "brighter" effect, it is a STALE one, and a spark still hanging around a
+  minute later asserts a hit that has scrolled out of relevance) and by count.
+  Pruning happens where the effect is drawn rather than on a timer, so a spark
+  cannot survive a pause — where `world.tick` stops advancing — and then dump a
+  burst of them on the frame play resumes.
+
+- **4 NEW TESTS, BOTH MUTATIONS PROVEN TO FIRE ON EXACTLY THE RIGHT ONE:**
+  drawing the bolt art on impact fails only the art test, and freezing the size
+  to a literal instead of deriving it from `VEHICLE_SPRITE_SIZE_M` fails only
+  the sizing test. 12 tests in the file, both `combat effects` halves green.
+
+- **THE FULL-SUITE FAILURE WAS MEASURED, NOT BLAMED.** A `road-trip-menu`
+  "abandoning" failure appeared in the suite. In isolation the file passed 4/4,
+  and — the check that actually settles it — the same failure appeared in a
+  full-suite run with my change STASHED. So it is the documented order-dependent
+  flake and the fourth time that exact test has been the intermittent one
+  (iterations 101, 111, 119). Recorded rather than dismissed, and recorded as
+  evidence, because a flake you have measured four times is a known quantity and
+  one you have not is a coin flip.
+
+- LIVE: release `20260930111500-d471fc3`, build `index-Hrr9Wz8r.js`, whole site
+  200, 0 page errors.
+  **WHAT PRODUCTION WAS VERIFIED BY, precisely, because it is not what I would
+  have claimed without checking.** I did NOT get a clean production screenshot
+  of a spark, and the reason is worth recording rather than papering over: the
+  spark lives ~230ms, a headless canvas screenshot costs ~200ms, and the machine
+  gun empties its 20-round magazine in under a second — so sampling production
+  for the effect is a coin flip on three counts at once. Two attempts produced
+  "out of ammo x8" and zero near-white pixels, which read exactly like a broken
+  effect and were not one.
+  What production DID get: the served bundle is **byte-identical** to the local
+  build whose impact spark I watched render (md5 `e937a1e8…`, 482,085 bytes both
+  sides), and `fx-impact-spark` is present in the served bytes. Combined with the
+  local evidence — instrumented count showing sparks fire only on connecting
+  shots, and a captured frame showing a bright radial burst on the car that was
+  hit — that is the same chain iteration 118 used for the tracer, and the part
+  it does NOT cover is a second rendered production frame, which is stated here
+  rather than implied.
+
+- GATE: tsc clean, 1538 tests, 2 failures — `screens.test.ts` and the
+  `road-trip-menu` flake measured above to be pre-existing. 7 browser tests
+  pass.
+
+- WHAT THIS CLOSES, AND WHAT IT DOES NOT. Review finding #1 was "combat
+  happens without visible firing or impact effects ... the player must read HUD
+  counters instead of the world". A shot now has a visible path AND a visible
+  landing, so both halves of that sentence are answered.
+  Still open from the same review: **#2** the 30-mile intro route at ~26 real
+  minutes (the pacing decision, unchanged — iterations 96/102/106 settled that
+  honest compression costs a lie in one direction or the other), and **#4** the
+  Federal Building's missing service, which is authored content rather than a
+  defect and is the same item iteration 98 marked closed-on-approach.
