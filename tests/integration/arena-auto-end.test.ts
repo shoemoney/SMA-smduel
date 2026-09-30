@@ -164,8 +164,15 @@ interface Point {
  * Walks the on-foot driver in a straight axis-aligned line from `from` to
  * `to`, purely via held WASD keys. City movement's own convention
  * (`@/sim/city`'s `DIRECTION_UNIT_VECTORS`, consumed via `stepWalk`'s
- * `direction` — NOT `resolveInput`'s raw moveY): 'w' is north (-Y), 's' is
- * south (+Y). `xFirst` picks which axis leads first — see `safeXFirst`,
+ * `direction` — NOT `resolveInput`'s raw moveY): 'w' is north, which is world
+ * **+Y**, and 's' is south, world **-Y**. That is the opposite of what this
+ * comment asserted for the game's whole life, and it is why this helper drove
+ * the player the wrong way and every test using it failed once the compass was
+ * fixed. World +y is screen UP because `buildOrthoMatrix` sets `m[5] = sy`
+ * (positive) and WebGPU puts clip +y at the top of the frame. The X mapping
+ * below is unaffected — east has always been +x — which is exactly why the
+ * horizontal controls worked and only the vertical ones were broken.
+ * `xFirst` picks which axis leads first — see `safeXFirst`,
  * which computes it rather than a caller guessing. A 50ms step (~0.11m at
  * `pedestrian.speedMps`) keeps the worst-case overshoot small relative to
  * `safeXFirst`'s own margins.
@@ -186,7 +193,8 @@ function walkBetween(from: Point, to: Point, xFirst: boolean): void {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const walkX = (): void => walkAxis(dx, { key: 'd', code: 'KeyD' }, { key: 'a', code: 'KeyA' });
-  const walkY = (): void => walkAxis(dy, { key: 's', code: 'KeyS' }, { key: 'w', code: 'KeyW' });
+  // Positive dy means increasing world y, which is NORTH, which is 'w'.
+  const walkY = (): void => walkAxis(dy, { key: 'w', code: 'KeyW' }, { key: 's', code: 'KeyS' });
   if (xFirst) {
     walkX();
     walkY();

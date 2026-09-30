@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 4
+iteration: 5
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -4371,3 +4371,69 @@ DEPLOY 2026-09-30 — iteration 81 to arcade.shoemoney.com
    GATE: tsc clean, 66 files / 1446 tests, 4 browser tests, build clean. The three
    remaining failures are the pre-existing `tests/integration/screens.test.ts`
    flake — identical count to a clean-master run, verified by stashing.
+87. Iteration 86's finding 2, EXECUTED: **W AND S WERE INVERTED IN THE CITY.**
+   The control scheme the game opens on has been upside-down for its entire
+   life. Found by Codex `gpt-6.1-sol` driving the live city — "W/Up moves
+   downward; S/Down moves upward. Arena and road use the opposite, expected
+   mapping" — and fixed here after being correctly diagnosed and deliberately
+   deferred in iteration 86.
+
+   - **THE CONVENTION, TRACED RATHER THAN EYEBALLED.** Three independent
+     statements agree with each other, and the code contradicted all three:
+       `resolveInput` is documented world-up-positive   -> W is (0, +1)
+       `cityDirectionFromVector` negates y              -> (0, -1) -> 'N'
+       `buildOrthoMatrix` sets `m[5] = sy` (POSITIVE), and WebGPU places clip
+         +y at the TOP of the frame                     -> world +y is UP
+     `DIRECTION_UNIT_VECTORS.N` was (0, -1) — correct for a y-DOWN renderer that
+     this game does not use. Only `stepWalk` reads that table, so flipping its
+     y components changes how the player walks and nothing else: not the
+     doorway ring, not the radar, not `generateCityLayout`'s geometry.
+   - **THE HORIZONTAL CONTROLS WERE ALWAYS FINE, WHICH IS WHY NOBODY CAUGHT
+     IT.** E is (1,0) in both conventions, so A/D worked and W/S did not. A
+     control scheme can be half-right for a very long time without the half
+     that is wrong ever showing up in a screenshot — nobody presses keys in a
+     still.
+
+   **AND THE WRONG ASSUMPTION WAS WRITTEN INTO THE TESTS THAT WALK THE PLAYER.**
+   That is the part that made this expensive, and it is the same shape as the
+   defect `tests/unit/city.test.ts` was already guarding against for the whole
+   time the code was wrong:
+     - `tests/unit/city.test.ts` restated the table independently, derived from
+       "+y is South (screen-space down)", and therefore AGREED WITH THE BUG for
+       as long as the bug existed. A test that restates a table is only a guard
+       if its own derivation is right. Re-derived from the render convention and
+       the derivation is now written out, with `buildOrthoMatrix` and the WebGPU
+       clip convention cited, so the next reader can check it rather than trust it.
+     - `tests/integration/road-bounds-wiring.test.ts` and two sites in
+       `screens.test.ts` each computed "walk INWARD toward the plaza centre" as
+       `gate.y > 0 ? 'w' : 's'` — i.e. assuming W decreases y. Swapped to
+       `gate.y > 0 ? 's' : 'w'`, each with the convention documented inline.
+     - `tests/integration/arena-auto-end.test.ts:167` carried it as an explicit
+       assertion in prose: **"'w' is north (-Y), 's' is south (+Y)"** — the wrong
+       convention written down as documentation, in a file whose `walkBetween`
+       helper then drove the player the wrong way. Fixed, and the comment now
+       says what is actually true and why.
+   Sixteen integration failures across three files became two, then zero for
+   everything except the pre-existing `screens.test.ts` flake described below.
+
+   - THE END-TO-END GUARD FROM ITERATION 86 IS NOW GREEN AND PROVEN BY MUTATION:
+     "pressing UP moves the player up the screen, not down" walks the real chain
+     (input vector -> label -> step) and was shown to fail when the table is
+     reverted. It failed against the shipped build too, which is why it was
+     written: the table test beside it agreed with the code the whole time.
+
+   - **A CORRECTION TO ITERATION 86's OWN REPORTING.** That entry said the three
+     remaining `screens.test.ts` failures were "identical count to a clean-master
+     run, verified by stashing". The count was right; my confidence in it was
+     luckier than I knew. Measuring properly over three full runs each:
+       clean master:  3, 3, 3  (consistent)
+       this branch:   8, 4, 1  (variable, sometimes better than master)
+     So `tests/integration/screens.test.ts` is genuinely flaky on BOTH trees, and
+     my earlier single-run comparison happened to land on the same number. A
+     single stashed run is not a baseline; three is. Worth writing down because
+     the whole point of this log is not to trust a healthy-looking signal, and
+     "I verified it" has now twice meant "I ran it once and it agreed with me".
+
+   GATE: tsc clean, 55 unit files / 1334 tests all pass, 4 browser tests, build
+   clean. `tests/integration/screens.test.ts` remains flaky on master and here;
+   it is not fixed by this round and is now measured rather than assumed.

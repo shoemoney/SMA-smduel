@@ -152,8 +152,10 @@ async function walkThroughGateToRoad(routeDigit: string): Promise<void> {
   const inwardKeys: KeyboardEventInit[] = [];
   if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
   else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
-  if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
-  else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+  // World +y is screen UP (positive m[5] in `buildOrthoMatrix`, WebGPU puts
+  // clip +y at the top), so walking inward from a +y gate means S, not W.
+  if (gate.y > 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+  else if (gate.y < 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
   expect(inwardKeys.length).toBeGreaterThan(0);
 
   const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {

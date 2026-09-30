@@ -222,8 +222,10 @@ async function walkThroughGateToRoad(): Promise<void> {
   const inwardKeys: KeyboardEventInit[] = [];
   if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
   else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
-  if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
-  else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+  // World +y is screen UP (positive m[5] in `buildOrthoMatrix`, WebGPU puts
+  // clip +y at the top), so walking inward from a +y gate means S, not W.
+  if (gate.y > 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+  else if (gate.y < 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
   expect(inwardKeys.length).toBeGreaterThan(0);
 
   const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
@@ -1026,8 +1028,16 @@ describe('DOM screens: city touch command buttons run the exact same code as the
     const inwardKeys: KeyboardEventInit[] = [];
     if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
     else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
-    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
-    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    // Walk INWARD toward the plaza centre at (0,0). Which key that is depends on
+    // the render's Y convention, and it is the opposite of what this helper
+    // assumed for the game's whole life: `buildOrthoMatrix` sets `m[5] = sy`
+    // (positive) and WebGPU puts clip +y at the TOP of the frame, so world +y is
+    // screen UP. Walking toward y=0 from a +y gate therefore means DECREASING
+    // y, which is S. The x branch above is unaffected — E/D were always right,
+    // which is why only the vertical controls were broken and nobody noticed the
+    // horizontal ones were fine.
+    if (gate.y > 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    else if (gate.y < 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
     expect(inwardKeys.length).toBeGreaterThan(0);
 
     const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
@@ -1116,8 +1126,16 @@ describe('DOM screens: city touch command buttons run the exact same code as the
     const inwardKeys: KeyboardEventInit[] = [];
     if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
     else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
-    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
-    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    // Walk INWARD toward the plaza centre at (0,0). Which key that is depends on
+    // the render's Y convention, and it is the opposite of what this helper
+    // assumed for the game's whole life: `buildOrthoMatrix` sets `m[5] = sy`
+    // (positive) and WebGPU puts clip +y at the TOP of the frame, so world +y is
+    // screen UP. Walking toward y=0 from a +y gate therefore means DECREASING
+    // y, which is S. The x branch above is unaffected — E/D were always right,
+    // which is why only the vertical controls were broken and nobody noticed the
+    // horizontal ones were fine.
+    if (gate.y > 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    else if (gate.y < 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
     const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {
       if (k.code === 'KeyD') return { key: 'a', code: 'KeyA' };
       if (k.code === 'KeyA') return { key: 'd', code: 'KeyD' };
@@ -1178,8 +1196,16 @@ describe('DOM screens: road touch wreck-search command visibility', () => {
     const inwardKeys: KeyboardEventInit[] = [];
     if (-gate.x > 0) inwardKeys.push({ key: 'd', code: 'KeyD' });
     else if (-gate.x < 0) inwardKeys.push({ key: 'a', code: 'KeyA' });
-    if (gate.y > 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
-    else if (gate.y < 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    // Walk INWARD toward the plaza centre at (0,0). Which key that is depends on
+    // the render's Y convention, and it is the opposite of what this helper
+    // assumed for the game's whole life: `buildOrthoMatrix` sets `m[5] = sy`
+    // (positive) and WebGPU puts clip +y at the TOP of the frame, so world +y is
+    // screen UP. Walking toward y=0 from a +y gate therefore means DECREASING
+    // y, which is S. The x branch above is unaffected — E/D were always right,
+    // which is why only the vertical controls were broken and nobody noticed the
+    // horizontal ones were fine.
+    if (gate.y > 0) inwardKeys.push({ key: 's', code: 'KeyS' });
+    else if (gate.y < 0) inwardKeys.push({ key: 'w', code: 'KeyW' });
     expect(inwardKeys.length).toBeGreaterThan(0);
 
     const outwardKeys: KeyboardEventInit[] = inwardKeys.map((k) => {

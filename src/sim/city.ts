@@ -169,15 +169,42 @@ export type CityDirection = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
 
 export const CITY_DIRECTIONS: readonly CityDirection[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
+/**
+ * Compass label -> world vector, with NORTH AT WORLD +y.
+ *
+ * THE SIGN HERE IS THE WHOLE FIX, and it was wrong for the game's life. North
+ * was -y, which is correct for a y-DOWN screen space and wrong for this render:
+ * `buildOrthoMatrix` sets `m[5] = sy` (positive) and WebGPU maps clip +y to the
+ * top of the frame, so world +y is screen UP. Chained with
+ * `cityDirectionFromVector` — which negates `resolveInput`'s y so that "up"
+ * reads as north — pressing W resolved to north, north was -y, and the player
+ * walked DOWN the screen. Arena and road are correct because they take the
+ * free 2D stick vector directly with no label mapping in between.
+ *
+ * A player pressing W to walk toward a building moved away from it, on the
+ * first screen the game opens on, and had to relearn the controls on the road.
+ *
+ * Verified by tracing the convention rather than by eye, which is the only
+ * reason to trust it: `resolveInput` is documented world-up-positive,
+ * `buildOrthoMatrix`'s y scale is positive, and WebGPU's clip +y is the top of
+ * the frame. Three agreements with each other, and this table contradicted all
+ * three.
+ *
+ * Found by Codex `gpt-6.1-sol` driving the live city with computer use.
+ *
+ * ONLY `stepWalk` reads this table, so flipping the y components changes how
+ * the player walks and nothing else — not the doorway ring, not the radar, not
+ * `generateCityLayout`'s geometry.
+ */
 const DIRECTION_UNIT_VECTORS: Readonly<Record<CityDirection, Vec2>> = {
-  N: { x: 0, y: -1 },
-  NE: { x: Math.SQRT1_2, y: -Math.SQRT1_2 },
+  N: { x: 0, y: 1 },
+  NE: { x: Math.SQRT1_2, y: Math.SQRT1_2 },
   E: { x: 1, y: 0 },
-  SE: { x: Math.SQRT1_2, y: Math.SQRT1_2 },
-  S: { x: 0, y: 1 },
-  SW: { x: -Math.SQRT1_2, y: Math.SQRT1_2 },
+  SE: { x: Math.SQRT1_2, y: -Math.SQRT1_2 },
+  S: { x: 0, y: -1 },
+  SW: { x: -Math.SQRT1_2, y: -Math.SQRT1_2 },
   W: { x: -1, y: 0 },
-  NW: { x: -Math.SQRT1_2, y: -Math.SQRT1_2 },
+  NW: { x: -Math.SQRT1_2, y: Math.SQRT1_2 },
 };
 
 export interface CityPlayerState {

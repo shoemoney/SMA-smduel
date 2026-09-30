@@ -385,20 +385,30 @@ describe('stepWalk', () => {
     expect(CITY_DIRECTIONS).toHaveLength(8);
     expect(new Set(CITY_DIRECTIONS).size).toBe(8);
 
-    // Independently-derived expected unit vector per direction (compass
-    // geometry, not read from src/sim/city's own DIRECTION_UNIT_VECTORS):
-    // +x is East, +y is South (screen-space "down"), matching stepWalk's
-    // own behaviour under 'E' (x increases) elsewhere in this file.
+    // Expected unit vector per direction, derived from the RENDER's convention
+    // rather than from screen-space intuition. The previous version of this
+    // fixture asserted "+y is South (screen-space down)" and was correct for a
+    // y-down renderer that this game does not use.
+    //
+    // THE LESSE THIS FIXTURE ENCODES, and it is the whole point of rewriting it
+    // rather than just flipping the signs to match: a test that independently
+    // RESTATES a table is only a guard if its own derivation is right. This one
+    // agreed with `DIRECTION_UNIT_VECTORS` for the entire time the code was
+    // wrong, because both were derived from the same wrong assumption about
+    // which way is up. So the derivation is now written out and sourced:
+    //   `buildOrthoMatrix` (src/render/camera.ts) sets m[5] = sy, POSITIVE;
+    //   WebGPU places clip +y at the TOP of the frame;
+    //   therefore world +y is screen UP, and north is +y.
     const SQRT1_2 = Math.SQRT1_2;
     const EXPECTED_UNIT_VECTOR: Readonly<Record<CityDirection, Vec2>> = {
-      N: { x: 0, y: -1 },
-      NE: { x: SQRT1_2, y: -SQRT1_2 },
+      N: { x: 0, y: 1 },
+      NE: { x: SQRT1_2, y: SQRT1_2 },
       E: { x: 1, y: 0 },
-      SE: { x: SQRT1_2, y: SQRT1_2 },
-      S: { x: 0, y: 1 },
-      SW: { x: -SQRT1_2, y: SQRT1_2 },
+      SE: { x: SQRT1_2, y: -SQRT1_2 },
+      S: { x: 0, y: -1 },
+      SW: { x: -SQRT1_2, y: -SQRT1_2 },
       W: { x: -1, y: 0 },
-      NW: { x: -SQRT1_2, y: -SQRT1_2 },
+      NW: { x: -SQRT1_2, y: SQRT1_2 },
     };
 
     const layout = generateCityLayout(PROVIDENCE, SAVE_SEED_A);
