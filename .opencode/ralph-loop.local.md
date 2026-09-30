@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 36
+iteration: 37
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -8469,4 +8469,107 @@ not the test at all — it is that a piece of production logic has no name.
   (confirmed twice — once as 5, once as 2, on the same tree). Build unchanged
   in substance: `freshCityRunState` is called on the same path with the same
   arguments, so the only difference is a name.
+## ITERATION 137 — the victory test finally wins by DRIVING. The last blocker on the 90-degree rotation is gone.
 
+Iteration 135 built the seam and the production autopilot and left exactly one wiring task. This round closes it. The rotation can land next round.
+
+- **THE BLOCKER WAS NAMED IN FOUR DIFFERENT WORDS AND WAS ONE FACT.** Iterations 121-125 each declined the rotation for a different stated reason (seed sweep; "the seeds are stale"; "the balance is undecided"; "no test seam"), and every one of them was individually reasonable and only the last survived. The single underlying truth: **the DOM victory test's ONLY path to a win was a fixed key schedule that worked THROUGH the 90-degree bug.** Its own comment said the seeds were "found (offline sweep) where standing still and cycling mounts CLEARS amateur-night's real 5-opponent roster" — standing still cleared the roster because BOTH sides shot 90 degrees from where they aimed and the attrition happened to work out. That is a fixture whose premise is a property of a defect, and it is why six rounds of "re-derive and land the rotation" could not finish.
+
+- **`showArenaEvent` IS NOW EXPORTED, and the export and the seam are ONE decision
+  rather than two.** Navigating the city reaches this closure through the
+  facility chain, which would have to thread the test input source through
+  `mountFacility` and the whole arena-entry path — a worse design than the
+  parameter iteration 135 already added, and the reason that round rejected the
+  threading route. Driving the screen directly gives up the city navigation,
+  **and that trade is recorded rather than glossed**: the sibling LOSS test still
+  walks the real gate and the real carless path on every run, so the entry chain
+  keeps its coverage. A victory test and a loss test cannot both be the only
+  proof of the same walk, so only one had to move.
+  `showArena` (the free practice field) stays private — nothing needs it, and
+  `?screen=arena` already mounts it.
+
+- **THE AUTOPILOT IS MEMOIZED, AND THAT IS LOAD-BEARING RATHER THAN TIDIER.**
+  `createArenaAutopilot` holds its sticky target lock in CLOSURE state, so
+  constructing it inside the per-tick override hands back a brand-new driver on
+  every sample and the car never stops re-acquiring a target. That reads as
+  "the autopilot cannot aim" rather than as the bug it is, which is the exact
+  shape of failure this log keeps paying for. **Proven as mutation 2 below** —
+  so the comment asserting it is load-bearing is a measurement, not a claim.
+
+- **THE SKILL SPLIT IS DERIVED, NOT TYPED.** `skills.json` states the pool (50)
+  and the clamp (0..99) and `createDriver` refuses anything violating either, so
+  the numbers are computed from the ruleset and a future pool or cap change
+  cannot quietly make the fixture illegal. Iterations 102-104 produced eleven
+  guessed shapes between them and `AGENTS.md` now carries the rule; a typed
+  `{ driving: 15, marksmanship: 35, mechanic: 0 }` would have been the twelfth.
+
+- **THE COST OF THE ROUND WAS ONE MISSING SEARCH STRING, and the way it
+  presented is the part worth keeping.** The test failed with "expected 1 to be
+  +0" — the arena screen still mounted. The tempting reading is "the roster did
+  not clear", because that is what the same symptom means for every other test
+  in the file. It is not: `endMatch` had already run. Instrumenting the world
+  settled it in one probe:
+      tick=945  aliveOpponents=0  playerDestroyed=false  endMatch on the stack
+      arenaScreen=1  submitScreen=0
+  So the fight was WON and the screen simply did not mount, because
+  `endMatch` only shows the submit screen when `arcadeScoringEnabled` is true —
+  and that reads `cityState.search` for `arcade=1`
+  (`@/arcade/client`: the live hostname OR the query flag). `bootToCity` had
+  been threading `search` through the whole flow and I built a fresh state with
+  `search: ''`, so the match resolved into `onComplete` instead. **Without it
+  the screen this test exists to assert can never appear, and the failure looks
+  exactly like the bug the rotation is about.** That is the third time in this
+  log that a value was not decoration: `cityState.sessionSeed` builds the world
+  (so it decides the roster layout), and `cityState.search` decides whether the
+  outcome is shown. Two fields of the same object, two different fates, and the
+  wrong one is invisible until the assertion fails.
+
+- **AND MY OWN PROBE WAS WRONG FIRST, in a way that produced a very convincing
+  false negative.** The first probe passed a CONSTANT timestamp per frame, so
+  `nowMs - lastTimeMs` — seeded from `performance.now()` at mount — was always
+  negative, the delta clamped to 0, and **no sim tick ever ran**. What the probe
+  reported was "world NEVER SEEN by the override" plus a perfectly painting HUD
+  reading "Weapons … 0/20 … Radar ▲ 5 contacts". The frame loop was running, 40
+  callbacks were registered, nothing threw, and the screen was alive.
+  **A painting HUD is not a running simulation.** Iterations 111 and 112
+  already recorded that the HUD is painted from inside `frame()` and that
+  `frame` returns early when no tick ran; this is the third time this file has
+  produced a wrong reading from exactly that seam, and the second time the
+  mistake was in MY probe rather than the code. Fixed by accumulating the clock
+  the way the file's own `stepFrame` does, which is the same fix as iteration
+  100's saturated odometer and iteration 103's off-axis odometer: **show the
+  signal moving when the thing under test is not engaged.**
+
+- **BOTH MUTATIONS PROVEN TO FIRE, and one of them earned its comment:**
+      remove the autopilot override      -> arena still mounted, no victory
+      construct the autopilot per tick  -> arena still mounted, no victory
+  Neither is a "the roster is unwinnable" failure, and that distinction matters:
+  a mutation that fails for the RIGHT reason is what makes a test a guard.
+
+- **NOTHING ELSE IN THE FILE DIED, and that was checked rather than assumed.**
+  `winScheduleAt` and `WEAPON_TICKS` still have a caller — the radar test, which
+  still clears the roster the old seeded way through the city walk. Iteration 81
+  recorded the rule about deciding deliberately when a frame becomes
+  unreferenced; this is the same rule for a test helper.
+
+- **GATE — and the scope measurement was worth running one more time.** tsc clean.
+  Full unit+integration on this branch read **1514/1515 (1 failure)**, then
+  **1511/1515 (4 failures)**, then clean master at the SAME scope read
+  **1513/1515 (2 failures)**, and `screens.test.ts` in isolation reads 1/30 on
+  both trees while `arena-auto-end.test.ts` reads **6/6**. One tree, three
+  different answers, which is the cross-file pollution iterations 87, 90 and 104
+  measured and is why the number is reported with its spread rather than as a
+  single figure. **7 browser tests pass.** Build clean, `index-KboNHmw-.js`.
+  Commit `7d5ec93`.
+
+- **NEXT, and it is the rotation itself, with nothing between it and the code.**
+  The five source sites (`FACING_LOCAL_UNIT`, `facingForLocalDirection`, the
+  collider clamp, `rectAxes`, and the `arena.ts:894` comment that cited the
+  table), the single owner `VEHICLE_LOCAL_FACING` in `src/sim/types.ts`, every
+  fixture re-derived from that owner rather than edited, and the preview's
+  geometry rewritten with length horizontal (the viewBox is non-square, so a
+  `rotate(90)` does not fit it). Iteration 124 proved that half green and
+  iteration 125 proved the blocker was a harness gap rather than balance; both
+  are now behind us. The test that proves the bug — a FRONT-mounted shot leaving
+  along the rendered nose at all four cardinal headings, derived from
+  `headingRad` rather than from the table — is already written and failing.
