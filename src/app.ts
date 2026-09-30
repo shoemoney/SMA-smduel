@@ -3826,6 +3826,22 @@ function showArenaEvent(
   clock: Clock,
   cityState: CityRunState,
   onComplete: (nextState: CityRunState) => void,
+  /**
+   * Test seam: replaces the human input source for this match.
+   *
+   * It exists because the DOM auto-end test needs a driver that can WIN a match
+   * it is entitled to win. The key-schedule driver that used to stand in for
+   * one only ever won through the 90-degree body-frame bug (iterations 122-125),
+   * and the two DOM drivers written to replace it could not clear a roster at
+   * all: aiming without evading dies, evading without aiming never connects.
+   * The sim's own competent bot does both, so the honest move was to make that
+   * bot reachable rather than to keep tuning a driver that structurally cannot
+   * win.
+   *
+   * Production never passes this, so the human path below is unchanged: the
+   * override is consulted first and every other caller still reads real input.
+   */
+  inputOverride?: (world: World) => InputFrame,
 ): void {
   const event = getArenaEvent(matchState.eventId);
   const container = el('div', 'sm-screen sm-screen--arena');
@@ -3944,6 +3960,7 @@ function showArenaEvent(
   const touch = mountTouchControls(container, { fire: true, commands: weaponTouchCommands(weaponSelection, playerVehicle) });
 
   function sampleInput(): InputFrame {
+    if (inputOverride !== undefined) return inputOverride(world);
     const raw = rawInputFrom(codesDown, touch);
     weaponSelection.update(raw);
     const resolved = resolveInput(raw, currentControlPreset, currentControlBindings);

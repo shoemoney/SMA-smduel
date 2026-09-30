@@ -64,7 +64,6 @@ import {
   vehicleStateFromDesign,
   type ArenaOpponentState,
 } from '@/app';
-import { computeAlignmentInput } from '@/sim/ai';
 import {
   allOpponentsDefeated,
   beginArenaMatch,
@@ -88,6 +87,7 @@ import { createDriver } from '@/sim/driver';
 import { createGameLoop, createSystemsRegistry, dtSecondsFromTickRate, type InputFrame } from '@/sim/loop';
 import type { DriverState, SkillName, VehicleState } from '@/sim/types';
 import type { World } from '@/sim/world';
+import { createArenaAutopilot, type ArenaAutopilotPolicy } from '@/sim/arena-autopilot';
 import arenasJsonRaw from '@rulesets/classic/arenas.json';
 import encountersJsonRaw from '@rulesets/classic/encounters.json';
 
@@ -120,7 +120,7 @@ function makeTestDriver(): DriverState {
 }
 
 /** How the scripted player manages its magazines. See `samplePlayerInput`. */
-type PlayerPolicy = 'naive' | 'competent';
+type PlayerPolicy = ArenaAutopilotPolicy;
 
 interface AmateurNightMatch {
   readonly world: World;
@@ -174,48 +174,15 @@ function beginAmateurNightMatch(seed: string, policy: PlayerPolicy = 'naive'): A
   systems.register('ai', makeArenaAISystem(playerVehicle.id, opponents, aiInputs));
   systems.register('cleanup', cleanupSystem);
 
-  // The player's own "controller": lock onto the nearest live opponent and
-  // hold it until it's gone, steering with the exact same
-  // `computeAlignmentInput` `@/sim/ai`'s own `engageWeaponNode` uses to
-  // bring a FRONT mount to bear — a scripted human, not a developer
-  // shortcut into the sim (it only ever produces an `InputFrame`, sampled
-  // through the real `loop.sampleInput -> step` pipeline below).
-  let lockedTargetId: string | null = null;
-  function samplePlayerInput(): InputFrame {
-    const player = findPlayer(world);
-    if (player === undefined || player.destroyed) return { moveX: 0, moveY: 0, fire: false, weaponSlot: 0 };
-    const live = world.entities.vehicles.filter((vehicle) => vehicle.id !== player.id && !vehicle.destroyed);
-    if (live.length === 0) return { moveX: 0, moveY: 0, fire: false, weaponSlot: 0 };
-    let target = live.find((vehicle) => vehicle.id === lockedTargetId);
-    if (target === undefined) {
-      let bestDistance = Infinity;
-      for (const candidate of live) {
-        const dx = candidate.position.x - player.position.x;
-        const dy = candidate.position.y - player.position.y;
-        const distance = Math.hypot(dx, dy);
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          target = candidate;
-        }
-      }
-      lockedTargetId = target?.id ?? null;
-    }
-    if (target === undefined) return { moveX: 0, moveY: 0, fire: false, weaponSlot: 0 };
-    const bearingRad = Math.atan2(target.position.y - player.position.y, target.position.x - player.position.x);
-    const { moveX, moveY } = computeAlignmentInput(bearingRad, 'FRONT');
-    // The difference between the two bots is ammunition discipline and nothing
-    // else. `naive` pulls mount 0 until the match ends, so it stops being able
-    // to hurt anyone the moment that magazine is dry; `competent` switches to a
-    // loaded mount, which is the real `cycleWeapon` control a player has on the
-    // arena screen. Amateur-night costs more rounds than any one mount holds,
-    // so that single habit is what separates a win from an escape.
-    const weaponSlot =
-      policy === 'naive' ? 0 : Math.max(0, player.weapons.findIndex((w) => !w.destroyed && w.ammo > 0));
-    return { moveX, moveY, fire: true, weaponSlot };
-  }
+  // The player's own "controller" is now SHARED production code, not a second
+  // copy living in this test. It was test-local here until iteration 136, when
+  // the DOM auto-end test needed the same driver and a duplicate would have
+  // been exactly the failure mode that produced the 90-degree body-frame bug:
+  // two implementations of "how a competent player aims", free to disagree.
+  const autopilot = createArenaAutopilot(world, playerVehicle.id, policy);
 
   const dtSeconds = dtSecondsFromTickRate(drivingConfig().tickRateHz);
-  const loop = createGameLoop({ world, dtSeconds, systems, sampleInput: samplePlayerInput });
+  const loop = createGameLoop({ world, dtSeconds, systems, sampleInput: () => autopilot.sample() });
 
   return { world, playerVehicleId: playerVehicle.id, opponents, driverRef, matchStateRef, loop };
 }

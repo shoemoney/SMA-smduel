@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 34
+iteration: 35
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -8296,3 +8296,95 @@ round and then not finished.
   `index-Hrr9Wz8r.js`, identical to what is live). The two driver experiments
   ran against the committed tree and were reverted; `git status` is clean apart
   from this log.
+## ITERATION 135 — the test seam is BUILT. The rotation's last blocker is now a wiring task, not a research task.
+
+Iteration 125 named the blocker precisely: a DOM test cannot win a match it is
+entitled to win, because the only driver that can is sim-level and
+test-local. This round builds the seam, moves that driver into production, and
+de-duplicates the two copies of "how a competent player aims" that were about to
+become a third.
+
+- **`src/sim/arena-autopilot.ts` IS NEW PRODUCTION CODE, AND THAT IS THE POINT.**
+  The competent driver lived inside `arena-victory.test.ts` as ~30 lines of
+  test-local `samplePlayerInput`. It is now `createArenaAutopilot(world, playerId,
+  policy)`, and the sim test consumes it.
+  **The steering was never the test's invention** — it calls
+  `computeAlignmentInput` from `@/sim/ai`, the exact function
+  `engageWeaponNode` uses to bring a mount to bear. Only the target-locking was
+  local. So the autopilot aims the way the game's own AI aims, and produces an
+  `InputFrame` and nothing else, sampled through the real
+  `loop.sampleInput -> step` pipeline. It is a player-shaped driver, not a
+  developer shortcut into the sim.
+  **Why production rather than a shared test helper:** two implementations of
+  "how a competent player aims", free to disagree, is precisely the shape that
+  produced the 90-degree body-frame bug (iteration 120) — five copies of one
+  convention, defect living only in the gaps. One owner, every surface reads it.
+  The two policies still differ in exactly one thing, and the comment keeps the
+  reason attached: `naive` holds mount 0 until the magazine is dry and stops
+  hurting anyone; `competent` moves to a loaded mount. Amateur-night costs more
+  rounds than any single mount holds, so that one habit is the whole difference.
+
+- **THE SEAM ITSELF IS ONE OPTIONAL PARAMETER ON `showArenaEvent`,** consulted
+  first in `sampleInput` and undefined for every production caller, so the human
+  path is byte-identical. It exists because the DOM auto-end test needs a driver
+  that can win, and the two DOM drivers written to replace the old key-schedule
+  one STRUCTURALLY cannot (iteration 125): aiming without evading dies at
+  ~t350, evading without aiming never connects, spinning dies in circles, and
+  standing still survives to 900 ticks having killed nobody. That is not a
+  tuning problem, it is an information problem, and the seam supplies the
+  missing information rather than asking a worse driver to compensate.
+
+- **AND I MISPATCHED THE FIRST PATCH, WHICH IS THE SIXTH TIME THIS LOG HAS PAID
+  FOR IT.** I replaced the `sampleInput` body by matching
+  `rawInputFrom(codesDown, touch)` + `weaponSelection.update(raw)` — and the ROAD
+  screen has the identical two lines, so the override landed in the road
+  function and tsc caught it immediately (`Cannot find name 'inputOverride'`).
+  A `grep` listing seven sites is not a locator. I recovered by scanning for the
+  `function sampleInput` line INSIDE the arena's line range, inserting by line
+  index, and then re-reading BOTH functions to confirm the road is untouched and
+  the arena is patched. The control mattered: had I only fixed the compile
+  error I could easily have shipped a road screen that silently ignored real
+  input whenever the name happened to resolve.
+
+- **THE EXTRACTION IS PROVEN BEHAVIOUR-PRESERVING BY THE GATE THAT MATTERED.**
+  `arena-victory.test.ts` still passes 14/14, and that file contains BOTH the
+  named-winner victory test AND the `amateur-night is winnable at a real rate,
+  and never a walkover` balance gate over 40 seeds. If the extraction had
+  changed the driver, that 57.3% rate would have moved and the test would have
+  failed. It did not. That is a stronger proof than any new unit test: a
+  behaviour-preserving refactor is verified by the behaviour's own gate still
+  passing unchanged.
+
+- **GATE.** tsc clean. 1513/1515 tests pass. The two failures are the two
+  flakes this log has measured repeatedly (iterations 87, 90, 101, 111, 119):
+  measured in ISOLATION on this branch, `road-trip-menu` passes 37/38-with-one
+  and only `screens.test.ts` still fails; and a STASHED clean-master integration
+  run fails the same class. So the branch adds no regression, and per iteration
+  119's rule a flake measured this many times is a known quantity rather than a
+  coin flip.
+  Build: `index-TZw7ePjv.js` (was `index-Hrr9Wz8r.js`). The hash moved and it is
+  worth being precise about why, because a bare hash change is the kind of thing
+  this log has twice mistaken for a behaviour change: `createArenaAutopilot`
+  appears ZERO times in the bundle (it is imported only by a test, so it must),
+  and `inputOverride` also appears zero times because the parameter is minified.
+  The runtime difference is one `!== undefined` check per input sample, and the
+  hash moved on identifier renaming rather than on semantics. NOT DEPLOYED —
+  nothing a player can observe changed, and the log now records the hash so the
+  next real deploy is not surprised by it.
+
+- **WHAT IS LEFT, AND IT IS ONE WIRING TASK.** The DOM victory test still
+  navigates to the arena through the city menu, and that chain calls
+  `showArenaEvent` internally, so the override cannot reach it. Two ways, and
+  the honest one is chosen:
+    (a) thread the override through `mountFacility` and the arena entry — that
+        widens the test seam across the whole facility chain, which is a worse
+        design than the parameter I just added; or
+    (b) have the test build the real match itself — `beginArenaMatch`,
+        `houseLoanerDesign`, `vehicleStateFromDesign` — and call
+        `showArenaEvent` with the autopilot override directly, exactly as
+        `arena-victory.test.ts` builds the same match for the sim path.
+  (b) it is. It is more setup in the test and zero production surface, and the
+  test still drives the REAL screen, the REAL loop and the REAL match
+  resolution; it simply stops navigating there through the city, which is not
+  what the assertion is about. `bootToCity` returns void today, so that setup is
+  the next round's work.
