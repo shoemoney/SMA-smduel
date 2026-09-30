@@ -1494,10 +1494,29 @@ export function spawnArenaOpponents(world: World, event: ArenaEventDef): Map<str
  * are stopped (`stopAtObstacle`), and are nudged apart along their center
  * line by `collision.vehicleSeparationM` so an overlap clears in one tick
  * instead of wedging two cars together forever.
+ *
+ * The armor loss is charged ONLY on the first tick a given pair is in contact
+ * (`priorContactPairs` is the overlap set this same resolver wrote at the end
+ * of the previous tick, so a sustained grind costs one impact rather than
+ * `armorLossPoints` × 60 every second). Without that gate this resolver is a
+ * damage amplifier, not a collision model: `vehicleSeparationM` is 0.4m total,
+ * while two cars closing at 40 m/s re-close ~1.33m in a single 1/60s tick, so
+ * the nudge can NEVER clear the overlap — the pair re-overlaps next tick, and
+ * the next, stripping FRONT armor one point per tick for the whole contact.
+ * Measured on `ny-philadelphia` day 0: the player's 2-point FRONT armor was
+ * gone in 2 ticks and the contact's 12-point FRONT armor in 12, which is where
+ * all 12 points of damage in that fight came from — the player's own rockets
+ * never landed a point. Separation and `stopAtObstacle` still run EVERY tick;
+ * only the damage is gated.
  */
-function resolveVehicleCollisions(vehicles: readonly VehicleState[]): VehicleState[] {
+function resolveVehicleCollisions(
+  vehicles: readonly VehicleState[],
+  priorContactPairs: readonly string[],
+): { vehicles: VehicleState[]; contactPairs: string[] } {
   const drivingCfg = drivingConfig();
   const mphPerMps = 3600 / drivingCfg.metersPerMile;
+  const prior = new Set(priorContactPairs);
+  const contactPairs: string[] = [];
   const out = vehicles.map((v) => v);
   for (let i = 0; i < out.length; i++) {
     for (let j = i + 1; j < out.length; j++) {
@@ -1513,40 +1532,48 @@ function resolveVehicleCollisions(vehicles: readonly VehicleState[]): VehicleSta
       if (b === undefined || b.destroyed) continue;
       if (!orientedRectsOverlap(vehicleOrientedRect(a), vehicleOrientedRect(b))) continue;
 
+      // Sorted so the key does not depend on which vehicle happened to land at
+      // the lower array index this tick.
+      const pairKey = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+      contactPairs.push(pairKey);
+      const firstTickOfContact = !prior.has(pairKey);
+
       // Impact speed must be the CLOSING speed along the line of centres, not
       // the larger of two signed speeds.
       //
-      // `speedMps` is signed (negative = reversing, see sim/driving.ts), so
-      // `Math.max(a, b)` was wrong in all three regimes:
-      //   - reversing into a stationary car: max(-20, 0) = 0, so ramming in
-      //     reverse did NO damage at any speed, which made reverse ram-tactics
-      //     strictly dominant;
-      //   - head-on at +30 into -30: max(30, -30) = 30, reported as 67mph when
-      //     the true closing speed is 134mph — every head-on under-reported by
-      //     exactly half;
-      //   - same direction, 30 and 10: reported 67mph against a real 45mph gap
-      //     closure... i.e. over-reported.
-      // Projecting each body's signed velocity onto the separation axis and
-      // adding the components gives the rate at which the gap is closing, and
-      // taking the absolute value covers approach from either side.
+      // `speedMps` is signed along each body's OWN forward axis
+      // (`{cos h, sin h}`, see sim/driving.ts), so it has to be turned into
+      // that body's world velocity before it can be projected onto the ONE
+      // shared separation axis. This code used to project the two raw scalars
+      // onto `awayFromA` directly, which collapsed to
+      // `(b.speedMps - a.speedMps) * (n.x + n.y)` — zero for ANY head-on
+      // meeting where the two cars carry the same signed speed and the axis is
+      // axis-aligned. A 100mph head-on therefore charged `applyCollision` a
+      // closing speed of 0 and did no damage whatsoever, which also silently
+      // disabled reverse-ram tactics (reversing into a stationary car reads as
+      // 0 either way). Each body is now projected along its own heading.
       const distanceM = vecLength(subtractVec(b.position, a.position));
       const awayFromA =
         distanceM > 0
           ? { x: (b.position.x - a.position.x) / distanceM, y: (b.position.y - a.position.y) / distanceM }
           : { x: 1, y: 0 };
-      // `a` moves away from the contact along -awayFromA; `b` moves away along
-      // +awayFromA. Sum of the two projections is the closing rate.
+      const velA = { x: Math.cos(a.headingRad) * a.speedMps, y: Math.sin(a.headingRad) * a.speedMps };
+      const velB = { x: Math.cos(b.headingRad) * b.speedMps, y: Math.sin(b.headingRad) * b.speedMps };
+      // `a` closing on `b` adds to the gap closing; `b` closing on `a` subtracts
+      // the same way, and the absolute value covers approach from either side.
       const closingMps = Math.abs(-a.speedMps * awayFromA.x - a.speedMps * awayFromA.y + b.speedMps * awayFromA.x + b.speedMps * awayFromA.y);
       const impactSpeedMph = closingMps * mphPerMps;
       const nudgeM = drivingCfg.collision.vehicleSeparationM / 2;
 
-      const collidedA = stopAtObstacle(applyCollision(a, impactSpeedMph));
-      const collidedB = stopAtObstacle(applyCollision(b, impactSpeedMph));
+      const chargedA = firstTickOfContact ? applyCollision(a, impactSpeedMph) : a;
+      const chargedB = firstTickOfContact ? applyCollision(b, impactSpeedMph) : b;
+      const collidedA = stopAtObstacle(chargedA);
+      const collidedB = stopAtObstacle(chargedB);
       out[i] = { ...collidedA, position: { x: a.position.x - awayFromA.x * nudgeM, y: a.position.y - awayFromA.y * nudgeM } };
       out[j] = { ...collidedB, position: { x: b.position.x + awayFromA.x * nudgeM, y: b.position.y + awayFromA.y * nudgeM } };
     }
   }
-  return out;
+  return { vehicles: out, contactPairs };
 }
 
 /**
@@ -1623,7 +1650,9 @@ export function makeArenaDrivingSystem(
         }),
       ).vehicle;
     });
-    world.entities.vehicles = resolveVehicleCollisions(driven);
+    const resolved = resolveVehicleCollisions(driven, world.entities.contactPairs);
+    world.entities.vehicles = resolved.vehicles;
+    world.entities.contactPairs = resolved.contactPairs;
   };
 }
 

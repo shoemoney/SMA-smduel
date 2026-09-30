@@ -254,7 +254,22 @@ const worldEntitiesSchema = obj({
   clouds: arrayOf(cloudStateSchema),
   wrecks: arrayOf(wreckStateSchema),
   pedestrians: arrayOf(pedestrianStateSchema),
-});
+  /**
+   * The overlap pair keys `resolveVehicleCollisions` wrote at the end of the
+   * last tick, so a save/load resumes a sustained contact as a CONTINUED
+   * contact (no second impact charge) rather than as a fresh collision.
+   * Left out of the `required` list so a pre-existing v2 save written before
+   * this field existed still validates.
+   */
+  contactPairs: arrayOf(NON_EMPTY_STR),
+}, [
+  'vehicles',
+  'projectiles',
+  'deployables',
+  'clouds',
+  'wrecks',
+  'pedestrians',
+]);
 
 const arenaContextSchema = obj({ id: NON_EMPTY_STR, kind: ARENA_KIND });
 

@@ -77,6 +77,18 @@ export interface WorldEntities {
   clouds: CloudState[];
   wrecks: WreckState[];
   pedestrians: PedestrianState[];
+  /**
+   * The vehicle-id PAIRS that were overlapping at the END of the previous tick
+   * (`resolveVehicleCollisions` writes it every tick, from the overlap set it
+   * actually resolved). A collision's armor loss is an IMPACT, so it is charged
+   * only on the first tick a pair is in contact — without this, two cars closing
+   * faster than `collision.vehicleSeparationM` can nudge them apart re-overlap
+   * every single tick and each one silently loses `armorLossPoints` per tick for
+   * as long as the contact lasts. A plain array of `"idA|idB"` strings (ids
+   * sorted, so the key is order-independent) rather than a `Set`, because every
+   * `World` field must stay plain data that survives structuredClone/JSON.
+   */
+  contactPairs: string[];
 }
 
 export interface World {
@@ -95,6 +107,7 @@ function emptyEntities(): WorldEntities {
     clouds: [],
     wrecks: [],
     pedestrians: [],
+    contactPairs: [],
   };
 }
 
@@ -127,6 +140,7 @@ export function createWorld(options: CreateWorldOptions): World {
       clouds: overrides?.clouds ?? base.clouds,
       wrecks: overrides?.wrecks ?? base.wrecks,
       pedestrians: overrides?.pedestrians ?? base.pedestrians,
+      contactPairs: overrides?.contactPairs ?? base.contactPairs,
     },
     arena: options.arena,
   };

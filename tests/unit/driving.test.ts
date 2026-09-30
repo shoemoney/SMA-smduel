@@ -5,7 +5,10 @@ import encountersJson from '@rulesets/classic/encounters.json';
 
 import { accelerationTiers, allBodies, allPlants, citiesConfig, drivingConfig, getBody, getPlant, getTire, skillsConfig } from '@/data/rulesets';
 import { makeArmorRecord } from '@/sim/types';
-import type { TireDPTuple, VehicleDesign, VehicleState } from '@/sim/types';
+import { makeArenaDrivingSystem, type ArenaOpponentState } from '@/app';
+import { createWorld } from '@/sim/world';
+import { createDriver } from '@/sim/driver';
+import type { DriverState, TireDPTuple, VehicleDesign, VehicleState } from '@/sim/types';
 import {
   accelMphPerSecondFor,
   applyCollision,
@@ -82,6 +85,23 @@ function makeVehicle(overrides: Partial<VehicleState> = {}): VehicleState {
     batteryDebt: 0,
   };
   return { ...base, ...overrides };
+}
+
+/** A real `DriverState` from the production factory, never a hand-typed literal. */
+function makeDriverState(): DriverState {
+  const result = createDriver('Test Driver', { driving: 16, marksmanship: 16, mechanic: 18 });
+  if (!result.ok) throw new Error(`test fixture: expected a legal driver, got "${result.reason}"`);
+  return result.driver;
+}
+
+/** `makeArenaDrivingSystem` reads a driving skill off every NON-player vehicle, so an opponent map entry is required for it. */
+function makeOpponents(): Map<string, ArenaOpponentState> {
+  return new Map([
+    [
+      'veh-b',
+      { archetypeId: 'outlaw', personality: 'aggressive', driver: makeDriverState(), seed: 7 } as unknown as ArenaOpponentState,
+    ],
+  ]);
 }
 
 function mph(vehicle: VehicleState): number {
@@ -393,6 +413,103 @@ describe('control loss and handling', () => {
 });
 
 describe('collisions', () => {
+  it('a sustained contact charges ONE impact, not one per tick of overlap', () => {
+    // The real defect this guards: `resolveVehicleCollisions` (src/app.ts) only
+    // nudges two overlapping cars `collision.vehicleSeparationM` (0.4m) apart,
+    // so cars closing faster than that re-overlap EVERY tick. Charging
+    // `applyCollision` on each of those ticks made ramming a damage amplifier —
+    // 1 FRONT armor point per 1/60s, i.e. 60 points/second — for as long as the
+    // contact lasted, on BOTH vehicles. Measured on ny-philadelphia day 0 that
+    // stripped a 2-point car in 2 ticks and a 12-point contact in 12.
+    //
+    // So drive two real vehicles into each other at a closing speed well above
+    // the separation nudge and hold them there: the pair must be charged the
+    // impact exactly ONCE each, no matter how many ticks they stay overlapped.
+    const world = createWorld({
+      rngSeed: 1,
+      arena: { id: 'collision-test', kind: 'arena' },
+      entities: {
+        vehicles: [
+          makeVehicle({ id: 'veh-a', position: { x: 0, y: 0 }, headingRad: 0, speedMps: fromMph(50) }),
+          makeVehicle({ id: 'veh-b', position: { x: 1, y: 0 }, headingRad: 0, speedMps: fromMph(20) }),
+        ],
+      },
+    });
+    const driverRef = { current: makeDriverState() };
+    const driving = makeArenaDrivingSystem(driverRef, 'veh-a', makeOpponents(), new Map());
+    const input = { moveX: 1, moveY: 0, fire: false, weaponSlot: 0 };
+    const TICKS = 120;
+
+    // A same-direction REAR-END, deliberately: it closes at 30mph under the old
+    // scalar formula and ~37mph under a per-body-velocity one, so this test
+    // pins the per-tick GATE and does not silently depend on which closing-speed
+    // formula is in force.
+    //
+    // Re-seeding the speeds every tick is load-bearing: `stopAtObstacle` zeroes
+    // both cars on the tick they touch, so without it the closing speed falls
+    // under `armorLossSpeedMph` on tick 2 and `applyCollision` no-ops — masking
+    // the per-tick charge this test exists to catch. This is the real road
+    // shape: a contact whose AI keeps flooring it into you.
+    for (let i = 0; i < TICKS; i += 1) {
+      world.entities.vehicles = world.entities.vehicles.map((v) =>
+        v.id === 'veh-b'
+          ? { ...v, position: { x: 1, y: 0 }, headingRad: 0, speedMps: fromMph(20) }
+          : { ...v, position: { x: 0, y: 0 }, headingRad: 0, speedMps: fromMph(50) },
+      );
+      driving(world, input, 1 / 60);
+    }
+
+    const a = world.entities.vehicles.find((v) => v.id === 'veh-a');
+    const b = world.entities.vehicles.find((v) => v.id === 'veh-b');
+    expect(a).toBeDefined();
+    expect(b).toBeDefined();
+    // They really were in contact for the whole window — otherwise this test
+    // would pass vacuously, proving nothing.
+    expect(world.entities.contactPairs).toEqual(['veh-a|veh-b']);
+    // Exactly one impact each, not one per tick.
+    const lossPerVehicle = makeArmorRecord(2).FRONT - (a?.armorDP.FRONT ?? -1);
+    expect(lossPerVehicle).toBe(CONFIG.collision.armorLossPoints);
+    expect(makeArmorRecord(2).FRONT - (b?.armorDP.FRONT ?? -1)).toBe(CONFIG.collision.armorLossPoints);
+  });
+
+  it('re-entering contact after separating charges a fresh impact', () => {
+    const world = createWorld({
+      rngSeed: 1,
+      arena: { id: 'collision-reentry', kind: 'arena' },
+      entities: {
+        vehicles: [
+          makeVehicle({ id: 'veh-a', position: { x: 0, y: 0 }, headingRad: 0, speedMps: fromMph(50) }),
+          makeVehicle({ id: 'veh-b', position: { x: 1, y: 0 }, headingRad: 0, speedMps: fromMph(20) }),
+        ],
+      },
+    });
+    const driverRef = { current: makeDriverState() };
+    const driving = makeArenaDrivingSystem(driverRef, 'veh-a', makeOpponents(), new Map());
+    const input = { moveX: 1, moveY: 0, fire: false, weaponSlot: 0 };
+
+    driving(world, input, 1 / 60);
+    const afterFirst = world.entities.vehicles.find((v) => v.id === 'veh-a')?.armorDP.FRONT;
+
+    // Separate them completely — contact pairs must clear.
+    world.entities.vehicles = world.entities.vehicles.map((v) =>
+      v.id === 'veh-b' ? { ...v, position: { x: v.position.x + 400, y: v.position.y } } : v,
+    );
+    driving(world, input, 1 / 60);
+    expect(world.entities.contactPairs).toEqual([]);
+
+    // Re-enter contact: a second, genuine impact.
+    world.entities.vehicles = world.entities.vehicles.map((v) =>
+      v.id === 'veh-b' ? { ...v, position: { x: v.position.x - 400, y: v.position.y } } : v,
+    );
+    world.entities.vehicles = world.entities.vehicles.map((v) =>
+      v.id === 'veh-b' ? { ...v, position: { x: 1, y: 0 }, headingRad: 0, speedMps: fromMph(20) } : { ...v, position: { x: 0, y: 0 }, headingRad: 0, speedMps: fromMph(50) },
+    );
+    driving(world, input, 1 / 60);
+    const afterSecond = world.entities.vehicles.find((v) => v.id === 'veh-a')?.armorDP.FRONT;
+    expect(afterFirst).toBe(2 - CONFIG.collision.armorLossPoints);
+    expect(afterSecond).toBe(2 - 2 * CONFIG.collision.armorLossPoints);
+  });
+
   it('a 30 mph head-on collision removes exactly one FRONT armor point', () => {
     const vehicle = makeVehicle({ armorDP: makeArmorRecord(5) });
     const after = applyCollision(vehicle, 30);

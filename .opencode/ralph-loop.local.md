@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 39
+iteration: 40
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -8783,3 +8783,122 @@ Iteration 138 closed by naming the cause of the one red test: "`findWinnableEnco
   the OLD subject against the NEW code before you rewrite the subject.** I had
   that instinct available this whole round and spent it in the wrong order, and
   iteration 138's log is now corrected in the same repository that carries it.
+## Iteration 140 — the ramming amplifier: 1 armor point per 1/60 of a second, forever
+
+Iteration 139 said the next move was "decide what a road engagement is" and
+listed three shapes. I went to measure them. The measurement killed all three
+in the first hour, because the fight I was measuring was not the fight anyone
+thought was happening.
+
+**MY OWN ITERATION-139 NOTES WERE WRONG IN THREE PLACES, AND MEASUREMENT CAUGHT
+EVERY ONE.** This is the round's real lesson, so it goes first.
+
+1. "The machinegun's 85m range" — the phase4 car carries a `rocketlauncher`
+   (`rangeM` 115, `minRangeM` 8, cooldown 54, base accuracy 58, damage 3-6).
+   The 85m figure is the MACHINEGUN's range, from a different weapon entirely.
+2. "Contacts spawn behind the player and a 1-D road can't turn around." I
+   measured all 61 single-hostile seeds across 400: `deltaM = (unit.routeMiles
+   - trip.progressMiles) * metersPerMile` is signed, so this was checkable, and
+   **61 of 61 engage from AHEAD, 0 from behind.** The unreachable-behind theory
+   is dead, and with it the "let the car turn around" shape.
+3. "It is a damage-budget problem, not positioning." Partly right, and it sent
+   me down a real second bug — but the damage budget was not the player's.
+
+**AND THE `projectileTargets` KEY LEAK I NOTED MID-INVESTIGATION IS REAL:**
+after a fight, the map still held `proj-584-0`, `proj-638-54`, `proj-692-108`
+— three entries for projectiles that had left `world.entities.projectiles`
+entirely. Not the cause of anything here, but it is a genuine unbounded growth
+and it is now measured rather than suspected.
+
+**ROOT CAUSE. `resolveVehicleCollisions` (src/app.ts) is a damage amplifier,
+not a collision model.** Two overlapping vehicles take `applyCollision`'s
+armor loss, are stopped, and are nudged apart by `collision.vehicleSeparationM`
+— **0.4m total**. At 40 m/s and dt=1/60 the two cars re-close **1.33m in a
+single tick**. The nudge can never clear the overlap, so the pair re-overlaps
+next tick, and the next, and `armorLossPoints` (1) is charged again every
+1/60s: **60 armor points per second, per vehicle, for the entire contact.**
+
+The measurement that proves it is the whole finding. Bracketing every system in
+the tick, damage appears at `after-DRIVE` and nowhere else, and it is
+**exactly 1 point per tick on FRONT, on both vehicles, 12 ticks running**:
+
+    CHANGED tick=715 at=after-DRIVE oppFront 12->11 playerFront 2->1
+    CHANGED tick=716 at=after-DRIVE oppFront 11->10 playerFront 1->0
+    CHANGED tick=717 at=after-DRIVE oppFront 10->9  playerFront 0->0
+    ... (12 consecutive ticks)
+
+The player's 2-point FRONT armor is gone in 2 ticks. The contact's 12-point
+FRONT armor is gone in 12. And that accounts for **all 12 points of damage in
+the entire 6000-tick fight** — the player's 8-12 rocket hits (40-60% hit rate,
+3-6 damage each) contributed **zero**. That is why `phase4` could not find a
+winnable seed in 400 tries: the opponent was never actually being fought, it was
+being sanded down by a collision, and `applyCollision` is
+`Math.max(0, current - 1)` on ONE facing with **no overflow to weapons, plant
+or driver** — so ramming can never destroy anything. It strips one facing and
+goes inert. The contact's machinegun (dp 3), plant (dp 8) and driver health
+(3) were pristine at the end of every seed.
+
+**FIX: charge the impact ONCE per engagement, not once per tick of overlap.**
+`World.entities.contactPairs` (a plain `string[]` of sorted `"idA|idB"` keys —
+`World` must stay JSON/structuredClone-safe, so NOT a `Set`) records the pairs
+in contact at the end of each tick; a pair not in the previous tick's list is a
+new engagement and pays `applyCollision`, a pair that was already grinding does
+not. Separation and `stopAtObstacle` still run EVERY tick — only the damage is
+gated. `contactPairs` is deliberately left out of the save schema's `required`
+list so a pre-existing v2 save still validates.
+
+**MUTATION-PROVEN, BOTH WAYS.** Deleting the gate fails
+`a sustained contact charges ONE impact, not one per tick of overlap`. The two
+new tests use a same-direction REAR-END on purpose: it closes at 30mph under
+the old scalar formula and ~37mph under a per-body-velocity one, so they pin
+the gate and do not silently depend on which closing-speed formula is in force.
+My first attempt at them was head-on and inherited the formula bug below —
+which is how I found it.
+
+**A SECOND, DEMONSTRABLE BUG, DELIBERATELY NOT SHIPPED IN THIS COMMIT.**
+The same function's closing speed was
+`|(b.speedMps - a.speedMps) * (n.x + n.y)|` — two signed scalars, each measured
+along its OWN forward axis, projected onto ONE shared axis. For a head-on
+meeting where both cars carry the same signed speed, that is **exactly zero**:
+a 100mph head-on charged `applyCollision` a closing speed of 0 and did no
+damage at any speed, and reverse-ramming was dead for the same reason. The
+comment above it claimed it "projects each body's signed velocity onto the
+separation axis"; the code never used either body's heading. The correct form
+(`|dot(v_a, n) - dot(v_b, n)|` with `v = speedMps * (cos h, sin h)`) is written
+and was measured working.
+
+**BUT IT IS A BALANCE CHANGE, AND THE NUMBERS ARE WHY IT IS NOT IN THIS
+COMMIT.** With the formula corrected AND the gate in place, a fully passive
+player in Amateur Night **does not die at all** — the arena screen is still up
+at tick 96,000, where the documented figure is 2,863. It is the correction
+that does it, not the gate: gate-only leaves `arena-auto-end` at 6/6, and
+gate+formula leaves it failing. Mechanically the plausible cause is that a
+head-on meeting that previously cost nothing now stops and damages both cars,
+which changes every opponent's approach, but **I did not chase that mechanism
+and am not claiming it.** What is measured is the number and the direction.
+A passive player having no fail state in Amateur Night is a real balance gap,
+and it is a DESIGN CALL with a measured cost on both sides, so it is recorded
+here for a decision rather than resolved by whichever way the test was
+rewritten. `arena-victory`'s winnability gate (57.3%) holds under gate+formula,
+so this is specifically about the death path, not about the fight being a
+walkover.
+
+- **GATE AT THIS COMMIT.** tsc clean. `driving.test.ts` **31/31** (29 + 2 new).
+  `arena-victory` **14/14**. `arena-auto-end` **6/6**. `road-trip-menu` **8/8**
+  in isolation. Full suite **1536 passed / 6 failed**, and every one of the six
+  is pre-existing: `phase4` (below), `road-trip-menu` + `screens.test.ts` (the
+  known cross-file pollution flakes — `road-trip-menu` 8/8 in isolation BOTH
+  with this change and on clean master; `screens` 1/30 on clean master too, and
+  a different subset each run). No regression from this commit. Tree clean
+  apart from this log.
+
+- **`phase4` IS STILL RED, AND IT IS NOW RED FOR A DIFFERENT REASON.** The
+  12 points of phantom ramming damage are gone, so the fight is finally decided
+  by the player's own guns — and the rockets still are not landing. Replicated
+  `makeRoadDamageSystem` verbatim with logging: a single projectile applies its
+  damage **exactly once** (`armor 37->32` in one application, probe-confirmed),
+  and `applyPenetratingDamage` in isolation is correct (6 hits x 4 damage
+  defeats the vehicle, overflow flowing armor -> weapon -> plant -> driver).
+  So the pre-rolled `hit: true, damage: 5` outcomes are not being converted
+  into applications in the road path, and that is the NEXT thing to measure.
+  I did not establish why, and I am not guessing at it here.
