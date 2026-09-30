@@ -3723,3 +3723,28 @@ DEPLOY 2026-09-30 — release `20260929194913-66bd430` to arcade.shoemoney.com
 
 Tooling: `node tools/review.mjs --list | --model <id> --shots <dir>`
 Reviews: .opencode/reviews/
+DEPLOY 2026-09-30 — release `20260930013105-be03afb` (be03afb) to arcade.shoemoney.com
+- Whole-site snapshot taken FIRST (`cp -a $PREV/public/. releases/$NAME/public/`, then
+  `cp -a $PREV/api`), smduel overlaid with rsync --delete, atomic swap. All nine
+  games verified 200 afterwards, so the iteration-78 partial-release lesson held.
+- LIVE VERIFIED, not assumed: `/smduel/` title art is byte-for-byte the version
+  iteration 78 measured (compare AE = 0) — the check that mattered, given this
+  round proved the artifact had silently reverted once already. The four new
+  frames are present in the SHIPPED bundle (`index-2kMSaQ98.js`), and a live
+  WebGPU screenshot of `?screen=city&seed=a11ce5ee` shows all ten New York mats
+  rendering their pictograms with zero console errors.
+- A PROCESS FAILURE WORTH KEEPING, because `set -e` did not save me. The runbook
+  says to snapshot scores.sqlite. This box has no `sqlite3` CLI, and the step was
+  written as `sqlite3 ... && echo "db backup ok"` — a failing command on the LEFT
+  of `&&` does not trigger `set -e`, so the script sailed past the missing
+  backup, printed nothing about it, and completed the swap. A deploy step that
+  fails quietly is worse than one that fails loudly: I would have shipped and
+  reported success with no snapshot taken. Caught only because I read the output
+  back. Redone with python's `Connection.backup()` (the runbook's own fallback,
+  and the right primitive regardless — `cp` of a live WAL db is a torn snapshot);
+  `integrity_check` returns ok. EVERY deploy step needs its own explicit check
+  rather than relying on the script aborting.
+- Reminder for next time: the box has no `sqlite3`; use python. And confirm
+  `/tmp/smduel-dist` is uploaded BEFORE the staging script runs — the first
+  attempt referenced a path that did not exist yet, and `set -e` did abort there,
+  so the live site was never touched by a half-built release.
