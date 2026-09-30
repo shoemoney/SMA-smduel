@@ -254,6 +254,30 @@ export const ARENA_EVENT_ID = 'practice';
 // hull, it never measures one), so the on-screen footprint is a fixed,
 // visual-only size, same as HUD's own MAX_WEAPON_ROWS/TIRE_LABELS constants.
 const VEHICLE_SPRITE_SIZE_M = { x: 3.2, y: 5.2 };
+/**
+
+/**
+ * The travelling bolt, in metres, sized against the VEHICLE rather than against
+ * an invented source box.
+ *
+ * The first version derived it from the frame's own pixel fraction
+ * (`3m * 110/430` = 0.77m) and produced an effect that RENDERED and could not
+ * be SEEN — measured, not assumed: at 0.77m the `fx-*` sprite is a faint smudge
+ * on 144-luma ground, and the same frame at 12m is unmissable. That is this
+ * log's iteration-68/64 class exactly — a cue that is present, measurable, and
+ * below the threshold of the frame anyone reviews.
+ *
+ * So it is anchored on the thing a player already reads: the car. A bolt is
+ * clearly smaller than the car it came from but must be unmistakable against
+ * empty ground, so it is a third of the vehicle's footprint.
+ * `VEHICLE_SPRITE_SIZE_M` is the one number for that, so the two cannot drift.
+ */
+const PROJECTILE_EFFECT_SIZE_M = {
+  x: VEHICLE_SPRITE_SIZE_M.x / 3,
+  y: VEHICLE_SPRITE_SIZE_M.y / 3,
+};
+/** The muzzle flash is ~2.4x the bolt it fires; see `projectileSpriteInstances`. Exported so a test can assert the ratio rather than restate it. */
+export const MUZZLE_FLASH_SIZE_MULTIPLIER = 2.4;
 const FLOOR_TILE_SIZE_M = 10;
 const FLOOR_TILES_PER_SIDE = 9;
 const PIXELS_PER_METER_CSS = 14;
@@ -2396,6 +2420,111 @@ export function vehicleSpriteInstance(
   };
 }
 
+/**
+ * Every live projectile, as a visible instance.
+ *
+ * ## Why this exists
+ *
+ * Codex `gpt-6.1-sol` drove the live arena and reported that "combat happens
+ * without visible firing or impact effects ... the battlefield showed cars
+ * moving and overlapping without showing the exchanges causing those changes",
+ * after watching ammunition fall 20/20 -> 7/20 and a front facing drop 2/2 -> 1/2
+ * with nothing on screen to account for either. It checked the source rather
+ * than only a still: the arena's render list submits vehicle sprites and
+ * shadows, and no projectiles.
+ *
+ * The art was never missing. `fx-muzzle-flash`, `fx-impact-spark`,
+ * `fx-smoke-puff` and `fx-explosion-1..5` are all in `assets/atlas.json` and
+ * have been shipping in the download since before the loop started —
+ * `grep -rn "fx-" src/` returned ZERO. That is iteration 81's finding verbatim
+ * (`decal-*`): authored, packed, downloaded, drawn by nothing.
+ *
+ * It is worth recording WHY that went unnoticed for so long, because the wrong
+ * conclusion nearly shipped. Iteration 115 read the atlas with a walker looking
+ * for dict entries carrying a `name` field. `frames` is a **dict keyed by name**,
+ * so the probe matched nothing and reported the frames' absence as a
+ * measurement — then used that to override a reviewer whose remedy was correct.
+ * A probe that finds nothing is not a measurement, and this is the third time
+ * in this log that one has produced a confident false claim.
+ *
+ * ## What is drawn, and why it is STATELESS
+ *
+ * One instance per live projectile, at its real simulated position, rotated
+ * along its real velocity. That alone is the shot PATH, which is the part the
+ * finding is actually about: the player can see where a shot is, so firing,
+ * incoming fire and hits become things in the world rather than counters that
+ * change for no visible reason.
+ *
+ * A projectile that spawned on THIS tick additionally gets a larger muzzle
+ * flash, drawn at the projectile's own spawn position — which is the shooter's
+ * muzzle, because `spawnProjectile` originates the bolt there. So the muzzle
+ * flash needs no separate event queue, no effect list and no lifetime: it is
+ * derived from `spawnTick`, which is already on the projectile.
+ *
+ * That derivation is what keeps this cheap enough to be obviously correct. An
+ * impact spark is the obvious third piece and is deliberately NOT here: a
+ * resolving projectile is DROPPED from `world.entities.projectiles` by the
+ * damage system on the tick it connects, so by render time it is gone and there
+ * is nothing left to draw. Adding impacts means the damage system must record
+ * them, which is a state addition and its own round.
+ *
+ * ## Capacity
+ *
+ * `SPRITE_INSTANCE_CAPACITY` is 64 and an arena frame spends 2 per vehicle
+ * (shadow + sprite). An overshoot is not a graceful degradation —
+ * `writeInstanceBuffer` REJECTS the write, which renders the whole arena BLANK
+ * (iteration 8's invisible beacon, iteration 19's shadows). The sim does not
+ * bound the projectile array, so the cap is applied HERE, at the one place that
+ * knows the budget: the caller slices the effects to the remaining headroom
+ * after the vehicles. Truncating an effect is the correct failure — a missing
+ * tracer on the busiest frame — and a blank screen is not.
+ */
+export function projectileSpriteInstances(
+  projectiles: readonly ProjectileState[],
+  worldTick: number,
+  atlasIndex: AtlasIndex,
+): SpriteInstanceInput[] {
+  const out: SpriteInstanceInput[] = [];
+  for (const projectile of projectiles) {
+    const speed = Math.hypot(projectile.velocity.x, projectile.velocity.y);
+    // A bolt with no velocity has no direction to point, and `atan2(0, 0)` is
+    // 0 — which would silently aim every stationary projectile the same way.
+    // A projectile is never legitimately stationary mid-flight, so this is a
+    // guard against a degenerate record rather than a state the sim produces.
+    const rotationRad = speed > 0 ? Math.atan2(projectile.velocity.y, projectile.velocity.x) : 0;
+    const justFired = projectile.spawnTick === worldTick;
+    // BOTH states use `fx-muzzle-flash`, and that is a correction rather than a
+    // simplification. The first version drew the in-flight bolt with
+    // `fx-impact-spark`, which is a soft 21%-opaque burst authored for an
+    // IMPACT — a travelling dart rendered with impact art is both the wrong
+    // picture and the faintest one available. The muzzle flash is the sharp,
+    // bright frame in the set, and it is what a shot should look like in
+    // flight; the size difference between the burst at the muzzle and the bolt
+    // leaving it still reads.
+    const frame = atlasIndex.frame('fx-muzzle-flash');
+    out.push({
+      atlasId: String(frame.atlasIndex),
+      position: { ...projectile.position },
+      rotationRad: rotationRad + degToRad(frame.rotationOffsetDeg),
+      // The muzzle flash is roughly 2.4x the in-flight bolt. Both are derived
+      // from ONE constant rather than two literals, so the two can never drift
+      // into "the flash is smaller than the thing it fired".
+      sizeM: {
+        x: PROJECTILE_EFFECT_SIZE_M.x * (justFired ? MUZZLE_FLASH_SIZE_MULTIPLIER : 1),
+        y: PROJECTILE_EFFECT_SIZE_M.y * (justFired ? MUZZLE_FLASH_SIZE_MULTIPLIER : 1),
+      },
+      uvRect: frame.uv,
+      // Unmodified: these frames are authored bright and additive-looking, and a
+      // tint is how iteration 16's building grade spent the value separation the
+      // art already carries. A weapon glow that is dimmed for consistency with
+      // the ground is a glow nobody can see.
+      tint: { r: 1, g: 1, b: 1, a: 1 },
+      layer: 1,
+    });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Screen 4: Arena
 // ---------------------------------------------------------------------------
@@ -2927,8 +3056,13 @@ function showArena(
         Math.max(visible.x, visible.y) + GROUND_MARGIN_M,
       ),
     );
+    // Practice fires too, so its shots are visible for the same reason the arena
+    // event's are — see `projectileSpriteInstances`.
+    const vehicleInstances = [vehicleShadowInstance(player, atlasIndex), vehicleSpriteInstance(player, atlasIndex)];
+    const effectHeadroom = Math.max(0, SPRITE_INSTANCE_CAPACITY - vehicleInstances.length);
+    const effectInstances = projectileSpriteInstances(world.entities.projectiles, world.tick, atlasIndex).slice(0, effectHeadroom);
     const spriteInstances = cullInstances(
-      [vehicleShadowInstance(player, atlasIndex), vehicleSpriteInstance(player, atlasIndex)],
+      [...vehicleInstances, ...effectInstances],
       camera.getVisibleBounds(),
     ).visible;
     writeInstanceBuffer(gpuCtx.getDevice(), resources.tileInstanceBuffer, packInstances(groundInstances), TILE_INSTANCE_CAPACITY);
@@ -4036,12 +4170,20 @@ function showArenaEvent(
     // caster share a position and size, so culling keeps or drops both together
     // and a vehicle can never keep its shadow after losing itself. This is what
     // keeps `SPRITE_INSTANCE_CAPACITY` from being a silent cliff edge.
+    const vehicleInstances = [
+      vehicleShadowInstance(player, atlas),
+      vehicleSpriteInstance(player, atlas),
+      ...opponents.flatMap((vehicle) => [vehicleShadowInstance(vehicle, atlas), vehicleSpriteInstance(vehicle, atlas, OPPONENT_TINT)]),
+    ];
+    // Effects get whatever the vehicles left, and are TRUNCATED to fit. An
+    // overshoot is not graceful: `writeInstanceBuffer` rejects the write and the
+    // arena renders BLANK (iteration 8, iteration 19). Dropping one tracer on
+    // the busiest frame is invisible; dropping every vehicle is not, so the
+    // vehicles keep their claim and the effects yield.
+    const effectHeadroom = Math.max(0, SPRITE_INSTANCE_CAPACITY - vehicleInstances.length);
+    const effectInstances = projectileSpriteInstances(world.entities.projectiles, world.tick, atlas).slice(0, effectHeadroom);
     const spriteInstances = cullInstances(
-      [
-        vehicleShadowInstance(player, atlas),
-        vehicleSpriteInstance(player, atlas),
-        ...opponents.flatMap((vehicle) => [vehicleShadowInstance(vehicle, atlas), vehicleSpriteInstance(vehicle, atlas, OPPONENT_TINT)]),
-      ],
+      [...vehicleInstances, ...effectInstances],
       camera.getVisibleBounds(),
     ).visible;
 
@@ -6723,12 +6865,20 @@ function showRoad(
     // list is grown by `updateEngagement` from live route contacts, so its size
     // is a property of the data rather than of the renderer — culling is what
     // keeps `SPRITE_INSTANCE_CAPACITY` from being a silent cliff edge.
+    const vehicleInstances = [
+      vehicleShadowInstance(trip.vehicle, atlas),
+      vehicleSpriteInstance(trip.vehicle, atlas),
+      ...opponents.flatMap((v) => [vehicleShadowInstance(v, atlas), vehicleSpriteInstance(v, atlas, OPPONENT_TINT)]),
+    ];
+    // The road has its own combat (`makeRoadDamageSystem`, `stepCombat`), so its
+    // shots carry the same defect for the same reason — the renderer submitted
+    // vehicles and shadows and never looked at `combatWorld.entities.projectiles`.
+    // `combatWorld`, not `world`: the road's loop world is explicitly `null` and
+    // its combat runs through `stepCombat`, which maintains a separate world.
+    const effectHeadroom = Math.max(0, SPRITE_INSTANCE_CAPACITY - vehicleInstances.length);
+    const effectInstances = projectileSpriteInstances(combatWorld.entities.projectiles, combatWorld.tick, atlas).slice(0, effectHeadroom);
     const spriteInstances = cullInstances(
-      [
-        vehicleShadowInstance(trip.vehicle, atlas),
-        vehicleSpriteInstance(trip.vehicle, atlas),
-        ...opponents.flatMap((v) => [vehicleShadowInstance(v, atlas), vehicleSpriteInstance(v, atlas, OPPONENT_TINT)]),
-      ],
+      [...vehicleInstances, ...effectInstances],
       camera.getVisibleBounds(),
     ).visible;
 
