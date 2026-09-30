@@ -7297,3 +7297,51 @@ findings instead of a refusal.
   and impact-spark frames, so the first pass is a code change and no new art;
   whether those frames are currently unreferenced is exactly the iteration-81
   question to CHECK rather than assume.
+
+- DEPLOY: release `20260930091500-8e7a0a4`, build `index-Bi6hkndk.js`. Whole-
+  site snapshot, atomic swap, root + smduel + last-engineer + shoplifter 200,
+  live bundle hash equals the local build's.
+
+- LIVE-VERIFIED IN PRODUCTION, and with a control that moves — which is the
+  standard the road's first freeze verification failed (iteration 100). Held the
+  fire key against `?screen=arena-event&seed=a11ce5ee` and read the hostile
+  contact count off the real DOM:
+      at rest      3 contacts   ("Division 5: 3 opponent(s)")
+      after kill 1 2 contacts
+      after kill 2 0 contacts
+      0 page errors
+  The feed moves with it ("Machine Gun fired x8"), so the falling number is
+  kills being removed rather than a contact list that was never populated. This
+  is the exact measurement the reviewer made and reported the bug from, so the
+  fix is verified on the reviewer's own terms rather than on mine.
+
+- **SCOPED THE NEXT FINDING, AND THE REVIEWER'S REMEDY FOR IT IS WRONG.** #1
+  (combat has no visible shot path) says "use the existing atlas muzzle-flash
+  and impact-spark assets; new art is not required for the first fix". Checked
+  rather than believed, and **the atlas holds no such frames** — a scan of every
+  frame name for muzzle/flash/impact/spark/shot returns nothing. The source
+  references are all red herrings: `muzzle` appears ONLY in a comment in
+  `post.wgsl` explaining what the bloom pass is FOR ("so muzzle flashes ... pop"),
+  which is the shader written in anticipation of art that was never authored;
+  `impact` in `src/app.ts` and `src/sim/damage.ts` is collision arithmetic
+  (`impactSpeedMph`, `impactFacing`), not a visual; and `flash` is the
+  reduced-flash accessibility setting.
+  So the OBSERVATION is real and the FIX is not available as stated. Recording it
+  because a round spent wiring up frames that do not exist is the whole cost of
+  believing that sentence, and because this is the log's recurring shape: a wrong
+  remedy attached to a right observation.
+
+- **BUT THE CHEAPEST HONEST VERSION IS AVAILABLE, and it needs NO ART.** The
+  complaint that matters is that shots have no visible PATH — the player cannot
+  connect firing, incoming damage and hits to positions in the world, and must
+  read HUD counters instead. `ProjectileState` already carries `position`,
+  `velocity` and `mountFacing`, and `world.entities.projectiles` is populated
+  every tick; the sim is doing the work and the renderer simply ignores it. So a
+  tracer derived from a projectile's own position and velocity is a pure code
+  change, and it is the part of the finding that needs no authored art. Muzzle
+  flashes and impact sparks remain a genuine ART task on top of it.
+  NOT STARTED HERE, deliberately: a new render layer is a feature rather than a
+  fix, and this round had already spent itself on a real defect, two harness
+  defects and a retired queue item. Iterations 84, 96 and 102 all deferred their
+  structural items on the same reasoning, and the thing that makes this cheap is
+  that it does not need designing first — it needs building.
