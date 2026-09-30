@@ -98,15 +98,37 @@ function holdMs(ctx, metres) {
   return Math.ceil((metres / ctx.walkSpeedMps) * 1000 * HOLD_SLACK) + 120;
 }
 
-async function stepOnce(page, ctx, dir, metres) {
+/**
+ * Holds one compass key and returns the DISTANCE THE PLAYER ACTUALLY TRAVELLED.
+ *
+ * The return value is the entire point, and getting it wrong is what broke this
+ * function for five facilities in a row. The city advances the player at
+ * `pedestrian.speedMps` in REAL TIME, so a key held for `holdMs` moves the player
+ * `speedMps * holdMs/1000` metres — which, with the slack and the floor in
+ * `holdMs`, is about 1.07m for a step the caller believed was 0.5m.
+ *
+ * Crediting the model with the INTENDED 0.5m while the player actually moved
+ * 1.07m makes the dead-reckoned position fall behind reality at 2x. The servo
+ * then "arrives" at the map centre believing it is there, while the car is
+ * halfway to a completely different building — and the menu that opens belongs to
+ * that building. Every symptom in the failed runs was this: walks that reported
+ * arriving near the centre and opened the weaponshop, 16.10m away.
+ *
+ * So the caller credits what the physics bought, not what it hoped to buy, and
+ * the model and the player stay in agreement.
+ */
+async function stepOnce(page, ctx, dir) {
   const keys = keysForDir(dir);
   for (const k of keys) await page.keyboard.down(k);
   try {
-    await page.waitForTimeout(holdMs(ctx, metres));
+    await page.waitForTimeout(holdMs(ctx, STEP_M));
   } finally {
     for (const k of keys) await page.keyboard.up(k);
   }
+  return (walkSpeedMps(ctx) * holdMs(ctx, STEP_M)) / 1000;
 }
+
+const walkSpeedMps = (ctx) => ctx.walkSpeedMps;
 
 export function doorwayPosition(ctx, facilityKind) {
   const d = ctx.layout.doorways.find((x) => x.facilityKind === facilityKind);
@@ -129,33 +151,110 @@ function keysForDir(dir) {
  * menu rows it found there. Stops as soon as a menu opens, or when the
  * estimated position is inside the interaction radius, whichever comes first.
  */
-export async function walkIntoFacility(page, facilityKind, seed, log) {
-  const ctx = cityWalkContext(seed);
-  const target = doorwayPosition(ctx, facilityKind);
-  let pos = { ...ctx.spawn };
-  // A cap so a bug fails loudly instead of pressing keys forever.
-  const maxSteps = Math.ceil((ctx.layout.boundsRadiusM * 3) / STEP_M) + 40;
-  let opened = false;
-  let steps = 0;
+/**
+ * How far PAST a doorway to aim, in metres — finishing deep inside the target's
+ * own trigger circle rather than balanced on its edge.
+ */
+const DOORWAY_OVERSHOOT_M = 1.2;
 
-  for (; steps < maxSteps; steps++) {
-    const dist = Math.hypot(target.x - pos.x, target.y - pos.y);
-    if (dist <= ctx.interactionRadiusM * 0.7) {
-      log?.(`  arrived within ${dist.toFixed(2)}m of "${facilityKind}" after ${steps} step(s)`);
-      break;
+/**
+ * Servos from `from` to `aim`, re-aiming each step.
+ *
+ * `stopAt` is per-leg and it is load-bearing. A single loose radius applied to
+ * both legs explains every remaining failure in this file, and the two halves
+ * fail in opposite directions:
+ *
+ * - On the leg to the MAP CENTRE, stopping 2.6m short means the next leg is not
+ *   radial at all — it starts from a point off-centre and clips a neighbouring
+ *   doorway. That is how `medical` opened the arena.
+ * - On the leg to a DOORWAY, the aim point is already 1.2m past the doorway, so
+ *   stopping 2.4m short of it leaves the player ~3.6m from the doorway centre —
+ *   OUTSIDE the 3m trigger. That is why `bar`, `courierguild` and `federal` came
+ *   back with no menu at all: not a wrong building, no building.
+ *
+ * So the centre leg stops tight (it is a staging point with no trigger in it) and
+ * the doorway leg stops at 0.9m, which — given an aim already 1.2m past the
+ * doorway — always lands inside the 3m circle.
+ */
+async function servoTo(page, ctx, from, aim, stopAt, log, label) {
+  let pos = { ...from };
+  const maxSteps = Math.ceil((ctx.layout.boundsRadiusM * 3) / STEP_M) + 60;
+  for (let step = 0; step < maxSteps; step++) {
+    const dist = Math.hypot(aim.x - pos.x, aim.y - pos.y);
+    if (dist <= stopAt) {
+      log?.(`  ${label}: arrived within ${dist.toFixed(2)}m after ${step} step(s)`);
+      return { arrived: true, opened: false, pos };
     }
-    const dir = bestDir(pos, target);
+    const dir = bestDir(pos, aim);
     if (dir === null) break;
-    await stepOnce(page, ctx, dir, Math.min(STEP_M, dist));
+    const travelled = await stepOnce(page, ctx, dir);
     const unit = DIRECTION_UNIT_VECTORS[dir];
-    pos = { x: pos.x + unit.x * STEP_M, y: pos.y + unit.y * STEP_M };
-    opened = (await page.evaluate(() => document.querySelector('.sm-menu__item') !== null)) ?? false;
-    if (opened) {
-      log?.(`  menu opened after ${steps + 1} step(s), estimated ${Math.hypot(target.x - pos.x, target.y - pos.y).toFixed(2)}m from "${facilityKind}"`);
-      break;
+    pos = { x: pos.x + unit.x * travelled, y: pos.y + unit.y * travelled };
+    if ((await page.evaluate(() => document.querySelector('.sm-menu__item') !== null)) === true) {
+      log?.(`  ${label}: a menu opened after ${step + 1} step(s), ${Math.hypot(aim.x - pos.x, aim.y - pos.y).toFixed(2)}m short of the aim point`);
+      return { arrived: false, opened: true, pos };
     }
   }
-  if (!opened) {
+  return { arrived: false, opened: false, pos };
+}
+
+/**
+ * Walks from the spawn into a facility's menu, relaying through the map centre.
+ *
+ * ## Why the relay, and what it cost to find out
+ *
+ * The obvious route — straight from the spawn to the doorway — is WRONG for most
+ * of this map, and the first version of this function was wrong in exactly that
+ * way for five facilities in a row. It is not a subtle drift; it is arithmetic.
+ * Measured on seed `a11ce5eed5eed5eed5eed5ee`:
+ *
+ *     target     nearest OTHER doorway to the straight spawn->target path
+ *     arena                        garage            1.69m
+ *     truckstop                    assembly          1.69m
+ *     medical                      garage            3.24m
+ *     federal                      garage            4.53m
+ *
+ * The interaction radius is **3m**. A path that passes 1.69m from the garage puts
+ * you INSIDE the garage's trigger circle on the way to the arena, so the garage
+ * opens, the walk stops, and the e2e harness photographs a valid-looking frame of
+ * the WRONG building and files it under `arena`. `truckstop` opened ASSEMBLY for
+ * the same reason. Five of ten facilities were mislabelled, and nothing in the
+ * output said so.
+ *
+ * (An earlier theory — that the trigger circles were tangent — was WRONG and was
+ * discarded by measurement: the neighbour chord is 6.00m at minimum but the
+ * facility spacing is uneven, 6.00m to 21.08m, because the ring is shared with
+ * the gate.)
+ *
+ * The relay fixes it geometrically rather than by tuning. Every doorway sits ON
+ * the ring, so a leg running between the gate and the map CENTRE moves away from
+ * all of them at once, and a leg running from the centre outward to the aimed
+ * doorway is RADIAL: its closest approach to any other ring point is 6.00m, at the
+ * ring itself, where the target is. There is no path from the centre to a doorway
+ * that passes another doorway. `tests/integration/arena-auto-end.test.ts` has
+ * always used this same relay; this function is now the browser-side equivalent
+ * of a route that was already known to work.
+ */
+export async function walkIntoFacility(page, facilityKind, seed, log) {
+  const ctx = cityWalkContext(seed);
+  const door = doorwayPosition(ctx, facilityKind);
+  // Radially outward from the map centre: past the doorway, not up to it, so the
+  // walk finishes well inside the target's own trigger circle.
+  const ringLen = Math.hypot(door.x, door.y);
+  const scale = ringLen === 0 ? 0 : (ringLen + DOORWAY_OVERSHOOT_M) / ringLen;
+  const aim = { x: door.x * scale, y: door.y * scale };
+  const centre = { x: 0, y: 0 };
+
+  const inward = await servoTo(page, ctx, ctx.spawn, centre, 0.4, log, 'gate->centre');
+  if (inward.opened) {
+    log?.(`  WARNING: a menu opened on the way to the centre; "${facilityKind}" was NOT reached`);
+  }
+  const outward = await servoTo(page, ctx, inward.pos, aim, 0.9, log, `centre->${facilityKind}`);
+  if (outward.opened) {
+    log?.(`  ${facilityKind}: menu opened on the radial leg`);
+  }
+
+  if (!outward.opened) {
     await page
       .waitForFunction(() => document.querySelector('.sm-menu__item') !== null, { timeout: 4_000, polling: 60 })
       .catch(() => {});
@@ -164,22 +263,57 @@ export async function walkIntoFacility(page, facilityKind, seed, log) {
 }
 
 /**
- * Walks off the spawn, back out through the gate, and takes the first route —
- * the same in/out/in-out shape `tests/integration/screens.test.ts` uses, and for
- * the same reason: the gate trigger is EDGE-triggered, so a player who starts
- * inside its circle never fires it. Stepping inward first is what makes
- * stepping back out count.
+ * Walks off the spawn, back out through the gate, and takes the first route.
+ *
+ * ## Why this uses EXACT timing and not the servo's
+ *
+ * The gate trigger is EDGE-triggered, so a player who starts inside its circle
+ * never fires it — stepping inward first is what makes stepping back out count.
+ * Neither leg needs precision here, only a *known* displacement, and this
+ * function used to inherit the servo's hold time, which includes a 1.6x slack
+ * factor and a 120ms floor. It therefore flung the player 17m when it meant to
+ * move them 10.65m, straight through the far wall (the city clamps to its
+ * boundary), and the walk back never returned to the gate. The e2e run hung on
+ * `waitForFunction` for the gate menu that could not open.
+ *
+ * So these legs hold for EXACTLY the time the intended distance takes. Frame
+ * pacing makes that approximate by a few percent, which is irrelevant for
+ * "leave the circle, come back" and would not be for the servo — hence two
+ * different helpers rather than one compromise.
  */
+const EXACT_HOLD_SLACK = 1;
+
+function exactHoldMs(ctx, metres) {
+  return Math.round((metres / ctx.walkSpeedMps) * 1000 * EXACT_HOLD_SLACK);
+}
+
 export async function walkThroughGateToRoad(page, seed, log) {
   const ctx = cityWalkContext(seed);
   const centre = { x: 0, y: 0 };
   const inward = legFor(ctx.spawn, centre);
   const outward = legFor(centre, ctx.spawn);
-  await walkLeg(page, ctx, inward, log);
+
+  // 6m clears the 3m gate circle with room to spare; 10m on the way back
+  // re-enters it and crosses the doorway.
+  const IN_M = 6;
+  const OUT_M = 10;
+
+  const hold = async (leg, metres, label) => {
+    for (const k of leg.keys) await page.keyboard.down(k);
+    try {
+      await page.waitForTimeout(exactHoldMs(ctx, metres));
+    } finally {
+      for (const k of leg.keys) await page.keyboard.up(k);
+    }
+    log?.(`  ${label}: ${metres}m (${exactHoldMs(ctx, metres)}ms)`);
+  };
+
+  await hold(inward, IN_M, 'off the gate');
   if ((await page.evaluate(() => document.querySelector('.sm-menu__item') !== null)) === true) {
-    throw new Error('walk-city: a menu opened while walking inward off the gate');
+    throw new Error('walk-city: a menu opened while walking clear of the gate — the clear distance is too short');
   }
-  await walkLeg(page, ctx, outward, log);
+  await hold(outward, OUT_M, 'back through the gate');
+
   await page.waitForFunction(() => document.querySelector('.sm-menu__item') !== null, { timeout: 8_000, polling: 60 });
   const rows = await page.evaluate(() => [...document.querySelectorAll('.sm-menu__label')].map((n) => n.textContent ?? ''));
   log?.(`  gate prompt rows: ${JSON.stringify(rows)}`);
