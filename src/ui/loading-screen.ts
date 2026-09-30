@@ -207,14 +207,20 @@ export function createLoadingScreen(): LoadingScreen {
     handedOver = true;
     root?.classList.add('sm-boot--loading');
   }
-  if (root !== null && !reducedMotion) {
-    window.setTimeout(handOverToLoading, TRIBUTE_HOLD_MS);
-  } else {
-    // Reduced motion: the card does not animate, so there is nothing to wait
-    // for — hand over immediately rather than holding a static credit on a
-    // machine that asked for no animation.
-    handOverToLoading();
-  }
+  // The card holds for its own time REGARDLESS of the motion setting. The first
+  // version handed over immediately under `prefers-reduced-motion`, on the
+  // reasoning that a static credit need not be waited for — and that is exactly
+  // the conflation this repo keeps getting bitten by: "no animation" is not "no
+  // content". Those players were shown a four-line credit for one frame and then
+  // lost it, which is the worst possible outcome for the one screen whose entire
+  // job is to be read.
+  //
+  // Under reduced motion the card simply does not move: index.html's media query
+  // removes the entrance stagger and the exit slide, so the handover is a plain
+  // state change after the same hold. `dismiss()` likewise no longer forces the
+  // handover early — it did, "defensively", and that call cancelled the entire
+  // hold on any machine whose boot finished quickly, which is most of them.
+  window.setTimeout(handOverToLoading, TRIBUTE_HOLD_MS);
 
   /** Fades the splash out and removes it, with a timeout as the backstop. */
   function fadeOut(): void {
@@ -294,9 +300,6 @@ export function createLoadingScreen(): LoadingScreen {
       const handoverMs = reducedMotion ? 0 : TRIBUTE_HOLD_MS;
       const earliestFadeMs = Math.max(MIN_DISPLAY_MS, handoverMs + TRIBUTE_EXIT_MS);
       const remainingMs = Math.max(0, earliestFadeMs - (elapsedMs - createdAtMs));
-      // Hand over now if the timer has not fired yet, so the wait below can
-      // never expire on a card that is still covering the chrome.
-      handOverToLoading();
       if (remainingMs > 0) {
         window.setTimeout(() => fadeOut(), remainingMs);
         return;
