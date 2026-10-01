@@ -839,27 +839,53 @@ describe('DOM screens: winning the campaign and pressing "Continue" keeps the sa
     walkToFacility(layout, doorway.position);
   }
 
-  it('the Federal Building stub prints its not-open notice once, not twice', async () => {
-    await bootToCity(root);
-    await walkIntoFacility('federal');
+/**
+ * The Federal Building's rows — and the invariant this test was originally
+ * written about, which is a property of the RENDERER, not of any one panel:
+ * no row may render its `reason` twice, once in the label and again in the
+ * reason span.
+ *
+ * It used to assert that here via `building.stub.notReady`, because the Federal
+ * Building was a stub when this was written. It is a real panel now, so that
+ * string is gone from the building by design — but the duplication bug is not,
+ * and the reason to keep the test rather than delete it is that this panel
+ * exercises a shape the stub never had: `building.federal`'s case rows
+ * deliberately pass `reason: label` (an informational row carries its own
+ * explanation), so the renderer has something real to suppress here instead of
+ * merely having nothing to duplicate.
+ *
+ * Retargeted rather than moved to another stub on purpose: the reachable stubs
+ * are `hotel`/`story`/`studio`/`petshop`, none of which is in the starting city
+ * `newyork`, so reaching one would mean changing the shared `bootToCity`
+ * fixture — a much wider blast radius than the behaviour under test deserves.
+ */
+it('the Federal Building renders the reason on each row at most once', async () => {
+  await bootToCity(root);
+  await walkIntoFacility('federal');
 
-    const rows = readRenderedMenuRows();
-    // Identity first. Without it, a walk that landed on some other doorway
-    // yields a menu with no duplicated notices and this test passes having
-    // proven nothing — which is what the first browser version of this check
-    // did, twice, before it was told to name the facility it was standing in.
-    const notice = t('building.stub.notReady', { facility: t('facility.federal') });
-    expect(rows.some((r) => r.label.includes(notice))).toBe(true);
+  const rows = readRenderedMenuRows();
+  // Identity first, for the reason the original version of this check recorded
+  // in its own comment: a walk that landed on some other doorway yields a menu
+  // with no duplicated reasons and this test would pass having proven nothing.
+  expect(rows.length).toBeGreaterThan(0);
+  const board = t('building.federal.board', { count: questDefs().filter((d) => d.destination.facility === 'federal').length });
+  expect(rows.some((r) => r.label.includes(board))).toBe(true);
+  // It is no longer a stub — the old notice must be gone from this building.
+  expect(rows.some((r) => r.label.includes(t('building.stub.notReady', { facility: t('facility.federal') })))).toBe(false);
 
-    // The notice is still fully readable as the row's own label...
-    const noticeRow = rows.find((r) => r.label.includes(notice));
-    expect(noticeRow?.label).toBe(notice);
-    // ...and the identical second copy is gone.
-    expect(noticeRow?.reason).toBe('');
-    for (const row of rows) {
-      expect(row.reason === '' || row.reason !== row.label).toBe(true);
-    }
-  });
+  // The actual invariant: a row that sets `reason` to its own label text has
+  // that duplicate suppressed at render time (the reason span comes back
+  // empty), and no row anywhere renders label and reason identically.
+  for (const row of rows) {
+    expect(row.reason === '' || row.reason !== row.label).toBe(true);
+  }
+  // The federal readouts are informational and carry reason === label in the
+  // model, so at least one row must be demonstrating the suppression for this
+  // test to be about anything at all.
+  const readouts = rows.filter((r) => r.label.startsWith(board.slice(0, board.indexOf(' —'))));
+  expect(readouts.length).toBeGreaterThan(0);
+  for (const row of readouts) expect(row.reason).toBe('');
+});
 
   it('the Arena keeps a genuinely different reason while dropping the duplicated one', async () => {
     await bootToCity(root);

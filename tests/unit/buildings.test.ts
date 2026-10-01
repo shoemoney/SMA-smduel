@@ -50,6 +50,9 @@ import { arenaActions, mountArenaBuilding } from '@/ui/buildings/arena';
 import { getArenaEvent } from '@/sim/arena';
 import { daysUntilChampionship, isChampionshipDay, scheduleFor } from '@/sim/championship';
 import { casinoEngine, createCasinoState } from '@/ui/buildings/casino';
+import { federalActions, federalCases, createFederalState, federalEngine } from '@/ui/buildings/federal';
+import { questDefs, questCargoId, type QuestDef } from '@/sim/victory';
+import type { QuestState } from '@/persist/save';
 import { stubEngine, createStubState } from '@/ui/buildings/stub';
 import { mountFacility, UnknownFacilityKindError } from '@/ui/buildings';
 
@@ -346,6 +349,33 @@ function renderedMenuLabels(container: FakeElement): string[] {
   if (list === undefined) return [];
   return list.children
     .filter((item) => item.className === 'sm-menu__item')
+    .map((item) => item.children.find((c) => c.className === 'sm-menu__label')?.textContent ?? '');
+}
+
+/**
+ * Every rendered row's label, INFORMATIONAL ROWS INCLUDED.
+ *
+ * `renderedMenuLabels` above matches `className === 'sm-menu__item'` EXACTLY, and
+ * `@/ui/menu` renders a readout as `'sm-menu__item sm-menu__item--info'` (menu.ts
+ * renders the info variant by appending that second class). So the shared helper
+ * is blind to every informational row — it sees only actionable ones.
+ *
+ * That blindness is invisible until a panel is made mostly of readouts, and then
+ * it turns a negative assertion into a vacuous one: "the stub's notice text is
+ * NOT on screen" passes trivially when the helper cannot see the row that
+ * carries the string either way. This second helper exists so a panel built out
+ * of `informational: true` rows can still be asserted on the VALUE that is
+ * actually rendered. It matches on the `sm-menu__item` PREFIX rather than by
+ * re-deriving the class string, so it keeps working if the modifier class is
+ * renamed; the `sm-menu__item--info` rows it additionally admits are exactly the
+ * ones the first helper drops.
+ */
+function renderedAllMenuLabels(container: FakeElement): string[] {
+  const root = container.children[0];
+  const list = root?.children.find((c) => c.className === 'sm-menu__list');
+  if (list === undefined) return [];
+  return list.children
+    .filter((item) => typeof item.className === 'string' && item.className.startsWith('sm-menu__item'))
     .map((item) => item.children.find((c) => c.className === 'sm-menu__label')?.textContent ?? '');
 }
 
@@ -1543,13 +1573,207 @@ describe('casino', () => {
   });
 });
 
+describe('federal', () => {
+  /** Every real quests.json case whose own `destination` names this building — read from the ruleset, never a hand-typed list of quest ids, so a campaigns.json edit cannot leave this test asserting about quests that no longer exist. */
+  function federalQuests(): readonly QuestDef[] {
+    return questDefs().filter((def) => def.destination.facility === 'federal');
+  }
+
+  /** A QuestState for `id` with an arbitrary revealed-stage, built the way save-state actually looks rather than hand-set to a value the system could not reach. */
+  function questState(id: string, stage: number, extra: Partial<QuestState> = {}): QuestState {
+    return { id, stage, completed: false, flags: {}, ...extra };
+  }
+
+  it('is the destination for at least one REAL quest, including the victory case — the reason it is not a stub', () => {
+    // Load-bearing on the ruleset, not on this file: if quests.json ever stopped
+    // pointing a campaign here, "federal" would have no gameplay behind it again
+    // and should arguably go back to being a stub. Proving it does NOT is what
+    // makes promoting it honest rather than cosmetic.
+    const cases = federalQuests();
+    expect(cases.length).toBeGreaterThan(0);
+    expect(cases.some((def) => def.onDeliver?.victory === true)).toBe(true);
+  });
+
+  it('federalCases matches @/sim/victory\'s own filtered read exactly (delegation, not a reimplementation)', () => {
+    const ctx = makeContext();
+    expect(federalCases(ctx).map((d) => d.id)).toEqual(federalQuests().map((d) => d.id));
+  });
+
+  it('shows one informational row per case plus Leave, and no case row is an eligible command', () => {
+    // `informational` rather than merely `eligible: false`: these are readouts,
+    // not "not yet" actions. Asserting the flag (not just the count) is what
+    // stops a future edit turning the board into numbered dead buttons — the
+    // exact defect arena.ts's schedule row and courierguild.ts's route rows
+    // document. Mutation: dropping `informational` from caseAction() fails here.
+    const ctx = makeContext();
+    const actions = federalActions(createFederalState(ctx));
+    const caseRows = actions.filter((a) => a.id.startsWith('case-'));
+    expect(caseRows).toHaveLength(federalQuests().length);
+    for (const row of caseRows) {
+      expect(row.eligible).toBe(false);
+      expect(row.informational).toBe(true);
+      expect(row.reason).toBe(row.label);
+    }
+    expect(actions.at(-1)?.id).toBe('leave');
+    // Every row is non-empty: the "never a dead button" rule this codebase holds
+    // everywhere, asserted on the VALUE rather than on the row's existence.
+    expect(actions.every((a) => a.label.length > 0)).toBe(true);
+  });
+
+  it('an unrevealed case reads 0 of N leads; a partly-revealed one reads its REAL stage', () => {
+    // Asserts the VALUE the player sees, not merely that a row exists. A test
+    // restating the same expression it is testing would agree with a bug for
+    // its whole life, so this pins concrete numbers against a real def.
+    const def = federalQuests()[0];
+    expect(def).toBeDefined();
+    const total = def!.clueChain.length;
+    expect(total).toBeGreaterThan(0);
+
+    const fresh = federalActions(createFederalState(makeContext({ quests: [] })));
+    const freshRow = fresh.find((a) => a.id === `case-${def!.id}`);
+    expect(freshRow?.label).toContain(`0 of ${total}`);
+
+    const partial = federalActions(createFederalState(makeContext({ quests: [questState(def!.id, 1)] })));
+    expect(partial.find((a) => a.id === `case-${def!.id}`)?.label).toContain(`1 of ${total}`);
+  });
+
+  it('a fully-revealed chain distinguishes "evidence aboard" from "not aboard" by reading the REAL cargo id', () => {
+    // This is the row that makes the panel worth opening, so it must be driven
+    // by the same payload identity `@/sim/victory`'s deliverQuest looks for —
+    // `questCargoId(def.id)`, not any invented marker. Mutation: keying the
+    // check on cargo.kind alone (ignoring the id) makes BOTH branches say
+    // "aboard", and this fails.
+    const def = federalQuests().find((d) => d.onDeliver?.victory === true);
+    expect(def).toBeDefined();
+    const revealed = [questState(def!.id, def!.clueChain.length)];
+
+    const aboard = federalActions(
+      createFederalState(
+        makeContext({
+          quests: revealed,
+          vehicle: makeVehicle({ cargo: [{ id: questCargoId(def!.id), kind: 'payload', weightLb: 1, spaces: 1, integrity: 100 }] }),
+        }),
+      ),
+    ).find((a) => a.id === `case-${def!.id}`);
+    expect(aboard?.label).toBe(t('building.federal.caseReadyToDeliver', { title: def!.title }));
+
+    // A destroyed payload is NOT aboard — integrity is part of the real
+    // precondition, so the row must not claim otherwise.
+    const gutted = federalActions(
+      createFederalState(
+        makeContext({
+          quests: revealed,
+          vehicle: makeVehicle({ cargo: [{ id: questCargoId(def!.id), kind: 'payload', weightLb: 1, spaces: 1, integrity: 0 }] }),
+        }),
+      ),
+    ).find((a) => a.id === `case-${def!.id}`);
+    expect(gutted?.label).toBe(t('building.federal.caseAwaitingCargo', { title: def!.title }));
+
+    // Different cargo entirely must also read as not-aboard.
+    const other = federalActions(
+      createFederalState(
+        makeContext({
+          quests: revealed,
+          vehicle: makeVehicle({ cargo: [{ id: 'quest:some-other-case', kind: 'payload', weightLb: 1, spaces: 1, integrity: 100 }] }),
+        }),
+      ),
+    ).find((a) => a.id === `case-${def!.id}`);
+    expect(other?.label).toBe(t('building.federal.caseAwaitingCargo', { title: def!.title }));
+  });
+
+  it('a completed case reads as closed and reports the REAL quest pay', () => {
+    const def = federalQuests()[0];
+    const actions = federalActions(
+      createFederalState(makeContext({ quests: [questState(def!.id, def!.clueChain.length, { completed: true })] })),
+    );
+    const row = actions.find((a) => a.id === `case-${def!.id}`);
+    expect(row?.label).toBe(t('building.federal.caseClosed', { title: def!.title, pay: def!.pay }));
+    // The comparison above restates the same `t()` call the panel makes, so on
+    // its own it would happily agree with a broken template — a `{pay` typo or
+    // a stray `${pay}` would break BOTH sides identically and the test would
+    // stay green while the player read the literal text "${pay}" on screen.
+    // So the rendered VALUE is pinned here in plain literals: the real quest
+    // title, the real pay, and an explicit refusal of an uninterpolated token.
+    expect(row?.label).toBe(`${def!.title}: closed. $${def!.pay} paid.`);
+    expect(row?.label).not.toContain('{pay}');
+    expect(row?.label).not.toContain('${');
+    // Completion is the most specific answer and must win over the
+    // "revealed + carrying cargo" branch above it.
+    const withCargo = federalActions(
+      createFederalState(
+        makeContext({
+          quests: [questState(def!.id, def!.clueChain.length, { completed: true })],
+          vehicle: makeVehicle({ cargo: [{ id: questCargoId(def!.id), kind: 'payload', weightLb: 1, spaces: 1, integrity: 100 }] }),
+        }),
+      ),
+    );
+    expect(withCargo.find((a) => a.id === `case-${def!.id}`)?.label).toBe(`${def!.title}: closed. $${def!.pay} paid.`);
+  });
+
+  it('Leave exits and every other id is an inert no-op that never mutates state', () => {
+    // Total by design: the only command is Leave, and a stale/ineligible id
+    // must not throw or half-apply. Asserted by identity on the returned state.
+    const state = createFederalState(makeContext());
+    expect(federalEngine.activate(state, 'leave').exit).toBe(true);
+    for (const id of ['board', 'closed', `case-${federalQuests()[0]!.id}`, 'nonsense']) {
+      const result = federalEngine.activate(state, id);
+      expect(result.exit).toBe(false);
+      expect(result.state).toBe(state);
+    }
+  });
+
+  it('mounts through mountFacility as a REAL interior, not the stub notice', () => {
+    // The end-to-end promise, and the one that would catch a wiring mistake in
+    // index.ts (kind added to GENERIC_KINDS but no switch case, or vice versa)
+    // that every engine-level test above would sail straight past.
+    //
+    // Read with `renderedAllMenuLabels`, NOT the shared `renderedMenuLabels`.
+    // Every row this panel shows except Leave is `informational: true`, and the
+    // shared helper filters on an exact className that excludes info rows
+    // entirely — so using it here would return just `['Leave']` and make both
+    // assertions below vacuous, including the one that is supposed to prove the
+    // stub is gone.
+    installFakeDom();
+    const container = new FakeElement('div');
+    const mounted = mountFacility({
+      container: container as unknown as HTMLElement,
+      kind: 'federal',
+      context: makeContext(),
+      onExit: () => {},
+    });
+    const labels = renderedAllMenuLabels(container);
+    // The stub's row must genuinely be absent — and this can only be trusted
+    // because the helper can see the rows the negative is about.
+    expect(labels.some((l) => l.includes('future phase'))).toBe(false);
+    expect(labels).toContain(t('building.federal.board', { count: federalQuests().length }));
+    // One rendered row per real case, each a real case title from quests.json.
+    for (const def of federalQuests()) {
+      expect(labels.some((l) => l.includes(def.title)), `case row for ${def.id} never rendered`).toBe(true);
+    }
+    mounted.destroy();
+  });
+
+  it('degrades to a truthful empty board if no case ever names this facility again', () => {
+    // Guards the else-branch, which no current ruleset data reaches. Reaching it
+    // honestly would need a quests.json edit; driving the row builder directly
+    // is what proves the panel can say so rather than showing only "Leave".
+    // This is a fact about the panel's shape, not about any quest.
+    const none = federalActions(createFederalState(makeContext()));
+    // With real data present the no-cases row must NOT appear.
+    expect(none.find((a) => a.id === 'no-cases')).toBeUndefined();
+    // And the guard is the real one: the filter is on destination.facility.
+    const allDest = questDefs().map((d) => d.destination.facility);
+    expect(allDest).toContain('federal');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Stub facilities
 // ---------------------------------------------------------------------------
 
-describe('stub facilities (hotel/federal/story/studio/petshop)', () => {
+describe('stub facilities (hotel/story/studio/petshop)', () => {
   it('each shows an explanatory, always-present notice row instead of a dead or missing button', () => {
-    for (const kind of ['hotel', 'federal', 'story', 'studio', 'petshop']) {
+    for (const kind of ['hotel', 'story', 'studio', 'petshop']) {
       const ctx = makeContext();
       const actions = stubEngine.actions(createStubState(ctx, kind));
       const notice = actions.find((a) => a.id === 'notice');
@@ -1593,13 +1817,47 @@ describe('the unfinished-facility set is derived, not restated', () => {
 
   it('marks exactly the kinds whose interior is a stub panel', () => {
     // Pinned because these are the destinations a player can walk to and be
-    // turned away by. The Federal Building is the one the reviews named.
+    // turned away by. The Federal Building WAS the one the reviews named, and
+    // was the one this file named too — until it stopped being true: it is the
+    // `destination` for two real quests.json cases (including the victory
+    // quest), and `@/app`'s `attemptQuestDelivery` had been completing those
+    // deliveries while `stub.ts` claimed the building was "coming in a future
+    // phase". So `federal` moved to the operational list below, and what is
+    // pinned HERE is only that nothing real may ever be caught by the stub set
+    // again.
     const unfinished = allFacilityKinds().filter((k) => !isOperationalFacilityKind(k));
-    expect(unfinished).toContain('federal');
     expect(unfinished).toContain('hotel');
+    expect(unfinished).toContain('story');
     // And nothing that actually works may be caught by it.
-    for (const working of ['garage', 'weaponshop', 'salvage', 'courierguild', 'medical', 'bar', 'truckstop', 'casino', 'arena', 'assembly']) {
+    for (const working of ['garage', 'weaponshop', 'salvage', 'courierguild', 'medical', 'bar', 'truckstop', 'casino', 'arena', 'assembly', 'federal']) {
       expect(isOperationalFacilityKind(working), `${working} must read as operational`).toBe(true);
+    }
+  });
+
+  it('no facility the ruleset says NEVER closes may be one the player is turned away from', () => {
+    // The specific lie this whole federal promotion existed to fix, pinned as
+    // a RULE rather than as one building's name.
+    //
+    // `economy.json`'s `alwaysOpenFacilities` (bar, truckstop, medical, federal)
+    // is what `@/sim/calendar`'s `isFacilityOpen` consults: a kind listed there
+    // returns true at any phase, so the panel for it can never show a closed
+    // notice. But the city's proximity strip (`@/app`'s `updateNearestFacility`)
+    // labels an unfinished building through `ui.city.stripClosed` — "X — closed"
+    // — which is a DIFFERENT claim, and the two disagreed.
+    //
+    // `federal` was in `alwaysOpenFacilities` AND unfinished, so the strip told
+    // the player the building was shut when it never had been — while the
+    // delivery `attemptQuestDelivery` had just completed there, for two real
+    // campaigns.json cases including the victory quest. The review that caught
+    // the softer version of this ("its bright blue Jobs marker gives it the same
+    // availability signal as other destinations") had no test to fail, because
+    // nothing asserted anything about the strip's text at all.
+    //
+    // So: a building that the ruleset says never closes must be a building the
+    // player can enter. If a future kind is added to `alwaysOpenFacilities`
+    // before its panel exists, this fails and says which one.
+    for (const kind of economy().alwaysOpenFacilities) {
+      expect(isOperationalFacilityKind(kind), `"${kind}" never closes, so its door must not be labelled closed`).toBe(true);
     }
   });
 });

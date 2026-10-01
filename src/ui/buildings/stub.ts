@@ -1,9 +1,15 @@
 /**
- * Stub interior for facility kinds with no phase-1/2/3 gameplay yet (hotel,
- * federal, story, studio, petshop — task brief). Still opens a real numbered
+ * Stub interior for facility kinds with no gameplay yet (hotel, story, studio,
+ * petshop — task brief). Still opens a real numbered
  * panel through `@/ui/menu` rather than doing nothing: the single row is
  * always shown, always explains itself as future content, and Escape/
  * Backspace (or the row itself) leaves cleanly — "never a dead button".
+ *
+ * `federal` USED to be here and no longer is: it is the destination for two
+ * real campaigns.json cases including the victory quest, and `@/app`'s
+ * `attemptQuestDelivery` had been completing those deliveries while this panel
+ * told the player the building was "coming in a future phase". It is now
+ * `@/ui/buildings/federal`.
  *
  * A stub facility can still be a mission's clue-chain hop (quests.json's
  * `the-boss-tape` names `story:watertown`) — `questInvestigateRows`/

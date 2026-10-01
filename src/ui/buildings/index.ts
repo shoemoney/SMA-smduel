@@ -2,8 +2,8 @@
  * Building-interior dispatcher: one numbered-menu panel per
  * cities.json `facilityKinds` entry (`mountFacility`), backed by the pure
  * `BuildingEngine<S>` cores in this directory's per-kind modules. Every
- * kind cities.json defines gets SOME real panel here — the five kinds with
- * no gameplay yet (hotel/federal/story/studio/petshop) get `@/ui/buildings/stub`
+ * kind cities.json defines gets SOME real panel here — the four kinds with
+ * no gameplay yet (hotel/story/studio/petshop) get `@/ui/buildings/stub`
  * rather than being silently unhandled.
  */
 import { hasFacilityKind } from '@/data/rulesets';
@@ -13,6 +13,7 @@ import { ASSEMBLY_KIND, mountAssembly } from '@/ui/buildings/assembly';
 import { BAR_KIND, barEngine, createBarState } from '@/ui/buildings/bar';
 import { CASINO_KIND, casinoEngine, createCasinoState } from '@/ui/buildings/casino';
 import { COURIERGUILD_KIND, courierGuildEngine, createCourierGuildState } from '@/ui/buildings/courierguild';
+import { FEDERAL_KIND, createFederalState, federalEngine } from '@/ui/buildings/federal';
 import { GARAGE_KIND, createGarageState, garageEngine } from '@/ui/buildings/garage';
 import { MEDICAL_KIND, createMedicalState, medicalEngine } from '@/ui/buildings/medical';
 import { SALVAGE_KIND, createSalvageState, salvageEngine } from '@/ui/buildings/salvage';
@@ -37,6 +38,7 @@ export const GENERIC_KINDS = new Set([
   BAR_KIND,
   TRUCKSTOP_KIND,
   CASINO_KIND,
+  FEDERAL_KIND,
 ]);
 
 /**
@@ -131,12 +133,14 @@ export function mountFacility(options: MountFacilityOptions): MountedFacility {
         return wrap(mountBuildingPanel({ container, initialState: createTruckstopState(context), engine: truckstopEngine, onExit: (s) => onExit(s.context) }));
       case CASINO_KIND:
         return wrap(mountBuildingPanel({ container, initialState: createCasinoState(context), engine: casinoEngine, onExit: (s) => onExit(s.context) }));
+      case FEDERAL_KIND:
+        return wrap(mountBuildingPanel({ container, initialState: createFederalState(context), engine: federalEngine, onExit: (s) => onExit(s.context) }));
       default:
         break;
     }
   }
 
-  // Every remaining real facilityKind (hotel/federal/story/studio/petshop)
+  // Every remaining real facilityKind (hotel/story/studio/petshop)
   // gets the stub panel — never an unhandled kind.
   return wrap(mountBuildingPanel({ container, initialState: createStubState(context, kind), engine: stubEngine, onExit: (s) => onExit(s.context) }));
 }
