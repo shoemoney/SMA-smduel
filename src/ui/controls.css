@@ -258,10 +258,28 @@
   color: var(--ui-ink);
 }
 
+/* The state is carried three ways (shape, word, colour), not colour alone —
+   see `stat()` in controls.ts. The glyph is the at-a-glance channel and is
+   hidden from assistive tech, because the word right beside it already says
+   the same thing in a form a screen reader can announce. */
+.sm-stat__glyph {
+  font-size: 9px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.sm-stat__word {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ui-ink-dim);
+  flex: 0 0 auto;
+}
+
 /* Armour facings get a state colour, because "how hurt am I" is the single most
  * looked-at number on the screen and a bare number does not answer it at a
  * glance. These are the same three semantic colours the HUD already uses, so
- * the constructor and the arena agree. */
+ * the constructor and the arena agree. The colour is now the THIRD channel
+ * rather than the only one, so it is decoration on top of the glyph + word. */
 .sm-stat--ok .sm-stat__value { color: var(--ui-ok); }
 .sm-stat--damaged .sm-stat__value { color: var(--ui-damaged); }
 .sm-stat--critical .sm-stat__value { color: var(--ui-critical); }

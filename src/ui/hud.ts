@@ -136,8 +136,19 @@ const TIRE_LABELS = ['FL', 'FR', 'RL', 'RR'] as const;
 
 export type DamageState = 'ok' | 'damaged' | 'critical' | 'destroyed';
 
-/** Every damage state maps to a distinct glyph — never color alone. */
-const DAMAGE_GLYPH: Record<DamageState, string> = {
+/**
+ * Every damage state maps to a distinct glyph — never color alone.
+ *
+ * Exported, and read by `@/ui/controls`'s `stat()`, because that component
+ * renders the SAME four states and had no glyph at all: `sm-stat--{state}`
+ * coloured `.sm-stat__value` and nothing else, so the constructor's
+ * "how hurt am I" row was color-alone information — a direct violation of
+ * docs/SPEC.md release gate 5, in the one component whose entire job is to
+ * report a number's condition. A second derivation of "which glyph means
+ * damaged" is a second thing to drift, so there is exactly one map and every
+ * surface reads it.
+ */
+export const DAMAGE_GLYPH: Record<DamageState, string> = {
   ok: '●', // ● filled circle
   damaged: '▲', // ▲ triangle
   critical: '◆', // ◆ diamond

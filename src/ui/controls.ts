@@ -18,6 +18,7 @@
  */
 
 import { icon, type IconName } from './icons';
+import { DAMAGE_GLYPH } from './hud';
 
 export interface FieldOptions {
   /** Visible label. Rendered as a real `<label for>`, not a bare `<span>`. */
@@ -311,8 +312,36 @@ export function panel(titleText: string, iconName: IconName): { root: HTMLElemen
 }
 
 /**
- * One icon + name + value line, with an optional semantic state class so the
- * value is coloured by meaning rather than left for the player to interpret.
+ * The word each state reads as. Paired with `DAMAGE_GLYPH` so the state is
+ * legible three ways — shape, word, and colour — rather than colour alone.
+ */
+const STAT_STATE_WORD = {
+  ok: 'ok',
+  damaged: 'damaged',
+  critical: 'critical',
+  destroyed: 'destroyed',
+} as const;
+
+/**
+ * One icon + name + value line, with an optional semantic state.
+ *
+ * The state used to be carried by a CSS class that coloured `.sm-stat__value`
+ * and did nothing else, which made this component color-alone — a direct
+ * violation of docs/SPEC.md release gate 5 ("no information conveyed by color
+ * alone"), and a strange one to ship in the component whose only job is to
+ * report a number's condition.
+ *
+ * It now carries the state three ways, all of them tested:
+ *
+ *  1. a `DAMAGE_GLYPH` shape, so the row is readable with no colour vision at
+ *     all and still distinguishable in a greyscale screenshot;
+ *  2. a `data-state` attribute on the row, so a test — or a stylesheet — can
+ *     read the state as a VALUE rather than by parsing a class name;
+ *  3. a `sm-stat__word` span carrying the state in words, which is also what
+ *     a screen reader announces.
+ *
+ * The glyph and the word come from the HUD's map and this file's table
+ * respectively; neither re-derives "which state means what" independently.
  */
 export function stat(
   name: string,
@@ -321,11 +350,23 @@ export function stat(
 ): HTMLElement {
   const row = document.createElement('div');
   row.className = options.state === undefined ? 'sm-stat' : `sm-stat sm-stat--${options.state}`;
+  if (options.state !== undefined) row.setAttribute('data-state', options.state);
   if (options.iconName !== undefined) row.appendChild(icon(options.iconName, { className: 'sm-icon' }));
   else {
     const spacer = document.createElement('span');
     spacer.className = 'sm-icon';
     row.appendChild(spacer);
+  }
+  if (options.state !== undefined) {
+    const glyph = document.createElement('span');
+    glyph.className = 'sm-stat__glyph';
+    glyph.setAttribute('aria-hidden', 'true');
+    glyph.textContent = DAMAGE_GLYPH[options.state];
+    row.appendChild(glyph);
+    const word = document.createElement('span');
+    word.className = 'sm-stat__word';
+    word.textContent = STAT_STATE_WORD[options.state];
+    row.appendChild(word);
   }
   const nameEl = document.createElement('span');
   nameEl.className = 'sm-stat__name';

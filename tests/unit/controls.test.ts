@@ -18,6 +18,7 @@ import { fileURLToPath, URL as NodeURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { button, field, ignitionButton, panel, setIgnitionCrankMs, stat } from '@/ui/controls';
+import { DAMAGE_GLYPH } from '@/ui/hud';
 import { facingHasDirection, facingIcons, facingRotation, icon } from '@/ui/icons';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -306,6 +307,65 @@ describe('panels and stats', () => {
     const without = stat('Mass', '900');
     expect(without.children).toHaveLength(3);
     expect(without.children[0]?.className).toBe('sm-icon');
+  });
+
+  describe('a stat state is never colour alone', () => {
+    // docs/SPEC.md release gate 5: "No information conveyed by color alone".
+    // This component broke it. `sm-stat--{state}` coloured `.sm-stat__value`
+    // and did nothing else, so the constructor's "how hurt am I" row was
+    // unreadable without colour vision AND in a greyscale screenshot — in the
+    // one component whose entire job is to report a number's condition.
+    //
+    // The check is on the RENDERED VALUE (the glyph character, the word, the
+    // attribute), never on the presence of a class name. A test that asserted
+    // `className` already existed above and would have kept passing through
+    // the defect — which is exactly what happened.
+
+    const STATES = ['ok', 'damaged', 'critical', 'destroyed'] as const;
+
+    it('gives every state a glyph, so the row is readable with no colour at all', () => {
+      const glyphs = STATES.map((s) => stat('FRONT', '1/2', { state: s }).querySelector('.sm-stat__glyph')?.textContent);
+      // Distinct AND present. The distinctness is the load-bearing half: four
+      // states sharing one glyph would pass a "has a glyph" test forever.
+      expect(glyphs.every((g) => typeof g === 'string' && g.length > 0)).toBe(true);
+      expect(new Set(glyphs).size).toBe(STATES.length);
+    });
+
+    it('uses the SAME glyph the HUD uses for each state, rather than a second mapping', () => {
+      // One owner per rule. If `stat()` grew its own private glyph table this
+      // would fail, which is the point: the constructor and the arena must not
+      // be able to disagree about what "damaged" looks like.
+      for (const s of STATES) {
+        const glyph = stat('FRONT', '1/2', { state: s }).querySelector('.sm-stat__glyph')?.textContent;
+        expect(glyph).toBe(DAMAGE_GLYPH[s]);
+      }
+    });
+
+    it('says the state in words too, which is what a screen reader announces', () => {
+      expect(stat('FRONT', '2/2', { state: 'ok' }).querySelector('.sm-stat__word')?.textContent).toBe('ok');
+      expect(stat('FRONT', '0/2', { state: 'destroyed' }).querySelector('.sm-stat__word')?.textContent).toBe('destroyed');
+    });
+
+    it('exposes the state as an attribute a test or stylesheet can read as a value', () => {
+      // Reading a state by parsing `sm-stat--damaged` out of a class name is a
+      // string operation that silently breaks on a rename. `data-state` is a
+      // value, and happy-dom resolves it without a stylesheet.
+      expect(stat('FRONT', '1/2', { state: 'critical' }).getAttribute('data-state')).toBe('critical');
+      expect(stat('Mass', '900').getAttribute('data-state')).toBeNull();
+    });
+
+    it('hides the decorative glyph from assistive tech, so the word is not announced twice', () => {
+      const glyph = stat('FRONT', '1/2', { state: 'damaged' }).querySelector('.sm-stat__glyph');
+      expect(glyph?.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('adds NO glyph, word or data-state when no state was asked for', () => {
+      // The plain readouts (mass, cost) must not sprout a spurious "ok".
+      const plain = stat('Mass', '900');
+      expect(plain.querySelector('.sm-stat__glyph')).toBeNull();
+      expect(plain.querySelector('.sm-stat__word')).toBeNull();
+      expect(plain.children).toHaveLength(3);
+    });
   });
 });
 
