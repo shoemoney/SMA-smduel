@@ -156,9 +156,15 @@ function routePreviewRowsFor(ctx: BuildingContext, offer: CourierOffer): MenuAct
     days: Math.ceil(safe.totalTravelDays),
   });
 
+  // Both are READOUTS: a distance, a day count, an expected encounter count.
+  // Rendered as ordinary rows they took digit keys and looked like commands, so
+  // an advisory review reported — across four separate rounds — that the guild
+  // "assigns menu shortcut numbers to static informational text instead of
+  // contracts" while the `Accept:` rows below got none. `informational` takes the
+  // number away and leaves the scarce digits on the rows you can act on.
   return [
-    { id: `route-quick-${offer.id}`, label: quickLabel, eligible: false, reason: quickLabel },
-    { id: `route-safe-${offer.id}`, label: safeLabel, eligible: false, reason: safeLabel },
+    { id: `route-quick-${offer.id}`, label: quickLabel, eligible: false, informational: true, reason: quickLabel },
+    { id: `route-safe-${offer.id}`, label: safeLabel, eligible: false, informational: true, reason: safeLabel },
   ];
 }
 
@@ -175,7 +181,9 @@ export function courierGuildActions(state: CourierGuildState): MenuAction[] {
   for (const route of routesFrom(ctx.cityId)) {
     const destination = destinationCityOf(route, ctx.cityId);
     const label = t('building.courier.routeInfo', { city: cityName(destination), danger: route.danger });
-    actions.push({ id: `route-info-${route.id}`, label, eligible: false, reason: label });
+    // The same distinction as the quick/safe previews: a danger summary is
+    // information, not something you can choose.
+    actions.push({ id: `route-info-${route.id}`, label, eligible: false, informational: true, reason: label });
   }
 
   if (state.offers.length === 0) {

@@ -907,9 +907,48 @@ function showTitle(
 // screen it was made on.
 // ---------------------------------------------------------------------------
 
+/**
+ * A player's name for an action, instead of its identifier.
+ *
+ * The Controls screen used to render the raw id — `driveUp`, `weaponDirect1` —
+ * and a raw DOM key code beside it, `KeyW`, `Digit3`. An advisory review called it
+ * "developer-facing camelCase identifiers paired with raw browser
+ * KeyboardEvent.code values", which is exactly right: this is the one screen a
+ * player opens specifically to understand the controls, and it was speaking
+ * internally on it. `weaponDirect1`-style ids are derived from the preset table,
+ * so they cannot all be listed by hand — anything unlisted falls back to the raw
+ * id rather than rendering as an empty label.
+ */
+function actionLabel(actionId: string): string {
+  // `controls.json` declares THIRTY `weaponDirectN` ids — one per weapon slot,
+  // not the eight a hand-written table would have covered — so the family is
+  // derived from its shape rather than listed. A partial table would have left
+  // two thirds of that column showing raw identifiers, which is the exact defect
+  // this function exists to remove.
+  const slot = /^weaponDirect(\d+)$/.exec(actionId);
+  if (slot !== null) return t('ui.controls.weaponSlot', { n: slot[1] ?? '' });
+  const key = `ui.controls.label.${actionId}` as Parameters<typeof t>[0];
+  const translated = t(key);
+  return translated === key ? actionId : translated;
+}
+
+/**
+ * A player's name for a `KeyboardEvent.code`, instead of the code itself.
+ *
+ * `KeyW` becomes "W" and `ArrowUp` becomes "Up arrow"; a bare `DigitN` is
+ * reported as "number key" because the digit itself is already printed by the
+ * row's number column.
+ */
+function keyLabel(code: string): string {
+  if (code.startsWith('Digit')) return t('ui.controls.key.Digit');
+  const key = `ui.controls.key.${code}` as Parameters<typeof t>[0];
+  const translated = t(key);
+  return translated === key ? code : translated;
+}
+
 function bindingSummary(actionId: string): string {
   const binding = bindingsForPreset(currentControlBindings, currentControlPreset)[actionId];
-  return (binding?.keyboard ?? []).join(', ');
+  return (binding?.keyboard ?? []).map(keyLabel).join(', ');
 }
 
 function controlsMenuActions(awaitingActionId: string | null): MenuAction[] {
@@ -919,11 +958,11 @@ function controlsMenuActions(awaitingActionId: string | null): MenuAction[] {
   for (const actionId of CONTROLS.actions) {
     const label =
       awaitingActionId === actionId
-        ? t('ui.controls.awaitingKey', { action: actionId })
+        ? t('ui.controls.awaitingKey', { action: actionLabel(actionId) })
         : (() => {
             const summary = bindingSummary(actionId);
             return summary.length > 0
-              ? t('ui.controls.actionRow', { action: actionId, binding: summary })
+              ? t('ui.controls.actionRow', { action: actionLabel(actionId), binding: summary })
               : t('ui.controls.actionRowEmpty', { action: actionId });
           })();
     actions.push({ id: `rebind-${actionId}`, label, eligible: awaitingActionId === null });

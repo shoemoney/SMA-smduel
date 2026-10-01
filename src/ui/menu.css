@@ -384,6 +384,18 @@
  * numbering. It states two constraints the screen previously only enforced:
  * that arrow keys reach rows past `0`, and that Escape leaves.
  */
+/* The list needs room to scroll its LAST row clear of the sticky footer.
+ *
+ * A sticky footer is painted over the content that scrolls beneath it, so
+ * without this the final row of a long menu sits permanently half-hidden behind
+ * the bar — which an advisory review reported on the Weapon Shop as "sliced
+ * horizontally in half, bleeding directly into the dark footer bar". Clearing it
+ * is padding, not layout: the list keeps its own spacing and simply reserves the
+ * footer's height at the end. */
+.sm-menu__list {
+  padding-bottom: var(--ui-space-3);
+}
+
 .sm-menu__hint {
   /* STICKY, and this is the whole point of it.
    *

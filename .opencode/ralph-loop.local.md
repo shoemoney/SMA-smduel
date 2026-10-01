@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 8
+iteration: 9
 maxIterations: 100
 ---
 
@@ -336,6 +336,48 @@ subtracted *informational* ones, which made every row compute ordinal 1; and
 guarding the tenth row's label on `ordinal < 10` instead of `<= 10` silently
 dropped it, since the tenth row is the `0` key. The pre-existing digit test caught
 both, which is the argument for having written it.
+
+- **GATE.** 1626/1626 across three parallel runs and serial; browser 7/7;
+  `tsc` clean; `vite build` clean.
+
+## Iteration 9 — the last three, and a detector that lied to me
+
+**THE CONTROLS SCREEN WAS SPEAKING INTERNALLY.** It rendered the raw action id and
+the raw DOM key code: `driveUp: KeyW`, `weaponDirect1: Digit3`. That is the one
+screen a player opens specifically to understand the controls, and an advisory
+review was right to call it "developer-facing camelCase identifiers paired with
+raw browser `KeyboardEvent.code` values". Now:
+
+        2 Drive forward: W, Up arrow
+        5 Steer right: D, Right arrow
+        6 Fire weapon: Space, J
+        9 Select weapon 1: number key
+
+`controls.json` declares **THIRTY** `weaponDirectN` ids, not the eight I first
+hand-wrote, so the family is **derived** from the id shape rather than listed — a
+partial table would have left two thirds of that column showing raw identifiers,
+which is the exact defect being removed. Anything with no label and no derivable
+shape falls back to its id rather than rendering as an empty label.
+
+**A DETECTOR I WROTE LIED TO ME, and it hid a real miss.** After patching the
+controls labels I ran a leak check that printed **OK** — on a list that plainly
+still read `driveUp: W`. The regex used `\b(drive[A-Z]…)`, and `\b` does not match
+between a digit and a letter, so every row (which begins with its hotkey digit)
+slipped past. A green check that cannot fail is the defect this repo keeps
+meeting; the fixed detector has no word-boundary anchor and immediately showed the
+`actionRow` label was still using the raw id, because I had patched the
+*awaiting-key* branch instead of the main one.
+
+**THE COURIER GUILD, flagged in four separate rounds, is fixed.** The danger
+summaries and both route previews per offer are now `informational`, so the digit
+keys land on the `Accept:` rows and on `Leave` rather than on a distance readout.
+
+**THE STICKY FOOTER WAS COVERING THE LAST ROW.** Pinning it introduced a new
+defect: a sticky element paints over the content scrolling beneath it, so the
+final row of a long menu sat permanently half-hidden behind the bar — reported on
+the Weapon Shop as "sliced horizontally in half, bleeding directly into the dark
+footer bar". The list now reserves clearance at its end. The fix and the defect
+were both mine, three rounds apart.
 
 - **GATE.** 1626/1626 across three parallel runs and serial; browser 7/7;
   `tsc` clean; `vite build` clean.
