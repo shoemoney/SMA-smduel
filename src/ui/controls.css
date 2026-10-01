@@ -394,3 +394,47 @@
 @media (prefers-reduced-motion: reduce) {
   .sm-ignition--cranking .sm-ignition__car { animation: none; }
 }
+
+/* --- The save-failure banner -----------------------------------------------
+ *
+ * Fixed to the viewport and parented to `document.body`, so it survives every
+ * screen change — a per-screen message would be wiped by the next
+ * `clearAndAppend`, which is the normal way this game replaces its UI.
+ *
+ * Amber rather than red: the run is still playable and the player still has
+ * their session, and a red full-width bar would read as "the game has crashed"
+ * rather than "the game cannot write to disk right now". */
+
+.sm-save-failure {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(680px, calc(100vw - 28px));
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--ui-damaged);
+  border-radius: 8px;
+  background: var(--ui-glass-strong);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color: var(--ui-ink);
+  font-size: var(--ui-text-sm);
+  line-height: 1.45;
+}
+.sm-save-failure__text { flex: 1 1 auto; }
+.sm-save-failure__dismiss {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ui-ink-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.sm-save-failure__dismiss:hover { color: var(--ui-ink); background: var(--ui-surface-raised); }

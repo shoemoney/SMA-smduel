@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 5
+iteration: 6
 maxIterations: 100
 ---
 
@@ -56,12 +56,14 @@ so far, and none of it settled:
   at the radar centre, so that measurement technique does not work and must be
   replaced, not reinterpreted.
 
-- [ ] Determine the car's rendered orientation numerically, by diffing two frames
-      and taking the centroid of the changed pixels — that gives the car's
-      on-screen DIRECTION OF TRAVEL, which is independent of how the sprite is
-      drawn and is therefore the one comparison that settles it.
-- [ ] Either fix the rotation/road-axis mismatch, or record a measured proof
-      that the render is correct and the reviewer's read was wrong.
+- [x] Determine the car's rendered orientation numerically. **Frame diffing could
+      not work** — the camera follows the car, so driving scrolls the ROAD rather
+      than moving the car, and the changed region spans the whole frame. **A
+      radar-marker probe could not work either** — the radar is player-centred,
+      so the marker sits at its centre by construction and never moves.
+- [x] Fix it: `roadStick` expresses the stick in the road's frame. Verified
+      locally (heading holds 0deg for 6s at 41mph) **and on production**
+      (heading holds 0deg for 4.8s at 48mph, no off-road indicator).
 
 ## PHASE 2 — Close the remaining known gaps
 
@@ -186,3 +188,44 @@ bundle that was never behind.
 - **GATE.** 1614/1614 across three parallel runs and serial; browser 7/7; `tsc`
   clean. `roadStick` is mutation-proven: restoring the world-space stick fails
   four of its six properties.
+
+## Iteration 6 — PHASE 2: the autosave told nobody
+
+**A silent autosave is the worst failure mode this game has.** The write path
+ended in:
+
+    } catch (error) {
+      console.warn('smduel: autosave failed', error);
+    }
+
+Quota exhausted, storage blocked in private browsing, disk full, a corrupt
+generation — the write failed and the player was told **nothing**. The game
+carried on looking exactly as though progress were being kept, and the loss only
+surfaced when the tab closed and the save was stale. A console warning is for
+developers; someone about to lose two hours of courier runs needs to know while
+there is still something they can do.
+
+`src/ui/save-alert.ts` adds a banner parented to **`document.body`**, not to a
+screen: every screen here replaces its own subtree through `clearAndAppend`, so a
+banner parented inside one would be destroyed by the next navigation — which is
+exactly the silence this closes. It is `role="alert"` so it is announced rather
+than displayed, it names the cause in words (quota / blocked / unknown) instead
+of a code, it does **not** auto-dismiss (the condition may still be true, and a
+message that removes itself has said nothing by the time you look back), and a
+**successful** save clears it so a transient fault does not leave a permanent
+warning where saving is in fact working.
+
+**The repo's own string guard caught my first attempt**, which is the guard
+earning its place: three hardcoded UI strings in a file that is supposed to
+source all of them from `rulesets/classic/strings.json`. Moved, including the
+`×` dismiss glyph.
+
+**A test of mine was wrong in a way worth recording.** "Survives the screen being
+torn down" modelled the teardown as `document.body.innerHTML = ...`, which
+destroys the banner — so it failed for a reason that had nothing to do with the
+code, because nuking the body is not a thing this game does. The game replaces
+**`#app`'s** children. The test now models what actually happens, and the
+mutation that parents the banner into `#app` fails it.
+
+- **GATE.** 1621/1621 across three parallel runs and serial; browser 7/7;
+  `tsc` clean; `vite build` clean.

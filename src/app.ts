@@ -20,6 +20,7 @@ import '@/ui/hud.css';
 import '@/ui/touch.css';
 
 import { field, ignitionButton, panel } from '@/ui/controls';
+import { clearSaveFailure, showSaveFailure } from '@/ui/save-alert';
 import { icon, type IconName } from '@/ui/icons';
 
 import {
@@ -2889,8 +2890,17 @@ export async function persistArenaSession(input: PersistSessionInput): Promise<v
   try {
     const db = await input.openDb();
     await save(db, game);
+    // A save that succeeds CLEARS a standing failure, so a transient problem
+    // does not leave a permanent "progress is not being saved" warning on a
+    // screen where saving is in fact working again.
+    clearSaveFailure();
   } catch (error) {
+    // Not a console line any more. A silent autosave failure is the worst
+    // failure mode this game has: it looks like everything is being kept and the
+    // loss only surfaces when the tab closes. The player is told while there is
+    // still something they can do about it.
     console.warn('smduel: autosave failed', error);
+    showSaveFailure(error);
   }
 }
 
