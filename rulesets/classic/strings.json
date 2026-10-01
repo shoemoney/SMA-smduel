@@ -61,6 +61,8 @@
     "ui.builder.section.confirm": "Build",
     "ui.builder.legalityTitle": "Legality",
     "ui.builder.noViolations": "No violations — ready to build.",
+    "ui.menu.reachByArrow": "\u2191\u2193 reach the remaining rows",
+    "ui.menu.backByEscape": "Esc \u2014 back",
     "ui.menu.actionUnavailable": "{label} is not available right now",
     "ui.touch.fire": "Fire",
     "ui.touch.enterExitCar": "Car",

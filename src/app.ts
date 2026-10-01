@@ -6511,9 +6511,26 @@ function showRoad(
    * the only way to be sure the pause overlay does not regress the frame the
    * capture gate measures.
    */
+  // The trip menu is CENTRED, and deliberately no longer bottom-left.
+  //
+  // An advisory review found this host at
+  // `left: clamp(16px,4vw,56px); bottom: clamp(20px,5vh,56px)` — the exact
+  // corner `.hud-panel--radar` occupies (`bottom: var(--inset); left: var(--inset)`)
+  // — so opening the menu occluded the radar's title, its contacts and its
+  // orientation label.
+  //
+  // The bottom-left placement looks chosen to keep the road visible while
+  // paused, but the trip FREEZES the road (a test is named for exactly that), so
+  // there is no moving scene to protect. Centring also makes this the only modal
+  // in the game that is not centred.
+  //
+  // The TITLE screen's menu host below `showTitle` keeps its bottom-left
+  // placement on purpose: nothing occludes it there and it is the arcade
+  // convention. This change is scoped to the road, not to every host that
+  // happens to share the string.
   const menuHost = el('div');
   menuHost.style.cssText =
-    'position:absolute;left:clamp(16px,4vw,56px);bottom:clamp(20px,5vh,56px);width:min(360px,calc(100vw - 32px));';
+    'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,90vw);max-height:80vh;overflow:auto;';
   /**
    * The menu's own title, mounted into `menuHost` only while the menu is open.
    *

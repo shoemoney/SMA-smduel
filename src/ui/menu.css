@@ -377,3 +377,21 @@
     to   { opacity: 1; transform: none; }
   }
 }
+
+/* --- the "how to reach the rest of this menu" line --------------------------
+ *
+ * Outside the `<ol>`, so it can never become a selectable row or shift the digit
+ * numbering. It states two constraints the screen previously only enforced:
+ * that arrow keys reach rows past `0`, and that Escape leaves.
+ */
+.sm-menu__hint {
+  margin-top: var(--ui-space-3);
+  padding-top: var(--ui-space-2);
+  border-top: 1px solid var(--ui-line);
+  font-family: var(--ui-font-mono);
+  font-size: var(--ui-text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ui-ink-dim);
+  text-align: center;
+}

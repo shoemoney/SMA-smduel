@@ -299,6 +299,74 @@ function readRenderedRows(root: FakeElement): Array<{ number: string; label: str
   });
 }
 
+describe('menu — the hint line that states the constraints the screen only enforces', () => {
+  // Two advisory reviews, on two different screens, said the same two things:
+  // rows past `0` have no digit key, and there is no visible way out. Both are
+  // TRUE of the code — `1`-`9` then `0` reaches exactly ten rows, and the
+  // Courier Guild serves fifteen, so "Leave" is row 15. The digit limit is
+  // deliberate (labelling row 11 with `% 10` would repeat an earlier row's own
+  // digit and fire the wrong action), so the fix is to STATE the limit rather
+  // than remove it.
+  //
+  // This file's FakeElement has no `querySelector`, so the tree is walked
+  // directly. Reaching for a DOM method the double does not implement is the
+  // same class of mistake as assuming a class name exists.
+  function findByClass(root: FakeElement, className: string): FakeElement[] {
+    const found: FakeElement[] = [];
+    const walk = (n: FakeElement): void => {
+      if (n.className.split(/\s+/).includes(className)) found.push(n);
+      for (const c of n.children) walk(c);
+    };
+    walk(root);
+    return found;
+  }
+
+  function renderWith(actions: MenuAction[]): FakeElement {
+    installFakeDom();
+    const container = new FakeElement('div');
+    mountMenu({
+      container: container as unknown as HTMLElement,
+      header: header(),
+      actions,
+      onActivate: () => {},
+      onBack: () => {},
+    });
+    const root = container.children[0];
+    if (root === undefined) throw new Error('test: mountMenu rendered nothing');
+    return root;
+  }
+
+  const many = (n: number) => Array.from({ length: n }, (_, i) => action(`a${i}`));
+
+  it('tells the player the arrow keys reach the rest, only when they must', () => {
+    const hintOf = (n: number) => findByClass(renderWith(many(n)), 'sm-menu__hint')[0]?.textContent ?? '';
+    // Ten rows are fully reachable by digit, so mentioning arrows would be noise.
+    expect(hintOf(10)).not.toContain('reach the remaining rows');
+    expect(hintOf(11)).toContain('reach the remaining rows');
+    // Escape is always stated: a menu whose only exit is an undocumented key is
+    // a menu with no visible way out.
+    expect(hintOf(3)).toContain('Esc');
+    expect(hintOf(11)).toContain('Esc');
+  });
+
+  it('puts the hint outside the list, so it can never become a selectable row', () => {
+    // Inside the <ol> it would shift the digit numbering — the exact bug the
+    // ten-row limit exists to prevent.
+    const root = renderWith(many(12));
+    const list = findByClass(root, 'sm-menu__list')[0] ?? findByClass(root, 'sm-menu__rows')[0];
+    expect(list, 'the row list should exist').toBeDefined();
+    expect(findByClass(list!, 'sm-menu__hint')).toHaveLength(0);
+    expect(findByClass(root, 'sm-menu__hint')).toHaveLength(1);
+  });
+
+  it('adds no row: a 15-row menu still renders exactly 15 selectable rows', () => {
+    // The regression this guards is subtle — an extra node inside the list would
+    // not change the row COUNT check above but would shift every digit mapping.
+    const root = renderWith(many(15));
+    expect(findByClass(root, 'sm-menu__item')).toHaveLength(15);
+  });
+});
+
 describe('menu — mountMenu DOM layer', () => {
   it('every rendered digit label activates exactly the row it is printed on, for 12 actions', () => {
     installFakeDom();

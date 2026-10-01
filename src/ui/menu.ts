@@ -222,6 +222,32 @@ function buildMenuDom(
   });
   root.appendChild(list);
 
+  // --- how to reach the rest of this menu -------------------------------
+  //
+  // Two things were invisible and both were reported independently, on two
+  // different screens, in the same words: "rows past 0 have no digit key" and
+  // "there is no visible way out".
+  //
+  // The digit limit is deliberate — `1`-`9` then `0` covers ten rows, and
+  // labelling an 11th with `% 10` would repeat an earlier row's own digit and
+  // silently activate the wrong action, which is its own note below. But a
+  // deliberate limit that the screen never states is indistinguishable from a
+  // bug to the player holding the keyboard. The Courier Guild serves fifteen rows
+  // and the Weapon Shop fourteen, so **"Leave" is row 15 and row 14** — reachable
+  // only by arrowing down, with nothing on screen to say so.
+  //
+  // So the constraint is surfaced rather than removed: one hint line, under the
+  // list, naming the arrow keys when they are needed and Escape always. It is
+  // outside the `<ol>` so it can never become a selectable row or shift the
+  // digit numbering.
+  const hintParts: string[] = [];
+  if (state.actions.length > 10) hintParts.push(t('ui.menu.reachByArrow'));
+  hintParts.push(t('ui.menu.backByEscape'));
+  const hint = document.createElement('div');
+  hint.className = 'sm-menu__hint';
+  hint.textContent = hintParts.join('  ·  ');
+  root.appendChild(hint);
+
   if (state.message !== null) {
     const message = document.createElement('div');
     message.className = 'sm-menu__message';

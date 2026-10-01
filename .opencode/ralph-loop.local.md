@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 1
+iteration: 2
 maxIterations: 100
 ---
 
@@ -160,3 +160,58 @@ about a stylesheet.
   image limit (6 of 11 frames, and 5 of 9). The reviewer therefore did not see
   every screen, and this round's "5 findings" is a floor, not a census. The next
   round must use smaller batches or downscaled frames for full coverage.
+
+## Iteration 2 — round 2 of the review: 7 findings, and TWO of them real
+
+Round 1's batches had been silently truncated (6 of 11 and 5 of 9 frames), so
+round 2 re-split into five smaller batches and **reported any truncation loudly**
+instead of letting a half-seen game print a confident total. All five batches ran
+clean this time — full coverage of all 26 frames, 7 findings.
+
+| # | Finding | Verdict |
+|---|---|---|
+| 1 | Constructor schematic clipped on the right | **FALSE, twice now.** `overflowsRightBy: -9` AND `overflowsLeftBy: -9` — symmetric margins, `scrollWidth === clientWidth`. |
+| 2 | Weapon Shop "Leave" missing/clipped | **Partly real.** "Leave" IS row 14 of 14. But the menu has 14 rows and digits `1`-`0` reach 10. |
+| 3 | Courier Guild has no "Leave" | **Partly real.** "Leave" IS row 15 of 15. Same digit-coverage gap. |
+| 4 | Controls list clipped, no scrollbar, no Close | **Misleading.** The panel is `overflow-y:auto; max-height:80vh` and scrolls; the suggested fix already exists. But it does have no *visible* exit affordance. |
+| 5 | Trip menu sits on top of the radar | **TRUE.** Its host was `left:clamp(16px,4vw,56px); bottom:clamp(20px,5vh,56px)` — exactly `.hud-panel--radar`'s corner. |
+| 6 | "Orientation: north-up" wraps after the hyphen | **TRUE — and already fixed in iteration 1.** It reviewed pre-fix frames, so it independently confirms that measurement. |
+| 7 | Radar player marker ignores vehicle heading | **FALSE.** Measured live: speed `0 → 12 → 24 mph` with the marker going `90° → 48.39° → 45.00°`. It tracks. `hud.css` consumes `--hud-radar-player-rot` via `rotate()`. |
+
+**FINDINGS 2, 3 AND 4 ARE ONE FINDING, AND IT IS REAL: a menu with more rows than
+the digit keys reach says nothing about it.** `1`-`9` then `0` covers ten rows —
+deliberately, because labelling row 11 with `% 10` would repeat an earlier row's
+own digit and fire the wrong action. But the Courier Guild serves **15 rows and
+the Weapon Shop 14**, so **"Leave" is row 15 and row 14**, reachable only by
+arrowing down, with no on-screen statement that arrows are needed and no visible
+exit. A deliberate limit a screen never states is indistinguishable from a bug.
+
+**THE FIX IS TO STATE THE CONSTRAINT, NOT REMOVE IT.** Every menu now renders one
+hint line under its list: `↑↓ reach the remaining rows` **only** when the menu
+exceeds ten rows, and `Esc — back` always. It sits outside the `<ol>` so it can
+never become a selectable row or shift the digit numbering — which is the exact
+bug the ten-row limit exists to prevent. Mutation-proven: moving the hint inside
+the list fails the guard that names that risk.
+
+**THE ROAD TRIP MENU IS NOW CENTRED**, matching every other modal in the game. The
+bottom-left placement looked chosen to keep the road visible while paused, but the
+trip FREEZES the road — there is a test named for exactly that — so there is no
+moving scene to protect. **The title screen's menu host keeps its bottom-left
+placement deliberately**: nothing occludes it there, it is the arcade convention,
+and my first attempt at this change hit THAT host instead of the road's, because
+the two shared a byte-identical style string and `replace(…, 1)` takes the first
+match. Caught by re-reading the rendered frame rather than trusting the edit.
+
+**VERDICT ON THE REVIEWER: 2 of 7 in round 2, 1 of 5 in round 1 — about a 22%
+true-positive rate**, consistent with the 150-round log's documented false-finding
+rate. Its *useful* output has consistently been the cases where it noticed a real
+constraint the UI never states (rows past `0`, the radar collision), and its
+consistent failure is geometry it reasons about wrongly (the schematic's
+symmetric margins read as a right-shift, twice).
+
+- **GATE.** 1608/1608 parallel and serial; browser 7/7; `tsc` clean; build clean.
+- **NOT ESTABLISHED.** Reviewing the same 26 frames a second time can only find
+  what the model sees in a still; it cannot drive the game. Three of the falsified
+  findings are geometry claims that a single `getBoundingClientRect()` pair
+  settles, and that is where the remaining effort should go rather than another
+  round of stills.

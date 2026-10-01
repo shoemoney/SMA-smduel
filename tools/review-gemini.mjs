@@ -144,8 +144,10 @@ if (all.length === 0) throw new Error(`review-gemini: no PNGs in ${SHOTS}`);
 const pick = (...needles) => all.filter((f) => needles.some((n) => f.includes(n)));
 const batches = [
   { label: 'the opening and the build (title, driver creation, ignition crank, constructor)', files: pick('boot-tribute', 'title', 'driver-', 'ignition', 'constructor-') },
-  { label: 'the city and all ten facilities', files: pick('city', 'facility-') },
-  { label: 'driving and fighting (road, trip menu, arena match, plus the overlays)', files: pick('road', 'arena', 'fleet', 'journal', 'controls') },
+  { label: 'the city and the first five facilities', files: pick('city', 'facility-garage', 'facility-weaponshop', 'facility-arena', 'facility-salvage', 'facility-bar') },
+  { label: 'the remaining five facilities', files: pick('facility-medical', 'facility-assembly', 'facility-courierguild', 'facility-truckstop', 'facility-federal') },
+  { label: 'driving (road, the trip menu, and the overlays)', files: pick('road', 'fleet', 'journal', 'controls') },
+  { label: 'fighting (an arena match, entry and combat)', files: pick('arena-') },
 ];
 const covered = new Set(batches.flatMap((b) => b.files));
 const missed = all.filter((f) => !covered.has(f));
@@ -164,9 +166,14 @@ for (const [i, batch] of batches.entries()) {
   if (batch.files.length === 0) continue;
   console.log(`\nbatch ${i + 1}/${batches.length}: ${batch.files.length} frame(s) — ${batch.label}`);
   let text = '';
-  // Retry with fewer frames if the provider refuses the image count.
+  // Retry with fewer frames if the provider refuses the image count — and SAY SO,
+  // loudly, because round 1 lost half the review to a silent truncation: batches
+  // came back reporting 6 of 11 and 5 of 9 frames and the run still printed a
+  // confident "total FINDINGS: 5". A review that saw half the game is not a
+  // review, and the output has to be unable to pretend otherwise.
   let files = batch.files;
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  let truncated = false;
+  for (let attempt = 1; attempt <= 4; attempt++) {
     try {
       text = await send(batch.label, files);
       break;
@@ -179,10 +186,16 @@ for (const [i, batch] of batches.entries()) {
         break;
       }
       files = files.slice(0, Math.max(1, Math.floor(files.length * 0.6)));
-      console.log(`  retrying with ${files.length} frame(s)`);
+      truncated = true;
+      console.log(`  PROVIDER REFUSED ${batch.files.length} frames; retrying with ${files.length}`);
     }
   }
   if (text === '') continue;
+  if (truncated) {
+    const dropped = batch.files.length - files.length;
+    sections.push(`> **COVERAGE GAP: this batch shows ${files.length} of ${batch.files.length} frames; ${dropped} were not reviewed.**`, '');
+    console.log(`  COVERAGE GAP: only ${files.length} of ${batch.files.length} frames reached the reviewer`);
+  }
   const m = text.match(/FINDINGS:\s*(\d+)/);
   const n = m === null ? 0 : Number(m[1]);
   totalFindings += Number.isFinite(n) ? n : 0;
