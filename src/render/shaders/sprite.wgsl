@@ -249,8 +249,34 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
       // 9m gives ~5 patches across that same 48m view: coarse enough to read as
       // genuinely different ground, fine enough to be visible without turning
       // into a checkerboard.
-      let cell = floor(in.worldPos / 9.0);
-      let m = fract(sin(dot(cell, vec2<f32>(12.9898, 78.233))) * 43758.5453);
+      //
+      // The mask is now SMOOTH value noise rather than one hash per cell, and
+      // that is a defect fix rather than a refinement. `floor(worldPos / 9.0)`
+      // made the mask piecewise CONSTANT with a hard step at every 9m boundary,
+      // so the blend weight `mix(g, d, ...)` jumped discontinuously and the
+      // road asphalt showed a visible seam: "sharp vertical boundary lines
+      // running from the barrier curb down to the bottom edge, adjacent chunks
+      // with mismatched luminance". `smoothstep(0.30, 0.70, m)` smoothed the
+      // mask's VALUE, which does nothing about the cell boundary it sits on —
+      // the same class of mistake as compressing the detail sample instead of the
+      // finished colour, noted just above.
+      //
+      // Bilinearly interpolating the hash across the four cell corners, with a
+      // smoothstep ease on the interpolation weights, makes the mask continuous
+      // everywhere, so there is no longer a discontinuity for the eye to find.
+      // It costs three extra hashes per ground pixel and removes a class of
+      // artefact rather than relocating it.
+      let cellPos = in.worldPos / 9.0;
+      let cellI = floor(cellPos);
+      let cellF = fract(cellPos);
+      // smoothstep ease: C1-continuous, so the interpolation itself has no
+      // derivative break at the cell edges either.
+      let cellU = cellF * cellF * (3.0 - 2.0 * cellF);
+      let h00 = fract(sin(dot(cellI + vec2<f32>(0.0, 0.0), vec2<f32>(12.9898, 78.233))) * 43758.5453);
+      let h10 = fract(sin(dot(cellI + vec2<f32>(1.0, 0.0), vec2<f32>(12.9898, 78.233))) * 43758.5453);
+      let h01 = fract(sin(dot(cellI + vec2<f32>(0.0, 1.0), vec2<f32>(12.9898, 78.233))) * 43758.5453);
+      let h11 = fract(sin(dot(cellI + vec2<f32>(1.0, 1.0), vec2<f32>(12.9898, 78.233))) * 43758.5453);
+      let m = mix(mix(h00, h10, cellU.x), mix(h01, h11, cellU.x), cellU.y);
       g = mix(g, d, smoothstep(0.30, 0.70, m) * 0.6);
 
     // --- base value ----------------------------------------------------------
