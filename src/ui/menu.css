@@ -402,7 +402,14 @@
   position: sticky;
   bottom: 0;
   z-index: 1;
-  background: var(--ui-glass-strong);
+  /* FULLY opaque, and deliberately not `--ui-glass-strong` (which is 92%
+     alpha). A sticky footer sits ON TOP of the scrolling list, so a translucent
+     background lets the row underneath show through the bar — an advisory
+     review reported exactly that: the price text "bleeds directly over the
+     footer bar line". The bar is the last thing standing between a long menu and
+     a player who cannot tell how to leave, so it is the wrong place to be
+     see-through. */
+  background: var(--ui-surface-sunken);
   margin-top: var(--ui-space-3);
   padding-top: var(--ui-space-2);
   border-top: 1px solid var(--ui-line);
@@ -413,3 +420,16 @@
   color: var(--ui-ink-dim);
   text-align: center;
 }
+
+/* An informational row: a readout, not a command. No number, no hover, no
+ * click target, and visibly quieter than the rows you can actually act on — so
+ * the difference is legible before the player presses anything. */
+.sm-menu__item--info {
+  cursor: default;
+  color: var(--ui-ink-dim);
+  font-size: var(--ui-text-xs);
+  letter-spacing: 0.06em;
+  padding-left: calc(var(--ui-space-4) + var(--ui-space-2));
+  border-left: 2px solid var(--ui-line);
+}
+.sm-menu__item--info:hover { background: transparent; }

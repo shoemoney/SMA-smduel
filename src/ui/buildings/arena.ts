@@ -62,7 +62,14 @@ const SCHEDULE_PREVIEW_COUNT = 3;
 function scheduleAction(ctx: BuildingContext, event: ArenaEventDef): MenuAction {
   const days = scheduleFor(ctx.cityId, ctx.clock.dayIndex, SCHEDULE_PREVIEW_COUNT);
   const label = t('building.arena.championshipSchedule', { event: event.name, days: days.join(', ') });
-  return { id: `schedule-${event.id}`, label, eligible: false, reason: label };
+  // `informational`, and `reason` goes with it. This row used to be
+  // `eligible: false` with the label duplicated as its reason, which made the
+  // MENU render it as a numbered command that happened to be refused — an
+  // advisory review reported it as "formatted as actionable menu item 9", with
+  // every other numbered row around it being something you can actually do.
+  // `eligible: false` means "not yet"; this row means "not a thing you do at
+  // all", and conflating the two is what made the menu lie about its contents.
+  return { id: `schedule-${event.id}`, label, eligible: false, informational: true, reason: label };
 }
 
 /** The row(s) for `event`, or none at all for a championship-cadence event this city never schedules. */

@@ -224,6 +224,18 @@ class FakeElement {
   textContent = '';
   private _tabIndex = -1;
   private readonly attrs = new Set<string>();
+  private readonly attrValues = new Map<string, string>();
+  /** Reads an attribute back. The real DOM stores name AND value; storing only
+   *  the name made it impossible to assert on `role` or `aria-disabled` here. */
+  attr(name: string): string | null {
+    return this.attrValues.get(name) ?? null;
+  }
+  /** Fires every listener registered for `type`. Present so a test can assert
+   *  that a control with NO listener does nothing when activated — which is the
+   *  whole point of the informational-row change. */
+  fire(type: string): void {
+    for (const fn of this.listeners.get(type) ?? []) fn({} as FakeKeyEvent);
+  }
   private readonly listeners = new Map<string, Array<(ev: FakeKeyEvent) => void>>();
 
   constructor(tag: string) {
@@ -245,8 +257,12 @@ class FakeElement {
     this._tabIndex = value;
     this.attrs.add('tabindex');
   }
-  setAttribute(name: string): void {
+  /** Stores the attribute's VALUE as well as its name. The real DOM does, and
+   *  a double that keeps only names cannot answer "what role does this row
+   *  have?" — it can only answer "does it have one?". */
+  setAttribute(name: string, value = ''): void {
     this.attrs.add(name);
+    this.attrValues.set(name, value);
   }
   removeAttribute(name: string): void {
     this.attrs.delete(name);
@@ -298,6 +314,85 @@ function readRenderedRows(root: FakeElement): Array<{ number: string; label: str
     };
   });
 }
+
+describe('menu — informational rows are readouts, not commands', () => {
+  // A menu that mixes readouts with commands lies about its own contents. Three
+  // separate review rounds flagged two instances: the Arena's standing schedule
+  // rendered as "actionable menu item 9", and the Courier Guild assigning the
+  // scarce digit keys to informational text while real commands got none.
+  function findByClass(root: FakeElement, className: string): FakeElement[] {
+    const found: FakeElement[] = [];
+    const walk = (n: FakeElement): void => {
+      if (n.className.split(/\s+/).includes(className)) found.push(n);
+      for (const c of n.children) walk(c);
+    };
+    walk(root);
+    return found;
+  }
+
+  function render(rows: MenuAction[]): { root: FakeElement; container: FakeElement; activated: string[] } {
+    installFakeDom();
+    const container = new FakeElement('div');
+    const activated: string[] = [];
+    mountMenu({
+      container: container as unknown as HTMLElement,
+      header: header(),
+      actions: rows,
+      onActivate: (id) => activated.push(id),
+      onBack: () => {},
+    });
+    const root = container.children[0];
+    if (root === undefined) throw new Error('test: mountMenu rendered nothing');
+    return { root, container, activated };
+  }
+
+  const info = (id: string) => action(id, { informational: true });
+
+  it('renders no number and no button role on an informational row', () => {
+    const { root } = render([action('real1'), info('readout')]);
+    const items = findByClass(root, 'sm-menu__item');
+    const readout = items.find((li) => li.className.includes('sm-menu__item--info'));
+    expect(readout, 'the informational row should carry the --info modifier').toBeDefined();
+    expect(findByClass(readout!, 'sm-menu__number')).toHaveLength(0);
+    expect(readout?.attr('role')).toBeNull();
+    expect(readout?.attr('aria-selected')).toBeNull();
+    // The real command still has both.
+    expect(items[0]?.attr('role')).toBe('button');
+  });
+
+  it('does not activate an informational row on click', () => {
+    const { root, activated } = render([info('readout'), action('real1')]);
+    const readout = findByClass(root, 'sm-menu__item--info')[0];
+    readout?.fire('click');
+    expect(activated).toEqual([]);
+  });
+
+  it('numbers the actionable rows consecutively, so digit 1 is the FIRST command', () => {
+    // The bug this fixes: with a readout first, the old array-position numbering
+    // printed "1" on the readout and pushed the first real command to "2".
+    const { root } = render([info('readout'), action('c1'), action('c2')]);
+    const numbers = findByClass(root, 'sm-menu__number').map((n) => n.textContent);
+    expect(numbers).toEqual(['1', '2']);
+  });
+
+  it('resolves a digit key to the same row the digit is printed on, past a readout', () => {
+    const { container, activated } = render([action('c1'), info('readout'), action('c2')]);
+    // Printed: c1 is "1", c2 is "2".
+    container.dispatch('keydown', fakeKeyEvent('2'));
+    expect(activated).toEqual(['c2']);
+  });
+
+  it('keeps `eligible: false` meaning "you cannot do this YET", which is a different thing', () => {
+    // The distinction the whole change exists to make: an ineligible command is
+    // still a command with a digit, and says why it is refused.
+    const { root } = render([action('locked', { eligible: false, reason: 'not yet' })]);
+    const item = findByClass(root, 'sm-menu__item')[0];
+    expect(item?.attr('role')).toBe('button');
+    expect(item?.attr('aria-disabled')).toBe('true');
+    expect(findByClass(item!, 'sm-menu__number')[0]?.textContent).toBe('1');
+    expect(item?.className).not.toContain('--info');
+  });
+});
 
 describe('menu — the hint line that states the constraints the screen only enforces', () => {
   // Two advisory reviews, on two different screens, said the same two things:

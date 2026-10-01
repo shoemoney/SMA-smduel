@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 7
+iteration: 8
 maxIterations: 100
 ---
 
@@ -287,3 +287,55 @@ three that remained were a real defect of mine rather than the reviewer's error.
 
 - **GATE.** 1621/1621 across three parallel runs and serial; browser 7/7;
   `tsc` clean; `vite build` clean; all three layout gates green.
+
+## Iteration 8 — the last findings, two of them mine
+
+**`driverRight` is falsified for the THIRD time**, and it is worth recording how a
+hallucination gets more convincing each time it repeats: it cites a line number,
+quotes the neighbouring rows, and names the exact discrepancy — "row 5 reads
+`driverRight` where rows 2-4 read `driveUp`, `driveDown`, `driveLeft`". The label
+is `t('ui.controls.actionRow', { action: actionId })`, the ids come from
+`CONTROLS.actions`, and `grep -rn driverRight src/ rulesets/ tests/` returns
+nothing. Specificity is not evidence.
+
+**THE STICKY FOOTER BLED, and that was mine.** I pinned it with
+`--ui-glass-strong`, which is **92% alpha** — so the row scrolling behind it
+showed through the bar, and the review reported a price bleeding across the footer
+line. A sticky element still paints in flow order, and a translucent one is not a
+footer. It is `--ui-surface-sunken` now, fully opaque.
+
+**THE REAL ONE: menus were handing their scarce digit keys to information.** Three
+separate rounds flagged two instances of the same defect — the Arena's standing
+schedule rendered as "actionable menu item 9", and the Courier Guild assigning
+hotkeys to readouts while real commands got none. It is recorded in iteration 2
+as "a design observation, deliberately not actioned blind", and the reviewer kept
+being right about it, so it was actioned properly:
+
+`MenuAction.informational` is now a first-class concept. An informational row
+renders with **no number, no `role="button"`, no click handler**, and is dimmed;
+and **both** the printed digit and the digit-key handler resolve through the
+ACTIONABLE rows only, so the number on screen and the key that works can never
+disagree. Measured in the arena:
+
+    [button]  1  Enter Practice
+    [button]  2  Enter Amateur Night
+    ...
+    [button]  8  Enter City Championship
+    [-]     (info) City Championship upcoming: day 50, 134, 218
+    [button]  9  Leave
+
+"Leave" was previously numbered after a readout it had nothing to do with.
+
+This also keeps a distinction the code was blurring: **`eligible: false` means "you
+cannot do this YET"** — a real command that is refused, with a reason and a digit —
+while `informational` means **"this is not a thing you do at all."**
+
+**Two mistakes of my own, both caught by existing tests rather than by me.** The
+ordinal arithmetic subtracted the count of *actionable* rows when it should have
+subtracted *informational* ones, which made every row compute ordinal 1; and
+guarding the tenth row's label on `ordinal < 10` instead of `<= 10` silently
+dropped it, since the tenth row is the `0` key. The pre-existing digit test caught
+both, which is the argument for having written it.
+
+- **GATE.** 1626/1626 across three parallel runs and serial; browser 7/7;
+  `tsc` clean; `vite build` clean.

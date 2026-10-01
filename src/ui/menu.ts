@@ -21,6 +21,28 @@ export interface MenuAction {
   readonly label: string;
   readonly eligible: boolean;
   readonly reason?: string;
+  /**
+   * True when this row is a READOUT, not a command.
+   *
+   * A menu that mixes the two is lying about its own contents. Both the Arena's
+   * standing championship schedule ("City Championship upcoming: day 50, 134, 218")
+   * and most of the Courier Guild's fifteen rows are information — a date, a
+   * distance, an expected encounter count — and an advisory review flagged both,
+   * separately and repeatedly: the schedule row was reported as "formatted as
+   * actionable menu item 9", and the Courier Guild as "assigns hotkey numbers to
+   * informational text while action items lack keys".
+   *
+   * Both complaints are the same defect, and it is a real one: `eligible: false`
+   * alone does not distinguish "you cannot do this right now" from "this is not
+   * a thing you can do at all". Numbering a row gives it a digit that does
+   * something, styling it as a row invites a click, and putting an informational
+   * row ABOVE the actionable ones hands the scarce hotkeys to text.
+   *
+   * An informational row is rendered without a number, without `role="button"`,
+   * and dimmed — and it is excluded from the digit mapping entirely, so the
+   * hotkeys land on the commands where they belong.
+   */
+  readonly informational?: boolean;
 }
 
 export interface MenuState {
@@ -109,8 +131,25 @@ export function handleMenuKey(state: MenuState, key: string): MenuKeyResult {
   }
   if (DIGIT_RE.test(key)) {
     const digit = Number.parseInt(key, 10);
-    const index = digit === 0 ? 9 : digit - 1;
-    if (index < 0 || index >= state.actions.length) return { state, outcome: { kind: 'NONE' } };
+    const ordinal = digit === 0 ? 10 : digit;
+    // Resolve through the ACTIONABLE rows, for the same reason the printed
+    // number does: if the digit were mapped by array position while the label
+    // counted only actionable rows, the number on screen and the key that works
+    // would disagree — which is worse than having no hotkey at all, because it
+    // looks like the game is broken rather than like the menu is long.
+    let seen = 0;
+    let index = -1;
+    for (const [i, action] of state.actions.entries()) {
+      if (action.informational === true) continue;
+      seen += 1;
+      if (seen === ordinal) {
+        index = i;
+        break;
+      }
+    }
+    // Past the tenth actionable row there is deliberately no digit, rather than a
+    // repeated one that would fire a different command.
+    if (index < 0) return { state, outcome: { kind: 'NONE' } };
     return activate(state, index);
   }
   return { state, outcome: { kind: 'NONE' } };
@@ -178,27 +217,50 @@ function buildMenuDom(
   list.className = 'sm-menu__list';
   state.actions.forEach((action, index) => {
     const item = document.createElement('li');
-    item.className = 'sm-menu__item';
-    if (index === state.selectedIndex) item.classList.add('sm-menu__item--selected');
+    const isInfo = action.informational === true;
+    item.className = isInfo ? 'sm-menu__item sm-menu__item--info' : 'sm-menu__item';
+    if (!isInfo && index === state.selectedIndex) item.classList.add('sm-menu__item--selected');
     if (!action.eligible) item.classList.add('sm-menu__item--ineligible');
     // Not `tabindex` on the row: `mountMenu` focuses the CONTAINER, which owns
     // keydown, so a tab-stopped row could take a stray Enter while a
     // different row is `state.selectedIndex` — the exact divergence a tap
     // must not introduce.
-    item.setAttribute('role', 'button');
-    if (index === state.selectedIndex) item.setAttribute('aria-selected', 'true');
-    if (!action.eligible) item.setAttribute('aria-disabled', 'true');
-    item.addEventListener('click', () => onRowActivate(index));
+    if (!isInfo) {
+      // An informational row is not a control, so it gets none of a control's
+      // affordances: no role, no selected state, no click. A readout that
+      // responds to a click teaches the player that clicking information does
+      // something.
+      item.setAttribute('role', 'button');
+      if (index === state.selectedIndex) item.setAttribute('aria-selected', 'true');
+      if (!action.eligible) item.setAttribute('aria-disabled', 'true');
+      item.addEventListener('click', () => onRowActivate(index));
+    }
 
     // Only the first 10 rows are reachable by a single digit key at all
     // (1-9, then 0 for the 10th): handleMenuKey below maps digit d to index
     // d-1 (0 -> index 9) and has no digit for index >= 10. Labeling an 11th+
     // row via `% 10` would repeat an earlier row's own digit, making that
     // digit key silently activate the wrong row.
-    const number = document.createElement('span');
-    number.className = 'sm-menu__number';
-    number.textContent = index < 10 ? String((index + 1) % 10) : '';
-    item.appendChild(number);
+    if (!isInfo) {
+      const number = document.createElement('span');
+      number.className = 'sm-menu__number';
+      // The digit is derived from the row's index among ACTIONABLE rows, not
+      // its position in the array. Numbering by array position hands `1` to a
+      // readout and pushes the first real command past `9` in a long menu — the
+      // Courier Guild's fifteen rows could not be reached by digit at all.
+      // 1 + the number of ACTIONABLE rows before this one. The subtraction
+      // counts INFORMATIONAL rows, not actionable ones: counting actionable rows
+      // makes every ordinal 1 when there are no informational rows, which is
+      // exactly what happened first — ten identical digits on a twelve-row menu,
+      // caught by the pre-existing digit test.
+      const ordinal = index + 1 - state.actions.slice(0, index).filter((a) => a.informational === true).length;
+      // Ordinal 10 is the `0` key: 1-9 then 0 for the tenth, which is the
+      // convention the original `% 10` mapping encoded and which the key handler
+      // still resolves. Guarding on `ordinal < 10` instead of `<= 10` silently
+      // dropped the tenth row's label — found by the existing digit test.
+      number.textContent = ordinal > 0 && ordinal <= 10 ? String(ordinal % 10) : '';
+      item.appendChild(number);
+    }
 
     const label = document.createElement('span');
     label.className = 'sm-menu__label';
