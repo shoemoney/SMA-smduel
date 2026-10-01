@@ -888,7 +888,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier albany <-> manchester"
   - id: "cities.routes.albany-manchester.lengthMiles"
-    value: 175
+    value: 35
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -900,7 +900,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier albany <-> scranton"
   - id: "cities.routes.albany-scranton.lengthMiles"
-    value: 160
+    value: 32
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -912,7 +912,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier albany <-> syracuse"
   - id: "cities.routes.albany-syracuse.lengthMiles"
-    value: 145
+    value: 29
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -924,7 +924,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier baltimore <-> washington"
   - id: "cities.routes.baltimore-washington.lengthMiles"
-    value: 40
+    value: 8
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -936,7 +936,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier boston <-> albany"
   - id: "cities.routes.boston-albany.lengthMiles"
-    value: 170
+    value: 34
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -948,7 +948,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier boston <-> manchester"
   - id: "cities.routes.boston-manchester.lengthMiles"
-    value: 55
+    value: 11
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -960,7 +960,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier boston <-> providence"
   - id: "cities.routes.boston-providence.lengthMiles"
-    value: 50
+    value: 10
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -972,7 +972,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier buffalo <-> pittsburgh"
   - id: "cities.routes.buffalo-pittsburgh.lengthMiles"
-    value: 220
+    value: 44
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -984,7 +984,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier buffalo <-> watertown"
   - id: "cities.routes.buffalo-watertown.lengthMiles"
-    value: 200
+    value: 40
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -996,7 +996,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier dover <-> atlanticcity"
   - id: "cities.routes.dover-atlanticcity.lengthMiles"
-    value: 70
+    value: 14
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1008,7 +1008,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier dover <-> baltimore"
   - id: "cities.routes.dover-baltimore.lengthMiles"
-    value: 75
+    value: 15
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1020,7 +1020,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier harrisburg <-> baltimore"
   - id: "cities.routes.harrisburg-baltimore.lengthMiles"
-    value: 85
+    value: 17
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1032,7 +1032,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier harrisburg <-> philadelphia"
   - id: "cities.routes.harrisburg-philadelphia.lengthMiles"
-    value: 105
+    value: 21
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1044,7 +1044,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier harrisburg <-> scranton"
   - id: "cities.routes.harrisburg-scranton.lengthMiles"
-    value: 120
+    value: 24
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1056,7 +1056,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier newyork <-> albany"
   - id: "cities.routes.ny-albany.lengthMiles"
-    value: 150
+    value: 30
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1068,7 +1068,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier newyork <-> atlanticcity"
   - id: "cities.routes.ny-atlanticcity.lengthMiles"
-    value: 125
+    value: 25
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1080,7 +1080,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier newyork <-> philadelphia"
   - id: "cities.routes.ny-philadelphia.lengthMiles"
-    value: 95
+    value: 19
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1092,7 +1092,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier newyork <-> providence"
   - id: "cities.routes.ny-providence.lengthMiles"
-    value: 180
+    value: 36
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1104,7 +1104,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier newyork <-> scranton"
   - id: "cities.routes.ny-scranton.lengthMiles"
-    value: 120
+    value: 24
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1116,7 +1116,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier philadelphia <-> atlanticcity"
   - id: "cities.routes.philadelphia-atlanticcity.lengthMiles"
-    value: 65
+    value: 13
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1128,7 +1128,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier philadelphia <-> baltimore"
   - id: "cities.routes.philadelphia-baltimore.lengthMiles"
-    value: 100
+    value: 20
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1140,7 +1140,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier philadelphia <-> dover"
   - id: "cities.routes.philadelphia-dover.lengthMiles"
-    value: 80
+    value: 16
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1152,7 +1152,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier pittsburgh <-> harrisburg"
   - id: "cities.routes.pittsburgh-harrisburg.lengthMiles"
-    value: 200
+    value: 40
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1164,7 +1164,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier syracuse <-> buffalo"
   - id: "cities.routes.syracuse-buffalo.lengthMiles"
-    value: 150
+    value: 30
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1176,7 +1176,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier syracuse <-> watertown"
   - id: "cities.routes.syracuse-watertown.lengthMiles"
-    value: 75
+    value: 15
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1188,7 +1188,7 @@ entries:
     confidence: 0.4
     note: "Route danger tier washington <-> pittsburgh"
   - id: "cities.routes.washington-pittsburgh.lengthMiles"
-    value: 240
+    value: 48
     status: Exact
     source: "approximate real-world road mileage between the named cities"
     confidence: 0.7
@@ -1338,7 +1338,7 @@ entries:
     confidence: 0.5
     note: "Modern preset default binding: fire also answers to mouse button 0 (LMB), per docs/SPEC.md Controls"
   - id: "controls.defaultBindings.modern.fire.gamepadButtons"
-    value: [7]
+    value: [0]
     status: Reconstruction
     source: "harness-specified: input-preset default bindings are Reconstruction"
     confidence: 0.5
@@ -1404,7 +1404,7 @@ entries:
     confidence: 0.5
     note: "Job-generation formula input, tunable: couriers.generation.payWeightPerHundredPounds"
   - id: "couriers.generation.payWeightPerMile"
-    value: 3.2
+    value: 16
     status: Reconstruction
     source: "Job GENERATION parameters are Reconstruction - the source never published the formula. Structural rules (3 offers per visit, 3-payload cap, salvage counts as one category) are Exact."
     confidence: 0.5
@@ -1650,7 +1650,7 @@ entries:
     confidence: 0.5
     note: "Driving physics coefficient, tunable (battery): driving.battery.full"
   - id: "driving.battery.movementDrainPerMileBase"
-    value: 0.9
+    value: 0.3
     status: Reconstruction
     source: "harness-specified: all driving coefficients are Reconstruction"
     confidence: 0.5
@@ -4669,7 +4669,7 @@ entries:
     confidence: 0.3
     note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.0.spawnBudget"
   - id: "encounters.dangerLevels.0.spawnsPerHundredMiles"
-    value: 1
+    value: 5
     status: Reconstruction
     source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
     confidence: 0.3
@@ -4735,7 +4735,7 @@ entries:
     confidence: 0.3
     note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.1.spawnBudget"
   - id: "encounters.dangerLevels.1.spawnsPerHundredMiles"
-    value: 1.6
+    value: 8
     status: Reconstruction
     source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
     confidence: 0.3
@@ -4801,7 +4801,7 @@ entries:
     confidence: 0.3
     note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.2.spawnBudget"
   - id: "encounters.dangerLevels.2.spawnsPerHundredMiles"
-    value: 2.3
+    value: 11.5
     status: Reconstruction
     source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
     confidence: 0.3
@@ -4867,7 +4867,7 @@ entries:
     confidence: 0.3
     note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.3.spawnBudget"
   - id: "encounters.dangerLevels.3.spawnsPerHundredMiles"
-    value: 3.1
+    value: 15.5
     status: Reconstruction
     source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
     confidence: 0.3
@@ -4933,7 +4933,7 @@ entries:
     confidence: 0.3
     note: "Per-danger spawn budget, outlaw chance, pack size and faction mix: encounters.dangerLevels.4.spawnBudget"
   - id: "encounters.dangerLevels.4.spawnsPerHundredMiles"
-    value: 4.2
+    value: 21
     status: Reconstruction
     source: "encounters.json - authored for this recreation; the source material published no spawn budgets, faction mixes or opponent rosters"
     confidence: 0.3

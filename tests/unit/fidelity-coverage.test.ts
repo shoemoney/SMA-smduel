@@ -39,6 +39,22 @@ interface LedgerEntry {
   id: string;
   status: string;
   line: number;
+  /**
+   * The `value:` field, as the RAW source text.
+   *
+   * It was parsed by `FIELD_RE` (so a malformed line still throws) and then
+   * discarded, which made all 965 recorded values decorative: editing a
+   * ruleset number without touching the ledger left the provenance gate green.
+   * Measured — `arenas._reconstruction.escapePrestigePenalty` changed from 1
+   * to 999 (a 999x change to a Reconstruction constant) and
+   * `fidelity-coverage.test.ts` reported 7/7 green.
+   *
+   * Kept as raw text rather than a parsed number because a ledger value may
+   * legitimately be a quoted string or a YAML-ish list; `valuesAgree` below is
+   * the only place that decides what counts as equal, and it compares parsed
+   * values so `1` and `1.0` do not register as a mismatch.
+   */
+  valueText: string;
 }
 
 function parseFidelityLedger(text: string): LedgerEntry[] {
@@ -78,6 +94,7 @@ function parseFidelityLedger(text: string): LedgerEntry[] {
     i += 1;
 
     let status = '';
+    let valueText = '';
     for (const field of FIELD_ORDER) {
       const re = FIELD_RE[field];
       const fieldLine = lines[i];
@@ -91,10 +108,14 @@ function parseFidelityLedger(text: string): LedgerEntry[] {
       if (field === 'status' && typeof fieldMatch[1] === 'string') {
         status = fieldMatch[1];
       }
+      if (field === 'value' && fieldLine !== undefined) {
+        // Strip the 4-space indent and the `value: ` key, then trailing space.
+        valueText = fieldLine.slice('    value: '.length).trim();
+      }
       i += 1;
     }
 
-    entries.push({ id, status, line: idLine });
+    entries.push({ id, status, line: idLine, valueText });
   }
 
   return entries;
@@ -126,6 +147,14 @@ interface RequiredConstant {
   /** Path segments from the JSON root, with array items identified by their own "id" field when present, else their index. */
   path: string[];
   candidateIds: string[];
+  /**
+   * The value this constant currently holds in the ruleset JSON.
+   *
+   * Present so the ledger's recorded `value:` can be COMPARED against reality.
+   * For a bare array documented as one combined constant this is the whole
+   * array, which is the ledger's own convention for those entries.
+   */
+  value: unknown;
 }
 
 /**
@@ -178,7 +207,7 @@ function walk(file: string, node: unknown, path: string[], out: RequiredConstant
       // salvageSkillGainWeights, allowedFacings) is documented as ONE
       // combined constant, matching the ledger's existing convention.
       if (node.some((item) => typeof item === 'number' || typeof item === 'boolean')) {
-        if (!isExcludedPath(file, path)) out.push({ file, path, candidateIds: candidateIdsFor(file, path) });
+        if (!isExcludedPath(file, path)) out.push({ file, path, candidateIds: candidateIdsFor(file, path), value: node });
       }
       return;
     }
@@ -190,7 +219,7 @@ function walk(file: string, node: unknown, path: string[], out: RequiredConstant
   }
 
   if (typeof node === 'number' || typeof node === 'boolean') {
-    if (!isExcludedPath(file, path)) out.push({ file, path, candidateIds: candidateIdsFor(file, path) });
+    if (!isExcludedPath(file, path)) out.push({ file, path, candidateIds: candidateIdsFor(file, path), value: node });
   }
   // strings, null, undefined: not a fidelity constant, ignored.
 }
@@ -297,4 +326,115 @@ describe('fidelity-notes.yaml coverage', () => {
       );
     }
   });
+
+  it("every ledger entry's recorded value MATCHES the value the ruleset actually holds", () => {
+    // The gate above proves a constant has an entry. This proves the entry
+    // still describes it.
+    //
+    // Without it, `value:` was parsed by the strict parser (so a malformed line
+    // threw) and then thrown away, which made all 965 recorded values
+    // decorative. Measured: changing
+    // `arenas._reconstruction.escapePrestigePenalty` from 1 to 999 — a 999x
+    // change to a Reconstruction constant, the exact thing this ledger exists
+    // to make reviewable — left this whole file reporting 7/7 green.
+    //
+    // A provenance ledger that records a value it never checks is worse than no
+    // ledger, because it reads as maintained.
+    const ledger = parseFidelityLedger(readFileSync(LEDGER_PATH, 'utf8'));
+    const byId = new Map(ledger.map((e) => [e.id, e]));
+
+    // Map each JSON constant to whichever of its candidate spellings the
+    // ledger actually used, so the comparison is against the entry that claims
+    // this constant rather than an arbitrary one of the two spellings.
+    const mismatches: string[] = [];
+    let compared = 0;
+
+    for (const constant of findRequiredConstants()) {
+      const matchedId = constant.candidateIds.find((id) => byId.has(id));
+      const entry = matchedId === undefined ? undefined : byId.get(matchedId);
+      if (entry === undefined) continue; // no entry at all — the gate above reports it
+
+      if (!recordedValueMatches(entry.valueText, constant.value)) {
+        mismatches.push(
+          `  - ${matchedId}\n      ledger records: ${entry.valueText}\n      ${constant.file}.json holds: ${JSON.stringify(constant.value)}`,
+        );
+      }
+      compared += 1;
+    }
+
+    // A comparison that silently matched nothing would pass vacuously, which
+    // is the failure this repo has a documented habit of. So the count is
+    // asserted, not just the mismatch list.
+    expect(compared).toBeGreaterThan(900);
+
+    if (mismatches.length > 0) {
+      throw new Error(
+        `${mismatches.length} fidelity-notes.yaml value(s) disagree with the ruleset. Either the constant ` +
+          `changed without its provenance being revisited, or the ledger was not regenerated:\n${mismatches.join('\n')}`,
+      );
+    }
+  });
 });
+
+/**
+ * Does a ledger `value:` line describe this JSON value?
+ *
+ * The ledger stores raw text (`1`, `true`, `[20, 40, 60, 80, 95]`, or a quoted
+ * string), while the JSON holds a parsed value, so the comparison is on PARSED
+ * values rather than on string equality — otherwise `1` vs `1.0` and `true` vs
+ * `"true"` would both read as drift on entries nobody touched.
+ */
+function recordedValueMatches(valueText: string, actual: unknown): boolean {
+  const parseRecorded = (): unknown => {
+    const trimmed = valueText.trim();
+    if (trimmed === 'true') return true;
+    if (trimmed === 'false') return false;
+    if (trimmed === 'null') return null;
+    if (/^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(trimmed)) return Number(trimmed);
+    if (/^null$/.test(trimmed)) return null;
+    // A bracketed list, possibly with trailing junk the generator appended.
+    const bracket = trimmed.match(/^\[([^\]]*)\]/);
+    if (bracket !== null && typeof bracket[1] === 'string') {
+      const inner = bracket[1].trim();
+      if (inner === '') return [];
+      return inner.split(',').map((part) => {
+        const p = part.trim();
+        if (p === 'true') return true;
+        if (p === 'false') return false;
+        const n = Number(p);
+        return p !== '' && Number.isFinite(n) ? n : p;
+      });
+    }
+    if (
+      (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'"))
+    ) {
+      return trimmed.slice(1, -1);
+    }
+    return trimmed;
+  };
+
+  const recorded = parseRecorded();
+
+  const deepEqual = (a: unknown, b: unknown): boolean => {
+    if (Array.isArray(a) && Array.isArray(b)) {
+      return a.length === b.length && a.every((item, i) => deepEqual(item, b[i]));
+    }
+    if (isPlainObject(a) && isPlainObject(b)) {
+      const ak = Object.keys(a).sort();
+      const bk = Object.keys(b).sort();
+      return ak.length === bk.length && ak.every((k, i) => k === bk[i]) && ak.every((k) => deepEqual(a[k], b[k]));
+    }
+    return a === b;
+  };
+
+  if (deepEqual(recorded, actual)) return true;
+
+  // A few ledger entries are recorded as a quoted JSON fragment of a scalar
+  // that the JSON holds as a plain value, and vice versa. Comparing a string
+  // against its own parsed form is not drift.
+  if (typeof actual === 'string' && actual === valueText) return true;
+  if (typeof actual === 'number' && typeof recorded === 'string' && Number(recorded) === actual) return true;
+
+  return false;
+}
