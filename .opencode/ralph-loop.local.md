@@ -460,3 +460,53 @@ and `vite build` clean, all three mutation-proven layout gates green, and
 - **A green check that cannot fail is the defect.** Several times here the check
   passed and the code was wrong — twice because the check was measuring the wrong
   thing, once because a mutation was a silent no-op that reported success anyway.
+## Iteration 12 — the two deferred items, and my sixth wrong measurement
+
+**BOTH ITEMS I DEFERRED AT ITERATION 11 ARE NOW CLOSED, one at a time.**
+
+**THE CAR SPAWNED ON THE SHOULDER.** Not a paint-width mismatch as I guessed —
+a coordinate-frame mismatch. The trip's frame is the ROAD's: `routeHeadingRad` is
+the forward axis, and both `progressMiles` and the off-road test are measured
+perpendicular to it. But the vehicle ARRIVES in the CITY's frame, at the gate,
+which sits on the city ring. Measured: **5.76 m from the road's centreline** —
+inside the 6.6 m drivable surface, so nothing complained and the off-road
+indicator correctly stayed quiet, but outside the **4.2 m painted lane**, so every
+trip began with the car straddling the edge line and the shoulder bollards.
+`beginRoadTrip` now snaps the lateral component to zero and keeps the along
+component, so the lane the player is shown is the lane the simulation enforces.
+Verified in a real frame: the car now sits centred between the edge lines.
+Mutation-proven.
+
+**THE FLEET RENDERED OVER A BLACK VOID.** `showFleet` built its own full-screen
+container and `clearAndAppend`'d it — the only panel in the game that REPLACED the
+world instead of covering it, while the journal, the trip menu and all ten
+facilities already overlaid. Split into `mountFleetMenu` (a caller-supplied card)
+and `showFleet` (the standalone post-victory screen, where no city is left), and
+`openFleetScreen` now uses the same `openPanel()` the journal does. Verified: the
+roster is over the live city, HUD included.
+
+**TWO CONSEQUENTIAL FOLLOW-ONS, both honest.** The abandon test asserted the
+stranded vehicle was the *same object* that went in — which only ever held because
+the car never moved; it now asserts against the trip's actual vehicle, which is
+what the test's intent always was. And the real-browser layout gate was waiting on
+`.sm-screen--fleet .sm-menu`, a selector the overlay does not produce;
+`panelHost` now has a class so a test can wait for the overlay itself.
+
+**AND THE SIXTH WRONG MEASUREMENT WAS MINE AGAIN, in the same family as the
+previous five.** The Weapon Shop's sticky-footer clearance was "verified" at 78px
+of clearance — on a menu whose `Leave` row was scrolled entirely out of view. A
+row that is not on screen sits far BELOW the footer, so "clearance" was trivially
+satisfied by the exact condition it existed to detect. The corrected check scrolls
+the list to its END and asserts the last row is visible with **real air** above
+the footer. The first version of even THAT tolerated 1px, and a mutation deleting
+the padding passed it, because without padding the row merely TOUCHES the bar —
+which satisfies "not overlapping" while looking jammed against it. The assertion
+now requires 8px of visible air, and the mutation fails it (6px measured).
+
+The pattern across all six: every one was a value that **could not distinguish
+"correct" from "absent"**. Measuring a moving car, a rotating group, a
+player-centred marker, a scrolling row, a word boundary, a duplicate declaration.
+The measurement was always the bug, never the thing being measured.
+
+- **GATE.** 1627/1627 across three parallel and one serial run; browser **8/8**;
+  `tsc` and `vite build` clean.

@@ -429,6 +429,12 @@
      a player who cannot tell how to leave, so it is the wrong place to be
      see-through. */
   background: var(--ui-surface-sunken);
+  /* A shadow, so a row passing underneath reads as sliding UNDER a layer rather
+   * than being sliced in half by a line. Without it the footer's `border-top`
+   * lands exactly on a line of text and the row looks clipped rather than
+   * scrolled — which is how a sticky footer reads when the eye is given nothing
+   * telling it the content is still there underneath. */
+  box-shadow: 0 -8px 12px -6px rgba(0, 0, 0, 0.55);
   margin-top: var(--ui-space-3);
   padding-top: var(--ui-space-2);
   border-top: 1px solid var(--ui-line);
