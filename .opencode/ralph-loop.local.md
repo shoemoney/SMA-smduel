@@ -23,15 +23,21 @@ defined as a state that is checkable, and this is it:
    to the local build.
 4. **A final review round returns no actionable input.**
 
-## PHASE 0 — Get the fixes live (do this first; it is pure value)
+## PHASE 0 — Get the fixes live — DONE, and my own record was wrong
 
-Production still runs `20260930173803-e87ca1e` / `index-Bms_Wxds.js`, which is
-**three iterations behind**. Real, verified fixes are sitting unpushed to users.
+I wrote "NOT YET DEPLOYED" into this file at iteration 0 and carried it forward
+for four iterations without re-checking. **Production was already current.**
+Verified by bytes, not by name:
 
-- [ ] Deploy HEAD, whole-site snapshot, atomic swap, bundle-hash verified.
-- [ ] Verify on production: the tribute card, the orientation label on one line,
-      the centred trip menu with `New York → Albany`, the centred schematic, the
-      menu hint line.
+    live   sha256 35a21946480cc615e4ca062a0648c3167643668c5abb7e4a0ad4f15844315c93
+    local  sha256 35a21946480cc615e4ca062a0648c3167643668c5abb7e4a0ad4f15844315c93
+
+and the served bundle contains `reach the remaining rows`, `Esc — back` and
+`Radar orientation`, i.e. all three fixes are really live.
+
+That is this repo's own rule, committed: **a status line copied forward is a
+claim, not a fact.** Three fixes and four iterations of "not deployed" would
+have had me deploy a no-op or, worse, "restore" a bundle that was never behind.
 
 ## PHASE 1 — Resolve the road-heading question (open, and serious)
 
@@ -50,7 +56,10 @@ so far, and none of it settled:
   at the radar centre, so that measurement technique does not work and must be
   replaced, not reinterpreted.
 
-- [ ] Determine the car's rendered orientation numerically, not by eye.
+- [ ] Determine the car's rendered orientation numerically, by diffing two frames
+      and taking the centroid of the changed pixels — that gives the car's
+      on-screen DIRECTION OF TRAVEL, which is independent of how the sprite is
+      drawn and is therefore the one comparison that settles it.
 - [ ] Either fix the rotation/road-axis mismatch, or record a measured proof
       that the render is correct and the reviewer's read was wrong.
 
