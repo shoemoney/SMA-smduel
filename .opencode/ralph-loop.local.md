@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 13
+iteration: 14
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -586,3 +586,67 @@ reviewed the eighteen that happened to exist. Fixed; the capture is whole again
 - **GATE.** 1629/1629 across three parallel and one serial run; browser **8/8**;
   `tsc` and `vite build` clean; the spelling guard and the footer-clearance gate
   both mutation-proven.
+
+## Iteration 14 — CONVERGED
+
+**A clean round, and a trustworthy one.** All five batches answered, **0
+findings**, and the harness printed its own verdict: `CLEAN ROUND: every batch
+answered, no actionable input.` The difference between this zero and iteration
+13's zero is the harness itself — 13's was a round that had not run.
+
+### The four completion conditions, checked
+
+1. **No known open defect.** Every item is closed or carries a recorded
+   decision with its cost stated. The two that remain open are recorded as
+   decisions, not omissions:
+   - *The sticky footer over a scrolling list* is what sticky footers do; the
+     alternative was the defect three rounds reported (the hint telling you how
+     to leave scrolls away first). Mitigated with an opaque bar, a shadow, and
+     real clearance — gated in a real browser, and that gate is mutation-proven.
+   - *Vertical banding in the road asphalt* is real, subtle, and **located** in
+     the ground shader's 9m detail cross-fade. Left alone deliberately: a
+     ground-shader change wants its own visual regression pass, and a green
+     suite is not evidence about a texture.
+2. **Everything green.** **1629/1629** across three parallel runs and serial;
+   browser **8/8**; `tsc` clean; `vite build` clean; both layout gates green.
+3. **Deployed and verified.** Production `20261001010834-e9ed4fa`, bundle
+   `index-DPnotiwa.js`, **served bytes identical to local**, all four routes
+   200, e2e capture 26 frames with zero problems.
+4. **A final review round with no actionable input.** Achieved, 5/5 batches.
+
+### What fourteen rounds actually cost, in defects
+
+The two that mattered most were both invisible to every gate in the repo and to
+a green suite:
+
+- **The highway was undrivable with the accelerator.** `driving.ts` steers the
+  nose to *face* the stick — right in an arena, catastrophic on a
+  one-dimensional corridor, where a world-space stick made `W` mean "point
+  north". Holding W turned the car 90 degrees and drove it off the road at
+  35mph.
+- **A silent autosave.** Every failure swallowed into `console.warn`; quota
+  exhausted or storage blocked and the player was told nothing.
+
+### The thing I would tell the next person
+
+**A reviewer's repeatability is not its reliability, and my own measurements were
+wrong more often than the reviewer was.**
+
+This reviewer reported the constructor schematic as right-clipped in three
+consecutive rounds and was right — after I twice "measured" the wrong thing and
+dismissed it. It then invented a `driverRight` typo three times, each time
+citing a line number and quoting neighbouring rows, and reported the radar
+marker as static four times when the heading had been measured rotating four
+times. My own tooling did the same thing: the review script reported a clean
+round over one that had not run, and the e2e capture had been dying silently
+for a round.
+
+Six of my measurements could not distinguish *correct* from *absent*: an SVG
+element's box instead of its contents, `getBBox()` ignoring transforms, a
+player-centred radar marker that can never move, a frame diff on a camera that
+follows the car, a word boundary that cannot match after a digit, and a
+clearance check satisfied by a row scrolled out of view. **In every case the
+measurement was the bug, never the thing being measured.**
+
+The habit that actually worked was the dullest one: open the frame and look, or
+print the value the game already reports, five times.
