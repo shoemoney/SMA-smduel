@@ -4999,13 +4999,25 @@ function fleetRowLabel(entry: FleetVehicle, driverCityId: string): string {
   return t('ui.fleet.rowStoredElsewhere', { name: entry.vehicle.design.name, city: cityName(entry.cityId) });
 }
 
-function showFleet(root: HTMLElement, state: CityRunState, onExit: (nextState: CityRunState) => void): void {
-  const container = el('div', 'sm-screen sm-screen--fleet');
-  container.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,7,10,0.85);';
-  const menuHost = el('div');
-  menuHost.style.cssText = 'width:min(480px,92vw);max-height:88vh;overflow:auto;';
-  container.appendChild(menuHost);
-  clearAndAppend(root, container);
+/**
+ * Mounts the fleet roster into an ALREADY-PROVIDED card, so the caller decides
+ * what is behind it.
+ *
+ * Split out of `showFleet` for one reason: the roster used to build its own
+ * full-screen container and `clearAndAppend`, which REPLACED the city rather than
+ * covering it — so the fleet appeared over a black void while the journal, the
+ * trip menu and every facility appeared over the live city and HUD. An advisory
+ * review flagged the inconsistency twice. Mounting into a caller-supplied card is
+ * what lets `openFleetScreen` (inside `showCity`) keep the city behind it while
+ * the standalone post-victory path still gets a full screen, because there is no
+ * city left to show at that point.
+ */
+function mountFleetMenu(
+  card: HTMLElement,
+  state: CityRunState,
+  onExit: (nextState: CityRunState) => void,
+): MountedMenu {
+  const menuHost = card;
 
   // `fleet` synced with the car actually under the driver right now — the
   // one entry `@/ui/buildings/garage`'s own store/retrieve never gets to
@@ -5064,6 +5076,21 @@ function showFleet(root: HTMLElement, state: CityRunState, onExit: (nextState: C
     },
     onBack: () => onExit(runState),
   });
+  return mounted;
+}
+
+/**
+ * The standalone fleet SCREEN, for the paths where there is no city behind it
+ * (after a campaign win). Inside the city, `openFleetScreen` overlays instead.
+ */
+function showFleet(root: HTMLElement, state: CityRunState, onExit: (nextState: CityRunState) => void): void {
+  const container = el('div', 'sm-screen sm-screen--fleet');
+  container.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,7,10,0.85);';
+  const menuHost = el('div');
+  menuHost.style.cssText = 'width:min(480px,92vw);max-height:88vh;overflow:auto;';
+  container.appendChild(menuHost);
+  clearAndAppend(root, container);
+  mountFleetMenu(menuHost, state, onExit);
 }
 
 /**
@@ -5232,7 +5259,10 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   const retryBtn = el('button');
   retryBtn.style.cssText =
     'position:absolute;bottom:36px;left:50%;transform:translateX(-50%);pointer-events:auto;padding:6px 10px;background:#2a3444;color:#d7e0ea;border:1px solid #4fd6c4;border-radius:4px;cursor:pointer;';
-  const panelHost = el('div');
+  // Named so a test can wait for the OVERLAY rather than a screen class: the fleet
+  // roster no longer builds a `.sm-screen--fleet` of its own, and an unnamed host
+  // left the real-browser layout gate waiting on a selector nothing renders.
+  const panelHost = el('div', 'sm-panel-host');
   panelHost.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,7,10,0.55);';
   container.appendChild(canvas);
   container.appendChild(status);
@@ -5509,10 +5539,19 @@ function showCity(root: HTMLElement, state: CityRunState): void {
 
   function openFleetScreen(): void {
     if (paused) return;
-    stop();
-    showFleet(root, runState, (nextState) => {
+    // The city stays RENDERED behind the roster, exactly as the journal and
+    // every facility already do. This used to call `showFleet`, which built its
+    // own full-screen container and `clearAndAppend`'d it — so the fleet was the
+    // only panel in the game that REPLACED the world instead of covering it,
+    // and it read as a black void with a menu on it. The fix is the same
+    // `openPanel()` the journal uses, and the split of `mountFleetMenu` out of
+    // `showFleet` is what makes it possible: the roster no longer decides what is
+    // behind it, its caller does.
+    const card = openPanel();
+    const mounted = mountFleetMenu(card, runState, (nextState) => {
       runState = nextState;
-      showCity(root, runState);
+      mounted.destroy();
+      closePanel();
     });
   }
 

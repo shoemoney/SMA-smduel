@@ -39,7 +39,9 @@ export async function bootToCity(page: Page, baseUrl: string, carName: string): 
 /** Opens the Fleet roster — a real numbered `@/ui/menu` instance mounted at the same `min(480px, 92vw)` "game view" width every building interior uses (see `src/ui/menu.css`'s own header comment). Stands in for "walk into a building" without real-time movement: same component, same CSS class, same clipping defect class, reached deterministically instead of timed key-holds through a randomly-generated city layout. */
 export async function openFleetPanel(page: Page): Promise<void> {
   await page.keyboard.press('f');
-  await page.waitForSelector('.sm-screen--fleet .sm-menu');
+  // The roster is an OVERLAY inside the shared panel host, not its own screen any
+  // more — `.sm-screen--fleet` only exists on the standalone post-victory path.
+  await page.waitForSelector('.sm-panel-host .sm-menu');
 }
 
 export interface MenuLayoutSummary {

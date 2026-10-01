@@ -310,14 +310,23 @@ describe('DOM screens: the two fixed hotkeys a removed `if` cannot fake passing'
   // 'F' opens the fleet screen
   // -------------------------------------------------------------------------
 
-  it('pressing "f" on the city screen opens the fleet screen', async () => {
+  it('pressing "f" on the city screen opens the fleet roster OVER the city', async () => {
     await bootToCity(root);
 
-    expect(document.querySelector('.sm-screen--fleet')).toBeNull();
+    expect(document.querySelector('.sm-menu')).toBeNull();
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', code: 'KeyF', bubbles: true }));
 
-    expect(document.querySelector('.sm-screen--fleet')).not.toBeNull();
+    // The roster opens...
+    expect(document.querySelector('.sm-menu')).not.toBeNull();
+    // ...and the city is STILL RENDERED behind it, which is the behaviour this
+    // now asserts and the old screen-replacing one did not. The fleet used to
+    // build its own full-screen container and `clearAndAppend`, so it was the
+    // only panel in the game that replaced the world instead of covering it, and
+    // it read as a black void with a menu floating on it. Every other panel —
+    // journal, trip menu, all ten facilities — already overlaid, so the fleet was
+    // the outlier rather than the pattern.
+    expect(document.querySelector('.sm-screen--city')).not.toBeNull();
   });
 
   // -------------------------------------------------------------------------

@@ -612,9 +612,39 @@ describe('road: abandoning the car', () => {
     const state = beginRoadTrip(TEST_RESOLVED, vehicle, initialClock(), createRng('abandon-seed'));
     const result = abandonVehicle(state, 'ped-1');
 
-    expect(result.strandedVehicle).toBe(vehicle);
-    expect(result.pedestrian.position).toEqual(vehicle.position);
-    expect(result.pedestrian.headingRad).toBe(vehicle.headingRad);
+    // Asserted against `state.vehicle`, not the `vehicle` that went in. The trip
+    // now SNAPS the car onto the road's axis (see `beginRoadTrip`: the gate is
+    // 5.76m off the carriageway centreline, which is legal but outside the painted
+    // lane), so the car the player abandons is not the same object they drove in
+    // at. The intent of this test — the car stays where it was, and the player
+    // ends up standing at the car — is unchanged and is now stated against the
+    // thing that actually holds both positions.
+    expect(result.strandedVehicle).toBe(state.vehicle);
+    expect(result.pedestrian.position).toEqual(state.vehicle.position);
+    expect(result.pedestrian.headingRad).toBe(state.vehicle.headingRad);
     expect(result.pedestrian.alive).toBe(true);
+  });
+
+  it('starts the car ON the carriageway, not wherever the gate left it', () => {
+    // The defect this closes: the trip's frame is the road's, but the vehicle
+    // ARRIVES in the city's frame at the gate, which sits on the city ring. On a
+    // seed that drives due east that is 5.76m from the road's centreline — legal
+    // (the drivable surface is 6.6m) but outside the 4.2m painted lane, so every
+    // trip began with the car visibly straddling the edge line and the shoulder
+    // bollards.
+    const vehicle = makeVehicle({ position: { x: 5, y: 2 }, headingRad: 1.2 });
+    const state = beginRoadTrip(TEST_RESOLVED, vehicle, initialClock(), createRng('axis-seed'));
+
+    const forward = { x: Math.cos(state.routeHeadingRad), y: Math.sin(state.routeHeadingRad) };
+    const across = { x: -forward.y, y: forward.x };
+    const lateral =
+      state.vehicle.position.x * across.x + state.vehicle.position.y * across.y;
+    expect(Math.abs(lateral)).toBeLessThan(0.001);
+    // ...and the ALONG component is preserved, so the trip does not also teleport
+    // the car along the highway.
+    const alongBefore = vehicle.position.x * forward.x + vehicle.position.y * forward.y;
+    const alongAfter = state.vehicle.position.x * forward.x + state.vehicle.position.y * forward.y;
+    expect(alongAfter).toBeCloseTo(alongBefore, 6);
+    expect(state.startPosition).toEqual(state.vehicle.position);
   });
 });

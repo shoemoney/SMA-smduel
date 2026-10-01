@@ -547,11 +547,45 @@ export interface RoadTripState {
   readonly hazards: readonly RoadHazard[];
 }
 
+/**
+ * Places a vehicle ON the carriageway centreline rather than wherever it was.
+ *
+ * The trip's coordinate frame is the ROAD's: `routeHeadingRad` (the vehicle's
+ * heading at the start) is the forward axis, and `progressMiles` and the off-road
+ * test are both measured perpendicular to it. But the vehicle ARRIVES at the gate
+ * in the CITY's frame, and the gate sits on the city's ring — measured at
+ * **5.76 m** from the road's centreline on a seed that drives due east.
+ *
+ * That is inside the 6.6 m drivable surface, so nothing complained: the car was
+ * legally on the road the whole time. But it is outside the **4.2 m painted
+ * lane**, so the player sees their car straddling the edge line and the shoulder
+ * bollards from the first frame of every trip — and an advisory review reported
+ * exactly that ("positioned directly on top of the bottom white solid fog line
+ * and the row of orange/white reflector bollards"), correctly, twice.
+ *
+ * Snapping the lateral component to zero costs one dot product and removes the
+ * mismatch between the lane the player is shown and the surface the simulation
+ * enforces.
+ */
+function onRoadAxis(
+  position: { readonly x: number; readonly y: number },
+  headingRad: number,
+): { x: number; y: number } {
+  const forward = { x: Math.cos(headingRad), y: Math.sin(headingRad) };
+  const across = { x: -forward.y, y: forward.x };
+  // Only the ALONG component survives; the lateral one is what puts the car on
+  // the shoulder, and it is dropped here on purpose.
+  void across;
+  const along = position.x * forward.x + position.y * forward.y;
+  return { x: forward.x * along, y: forward.y * along };
+}
+
 export function beginRoadTrip(resolved: ResolvedRoute, vehicle: VehicleState, clock: Clock, rng: Rng): RoadTripState {
+  const startPosition = onRoadAxis(vehicle.position, vehicle.headingRad);
   return {
     resolved,
-    vehicle,
-    startPosition: { ...vehicle.position },
+    vehicle: { ...vehicle, position: startPosition },
+    startPosition,
     routeHeadingRad: vehicle.headingRad,
     progressMiles: 0,
     clock,
