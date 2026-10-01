@@ -494,6 +494,17 @@
 .hud-radar-orientation-toggle {
   width: 100%;
   margin-top: var(--gap);
+  /* Never wrap. Measured with `Range.getClientRects()`, the label was TWO line
+     boxes of [134px, 14px] — "Orientation: north-up" broke after the hyphen and
+     orphaned "up" on a line of its own, at EVERY viewport tested (900x700,
+     1280x800, 1600x1000), because the radar panel's width is fixed in
+     `hud-scale` and does not grow with the window.
+     `nowrap` alone would have overflowed a 154px button, so the label was
+     shortened to fit ("North-up") and this makes the wrap structurally
+     impossible rather than merely absent today. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* --- speed / battery ------------------------------------------------------ */

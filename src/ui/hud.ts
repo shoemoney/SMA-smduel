@@ -492,11 +492,24 @@ function buildRadar(doc: HudDocument, snapshot: HudSnapshot, handlers: HudHandle
   });
   panel.appendChild(contactList);
 
+  // The visible label is deliberately short ("North-up") because it has to fit a
+  // fixed-width radar panel on one line — see `.hud-radar-orientation-toggle`'s
+  // own note on the measured two-line wrap. The full sentence is kept as the
+  // accessible name so shortening the pixels did not shorten what a screen-reader
+  // user is told, and `title` gives the same to a sighted mouse user.
+  const orientationLabel = orientation === 'heading' ? t('ui.radar.orientationHeading') : t('ui.radar.orientationNorth');
+  const orientationFull = orientation === 'heading' ? t('ui.radar.orientationHeadingFull') : t('ui.radar.orientationNorthFull');
   const toggle = el(
     doc,
     'button',
-    { type: 'button', class: 'hud-radar-orientation-toggle', 'aria-pressed': String(orientation === 'heading') },
-    orientation === 'heading' ? t('ui.radar.orientationHeading') : t('ui.radar.orientationNorth'),
+    {
+      type: 'button',
+      class: 'hud-radar-orientation-toggle',
+      'aria-pressed': String(orientation === 'heading'),
+      'aria-label': orientationFull,
+      title: orientationFull,
+    },
+    orientationLabel,
   );
   if (handlers.onToggleRadarOrientation) toggle.addEventListener('click', handlers.onToggleRadarOrientation);
   panel.appendChild(toggle);
