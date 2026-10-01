@@ -5319,6 +5319,23 @@ function showCity(root: HTMLElement, state: CityRunState): void {
 
   function openPanel(): HTMLElement {
     paused = true;
+    // The city's status banner goes away while a panel is open, and that is a
+    // collision fix rather than a decluttering choice.
+    //
+    // The banner is `top: 8px` with a three-line `pre-wrap` string, so it spans
+    // roughly y=8..70. A panel card is `max-height: 86vh` and vertically
+    // centred, which puts its top edge at y=56 on an 800px viewport — so the card
+    // overlaps the banner's lower ~14px and its border lands on the last line of
+    // the control hints. Five review rounds found this in THREE of them (as the
+    // Weapon Shop, the Courier Guild, and the city banner in turn), and they were
+    // right: I had measured "no overlap" only by matching the wrong element, the
+    // full-screen city container, whose bottom is the viewport.
+    //
+    // The banner is also redundant under a modal — it describes how to move
+    // around a city the player cannot currently move around — so hiding it while
+    // `panelHost` is up removes the collision outright rather than shaving a few
+    // pixels off a card that has to be able to show fifteen rows.
+    status.style.display = 'none';
     panelHost.innerHTML = '';
     panelHost.style.display = 'flex';
     const card = el('div');
@@ -5330,6 +5347,7 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   function closePanel(): void {
     panelHost.style.display = 'none';
     panelHost.innerHTML = '';
+    status.style.display = '';
     paused = false;
   }
 
