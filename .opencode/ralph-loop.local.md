@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 6
+iteration: 7
 maxIterations: 100
 ---
 
@@ -229,3 +229,61 @@ mutation that parents the banner into `#app` fails it.
 
 - **GATE.** 1621/1621 across three parallel runs and serial; browser 7/7;
   `tsc` clean; `vite build` clean.
+
+## Iteration 7 — PHASE 3: the last unknown, identified
+
+**THE INTERMITTENT WAS NOT A FLAKE. It was CPU starvation, and I can finally
+name it** after four rounds of "unidentified, never reproduced". The trick was to
+stop waiting for it: four FULL suites run concurrently provoked it every time —
+16 to 20 failures per suite — and the output shows what it is:
+
+    × rng.nextFloat > stays in [0, 1)                          5918ms
+      → Test timed out in 5000ms.
+    × generateCityLayout ... tileSizeM ... interactionRadiusM  6048ms
+      → Test timed out in 5000ms.
+
+`rng.nextFloat` asserts a float is in `[0, 1)`. It is a pure arithmetic
+assertion with no I/O and no clock, and it "took" 5.9 seconds. **A maths test
+cannot take five seconds — that is a starved event loop, not a failing test.**
+Every one of the mass failures is `Test timed out in 5000ms` on tests that take
+milliseconds unloaded. Four suites x vitest's worker pool on one machine is heavy
+oversubscription, and I created that condition myself to provoke the failure.
+
+The same root cause explains iteration 151's original observation, which I had
+recorded as a mystery: back then it appeared as a *single* failure in ordinary
+back-to-back runs, because one suite briefly overlapped the tail of the previous
+one. The three app-booting integration files already carry a 30s timeout for
+exactly this reason (iteration 2); the unit tests are fast enough unloaded that
+their 5s default is correct and should stay.
+
+**One failure is NOT a timeout**, and it deserves honesty rather than being filed
+under "starvation":
+
+    × courierguild > multiple accepts in one visit share exactly ONE acceptCourierWork
+      → expected a second offer to remain
+
+It passes **6/6 in isolation** and fails only alongside the mass timeouts, so its
+mocked-JSON fixture setup does not survive a starved event loop. That is a real
+test-isolation weakness, recorded as such — not a product defect, and not hidden
+behind the timeout story.
+
+**The three remaining review findings were all one finding, and it was mine.** A
+Weapon Shop with 14 rows, a Courier Guild with 15 and Controls with 19 all
+reported "the ESC — BACK footer is pushed outside the visible frame" — and they
+were right, because **I had put the hint below the scrollable list**, so on
+exactly the screens where a player most needs to know how to leave, the hint was
+the first thing pushed off the bottom. Three rounds reported it and it was real
+every time.
+
+Fixed with `position: sticky; bottom: 0` on `.sm-menu__hint`, with an opaque
+background (a sticky element still paints in flow order, so anything scrolling
+behind it would otherwise show through). Verified on the two longest menus at
+1280x800: 14 rows each, panel scrolling, hint inside the panel,
+`"↑↓ reach the remaining rows · Esc — back"`. Mutation-proven — removing
+`position: sticky` fails the check.
+
+**REVIEW TRAJECTORY: 5 → 7 → 6 → 4 → 3 findings**, two batches at zero, and the
+three that remained were a real defect of mine rather than the reviewer's error.
+
+- **GATE.** 1621/1621 across three parallel runs and serial; browser 7/7;
+  `tsc` clean; `vite build` clean; all three layout gates green.

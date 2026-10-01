@@ -385,6 +385,24 @@
  * that arrow keys reach rows past `0`, and that Escape leaves.
  */
 .sm-menu__hint {
+  /* STICKY, and this is the whole point of it.
+   *
+   * The panel is `max-height: 80vh; overflow: auto`, so a long menu (the Weapon
+   * Shop has 14 rows, the Courier Guild 15, Controls 19) scrolls. An ordinary
+   * footer scrolls away with the list — which means that on exactly the screens
+   * where a player most needs to know how to leave, the hint telling them how to
+   * leave is the first thing pushed off the bottom. Three separate review rounds
+   * reported the same symptom ("the ESC — BACK footer is pushed outside the
+   * visible frame") and it was real every time.
+   *
+   * `position: sticky; bottom: 0` pins it to the visible floor of the scroll
+   * container while the list moves behind it, which is what a modal footer is
+   * for. An opaque background is required: a sticky element is still painted in
+   * flow order, so anything scrolling behind it would otherwise show through. */
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--ui-glass-strong);
   margin-top: var(--ui-space-3);
   padding-top: var(--ui-space-2);
   border-top: 1px solid var(--ui-line);
