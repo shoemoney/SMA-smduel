@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 9
+iteration: 10
 maxIterations: 100
 ---
 
@@ -381,3 +381,35 @@ were both mine, three rounds apart.
 
 - **GATE.** 1626/1626 across three parallel runs and serial; browser 7/7;
   `tsc` clean; `vite build` clean.
+
+## Iteration 10 — three more, two of them mine
+
+- **Weapon Shop's last row was still clipped by the footer I had just pinned.**
+  The list reserved `--ui-space-3`; a sticky footer is a bordered, padded line of
+  type, not a 4px gap, so the clearance was an order of magnitude too small. Now
+  a `--sm-menu__hint-h` token, verified: 14 rows, last row **78px clear** of the
+  bar. The fix and the defect were both mine, three rounds apart — pinning the
+  footer created the clipping that the next round reported.
+- **`Digit3` rendered as the literal text "number key".** My own regression: I had
+  reasoned that the digit was already shown by the row's hotkey column, but that
+  column is the MENU row number, not the weapon slot, so every weapon binding lost
+  the key it was bound to. It renders the digit now.
+- **The trip menu told the player how to leave three times.** `driveHint` fades
+  after 7s but `menuHint` never does, and the menu's own footer already says
+  "ESC — BACK" — so opening the menu inside the first seven seconds stacked two
+  competing Escape instructions above the thing being escaped. Both HUD hints are
+  hidden while the menu is open and restored on close. Measured: **2 → 0** competing
+  hints, and the trip menu's own hint returns afterwards.
+
+**RECORDED, NOT ACTIONED — and the reason matters.** The Fleet screen renders
+over a black void while the Journal renders over the live city, which an advisory
+review flagged as an inconsistency. It is real: `showFleet` calls
+`clearAndAppend`, so it REPLACES the city rather than overlaying it, and no
+amount of scrim alpha can reveal something that is no longer rendered. The fix is
+structural — mount the fleet through the same `openPanel()` path the journal
+uses — and that is a change of mounting model late in a long session with a green
+suite behind it, not a style tweak. It is left for a round that can re-verify the
+fleet properly rather than landed blind at the end.
+
+- **GATE.** 1626/1626 across parallel and serial; browser 7/7; `tsc` and build
+  clean.

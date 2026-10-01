@@ -114,7 +114,7 @@
     "ui.controls.key.KeyJ": "J",
     "ui.controls.key.KeyE": "E",
     "ui.controls.key.KeyQ": "Q",
-    "ui.controls.key.Digit": "number key",
+    "ui.controls.key.Digit": "{n}",
     "ui.fleet.rowActive": "{name} — active",
     "ui.fleet.rowStoredHere": "{name} — stored here — switch (${price})",
     "ui.fleet.rowStoredElsewhere": "{name} — stored in {city}",

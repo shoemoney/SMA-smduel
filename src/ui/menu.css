@@ -393,7 +393,14 @@
  * is padding, not layout: the list keeps its own spacing and simply reserves the
  * footer's height at the end. */
 .sm-menu__list {
-  padding-bottom: var(--ui-space-3);
+  /* The footer's real height, not a guess. A sticky footer paints over whatever
+   * scrolls beneath it, so the list must reserve exactly the footer's height at
+   * its end or its LAST ROW stays permanently half-hidden behind the bar — the
+   * Weapon Shop's "Refill Ammo" row, reported across two rounds as "vertically
+   * truncated along its baseline". `--ui-space-3` was nowhere near enough: the
+   * footer is a bordered, padded line of type, not a 4px gap. */
+  --sm-menu__hint-h: 34px;
+  padding-bottom: calc(var(--sm-menu__hint-h) + var(--ui-space-2));
 }
 
 .sm-menu__hint {

@@ -940,7 +940,12 @@ function actionLabel(actionId: string): string {
  * row's number column.
  */
 function keyLabel(code: string): string {
-  if (code.startsWith('Digit')) return t('ui.controls.key.Digit');
+  // `Digit3` -> "3". My first version reported "number key" on the reasoning that
+  // the digit was already printed by the row's hotkey column — but that column
+  // is the MENU row number, not the weapon slot, so every weapon binding lost the
+  // key it was actually bound to. An advisory review caught it: "lists the
+  // literal text `number key` instead of the actual bound key character".
+  if (code.startsWith('Digit')) return t('ui.controls.key.Digit', { n: code.slice('Digit'.length) });
   const key = `ui.controls.key.${code}` as Parameters<typeof t>[0];
   const translated = t(key);
   return translated === key ? code : translated;
@@ -7039,6 +7044,20 @@ function showRoad(
   function openTripMenu(): void {
     if (mountedMenu !== null) return;
     paused = true;
+    // Both on-screen Escape instructions go quiet while the menu is up.
+    //
+    // `driveHint` fades out on its own after 7s, but `menuHint` ("Esc — trip
+    // menu") never does, and the menu's own sticky footer already says
+    // "ESC — BACK". Open the menu inside those first seven seconds and the
+    // player is told how to leave three times, in two different words, stacked
+    // above the thing they are trying to leave. A review flagged exactly that
+    // ("the driving control reminder remains rendered directly above the menu
+    // box... the bottom of the modal reads ESC — BACK").
+    //
+    // Restored in `closeTripMenu`, because the drive hint has a 7s fade that must
+    // not restart from full opacity every time the menu is opened and closed.
+    menuHint.style.display = 'none';
+    driveHint.style.display = 'none';
     // Clear held keys so a player who opens the menu while holding W does not
     // find the car accelerating again the instant they resume — the menu is
     // where the player is deciding to drive, and `attachCodeTracking` only ever
@@ -7107,6 +7126,9 @@ function showRoad(
     mountedMenu = null;
     menuHost.innerHTML = '';
     paused = false;
+    // The trip menu's own hint comes back — it is the only thing that tells a
+    // player this screen has a menu at all.
+    menuHint.style.display = '';
   }
 
   /**
