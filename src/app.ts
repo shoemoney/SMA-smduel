@@ -6428,6 +6428,49 @@ export function roadLaneInstances(
  * quit honest — a save-and-quit that cannot actually return to a title with a
  * working Continue would be the worst version of this feature.
  */
+/**
+ * Maps the driver's stick into the ROAD's frame, so "forward" means "along the
+ * highway".
+ *
+ * ## Why this is not a cosmetic mapping
+ *
+ * `src/sim/driving.ts` is a DIRECTION-AND-THROTTLE model: it computes
+ * `desiredHeadingRad = atan2(dir.y, dir.x)` and steers the nose to FACE the
+ * stick. That is a deliberate, documented choice ("classic direction-and-throttle
+ * steering") and it is right in an open arena, where pointing the stick north
+ * *should* send you north.
+ *
+ * The road is a one-dimensional corridor with a fixed axis, and the raw
+ * world-space stick was being handed straight to that model. So `W` — a stick of
+ * `(0, 1)` — asked for a heading of 90° (north) no matter which way the car was
+ * already pointing. On an east–west highway that means **pressing forward turns
+ * the car ninety degrees off the road while still accelerating**. Measured live:
+ *
+ *     at trip start   heading   0deg  speed  0mph
+ *     +700ms  W       heading  17deg  speed  7mph
+ *     +1400ms W       heading  55deg  speed 14mph
+ *     +2100ms W       heading  90deg  speed 21mph   off-road "Road — 3 m"
+ *     +2800ms W       heading  90deg  speed 28mph   off-road "Road — 3 m"
+ *
+ * An advisory review reported exactly this ("spawns facing 0° North
+ * (perpendicular to traffic)… pressing forward immediately drives off the road")
+ * and it took this long to confirm, because two earlier probes tried and failed:
+ * the frame-diff approach cannot work because the camera follows the car so the
+ * ROAD scrolls rather than the car moving, and a radar-marker probe returns
+ * dx=dy=0 because the radar is player-centred and the marker never moves.
+ *
+ * So the stick is rotated into the road's frame: `desired = routeHeading +
+ * atan2(moveX, moveY)`. Full throttle holds the road's axis, `D` adds a steer
+ * offset to the RIGHT of it, and `S` asks for the axis reversed — which the
+ * driving model's own `wantsOpposite` test then correctly reads as reverse.
+ */
+export function roadStick(routeHeadingRad: number, moveX: number, moveY: number): { x: number; y: number } {
+  const len = Math.hypot(moveX, moveY);
+  if (len === 0) return { x: 0, y: 0 };
+  const desired = routeHeadingRad + Math.atan2(moveX, moveY);
+  return { x: Math.cos(desired) * len, y: Math.sin(desired) * len };
+}
+
 function showRoad(
   root: HTMLElement,
   state: CityRunState,
@@ -7483,7 +7526,7 @@ function showRoad(
     while (roadAccumulator >= dtSecondsFixed) {
       const result = stepRoadTrip(
         trip,
-        { stick: { x: playerInput.moveX, y: playerInput.moveY } },
+        { stick: roadStick(trip.routeHeadingRad, playerInput.moveX, playerInput.moveY) },
         dtSecondsFixed,
         state.rng,
         drivingSkill,

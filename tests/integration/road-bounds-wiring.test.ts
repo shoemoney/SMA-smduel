@@ -254,13 +254,25 @@ describe('showRoad wires roadBounds(playerPosition) into makeArenaAISystem, not 
     const aiModule = await import('@/sim/ai');
     const decideAISpy = vi.spyOn(aiModule, 'decideAI');
 
-    // Drive straight down the route's fixed heading axis (routeHeadingRad
-    // is 0 — `vehicleParkedAtGate` always zeroes headingRad — so
-    // driveRight/KeyD alone covers ground; see this file's own header for
-    // why 'ny-providence' is the neighbour that puts a hostile pack within
-    // reach). No real wall-clock time passes: `stepFrame` invokes the
-    // captured rAF callback by hand.
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD', bubbles: true }));
+    // Drive straight down the route's fixed heading axis. No real wall-clock
+    // time passes: `stepFrame` invokes the captured rAF callback by hand.
+    //
+    // THE KEY CHANGED from 'd' to 'w', and the reason is a fix rather than a
+    // convenience. This test used to drive with driveRight/KeyD ALONE, on the
+    // stated reasoning that "routeHeadingRad is 0 — so KeyD alone covers
+    // ground". That was only ever true because of the bug `roadStick` fixes:
+    // the driving model steers the nose to FACE the stick, so a world-space
+    // stick of (1, 0) asked for a heading of 0° — due east, along the road —
+    // which is why 'd' doubled as "go forward" here.
+    //
+    // With the stick expressed in the road's frame, a bare 'd' is a steer input
+    // with no throttle: it turns the nose to roadHeading + 90° and the car
+    // leaves the carriageway. "Forward along the road" is now 'w', which is what
+    // a player pressing the accelerator would press, and what this test should
+    // have been pressing all along. Its SUBJECT is that road AI bounds follow
+    // the player thousands of metres out rather than a fixed arena floor, and
+    // that subject is unchanged.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW', bubbles: true }));
 
     const opponentCalls = (): AIContext[] =>
       decideAISpy.mock.calls.map(([ctx]) => ctx).filter((ctx) => ctx.self.id !== ctx.world.playerVehicleId);
@@ -271,7 +283,7 @@ describe('showRoad wires roadBounds(playerPosition) into makeArenaAISystem, not 
       stepFrame();
       frames++;
     }
-    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', code: 'KeyD', bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'w', code: 'KeyW', bubbles: true }));
 
     const captured = opponentCalls();
     expect(captured.length).toBeGreaterThan(0);
