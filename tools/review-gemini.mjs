@@ -161,6 +161,7 @@ const sections = [`# OpenDuel advisory review — ${MODEL}`, '', `- Frames: ${SH
 let totalFindings = 0;
 let anyNothingToReport = false;
 let failedBatches = 0;
+let silentBatches = 0;
 
 for (const [i, batch] of batches.entries()) {
   if (batch.files.length === 0) continue;
@@ -190,7 +191,18 @@ for (const [i, batch] of batches.entries()) {
       console.log(`  PROVIDER REFUSED ${batch.files.length} frames; retrying with ${files.length}`);
     }
   }
-  if (text === '') continue;
+  if (text === '') {
+    // An EMPTY answer is not a zero-finding answer. Skipping it silently is how
+    // this script reported "total FINDINGS: 0" while TWO of its five batches had
+    // produced no output at all — the same "a green number standing in for work
+    // that never happened" failure this whole round has been about, committed by
+    // the very tool meant to detect it. A round that did not answer every batch
+    // is not a clean round.
+    silentBatches += 1;
+    sections.push(`## Batch ${i + 1} — ${batch.label}`, '', '```', 'NO ANSWER: the provider returned an empty body for this batch.', '```', '');
+    console.log(`  batch ${i + 1} produced NO ANSWER`);
+    continue;
+  }
   if (truncated) {
     const dropped = batch.files.length - files.length;
     sections.push(`> **COVERAGE GAP: this batch shows ${files.length} of ${batch.files.length} frames; ${dropped} were not reviewed.**`, '');
@@ -208,3 +220,26 @@ sections.push('---', '', `**Total FINDINGS across batches: ${totalFindings}**`, 
 writeFileSync(outFile, sections.join('\n'));
 console.log(`\nreview written to ${outFile}`);
 console.log(`total FINDINGS: ${totalFindings}`);
+// --- Completeness gate -------------------------------------------------------
+//
+// The completion condition for this whole loop is "a final round returns no
+// actionable input", and a round where a batch never answered has not earned
+// that. This script previously incremented `failedBatches` and never checked it,
+// and skipped an empty answer with a bare `continue` — which is how it reported
+// a confident "total FINDINGS: 0" while two of its five batches had produced no
+// output at all. The same failure this round spent twelve iterations documenting,
+// committed by the tool meant to detect it.
+{
+  const withFrames = batches.filter((b) => b.files.length > 0).length;
+  const answered = withFrames - failedBatches - silentBatches;
+  console.log(`batches answered: ${answered}/${withFrames}`);
+  if (failedBatches > 0 || silentBatches > 0 || answered !== withFrames) {
+    console.error(
+      `\nINCOMPLETE REVIEW: ${failedBatches} batch(es) failed, ${silentBatches} produced no answer ` +
+        `(${answered}/${withFrames} answered). This is NOT a clean round.`,
+    );
+    process.exitCode = 1;
+  } else if (totalFindings === 0) {
+    console.log('CLEAN ROUND: every batch answered, no actionable input.');
+  }
+}

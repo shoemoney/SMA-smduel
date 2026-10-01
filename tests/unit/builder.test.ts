@@ -136,7 +136,7 @@ describe('builder — unmet requirements reach the legality panel', () => {
    * zero armour and zero weapons, produced "No violations — ready to build"
    * directly beneath rails marking every weapon slot and all five facings as
    * needing input. Verified in a real browser: Enter on CONFIRM then built the
-   * car, arriving in the city reading "0 armour · 0 mounted · Not road-legal".
+   * car, arriving in the city reading "0 armor · 0 mounted · Not road-legal".
    *
    * `validateDesign` is deliberately NOT changed here — it answers "is this a
    * coherent, affordable, physically legal design", and folding the road
@@ -150,7 +150,12 @@ describe('builder — unmet requirements reach the legality panel', () => {
     const named = { ...state, name: 'Halfway' };
     const unmet = unmetRequirements(named);
     expect(unmet).toHaveLength(2); // armour + weapon; the name is present
-    expect(unmet.join(' ')).toMatch(/armour/i);
+    // American, to match every other string in the game. This asserted
+    // /armour/i and so PINNED the British spelling — the same class of problem as
+    // a test that drove with `KeyD` because a bug made `KeyD` work: the test
+    // described the defect instead of the requirement.
+    expect(unmet.join(' ')).toMatch(/armor/i);
+    expect(unmet.join(' ')).not.toMatch(/armour/i);
     expect(unmet.join(' ')).toMatch(/weapon/i);
   });
 

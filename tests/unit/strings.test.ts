@@ -628,3 +628,48 @@ describe('scanner: no UI file hardcodes display text outside rulesets/classic/st
     expect(unlisted).toEqual([]);
   });
 });
+
+describe('player-facing copy is one dialect', () => {
+  // An advisory review found "Armor" and "armour" in the SAME panel, on
+  // adjacent HUD lines (`{facing} armor {current} of {max}` directly above
+  // `{facing}: no armour fitted`), and "Armor"/"Armour" as a section header
+  // sitting over rows labelled "Armor: Front". It flagged it twice, in two
+  // different screens, and it was right both times.
+  //
+  // AMERICAN is the correct dialect here and not a matter of taste: this is a
+  // recreation of a 1985 American game published by Origin Systems, set in
+  // American cities. British spellings were the outliers.
+  //
+  // Key NAMES are deliberately not checked — `ui.builder.section.armour` is an
+  // identifier, changing it would churn every call site for no player-visible
+  // gain, and identifiers are not prose. Only VALUES are the game's voice.
+  const BRITISH = ['armour', 'tyres', 'colour', 'centre', 'behaviour', 'defence', 'licence'];
+
+  it('has no British spellings in any string value', () => {
+    const raw = readFileSync(new URL('../../rulesets/classic/strings.json', import.meta.url), 'utf8');
+    const table = JSON.parse(raw) as { strings: Record<string, string> };
+    const offenders: string[] = [];
+    for (const [key, value] of Object.entries(table.strings)) {
+      if (typeof value !== 'string') continue;
+      for (const word of BRITISH) {
+        if (new RegExp(`\\b${word}`, 'i').test(value)) offenders.push(`${key}: "${value}"`);
+      }
+    }
+    expect(offenders, `British spellings in player-facing copy:\n${offenders.join('\n')}`).toEqual([]);
+  });
+
+  it('substitutes a real number into both armour captions, not an empty slot', () => {
+    // The renaming had a trap in it: `{armour}` -> `{armor}` is a PLACEHOLDER
+    // change, and a renamed placeholder with an un-renamed argument renders as a
+    // blank rather than an error. `builder-preview.ts` was in fact already
+    // passing `armor:` for a `{armour}` placeholder, so that caption was broken
+    // before this change. Both are now asserted with real values.
+    const cap = t('ui.builder.previewCaption', { lengthM: '3.8', widthM: '1.6', armor: 30, weapons: 2 });
+    expect(cap).toContain('30');
+    expect(cap).toContain('2');
+    expect(cap).not.toContain('{');
+    const strip = t('ui.city.stripStats', { armor: 7, weapons: 1 });
+    expect(strip).toContain('7');
+    expect(strip).not.toContain('{');
+  });
+});

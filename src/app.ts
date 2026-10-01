@@ -5172,7 +5172,10 @@ function showCity(root: HTMLElement, state: CityRunState): void {
     carStrip.appendChild(nameLine);
     const statLine = document.createElement('div');
     statLine.style.cssText = 'color:#9fb0c2;margin-top:2px;';
-    statLine.textContent = t('ui.city.stripStats', { armour: armourTotal, weapons: v.design.weapons.length });
+    // The placeholder is `{armor}` — it was `{armour}` until the spelling was
+    // normalised, and a renamed placeholder with an un-renamed argument renders
+    // as an EMPTY SLOT, not an error. Verified below rather than assumed.
+    statLine.textContent = t('ui.city.stripStats', { armor: armourTotal, weapons: v.design.weapons.length });
     carStrip.appendChild(statLine);
     const gateLine = document.createElement('div');
     gateLine.style.cssText = `margin-top:3px;font-weight:600;color:${ready ? '#5ce6a4' : '#ffb454'};`;
@@ -5263,7 +5266,15 @@ function showCity(root: HTMLElement, state: CityRunState): void {
   // roster no longer builds a `.sm-screen--fleet` of its own, and an unnamed host
   // left the real-browser layout gate waiting on a selector nothing renders.
   const panelHost = el('div', 'sm-panel-host');
-  panelHost.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,7,10,0.55);';
+  // z-index, and it is load-bearing: nothing in this file sets one, so every
+  // overlay stacked on DOM order alone — and the city's status banner is appended
+  // AFTER this host, so it painted ON TOP of an open panel. An advisory review
+  // caught it on the Weapon Shop, the longest menu in the game: "its top border
+  // line directly intersects and cuts through the word 'gate' from the
+  // exploration prompt". The scrim is what dims the world behind a panel, and a
+  // scrim that renders UNDER the HUD it is meant to be dimming is not a scrim.
+  panelHost.style.cssText =
+    'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,7,10,0.55);z-index:40;';
   container.appendChild(canvas);
   container.appendChild(status);
   container.appendChild(carStrip);

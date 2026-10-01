@@ -354,7 +354,13 @@ async function main() {
 
     // --- 5. The city overlays, from the live city session --------------------
     await page.keyboard.press('f'); // fleet
-    await page.waitForSelector('.sm-screen--fleet .sm-menu', { timeout: 10_000 });
+    // The roster is an OVERLAY in the shared panel host, not its own screen —
+    // it stopped being \`.sm-screen--fleet\` when it was changed to cover the city
+    // instead of replacing it. This selector went stale at the same moment, and
+    // the harness then died here silently: no manifest, no later frames, and a
+    // review script that reviewed the 18 files it happened to find and called
+    // the round clean.
+    await page.waitForSelector('.sm-panel-host .sm-menu', { timeout: 10_000 });
     await shoot('fleet', 'the fleet roster');
     await page.keyboard.press('Escape');
     await page.waitForSelector('.sm-screen--city', { timeout: 10_000 });

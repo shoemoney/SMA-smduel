@@ -1,6 +1,6 @@
 ---
 active: true
-iteration: 12
+iteration: 13
 maxIterations: 100
 sessionId: ses_f14a7ff23ffeCvOeqyAPPjegV6
 ---
@@ -510,3 +510,79 @@ The measurement was always the bug, never the thing being measured.
 
 - **GATE.** 1627/1627 across three parallel and one serial run; browser **8/8**;
   `tsc` and `vite build` clean.
+## Iteration 13 — my own review harness lied, and then the copy was two dialects
+
+**THE REVIEW SCRIPT REPORTED A CLEAN ROUND OVER A ROUND THAT NEVER RAN.** Round 13
+printed `total FINDINGS: 0` — and on inspection **only three of five batches had
+produced any output at all**. The cause was in the tool: it incremented
+`failedBatches` and **never checked it**, and skipped an empty answer with a bare
+`continue`. So a batch that returned nothing was indistinguishable from a batch
+that found nothing.
+
+That is the exact failure this round has spent twelve iterations documenting —
+*a green number standing in for work that never happened* — committed by the very
+tool meant to detect it, and I nearly accepted `FINDINGS: 0` as the completion
+condition. The script now reports `batches answered: N/M` and fails loudly when a
+round is incomplete.
+
+**And under it, the e2e capture had been DYING since iteration 12.** No
+`manifest.json`, no frames after the Federal Building: the harness still waited on
+`.sm-screen--fleet .sm-menu`, the selector my own fleet change had made
+unproducible. Eight of twenty-six screens were never captured, and the review
+reviewed the eighteen that happened to exist. Fixed; the capture is whole again
+(26 screens, "no problems").
+
+- **THE GAME WAS SPEAKING TWO DIALECTS.** "Armor" and "armour" appeared **on
+  adjacent HUD lines** — `{facing} armor {current} of {max}` directly above
+  `{facing}: no armour fitted` — and a section header "ARMOUR" sat over rows
+  labelled "Armor: Front". Flagged in two different screens in one round, and
+  right both times. **American is correct here and not a matter of taste:** this is
+  a recreation of a 1985 American game by Origin Systems, set in American cities,
+  so the British spellings were the outliers. Thirteen value occurrences
+  normalised; **key names left alone** (`ui.builder.section.armour` is an
+  identifier, and identifiers are not prose).
+
+  The rename had a trap in it. `{armour}` -> `{armor}` is a **placeholder**
+  change, and a renamed placeholder with an un-renamed argument renders as a
+  *blank*, not an error — `builder-preview.ts` was already passing `armor:` for a
+  `{armour}` slot, so that caption was quietly broken before this change. Both
+  captions are now asserted with real values, and the mutation that breaks an
+  argument name is caught by the repo's existing `MissingStringParamError`
+  machinery.
+
+  A test had also **pinned the British spelling** (`toMatch(/armour/i)`) — the same
+  class as the road test that drove with `KeyD` because a bug made `KeyD` work:
+  the test described the defect instead of the requirement.
+
+- **THE CITY HUD PAINTED ON TOP OF OPEN PANELS.** Nothing in `app.ts` sets a
+  z-index, so every overlay stacked on DOM order alone — and the city's status
+  banner is appended after the panel host, so it drew over it. On the Weapon Shop
+  (the longest menu in the game) the card's top border cut straight through the
+  word "gate". `panelHost` now sets `z-index: 40`: a scrim that renders *under* the
+  HUD it exists to dim is not a scrim. Verified in the frame — the banner is now
+  dimmed behind the panel.
+
+- **THE RADAR MARKER CLAIM IS FALSE FOR THE FOURTH TIME.** The frame shows the
+  triangle pointing **right**, and the heading has been measured four times
+  (`90° -> 48.39° -> 45°`, holding 0° across 4.8s at 48mph on production). At
+  this point the honest characterisation is that this specific claim is not
+  evidence about the code.
+
+### Two items recorded with their cost, not patched
+
+- **The sticky footer over a scrolling list.** A row passing under a pinned footer
+  is what sticky footers *do*; the reviewer reads it as clipping. Mitigated three
+  ways — opaque background (was 92% alpha), a shadow so the bar reads as a layer,
+  and real clearance at the list's end, gated in a real browser. Making the footer
+  non-overlay would restore the defect three rounds of review reported: the hint
+  telling you how to leave scrolling away first. **The current behaviour is the
+  deliberate choice.**
+- **Vertical banding in the road asphalt.** Real, subtle, and **located**: the
+  ground shader's second detail scale is cross-faded in 9m patches, and the patch
+  boundaries are what shows. Not fixed at the end of a very long session
+  because a ground-shader change wants its own visual regression pass and a green
+  suite is not evidence about a texture.
+
+- **GATE.** 1629/1629 across three parallel and one serial run; browser **8/8**;
+  `tsc` and `vite build` clean; the spelling guard and the footer-clearance gate
+  both mutation-proven.
