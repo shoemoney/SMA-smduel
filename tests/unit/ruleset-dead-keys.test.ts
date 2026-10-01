@@ -206,7 +206,8 @@ const KNOWN_UNREAD: Readonly<Record<string, string>> = {
   'salvageCountsAsPayload': 'declared, not modelled: payloadSlotsUsed() has no salvage branch',
   'services.storeCar.paidOnRetrieval': 'a documentation field - the fee is read from retrieveCar.price, per the comments at sim/fleet.ts:38 and sim/services.ts:231',
   'latePayDecayPerDay': 'declared, not modelled: no late-pay decay is applied to courier pay',
-  'collisionArmorLossSpeedMph': 'declared, not modelled: applyCollision uses its own speed rule',
+  '_reconstruction.collisionArmorLossSpeedMph':
+    'an exact DUPLICATE of driving.collision.armorLossSpeedMph, which is 25 in both files and is the copy applyCollision() actually reads (sim/driving.ts). Two owners for one rule: tuning the driving.json value leaves this one stale and nothing would notice, because nothing reads it. Remove this one rather than wire it.',
   'weapons.damageSkillDivisor': 'declared, not modelled: weapon damage does not scale by marksmanship',
   'driver.bodyArmorRepairable': 'declared, not modelled: the garage repairs body armour unconditionally',
   'salvageSkillGainWeights': 'declared, not modelled: searchWreck grants no skill gain',
