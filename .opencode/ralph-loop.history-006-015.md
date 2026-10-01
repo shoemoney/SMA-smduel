@@ -116,3 +116,38 @@ runs, browser **8/8**, `tsc` and `vite build` clean, both mutation-proven layout
 gates green, and an e2e capture of all **26** screens reached by playing with zero
 problems. The final review round answered **5 of 5 batches with no actionable
 input** — a clean round that actually ran, which is the only kind worth having.
+
+## Addendum — what five review rounds found that one never did
+
+Running the reviewer **five times over the same capture** separated stable findings
+from noise in a way a single round cannot. Twenty-five batches answered, six
+findings, and they collapsed into:
+
+| Theme | Rounds | Verdict |
+|---|---|---|
+| Panel card overlaps the city banner | 3/5 | **Real.** Measured: banner spans y≈8–71, card top y=56 — a 15px overlap. Fixed by hiding the banner while a panel is open. |
+| Weapon Shop clips into the footer | 2/5 | Known, already mitigated and gated |
+| Radar marker ignores heading | 1/5 | One-off; falsified four times by measurement |
+
+And after that fix, five MORE rounds surfaced a defect one round had missed:
+
+**The Controls screen showed `$0` instead of the player's money.** `showControls`
+hardcoded `cash: 0` while being reachable from the title, the city and the road —
+so both in-game paths showed a zero balance beside a driver carrying real cash, in
+a status line whose only job is to tell the truth. Now `$1,029` on the same path
+that showed `$0`, with a source-level guard so a hardcoded zero cannot return.
+
+**The lesson generalises: agreement across repeated runs is evidence, and a single
+run is a sample.** The banner overlap appeared in three of five rounds and was real
+in all three; the radar claim appeared in one of five and was false. I had already
+"falsified" the banner overlap once — by measuring the wrong element. Repeating the
+*measurement* would not have helped me; repeating the *review* is what told me which
+claim to re-measure.
+
+### Known load-sensitive test
+
+`road trip menu > Save and quit leaves the trip RESUMABLE` fails intermittently
+**only when the suite runs concurrently with other work**, and passes 6/6 in
+isolation and in five consecutive solo full runs. Its failing runs cluster at
+~4.9s, right at the timeout. This is the starvation class documented above, it is
+pre-existing, and it is a test-isolation weakness rather than a product defect.

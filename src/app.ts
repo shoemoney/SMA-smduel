@@ -976,7 +976,18 @@ function controlsMenuActions(awaitingActionId: string | null): MenuAction[] {
   return actions;
 }
 
-function showControls(root: HTMLElement, onExit: () => void): void {
+/**
+ * The Controls screen.
+ *
+ * `cash` is passed in rather than hardcoded because this screen is reachable
+ * from THREE places and only one of them has no driver: the title (nothing to
+ * show, 0 is honest), the city, and the road. It rendered `cash: 0`
+ * unconditionally, so opening Controls mid-game — from the city or from a
+ * roadside pause — showed `$0` next to a player carrying real money, in a status
+ * line whose entire job is to state the truth. An advisory review found this in
+ * two of five rounds by reading the header in a frame.
+ */
+function showControls(root: HTMLElement, onExit: () => void, cash = 0): void {
   const container = el('div', 'sm-screen sm-screen--controls');
   container.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
   const menuHost = el('div');
@@ -995,7 +1006,7 @@ function showControls(root: HTMLElement, onExit: () => void): void {
 
   const mounted = mountMenu({
     container: menuHost,
-    header: { cash: 0, dayIndex: clock.dayIndex, phase: clock.phase, cityName: t('ui.title.controls') },
+    header: { cash, dayIndex: clock.dayIndex, phase: clock.phase, cityName: t('ui.title.controls') },
     actions: controlsMenuActions(awaitingActionId),
     onActivate: (id) => {
       if (id === LEAVE_ACTION_ID) {
@@ -4284,7 +4295,9 @@ export function showArenaEvent(
           // `progressMiles` is re-derived every tick and a hand-set value does
           // not survive contact with the simulation. Here `world` is not
           // re-derivable at all, so the live refs are the only honest source.
-          showControls(root, () =>
+          showControls(
+            root,
+            () =>
             showArenaEvent(
               root,
               driverRef.current,
@@ -4294,6 +4307,9 @@ export function showArenaEvent(
               cityState,
               onComplete,
             ),
+            // The live driver's cash, from the same ref the arena is given — so
+            // the header cannot disagree with the game it was opened from.
+            driverRef.current.cash,
           );
           return;
         }
@@ -7173,7 +7189,7 @@ function showRoad(
           // The controls screen mounts over `root`, so the road is torn down
           // with it; returning re-runs the whole road screen from `trip`, which
           // is still the live trip state and not a re-derivation.
-          showControls(root, () => showRoad(root, state, trip, onArrive, onExitToTitle));
+          showControls(root, () => showRoad(root, state, trip, onArrive, onExitToTitle), driver.cash);
           return;
         }
         if (id === 'save-quit') {

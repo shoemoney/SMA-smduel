@@ -347,3 +347,45 @@ describe('README.md — its own structure holds together', () => {
     }
   });
 });
+
+describe('the Controls screen never lies about the player\'s money', () => {
+  // Reported in two of five advisory review rounds, by reading the header in a
+  // frame: "Controls menu header displays incorrect cash balance ($0 instead of
+  // $5)". Real, and structural: `showControls` hardcoded `cash: 0` while being
+  // reachable from the TITLE, the CITY and the ROAD — so the two in-game paths
+  // showed a balance of zero beside a player carrying real money, in a status
+  // line whose entire job is to state the truth.
+  //
+  // Asserted on the SOURCE rather than on a rendered header, because the title
+  // path legitimately shows $0 and a rendering-only test cannot tell a correct
+  // zero from a hardcoded one.
+  const APP = readFileSync(new URL('../../src/app.ts', import.meta.url), 'utf8');
+
+  it('takes cash as a parameter instead of hardcoding it', () => {
+    // Matched with `[\s\S]*?` because the signature contains `() => void`, and a
+    // `[^)]*` character class stops at that first paren.
+    expect(APP).toMatch(/function showControls\([\s\S]*?cash\s*=\s*0\)/);
+    const header = /function showControls\([\s\S]*?header:\s*\{[^}]*\}/.exec(APP)?.[0] ?? '';
+    expect(header, 'the Controls header should use the parameter').toContain('cash');
+    expect(header, 'the Controls header must not hardcode a balance').not.toMatch(/cash:\s*0\b/);
+  });
+
+  it('passes a real balance from every call site that has a driver', () => {
+    // The DECLARATION is removed first, because `showControls(` matches it too and
+    // a declaration is not a call site. An earlier version of this matched the
+    // declaration and then failed on a call that was perfectly correct.
+    const callsOnly = APP.replace(/function showControls\([\s\S]*?\n\}/, '');
+    const calls = [...callsOnly.matchAll(/showControls\(([\s\S]*?)\);/g)].map((m) => m[1] ?? '');
+    expect(calls.length, 'expected the showControls call sites').toBeGreaterThanOrEqual(3);
+    // A call that returns to the TITLE has no driver, so $0 is the truth there.
+    // Every OTHER call must carry a balance: those are the city, arena and road
+    // paths, and each of them was reported by a reviewer before this test existed.
+    const inGame = calls.filter((c) => !/showTitle\(/.test(c));
+    const title = calls.filter((c) => /showTitle\(/.test(c));
+    expect(title.length, 'the title path should still reach Controls').toBeGreaterThan(0);
+    expect(inGame.length, 'expected at least one in-game Controls call').toBeGreaterThan(0);
+    for (const c of inGame) {
+      expect(c, `an in-game showControls call carries no balance:\n${c}`).toMatch(/cash/);
+    }
+  });
+});
