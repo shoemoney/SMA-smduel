@@ -120,14 +120,6 @@ export function pickRumorId(rng: Rng): RumorId {
   return rng.pick(RUMOR_IDS);
 }
 
-export function withDriver(ctx: BuildingContext, driver: DriverState): BuildingContext {
-  return { ...ctx, driver };
-}
-
-export function withVehicle(ctx: BuildingContext, vehicle: VehicleState | null): BuildingContext {
-  return { ...ctx, vehicle };
-}
-
 // ---------------------------------------------------------------------------
 // Header / open-hours
 // ---------------------------------------------------------------------------
@@ -164,10 +156,6 @@ export function insufficientFundsReason(price: number, cash: number): string {
 
 export function servicePrice(serviceId: ServiceId): number {
   return economy().services[serviceId].price;
-}
-
-export function serviceDays(serviceId: ServiceId): number {
-  return economy().services[serviceId].days;
 }
 
 /** "{name} — $price" — the one label template every priced action uses, so pricing text lives in exactly one strings.json entry. */
@@ -249,11 +237,6 @@ export function cargoConditionFraction(cargo: CargoState): number {
 // ---------------------------------------------------------------------------
 
 export { routesFrom, neighbourCityOf as destinationCityOf } from '@/sim/world-map';
-
-/** `cargo.integrity`'s full-scale value (economy.json `_reconstruction.cargoFullIntegrity`) — the same scale `@/sim/economy`'s `salvageRoll` stamps a freshly-recovered item at. */
-export function fullCargoIntegrity(): number {
-  return economy()._reconstruction.cargoFullIntegrity;
-}
 
 // ---------------------------------------------------------------------------
 // couriers.json — not one of the nine files @/data/rulesets loads/validates

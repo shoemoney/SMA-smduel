@@ -42,8 +42,6 @@ import encountersJson from '@rulesets/classic/encounters.json';
 /** Every faction id the road can hand a contact. `pursuer` is campaign-only (docs/SPEC.md "Campaign") and never comes out of `generateRouteContacts`. */
 export type FactionId = 'civilian' | 'courier' | 'arenatraveller' | 'vigilante' | 'outlaw' | 'pursuer';
 
-const FACTION_IDS = ['civilian', 'courier', 'arenatraveller', 'vigilante', 'outlaw', 'pursuer'] as const satisfies readonly FactionId[];
-
 /** Factions `dangerLevels[n].factionWeights` actually draws from — every id except campaign-only `pursuer`. */
 const ROUTE_FACTION_IDS = ['civilian', 'courier', 'arenatraveller', 'vigilante', 'outlaw'] as const;
 type RouteFactionId = (typeof ROUTE_FACTION_IDS)[number];
@@ -216,10 +214,6 @@ export function getFaction(id: FactionId): RouteFaction {
   return faction;
 }
 
-export function allFactionIds(): readonly FactionId[] {
-  return FACTION_IDS;
-}
-
 const dangerIndex: ReadonlyMap<number, DangerLevelDef> = new Map(ENCOUNTERS.dangerLevels.map((tier) => [tier.danger, tier]));
 
 export class UnknownDangerLevelError extends Error {
@@ -233,10 +227,6 @@ export function dangerLevel(danger: number): DangerLevelDef {
   const tier = dangerIndex.get(danger);
   if (tier === undefined) throw new UnknownDangerLevelError(danger);
   return tier;
-}
-
-export function salvageConfig(): SalvageConfig {
-  return ENCOUNTERS.salvage;
 }
 
 // ---------------------------------------------------------------------------

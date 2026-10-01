@@ -285,13 +285,6 @@
   opacity: 0.8;
 }
 
-/* A two-up grid for the facing rows, so five facings read as a block. */
-.sm-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 14px;
-}
-
 /* --- Inline fields --------------------------------------------------------
  *
  * A compact box for the end of a row that already names the thing. The

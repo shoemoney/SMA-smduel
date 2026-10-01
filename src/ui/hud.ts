@@ -40,37 +40,6 @@ export interface HudDocument {
   createElement(tag: string): HudElement;
 }
 
-class DomHudElement implements HudElement {
-  constructor(private readonly el: Element) {}
-  get tagName(): string {
-    return this.el.tagName;
-  }
-  setAttribute(name: string, value: string): void {
-    this.el.setAttribute(name, value);
-  }
-  appendChild(child: HudElement): void {
-    if (child instanceof DomHudElement) this.el.appendChild(child.el);
-  }
-  clearChildren(): void {
-    while (this.el.firstChild) this.el.removeChild(this.el.firstChild);
-  }
-  setText(text: string): void {
-    this.el.textContent = text;
-  }
-  addEventListener(type: string, handler: () => void): void {
-    this.el.addEventListener(type, handler);
-  }
-}
-
-/** Wrap a real (or DOM-shimmed) `Document` for production use. */
-export function createBrowserHudDocument(doc: Document): HudDocument {
-  return {
-    createElement(tag: string): HudElement {
-      return new DomHudElement(doc.createElement(tag));
-    },
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Snapshot contract
 // ---------------------------------------------------------------------------

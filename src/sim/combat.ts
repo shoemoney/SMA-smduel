@@ -296,10 +296,6 @@ export function projectileExpired(projectile: ProjectileState): boolean {
   return projectile.traveledM >= projectile.maxRangeM;
 }
 
-export function projectileReachedPoint(projectile: ProjectileState, point: Vec2, hitRadiusM: number): boolean {
-  return vecLength(subtractVec(point, projectile.position)) <= hitRadiusM;
-}
-
 export interface DeployableState {
   readonly id: string;
   readonly ownerId: string;
@@ -509,7 +505,3 @@ export function applyResolvedShot(
   return { target: { vehicle, driver }, report };
 }
 
-/** The driver's death is the one defeat condition this module can determine on its own. */
-export function isDriverDefeated(driver: DriverState): boolean {
-  return driver.naturalHealth <= 0;
-}

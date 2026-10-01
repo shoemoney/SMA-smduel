@@ -138,16 +138,6 @@
   color: var(--ui-ink-dim);
   transition: color 140ms ease;
 }
-/* The facing chevron sits just inside the shield's own slot, so the pair reads
- * as one mark rather than two icons of equal weight. */
-.sm-builder__row-icon--dir {
-  display: block;
-  width: 11px;
-  height: 11px;
-  margin-right: -4px;
-  color: var(--ui-accent);
-  opacity: 0.8;
-}
 .sm-builder__row--selected .sm-builder__row-icon { color: var(--ui-accent); }
 .sm-builder__row--needs-input .sm-builder__row-icon { color: var(--ui-damaged); }
 

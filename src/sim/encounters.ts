@@ -210,10 +210,6 @@ export function allEncounterArchetypes(): readonly EncounterArchetype[] {
   return ARCHETYPES;
 }
 
-export function repopulationConfig(): RepopulationConfig {
-  return REPOPULATION;
-}
-
 // ---------------------------------------------------------------------------
 // Archetype selection — respects BOTH the contact's faction and the route's
 // (effective) danger level.

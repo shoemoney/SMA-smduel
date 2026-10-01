@@ -359,16 +359,6 @@ export function describeAction(bindings: AllBindings, preset: PresetName, action
 }
 
 /**
- * The shortcut ids the city screen honours, in the order the status line lists
- * them. Derived from `CONTROLS.cityShortcuts` rather than typed, so adding a
- * fourth shortcut to the ruleset makes it appear here automatically instead of
- * silently going unhinted — which is precisely how `J journal · F fleet` ended
- * up hardcoded in the first place.
- */
-export function cityShortcutIds(): string[] {
-  return Object.keys(CONTROLS.cityShortcuts);
-}
-
 /** One city shortcut's keys as a label — `journal` reads "J". Same rule as `describeAction`: generated from the live table, never a literal. */
 export function describeCityShortcut(shortcutId: string): string {
   return (CONTROLS.cityShortcuts[shortcutId] ?? []).map(keyLabel).join('/');

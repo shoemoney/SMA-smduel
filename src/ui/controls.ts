@@ -272,11 +272,6 @@ export function ignitionButton(options: IgnitionOptions): HTMLButtonElement {
   return button;
 }
 
-/** Fires the cancel hook above. Named so the intent is greppable from a screen. */
-export function cancelIgnition(button: HTMLButtonElement): void {
-  button.dispatchEvent(new CustomEvent('sm-ignition:cancel'));
-}
-
 /** A plain themed button, for the ordinary actions that are not an ignition. */
 export function button(
   label: string,

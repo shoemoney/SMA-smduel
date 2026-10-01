@@ -588,19 +588,6 @@ export const citiesSchema: SchemaObject = obj(
   ['$schemaVersion', 'facilityKinds', 'cities', 'routes', 'championships'],
 );
 
-export const RULESET_SCHEMAS: Readonly<Record<RulesetFileName, SchemaObject>> = {
-  bodies: bodiesSchema,
-  chassis: chassisSchema,
-  suspension: suspensionSchema,
-  plants: plantsSchema,
-  tires: tiresSchema,
-  weapons: weaponsSchema,
-  economy: economySchema,
-  skills: skillsSchema,
-  driving: drivingSchema,
-  cities: citiesSchema,
-};
-
 // ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------

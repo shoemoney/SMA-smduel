@@ -153,8 +153,7 @@
       }
       /* ONE rule for the whole card: bold text is yellow, regular text is
          white. Stated once so the four lines cannot disagree about it. */
-      .sm-boot__tribute-line strong,
-      .sm-boot__tribute-sign {
+      .sm-boot__tribute-line strong {
         color: #ffd23f;
         font-weight: 700;
       }
@@ -162,12 +161,6 @@
         width: min(340px, 62vw);
         height: 1px;
         background: linear-gradient(90deg, transparent, rgba(255, 210, 63, 0.55), transparent);
-      }
-      .sm-boot__tribute-sign {
-        font-family: var(--ui-font-display);
-        font-size: clamp(12px, 2.6vw, 18px);
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
       }
       @media (prefers-reduced-motion: reduce) {
         .sm-boot__tribute,

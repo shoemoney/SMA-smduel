@@ -19,10 +19,6 @@ export const BODY_CLASSES = ['automobile', 'cargo'] as const satisfies readonly 
 export const WEAPON_MODES = ['PROJECTILE', 'HITSCAN', 'CONE', 'DEPLOYABLE'] as const satisfies readonly WeaponMode[];
 export const SKILL_NAMES = ['driving', 'marksmanship', 'mechanic'] as const satisfies readonly SkillName[];
 
-export function isFacing(value: unknown): value is Facing {
-  return typeof value === 'string' && (FACINGS as readonly string[]).includes(value);
-}
-
 export interface Vec2 {
   x: number;
   y: number;

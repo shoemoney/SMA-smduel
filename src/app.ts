@@ -553,10 +553,6 @@ export function currentSessionSeed(): string | null {
 let currentControlPreset: PresetName = CONTROLS.presets[0] ?? 'classic';
 let currentControlBindings: AllBindings = defaultBindings();
 
-export function currentControls(): { readonly preset: PresetName; readonly bindings: AllBindings } {
-  return { preset: currentControlPreset, bindings: currentControlBindings };
-}
-
 /** Restores a previously-saved preset/bindings pair (see `persistArenaSession`'s save and `resumeSession`'s load below) — never re-derived, exactly like a restored session seed. */
 export function restoreControls(preset: PresetName, bindings: AllBindings): void {
   currentControlPreset = preset;

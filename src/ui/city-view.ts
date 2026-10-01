@@ -155,13 +155,6 @@ export const CITY_GROUND_POOL = 'city';
 /** The plaza is centred on the world origin (`@/sim/city` lays every doorway out as `radius * (cos, sin)` and never offsets the centre). */
 export const CITY_GROUND_CENTER_M: Vec2 = { x: 0, y: 0 };
 /**
- * Ground cell edge, in metres. Deliberately NOT `layout.tileSizeM` (3m): at
- * `app.ts`'s 14 CSS px/m a 3m cell is 42 screen px showing a 256px tile, and
- * the city sampler is `nearest`, so 3m cells minify ~6x into speckle. 5m
- * lands at 70px — 3.7x — and still gives ~4 cells across the widest plaza.
- */
-export const CITY_GROUND_CELL_SIZE_M = 8;
-/**
  * Half-extent of the ground field, in metres. The old grid covered only
  * `boundsRadiusM + tileSizeM` (~13.6m for New York) while the camera at
  * 14 px/m sees ~69m of half-width on a 1920px viewport — that mismatch is the
@@ -169,11 +162,6 @@ export const CITY_GROUND_CELL_SIZE_M = 8;
  * full zoom; the field is world-aligned, so it never crawls as the camera pans.
  */
 export const CITY_GROUND_HALF_EXTENT_M = 60;
-/** Per-cell brightness jitter; breaks up the flat value a 5-frame/4-rotation/2-flip pool otherwise has. */
-export const CITY_GROUND_VALUE_JITTER = 0.06;
-/** Distinct from `@/render/ground`'s own default salt so the city field is not a clone of the road/arena one. */
-export const CITY_GROUND_SALT = 0x0c17b1a5;
-
 // ---------------------------------------------------------------------------
 // Contact shadows
 // ---------------------------------------------------------------------------
