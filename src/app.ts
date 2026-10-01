@@ -6975,7 +6975,13 @@ function showRoad(
         cash: driver.cash,
         dayIndex: trip.clock.dayIndex,
         phase: trip.clock.phase,
-        cityName: cityName(trip.resolved.originCityId),
+        // Origin AND destination, not just the origin. An advisory review read
+        // this as a stale readout: pausing halfway to Albany showed "New York",
+        // which is the city the player LEFT and says nothing about where they
+        // are going. `→` is used rather than an en-dash because the header is
+        // already a `place` suffix on one line and an arrow is unambiguous at a
+        // glance in a way "A - B" is not.
+        cityName: `${cityName(trip.resolved.originCityId)} \u2192 ${cityName(trip.resolved.destinationCityId)}`,
       },
       actions,
       onActivate: (id) => {

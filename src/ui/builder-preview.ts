@@ -83,11 +83,27 @@ export function buildVehiclePreviewParts(state: BuilderState): VehiclePreviewPar
     widthPx: widthM * PX_PER_M + PAD * 2,
     heightPx: lengthM * PX_PER_M + PAD * 2,
     // The rotated content's bounding box, DERIVED from the rotation above
-    // rather than measured off a screenshot. Rotating the drawing frame a
-    // quarter turn clockwise about its own centre maps a point (x, y) to
-    // (w - y, h/2 + x - w/2), so the content spans x in [w-h, w] and y in
-    // [h/2 - w/2, h/2 + w/2] — which is where this viewBox starts.
-    viewBox: `${widthM * PX_PER_M + PAD * 2 - (lengthM * PX_PER_M + PAD * 2)} ${(lengthM * PX_PER_M + PAD * 2) / 2 - (widthM * PX_PER_M + PAD * 2) / 2} ${lengthM * PX_PER_M + PAD * 2} ${widthM * PX_PER_M + PAD * 2}`,
+    // rather than measured off a screenshot. A quarter turn about the CENTRE
+    // maps a w x h drawing to an h x w box that is still centred on the same
+    // point, so the content spans x in [(w-h)/2, (w+h)/2] and y in
+    // [h/2-w/2, h/2+w/2].
+    //
+    // The x origin was `(w-h)`, not `(w-h)/2` — twice the correct offset — which
+    // pushed the whole car right until it overflowed the panel. An advisory
+    // review reported the schematic as "shifted right and clipped" in three
+    // consecutive rounds and was believed in NONE of them, twice on the strength
+    // of a measurement that compared the wrong two things:
+    //
+    //   - the SVG ELEMENT's box against its parent, which is symmetric (-9/-9)
+    //     and says nothing about where the car sits INSIDE the viewBox; and
+    //   - `getBBox()` against the viewBox, which ignores ancestor transforms,
+    //     so it compared the portrait car against a landscape viewBox.
+    //
+    // Measured in SCREEN SPACE, where both sides share one coordinate system,
+    // the defect was unambiguous: the car sat 161px (31% of the panel) from the
+    // left edge and overflowed the right by 124px, while top and bottom were
+    // symmetric at 29px — which is what localised it to the x origin alone.
+    viewBox: `${((widthM * PX_PER_M + PAD * 2 - (lengthM * PX_PER_M + PAD * 2)) / 2).toFixed(2)} ${((lengthM * PX_PER_M + PAD * 2) / 2 - (widthM * PX_PER_M + PAD * 2) / 2).toFixed(2)} ${(lengthM * PX_PER_M + PAD * 2).toFixed(2)} ${(widthM * PX_PER_M + PAD * 2).toFixed(2)}`,
     data: {
       bodyId: body.id,
       lengthM,
